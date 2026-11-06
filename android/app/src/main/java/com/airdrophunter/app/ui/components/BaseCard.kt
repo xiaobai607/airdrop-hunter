@@ -16,7 +16,7 @@ import com.airdrophunter.app.ui.theme.AppColors
 @Composable
 fun BaseCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Card(
-        modifier = modifier.fillMaxWidth().shadow(10.dp, RoundedCornerShape(16.dp), ambientColor = AppColors.Primary.copy(alpha = 0.06f), spotColor = AppColors.Primary.copy(alpha = 0.08f)),
+        modifier = modifier.fillMaxWidth().shadow(10.dp, RoundedCornerShape(24.dp), ambientColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.25f), spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.25f)),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
         border = BorderStroke(1.dp, AppColors.Border)

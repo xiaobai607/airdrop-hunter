@@ -24,7 +24,7 @@ fun ProfileScreen(modifier: Modifier = Modifier, onLogout: () -> Unit, vm: Profi
 
     LaunchedEffect(Unit) { vm.load() }
 
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp, 16.dp, 24.dp, 32.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text(stringResource(R.string.profile_title), style = MaterialTheme.typography.headlineSmall, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.earnings_title), style = MaterialTheme.typography.titleMedium, color = AppColors.TextSecondary, modifier = Modifier.padding(top = 8.dp))
@@ -46,7 +46,7 @@ fun ProfileScreen(modifier: Modifier = Modifier, onLogout: () -> Unit, vm: Profi
             item { Text("${stringResource(R.string.project_count)}: ${stats.project_count}", color = AppColors.TextSecondary) }
         }
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border), shape = RoundedCornerShape(16.dp)) {
+            Card(colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border), shape = RoundedCornerShape(24.dp)) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.wallet_sync_title), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(publicKey, { publicKey = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.wallet_address_hint)) }, singleLine = true)

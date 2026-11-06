@@ -119,7 +119,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                             }
                         }
                     }, enabled = !loading && email.isNotBlank() && password.length >= 8 && (!register || verificationCode.length == 6),
-                        modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary, contentColor = AppColors.Background)) {
                         Text(if (loading) stringResource(R.string.please_wait) else stringResource(if (register) R.string.register else R.string.login),
                             fontWeight = FontWeight.Bold)
