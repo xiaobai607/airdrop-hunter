@@ -9,17 +9,17 @@ def auth(client):
     assert response.status_code == 201
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
-def test_wallet_sync_is_authenticated_and_user_scoped():
+def test_wallet_address_save_is_authenticated_and_user_scoped():
     with TestClient(app) as client:
         alice, bob = auth(client), auth(client)
         address = "11111111111111111111111111111111"
         assert client.get("/api/wallet/sync", params={"public_key": address}).status_code == 401
-        synced = client.get("/api/wallet/sync", params={"public_key": address}, headers=alice)
-        assert synced.status_code == 200
-        body = synced.json()
-        assert body["status"] == "simulated"
-        assert body["daily_gas_usd"] >= 0
-        assert body["recent_airdrop_income_usd"] >= 0
+        saved = client.get("/api/wallet/sync", params={"public_key": address}, headers=alice)
+        assert saved.status_code == 200
+        body = saved.json()
+        assert body["status"] == "saved"
+        assert body["daily_gas_usd"] == 0
+        assert body["recent_airdrop_income_usd"] == 0
         assert len(client.get("/api/wallet", headers=alice).json()) == 1
         assert client.get("/api/wallet", headers=bob).json() == []
 

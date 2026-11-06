@@ -2,14 +2,13 @@ package com.airdrophunter.app
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.airdrophunter.app.data.AirdropHubDto
 import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.AirdropHubDto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
 
 data class AirdropHubUiState(
     val isLoading: Boolean = false,
@@ -39,39 +38,21 @@ class AirdropHubViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
                 var projects = ApiClient.service.getAirdropHub(if (chain == "全部") null else chain)
-                var syncStatus = runCatching { ApiClient.service.getAirdropHubStatus() }.getOrNull()
-                // First visit triggers one import attempt when the database has never been seeded.
+                val syncStatus = runCatching { ApiClient.service.getAirdropHubStatus() }.getOrNull()
                 if (projects.isEmpty() && syncStatus?.last_attempt_at == null) {
-                    try {
-                        ApiClient.service.refreshAirdropHub()
-                        projects = ApiClient.service.getAirdropHub(if (chain == "全部") null else chain)
-                        syncStatus = runCatching { ApiClient.service.getAirdropHubStatus() }.getOrNull()
-                    } catch (refreshError: Exception) {
-                        syncStatus = runCatching { ApiClient.service.getAirdropHubStatus() }.getOrNull()
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            projects = projects,
-                            error = (refreshError as? HttpException)?.response()?.errorBody()?.string()
-                                ?: refreshError.message ?: "数据源暂时不可用，请点击重试。",
-                            sourceError = syncStatus?.error
-                        )
-                        return@launch
-                    }
+                    ApiClient.service.syncAirdrops()
+                    projects = ApiClient.service.getAirdropHub(if (chain == "全部") null else chain)
                 }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     projects = projects,
-                    error = if (projects.isEmpty() && syncStatus?.error != null) syncStatus.error
-                        else if (projects.isEmpty()) "当前数据列表为空，请点击刷新重试。"
-                        else null,
+                    error = if (projects.isEmpty()) "数据库中暂无项目。可点击刷新同步公开数据源。" else null,
                     sourceError = syncStatus?.error
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (error: Exception) {
-                val message = (error as? HttpException)?.response()?.errorBody()?.string()
-                    ?: error.message ?: "读取空投大厅失败，请检查网络后重试。"
-                _uiState.value = _uiState.value.copy(isLoading = false, error = message)
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = "服务器繁忙，请稍后重试。")
             }
         }
     }
@@ -80,17 +61,18 @@ class AirdropHubViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
             try {
-                ApiClient.service.refreshAirdropHub()
+                ApiClient.service.syncAirdrops()
                 val chain = _uiState.value.selectedChain
                 val projects = ApiClient.service.getAirdropHub(if (chain == "全部") null else chain)
-                _uiState.value = _uiState.value.copy(isRefreshing = false, isLoading = false, projects = projects,
-                    error = if (projects.isEmpty()) "数据源已请求，但目前没有可展示的项目。" else null, sourceError = null)
+                _uiState.value = _uiState.value.copy(
+                    isRefreshing = false, isLoading = false, projects = projects,
+                    error = if (projects.isEmpty()) "同步已执行，但数据库中暂时没有可展示的项目。" else null,
+                    sourceError = null
+                )
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (error: Exception) {
-                val message = (error as? HttpException)?.response()?.errorBody()?.string()
-                    ?: error.message ?: "数据源暂时不可用，请稍后重试。"
-                _uiState.value = _uiState.value.copy(isRefreshing = false, error = message)
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(isRefreshing = false, error = "服务器繁忙，请稍后重试。")
             }
         }
     }

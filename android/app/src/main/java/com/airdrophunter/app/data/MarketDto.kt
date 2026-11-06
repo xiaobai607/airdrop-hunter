@@ -16,7 +16,15 @@ data class CoinCreateRequest(val coinpaprika_id: String, val symbol: String, val
 data class TaskDto(val id: String, val project_id: String, val task_name: String, val is_completed: Boolean, val step_order: Int = 1)
 data class TaskCreateRequest(val task_name: String, val step_order: Int? = null)
 data class TaskUpdateRequest(val is_completed: Boolean)
-data class WalletCheckResponse(val address: String, val eligible: Boolean, val estimated_reward_usd: Double, val status: String, val notice: String)
+data class WalletCheckResponse(
+    val valid: Boolean,
+    val message: String,
+    val address: String? = null,
+    val chain: String? = null,
+    val eligibility_available: Boolean = false,
+    val eligible: Boolean? = null,
+    val estimated_reward_usd: Double? = null
+)
 data class WalletSyncResponse(val wallet_id: String, val public_key: String, val chain: String, val daily_gas_usd: Double, val recent_airdrop_income_usd: Double, val status: String, val notice: String)
 data class WalletDto(val id: String, val public_key: String, val chain: String, val daily_gas_usd: Double, val recent_airdrop_income_usd: Double, val last_synced_at: String?)
 data class StatsDto(
@@ -30,4 +38,10 @@ data class StatsDto(
     val project_gas_cost: Double = 0.0,
     val wallet_daily_gas: Double = 0.0,
     val wallet_airdrop_income: Double = 0.0
+)
+data class UserStatsDto(
+    val tracked_projects: Int = 0,
+    val completed_projects: Int = 0,
+    val total_actual_income: Double = 0.0,
+    val interaction_days: Int = 0
 )

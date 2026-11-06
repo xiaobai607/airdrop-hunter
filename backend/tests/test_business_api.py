@@ -27,10 +27,17 @@ def test_project_task_stats_are_user_scoped():
         stats=client.get("/api/stats",headers=alice).json()
         assert stats["total_actual_income"]==90 and stats["total_gas_cost"]==5
         assert client.get("/api/stats",headers=bob).json()["project_count"]==0
+        user_stats=client.get("/api/user/stats",headers=alice).json()
+        assert user_stats["tracked_projects"]==1
+        assert user_stats["completed_projects"]==0
+        assert user_stats["total_actual_income"]==90
+        assert user_stats["interaction_days"]==1
+        assert client.get("/api/user/stats",headers=bob).json()["tracked_projects"]==0
 
-def test_wallet_endpoint_returns_simulation_notice():
+def test_wallet_check_rejects_invalid_address_without_fabricated_reward():
     with TestClient(app) as client:
-        r=client.get("/api/wallet/check",params={"address":"11111111111111111111111111111111"})
+        r=client.get("/api/wallet/check",params={"address":"not-a-wallet-address-12345"})
         assert r.status_code==200
-        assert r.json()["status"]=="simulated"
-        assert "不代表真实" in r.json()["notice"]
+        assert r.json()["valid"] is False
+        assert r.json()["message"]=="地址格式错误或不存在"
+        assert r.json().get("estimated_reward_usd") is None

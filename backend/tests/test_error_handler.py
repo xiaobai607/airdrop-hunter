@@ -12,5 +12,5 @@ def test_unhandled_exception_returns_safe_message():
     }
     response = asyncio.run(unexpected_exception_handler(Request(scope), RuntimeError("sensitive internal detail")))
     assert response.status_code == 500
-    assert response.body == '{"detail":"服务器开小差了，请重试"}'.encode()
+    assert response.body == '{"detail":"服务器繁忙"}'.encode()
     assert b"sensitive internal detail" not in response.body

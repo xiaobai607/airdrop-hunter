@@ -11,7 +11,7 @@ from app.routers.wallet import router as wallet_router
 from app.api.tasks import router as tasks_router
 from app.api.stats import router as stats_router
 from app.api.airdrops import router as airdrops_router
-from app.api.airdrop_hub import router as airdrop_hub_router
+from app.api.airdrop_hub import router as airdrop_hub_router, sync_router as airdrop_sync_router
 from app.api.sources import router as sources_router
 from app.database import Base, engine
 from app import models  # noqa: F401
@@ -19,7 +19,7 @@ from app import models  # noqa: F401
 logger = logging.getLogger("airdrop_hunter.api")
 
 async def migrate_existing_schema() -> None:
-    """Idempotent additive migration. Existing rows are retained; no reset/reassignment."""
+    """Idempotent additive migration. Existing rows are retained."""
     statements = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id UUID",
@@ -65,14 +65,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     await engine.dispose()
 
-app = FastAPI(title="Airdrop Hunter API", version="0.6.0", description="Airdrop discovery, project tracking and market aggregation API.", lifespan=lifespan)
+app = FastAPI(title="Airdrop Hunter API", version="0.7.0", description="Airdrop discovery, project tracking and market aggregation API.", lifespan=lifespan)
 
 @app.exception_handler(Exception)
 async def unexpected_exception_handler(request: Request, exc: Exception):
     logger.error("Unhandled API error on %s %s", request.method, request.url.path, exc_info=(type(exc), exc, exc.__traceback__))
-    return JSONResponse(status_code=500, content={"detail": "服务器开小差了，请重试"})
+    return JSONResponse(status_code=500, content={"detail": "服务器繁忙"})
 
-for router in (auth_router, projects_router, market_router, wallet_router, tasks_router, stats_router, airdrops_router, airdrop_hub_router, sources_router):
+for router in (auth_router, projects_router, market_router, wallet_router, tasks_router, stats_router, airdrops_router, airdrop_hub_router, airdrop_sync_router, sources_router):
     app.include_router(router)
 
 @app.get("/health", tags=["system"])
