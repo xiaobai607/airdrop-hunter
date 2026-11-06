@@ -4,7 +4,7 @@ from app.main import app
 
 
 def make_auth(client, prefix):
-    username = f"{prefix}_{uuid4().hex[:12]}"
+    username = f"{prefix}{uuid4().hex[:12]}"
     response = client.post("/api/auth/register", json={
         "username": username, "password": "strong-password-123"
     })

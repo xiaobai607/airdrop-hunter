@@ -2,9 +2,13 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 from sqlalchemy import text
-from app.routers.auth import router as auth_router
+from app.routers.auth import router as auth_router, limiter
 from app.routers.projects import router as projects_router
 from app.routers.market import router as market_router
 from app.routers.wallet import router as wallet_router, wallets_router
@@ -92,6 +96,22 @@ app = FastAPI(
     description="Airdrop discovery, project tracking and wallet management API.",
     lifespan=lifespan,
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(RequestValidationError)
+async def auth_validation_exception_handler(request: Request, exc: RequestValidationError):
+    if request.url.path in ("/api/auth/register", "/api/auth/login") and request.method == "POST":
+        fields = {str(error.get("loc", [""])[-1]) for error in exc.errors()}
+        if "username" in fields:
+            detail = "账号只能由4到20位英文字母和数字组成"
+        elif "password" in fields:
+            detail = "密码长度必须为8到30位"
+        else:
+            detail = "账号或密码格式不正确"
+        return JSONResponse(status_code=400, content={"detail": detail})
+    return await request_validation_exception_handler(request, exc)
 
 
 @app.exception_handler(Exception)

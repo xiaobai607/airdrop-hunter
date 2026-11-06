@@ -4,7 +4,7 @@ from app.main import app
 
 
 def auth(client):
-    username = f"wallet_{uuid4().hex[:12]}"
+    username = f"wallet{uuid4().hex[:12]}"
     registered = client.post("/api/auth/register", json={
         "username": username, "password": "strong-password-123"
     })

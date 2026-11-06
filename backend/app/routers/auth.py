@@ -1,23 +1,41 @@
+import re
 import secrets
 from typing import Annotated
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from app.database import get_db
 from app.models import User
 from app.security import create_access_token, decode_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 bearer_scheme = HTTPBearer(auto_error=False)
+limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
 
 
 class AuthRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=24, pattern=r"^[A-Za-z0-9_]+$")
-    password: str = Field(min_length=8, max_length=128)
+    username: str
+    password: str
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, value: str) -> str:
+        if re.fullmatch(r"[A-Za-z0-9]{4,20}", value) is None:
+            raise ValueError("账号只能由4到20位英文字母和数字组成")
+        return value.lower()
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if not 8 <= len(value) <= 30:
+            raise ValueError("密码长度必须为8到30位")
+        return value
 
 
 class AuthResponse(BaseModel):
@@ -59,14 +77,17 @@ async def get_current_user(
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/hour")
+@limiter.limit("3/minute")
 async def register(
+    request: Request,
     payload: AuthRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AuthResponse:
-    username = payload.username.strip().lower()
+    username = payload.username
     existing = await db.scalar(select(User).where(User.username == username))
     if existing is not None:
-        raise HTTPException(400, "该账号已被占用")
+        raise HTTPException(400, "该账号已存在")
 
     # Six-digit IDs are allocated randomly and protected by a database unique index.
     for _ in range(10):
@@ -87,7 +108,7 @@ async def register(
             await db.rollback()
             duplicate = await db.scalar(select(User).where(User.username == username))
             if duplicate is not None:
-                raise HTTPException(400, "该账号已被占用")
+                raise HTTPException(400, "该账号已存在")
     raise HTTPException(503, "暂时无法分配用户编号，请稍后重试")
 
 
@@ -96,7 +117,7 @@ async def login(
     payload: AuthRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AuthResponse:
-    username = payload.username.strip().lower()
+    username = payload.username
     user = await db.scalar(select(User).where(User.username == username))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(401, "账号或密码错误", headers={"WWW-Authenticate": "Bearer"})
