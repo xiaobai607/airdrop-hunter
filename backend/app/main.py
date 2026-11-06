@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app.api.projects import router as projects_router
 from app.api.airdrops import router as airdrops_router
+from app.api.sources import router as sources_router
 from app.database import Base, engine
 # Import models so their tables are registered in Base.metadata before create_all.
 from app import models  # noqa: F401
@@ -28,6 +29,7 @@ app = FastAPI(
 
 app.include_router(projects_router)
 app.include_router(airdrops_router)
+app.include_router(sources_router)
 
 
 @app.get("/health", tags=["system"])
