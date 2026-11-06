@@ -30,6 +30,8 @@ import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -128,11 +130,22 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                 showAirdropHub -> AirdropHubScreen(Modifier.fillMaxSize())
                 showWalletManager -> WalletManagerScreen(
                     modifier = Modifier.fillMaxSize(),
-                    onOpenBrowser = { url, address, title ->
+                    onOpenBrowser = { url, selectedWallet, wallets, title ->
+                        val walletJson = JSONArray().apply {
+                            wallets.forEach { wallet ->
+                                put(JSONObject()
+                                    .put("id", wallet.id)
+                                    .put("chain", wallet.chain)
+                                    .put("network_icon", wallet.network_icon)
+                                    .put("wallet_name", wallet.wallet_name)
+                                    .put("address", wallet.address))
+                            }
+                        }.toString()
                         context.startActivity(Intent(context, BrowserActivity::class.java)
                             .putExtra(BrowserActivity.EXTRA_URL, url)
                             .putExtra(BrowserActivity.EXTRA_TITLE, title)
-                            .putExtra(BrowserActivity.EXTRA_PREFILL_ADDRESS, address))
+                            .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, walletJson)
+                            .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, selectedWallet.id))
                     }
                 )
                 selectedProject != null -> ProjectDetailScreen(selectedProject!!, Modifier.fillMaxSize())

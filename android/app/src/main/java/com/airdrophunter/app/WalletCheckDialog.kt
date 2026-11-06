@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun WalletCheckDialog(
     onDismiss: () -> Unit,
-    onOpenBrowser: (url: String, address: String, title: String) -> Unit
+    onOpenBrowser: (url: String, selectedWallet: WalletDto, wallets: List<WalletDto>, title: String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
@@ -101,7 +101,7 @@ fun WalletCheckDialog(
                                 error = verified.message
                             } else {
                                 val claim = ApiClient.service.getClaimUrl(project.id, wallet.id)
-                                onOpenBrowser(claim.url, wallet.address, project.name)
+                                onOpenBrowser(claim.url, wallet, wallets, project.name)
                             }
                         } catch (e: retrofit2.HttpException) {
                             error = if (e.code() == 409) "该项目尚未设置官方资格查询入口" else "服务器繁忙，请稍后重试"
