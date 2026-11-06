@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.ProjectDto
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +26,9 @@ class ProjectsViewModel : ViewModel() {
             try {
                 val projects = ApiClient.service.getProjects()
                 _uiState.value = ProjectsUiState(projects = projects)
+            } catch (error: CancellationException) {
+                // Preserve structured concurrency: never convert cancellation into UI error state.
+                throw error
             } catch (error: Exception) {
                 _uiState.value = ProjectsUiState(
                     error = error.message ?: "无法连接服务器，请检查后端地址和网络"
