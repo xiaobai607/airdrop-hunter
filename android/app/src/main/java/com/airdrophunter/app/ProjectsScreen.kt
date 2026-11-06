@@ -299,11 +299,6 @@ private fun ProjectCard(
             ) {
                 ProjectStatusChip(project.status)
                 Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    "ID  ${project.id.take(8)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = AppColors.TextSecondary
-                )
             }
         }
     }

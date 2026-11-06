@@ -1,158 +1,96 @@
 package com.airdrophunter.app
-
-import android.app.Activity
-import android.graphics.Color
-import android.graphics.Typeface
+import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.os.Bundle
-import android.view.Gravity
-import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import com.airdrophunter.app.ui.theme.AirdropHunterTheme
+import com.airdrophunter.app.ui.theme.AppColors
 
-/**
- * In-app browser for third-party websites.
- * Only HTTPS pages are loaded; local file access and mixed content are disabled.
- */
-class BrowserActivity : Activity() {
-
-    private lateinit var webView: WebView
-
+class BrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        val initialUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
-        val pageTitle = intent.getStringExtra(EXTRA_TITLE).orEmpty()
-
-        if (!isAllowedWebUrl(initialUrl)) {
-            Toast.makeText(this, "仅支持安全的 HTTPS 网站地址", Toast.LENGTH_LONG).show()
-            finish()
-            return
-        }
-
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(11, 14, 17))
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        }
-
-        val warning = TextView(this).apply {
-            text = "安全提示：本应用绝不索要私钥，请勿在网页中输入助记词！"
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.rgb(176, 35, 45))
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(16, 14, 16, 14)
-            contentDescription = "重要安全警告"
-        }
-        root.addView(
-            warning,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-
-        val heading = TextView(this).apply {
-            text = if (pageTitle.isBlank()) Uri.parse(initialUrl).host.orEmpty() else pageTitle
-            setTextColor(Color.rgb(245, 247, 250))
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding(16, 12, 16, 12)
-        }
-        root.addView(
-            heading,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-
-        webView = WebView(this).apply {
-            setBackgroundColor(Color.rgb(11, 14, 17))
-            settings.apply {
-                javaScriptEnabled = true
-                domStorageEnabled = true
-                allowFileAccess = false
-                allowContentAccess = false
-                javaScriptCanOpenWindowsAutomatically = false
-                setSupportMultipleWindows(false)
-                mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                safeBrowsingEnabled = true
-            }
-        }
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(
-                view: WebView?,
-                request: WebResourceRequest?
-            ): Boolean = !isAllowedWebUrl(request?.url?.toString().orEmpty())
-
-            @Suppress("DEPRECATION")
-            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean =
-                !isAllowedWebUrl(url.orEmpty())
-
-            override fun onReceivedSslError(
-                view: WebView?,
-                handler: android.webkit.SslErrorHandler?,
-                error: android.net.http.SslError?
-            ) {
-                handler?.cancel()
-            }
-        }
-        root.addView(
-            webView,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
-
-        setContentView(root)
-        webView.loadUrl(initialUrl)
+        val url = intent.getStringExtra(EXTRA_URL).orEmpty()
+        val site = intent.getStringExtra(EXTRA_TITLE).orEmpty()
+        if (!validHttps(url)) { finish(); return }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = AndroidColor.rgb(11, 14, 17)
+        window.navigationBarColor = AndroidColor.rgb(8, 11, 15)
+        setContent { AirdropHunterTheme { BrowserScreen(site.ifBlank { Uri.parse(url).host.orEmpty() }, url) { finish() } } }
     }
-
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            super.onBackPressed()
-        }
-    }
-
-    override fun onDestroy() {
-        if (::webView.isInitialized) {
-            webView.stopLoading()
-            webView.loadUrl("about:blank")
-            webView.removeAllViews()
-            webView.destroy()
-        }
-        super.onDestroy()
-    }
-
-    private fun isAllowedWebUrl(value: String): Boolean = try {
+    private fun validHttps(value: String): Boolean = try {
         val uri = Uri.parse(value)
-        uri.scheme.equals("https", ignoreCase = true) &&
-            !uri.host.isNullOrBlank() &&
-            uri.userInfo == null
-    } catch (_: Exception) {
-        false
-    }
-
+        uri.scheme.equals("https", true) && !uri.host.isNullOrBlank() && uri.userInfo == null
+    } catch (_: Exception) { false }
     companion object {
         const val EXTRA_URL = "com.airdrophunter.app.extra.BROWSER_URL"
         const val EXTRA_TITLE = "com.airdrophunter.app.extra.BROWSER_TITLE"
+    }
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BrowserScreen(title: String, url: String, onExit: () -> Unit) {
+    var browser by remember { mutableStateOf<WebView?>(null) }
+    BackHandler { val w = browser; if (w != null && w.canGoBack()) w.goBack() else onExit() }
+    DisposableEffect(browser) {
+        onDispose { browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() } }
+    }
+    Scaffold(modifier = Modifier.fillMaxSize(), containerColor = AppColors.Background, topBar = {
+        Column {
+            TopAppBar(
+                title = { Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1) },
+                navigationIcon = { IconButton(onClick = onExit) { Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary) } },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background, titleContentColor = AppColors.TextPrimary, navigationIconContentColor = AppColors.TextPrimary)
+            )
+            Surface(Modifier.fillMaxWidth(), color = Color(0xFF7F1D1D)) {
+                Box(Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+                    Text("⚠️ 安全提示：请勿输入私钥或助记词！", color = Color(0xFFFFE4E6), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 1)
+                }
+            }
+        }
+    }) { padding ->
+        AndroidView(factory = { ctx ->
+            WebView(ctx).apply {
+                browser = this
+                setBackgroundColor(AndroidColor.rgb(11, 14, 17))
+                settings.apply {
+                    javaScriptEnabled = true; domStorageEnabled = true
+                    allowFileAccess = false; allowContentAccess = false
+                    javaScriptCanOpenWindowsAutomatically = false; setSupportMultipleWindows(false)
+                    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW; safeBrowsingEnabled = true
+                }
+                CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                        val u = request?.url ?: return true
+                        return !u.scheme.equals("https", true) || u.host.isNullOrBlank() || u.userInfo != null
+                    }
+                    override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) { handler?.cancel() }
+                }
+                loadUrl(url)
+            }
+        }, modifier = Modifier.fillMaxSize().padding(padding), update = { view ->
+            if (browser !== view) browser = view
+        })
     }
 }

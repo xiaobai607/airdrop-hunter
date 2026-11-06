@@ -1,111 +1,67 @@
 package com.airdrophunter.app
-
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ApiClient.initialize(applicationContext)
         setContent {
             AirdropHunterTheme {
-                AirdropHunterApp()
+                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = null)
+                when {
+                    token == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) }
+                    token.isNullOrBlank() -> AuthScreen()
+                    else -> AirdropHunterApp { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } }
+                }
             }
         }
     }
 }
-
-private data class AppDestination(
-    val label: String,
-    val icon: ImageVector
-)
-
+private data class Destination(val label: String, val icon: ImageVector)
 @OptIn(ExperimentalMaterial3Api::class)
-@androidx.compose.runtime.Composable
-private fun AirdropHunterApp() {
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val destinations = listOf(
-        AppDestination("发现", Icons.Default.Explore),
-        AppDestination("我的", Icons.Default.Person),
-        AppDestination("项目管理", Icons.Default.FolderOpen)
-    )
-    val title = when (selectedTab) {
-        0 -> "发现"
-        1 -> "我的"
-        else -> "项目管理"
-    }
-
+@Composable
+private fun AirdropHunterApp(onLogout: () -> Unit) {
+    var tab by remember { mutableIntStateOf(0) }
+    val destinations = listOf(Destination("发现", Icons.Default.Explore), Destination("我的", Icons.Default.Person), Destination("项目管理", Icons.Default.FolderOpen))
+    val title = when (tab) { 0 -> "发现"; 1 -> "我的"; else -> "项目管理" }
     Scaffold(
         containerColor = AppColors.Background,
-        topBar = {
-            TopAppBar(
-                title = { Text(text = title, style = MaterialTheme.typography.titleLarge) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppColors.Background,
-                    titleContentColor = AppColors.TextPrimary
-                )
-            )
-        },
+        topBar = { TopAppBar(title = { Text(title) }, colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background, titleContentColor = AppColors.TextPrimary)) },
         bottomBar = {
-            NavigationBar(
-                containerColor = AppColors.Navigation,
-                contentColor = AppColors.TextPrimary,
-                tonalElevation = 0.dp
-            ) {
-                destinations.forEachIndexed { index, destination ->
-                    NavigationBarItem(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        icon = {
-                            androidx.compose.material3.Icon(
-                                imageVector = destination.icon,
-                                contentDescription = destination.label
-                            )
-                        },
-                        label = { Text(destination.label) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = AppColors.Primary,
-                            selectedTextColor = AppColors.Primary,
-                            unselectedIconColor = AppColors.TextSecondary,
-                            unselectedTextColor = AppColors.TextSecondary,
-                            indicatorColor = AppColors.NavIndicator
-                        )
-                    )
+            NavigationBar(containerColor = AppColors.Navigation, tonalElevation = 0.dp) {
+                destinations.forEachIndexed { index, d ->
+                    NavigationBarItem(selected = tab == index, onClick = { tab = index },
+                        icon = { Icon(d.icon, d.label) }, label = { Text(d.label) },
+                        colors = NavigationBarItemDefaults.colors(selectedIconColor = AppColors.Primary, selectedTextColor = AppColors.Primary, unselectedIconColor = AppColors.TextSecondary, unselectedTextColor = AppColors.TextSecondary, indicatorColor = AppColors.NavIndicator))
                 }
             }
         }
-    ) { innerPadding ->
-        androidx.compose.foundation.layout.Box(
-            modifier = Modifier.fillMaxSize().padding(innerPadding)
-        ) {
-            when (selectedTab) {
-                0 -> DiscoverScreen(modifier = Modifier.fillMaxSize())
-                1 -> ProfileScreen(modifier = Modifier.fillMaxSize())
-                else -> ProjectsScreen(modifier = Modifier.fillMaxSize())
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            when (tab) {
+                0 -> DiscoverScreen(Modifier.fillMaxSize())
+                1 -> ProfileScreen(Modifier.fillMaxSize(), onLogout)
+                else -> ProjectsScreen(Modifier.fillMaxSize())
             }
         }
     }
