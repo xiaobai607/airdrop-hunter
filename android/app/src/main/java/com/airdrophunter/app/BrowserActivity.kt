@@ -74,7 +74,7 @@ private fun BrowserScreen(title: String, url: String, onExit: () -> Unit) {
         AndroidView(factory = { ctx ->
             WebView(ctx).apply {
                 browser = this
-                setBackgroundColor(AndroidColor.rgb(11, 14, 17))
+                setBackgroundColor(AndroidColor.rgb(248, 249, 250))
                 settings.apply {
                     javaScriptEnabled = true; domStorageEnabled = true
                     allowFileAccess = false; allowContentAccess = false
