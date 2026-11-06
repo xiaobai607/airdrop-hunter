@@ -14,4 +14,8 @@
     <string name="browser_safety">⚠️ Security: Never enter your private key or seed phrase!</string><string name="back">Back</string>
     <string name="retry">Retry</string><string name="loading">Loading…</string><string name="network_error">Unable to connect. Please try again.</string><string name="unknown">Unknown</string>
     <string name="task_progress">Task progress: %1$d/%2$d</string><string name="wallet_sync_title">Wallet activity sync</string><string name="sync_wallet">Sync wallet activity</string><string name="daily_gas">Gas spent today</string><string name="recent_airdrop_income">Recent airdrop income</string>
+    <string name="auth_verification_code">Verification code</string>
+    <string name="auth_get_code">Get code</string>
+    <string name="auth_guest_mode">Browse as guest</string>
+    <string name="auth_mock_code_notice">Development mock code: %1$s</string>
 </resources>

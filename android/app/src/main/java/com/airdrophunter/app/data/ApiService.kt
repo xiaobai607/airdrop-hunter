@@ -10,6 +10,7 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
+    @POST("api/auth/send-code") suspend fun sendVerificationCode(@Body request: SendCodeRequest): SendCodeResponse
     @POST("api/auth/register") suspend fun register(@Body request: AuthRequest): AuthResponse
     @POST("api/auth/login") suspend fun login(@Body request: AuthRequest): AuthResponse
     @GET("api/sources") suspend fun getSources(): List<SourceDto>

@@ -3,7 +3,9 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 def auth(client):
-    response = client.post("/api/auth/register", json={"email": f"wallet-{uuid4().hex}@example.com", "password": "strong-password-123"})
+    email = f"wallet-{uuid4().hex}@example.com"
+    client.post("/api/auth/send-code", json={"email": email})
+    response = client.post("/api/auth/register", json={"email": email, "password": "strong-password-123", "verification_code": "123456"})
     assert response.status_code == 201
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 

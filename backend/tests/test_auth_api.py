@@ -5,8 +5,12 @@ from app.main import app
 def test_project_routes_require_auth_and_isolate_users() -> None:
     with TestClient(app) as client:
         suffix = uuid4().hex
-        alice = client.post("/api/auth/register", json={"email": f"alice-{suffix}@example.com", "password": "alice-password-123"})
-        bob = client.post("/api/auth/register", json={"email": f"bob-{suffix}@example.com", "password": "bob-password-123"})
+        alice_email = f"alice-{suffix}@example.com"
+        bob_email = f"bob-{suffix}@example.com"
+        client.post("/api/auth/send-code", json={"email": alice_email})
+        client.post("/api/auth/send-code", json={"email": bob_email})
+        alice = client.post("/api/auth/register", json={"email": alice_email, "password": "alice-password-123", "verification_code": "123456"})
+        bob = client.post("/api/auth/register", json={"email": bob_email, "password": "bob-password-123", "verification_code": "123456"})
         assert alice.status_code == 201 and bob.status_code == 201
         ah = {"Authorization": f"Bearer {alice.json()['access_token']}"}
         bh = {"Authorization": f"Bearer {bob.json()['access_token']}"}
@@ -23,7 +27,20 @@ def test_project_routes_require_auth_and_isolate_users() -> None:
 def test_login_rejects_wrong_password() -> None:
     with TestClient(app) as client:
         email = f"login-{uuid4().hex}@example.com"
-        created = client.post("/api/auth/register", json={"email": email, "password": "right-password-123"})
+        client.post("/api/auth/send-code", json={"email": email})
+        created = client.post("/api/auth/register", json={"email": email, "password": "right-password-123", "verification_code": "123456"})
         assert created.status_code == 201
         bad = client.post("/api/auth/login", json={"email": email, "password": "wrong-password-123"})
         assert bad.status_code == 401
+
+
+def test_registration_requires_mock_verification_code() -> None:
+    with TestClient(app) as client:
+        email = f"verify-{uuid4().hex}@example.com"
+        assert client.post("/api/auth/register", json={"email": email, "password": "strong-password-123", "verification_code": "123456"}).status_code == 400
+        sent = client.post("/api/auth/send-code", json={"email": email})
+        assert sent.status_code == 200
+        assert sent.json()["mock_code"] == "123456"
+        assert client.post("/api/auth/register", json={"email": email, "password": "strong-password-123", "verification_code": "000000"}).status_code == 400
+        assert client.post("/api/auth/register", json={"email": email, "password": "strong-password-123", "verification_code": "123456"}).status_code == 201
+        assert client.post("/api/auth/send-code", json={"email": email}).status_code == 429

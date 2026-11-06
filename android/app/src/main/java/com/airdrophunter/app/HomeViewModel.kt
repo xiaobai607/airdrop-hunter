@@ -22,26 +22,27 @@ class HomeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    fun load() {
+    fun load(isGuest: Boolean = false) {
+        if (isGuest) _uiState.value = _uiState.value.copy(coins = emptyList())
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 CacheStore.read("market")?.let { runCatching { Gson().fromJson(it, MarketResponse::class.java) }.getOrNull() }?.let { _uiState.value = _uiState.value.copy(market = it, isLoading = false) }
-                CacheStore.read("coins")?.let { runCatching { Gson().fromJson<List<CoinDto>>(it, object : TypeToken<List<CoinDto>>() {}.type) }.getOrNull() }?.let { _uiState.value = _uiState.value.copy(coins = it) }
+                if (!isGuest) CacheStore.read("coins")?.let { runCatching { Gson().fromJson<List<CoinDto>>(it, object : TypeToken<List<CoinDto>>() {}.type) }.getOrNull() }?.let { _uiState.value = _uiState.value.copy(coins = it) }
             }
-            refresh()
+            refresh(isGuest)
         }
     }
 
-    fun refresh() {
+    fun refresh(isGuest: Boolean = false) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = _uiState.value.market == null, isRefreshing = true, hasError = false)
             try {
                 val market = ApiClient.service.getMarketPrices()
-                val coins = ApiClient.service.getCoins()
+                val coins = if (isGuest) emptyList() else ApiClient.service.getCoins()
                 _uiState.value = HomeUiState(market = market, coins = coins, isLoading = false, isRefreshing = false)
                 withContext(Dispatchers.IO) {
                     CacheStore.write("market", Gson().toJson(market))
-                    CacheStore.write("coins", Gson().toJson(coins))
+                    if (!isGuest) CacheStore.write("coins", Gson().toJson(coins))
                 }
             } catch (_: Exception) { _uiState.value = _uiState.value.copy(isLoading = false, isRefreshing = false, hasError = true) }
         }

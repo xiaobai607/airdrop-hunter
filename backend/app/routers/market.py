@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.routers.auth import get_current_user
 from app.database import get_db
 from app.models import Coin, User
 
@@ -47,8 +46,8 @@ async def owned_coins(user: User,db: AsyncSession):
     return list(rows)
 
 @router.get("/market/prices")
-async def market_prices(db: Annotated[AsyncSession,Depends(get_db)],user: Annotated[User,Depends(get_current_user)]):
-    custom=await owned_coins(user,db)
+async def market_prices():
+    custom=[]
     coins=list(DEFAULT_COINS); seen={x[0] for x in coins}
     for c in custom:
         if c.coinpaprika_id not in seen: coins.append((c.coinpaprika_id,c.symbol,c.name)); seen.add(c.coinpaprika_id)

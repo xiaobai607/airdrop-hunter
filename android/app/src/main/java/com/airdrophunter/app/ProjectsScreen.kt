@@ -27,7 +27,23 @@ import com.airdrophunter.app.data.ProjectWriteRequest
 import com.airdrophunter.app.ui.theme.AppColors
 
 @Composable
-fun ProjectsScreen(modifier: Modifier = Modifier, onProjectSelected: (ProjectDto) -> Unit, vm: ProjectsViewModel = viewModel()) {
+fun ProjectsScreen(
+    modifier: Modifier = Modifier,
+    onProjectSelected: (ProjectDto) -> Unit,
+    isGuest: Boolean = false,
+    onRequireAuth: () -> Unit = {},
+    vm: ProjectsViewModel = viewModel()
+) {
+    if (isGuest) {
+        Column(modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("登录后即可添加和管理自己的空投项目", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(12.dp))
+            Text("游客模式可以浏览行情和空投导航，云端项目需要账户同步。", color = AppColors.TextSecondary)
+            Spacer(Modifier.height(18.dp))
+            Button(onClick = onRequireAuth) { Text("登录 / 注册") }
+        }
+        return
+    }
     val state by vm.uiState.collectAsState()
     val networkError = stringResource(R.string.network_error)
     var showEditor by remember { mutableStateOf(false) }

@@ -33,6 +33,8 @@ fun HomeScreen(
     onOpenSources: () -> Unit,
     onOpenWallet: () -> Unit,
     onOpenProjects: () -> Unit,
+    isGuest: Boolean = false,
+    onRequireAuth: () -> Unit = {},
     vm: HomeViewModel = viewModel()
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -42,7 +44,7 @@ fun HomeScreen(
     var symbol by remember { mutableStateOf("") }
     var coinName by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) { vm.load() }
+    LaunchedEffect(isGuest) { vm.load(isGuest) }
 
     Column(modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -59,8 +61,8 @@ fun HomeScreen(
                 Text(stringResource(R.string.market_title), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text(stringResource(R.string.market_provider), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
-            IconButton(onClick = { showAdd = true }) { Icon(Icons.Default.Add, stringResource(R.string.add_coin), tint = AppColors.Primary) }
-            TextButton(onClick = vm::refresh, enabled = !state.isRefreshing) { Text(stringResource(R.string.retry)) }
+            IconButton(onClick = { if (isGuest) onRequireAuth() else showAdd = true }) { Icon(Icons.Default.Add, stringResource(R.string.add_coin), tint = AppColors.Primary) }
+            TextButton(onClick = { vm.refresh(isGuest) }, enabled = !state.isRefreshing) { Text(stringResource(R.string.retry)) }
         }
         if (state.hasError && state.market == null) Text(networkError, color = AppColors.Danger)
         if (state.market == null && state.isLoading) {
