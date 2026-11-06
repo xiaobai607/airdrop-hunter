@@ -63,7 +63,7 @@ private fun AirdropHunterApp() {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("空投发现") }
+                    text = { Text("发现") }
                 )
                 Tab(
                     selected = selectedTab == 1,
@@ -71,7 +71,14 @@ private fun AirdropHunterApp() {
                     text = { Text("项目管理") }
                 )
             }
+            Tab(
+                selected = selectedTab == 2,
+                onClick = { selectedTab = 2 },
+                text = { Text("项目管理") }
+            )
             if (selectedTab == 0) {
+                DiscoverScreen(modifier = Modifier.weight(1f))
+            } else if (selectedTab == 1) {
                 AirdropDiscoveryScreen(modifier = Modifier.weight(1f))
             } else {
                 ProjectManagementScreen(modifier = Modifier.weight(1f))
