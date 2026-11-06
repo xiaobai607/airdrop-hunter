@@ -2,13 +2,7 @@ name: Android debug build
 
 on:
   push:
-    paths:
-      - "android/**"
-      - ".github/workflows/android-build.yml"
   pull_request:
-    paths:
-      - "android/**"
-      - ".github/workflows/android-build.yml"
   workflow_dispatch:
 
 permissions:
@@ -32,9 +26,16 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build debug APK
+      # Bootstrap the official Gradle Wrapper from the pinned Gradle version.
+      # Commit the generated gradlew, gradlew.bat, wrapper JAR and properties
+      # to the repository in a follow-up once generated in a trusted environment.
+      - name: Generate Gradle Wrapper
         working-directory: android
-        run: gradle :app:assembleDebug
+        run: gradle wrapper --gradle-version 8.9
+
+      - name: Build debug APK with Wrapper
+        working-directory: android
+        run: ./gradlew :app:assembleDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
