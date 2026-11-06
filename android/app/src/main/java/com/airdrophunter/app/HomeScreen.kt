@@ -2,6 +2,8 @@ package com.airdrophunter.app
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,7 +54,7 @@ fun HomeScreen(
             Text(stringResource(R.string.home_title), style = MaterialTheme.typography.headlineLarge, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.home_subtitle), style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             QuickAction(stringResource(R.string.quick_airdrop), Icons.Default.Explore, Modifier.weight(1f), onOpenSources)
             QuickAction(stringResource(R.string.quick_wallet), Icons.Default.AccountBalanceWallet, Modifier.weight(1f), onOpenWallet)
             QuickAction(stringResource(R.string.quick_projects), Icons.Default.FolderOpen, Modifier.weight(1f), onOpenProjects)
@@ -133,8 +135,8 @@ private fun QuickAction(label: String, icon: androidx.compose.ui.graphics.vector
             Surface(shape = RoundedCornerShape(50), color = AppColors.Primary.copy(alpha = 0.14f), modifier = Modifier.size(56.dp)) {
                 Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = label, tint = AppColors.Primary, modifier = Modifier.size(28.dp)) }
             }
-            Spacer(Modifier.height(6.dp))
-            Text(label, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall, maxLines = 2)
+            Spacer(Modifier.height(16.dp))
+            Text(label, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
     }
 }
