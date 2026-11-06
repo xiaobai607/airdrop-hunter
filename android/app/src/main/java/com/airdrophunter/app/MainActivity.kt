@@ -47,13 +47,18 @@ class MainActivity : ComponentActivity() {
             AirdropHunterTheme {
                 val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = startupToken)
                 var guestMode by rememberSaveable { mutableStateOf(false) }
-                when {
-                    !token.isNullOrBlank() -> AirdropHunterApp(false, {}, { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } })
-                    guestMode -> AirdropHunterApp(true, {
-                        Toast.makeText(applicationContext, "请先登录以同步您的云端数据", Toast.LENGTH_LONG).show()
-                        guestMode = false
-                    }, { guestMode = false })
-                    else -> AuthScreen(onGuestMode = { guestMode = true })
+                if (BuildConfig.DEV_TEST_MODE) {
+                    // Developer mode bypasses the login screen. The original auth flow remains available by switching the build flag off.
+                    AirdropHunterApp(false, {}, {})
+                } else {
+                    when {
+                        !token.isNullOrBlank() -> AirdropHunterApp(false, {}, { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } })
+                        guestMode -> AirdropHunterApp(true, {
+                            Toast.makeText(applicationContext, "请先登录以同步您的云端数据", Toast.LENGTH_LONG).show()
+                            guestMode = false
+                        }, { guestMode = false })
+                        else -> AuthScreen(onGuestMode = { guestMode = true })
+                    }
                 }
             }
         }

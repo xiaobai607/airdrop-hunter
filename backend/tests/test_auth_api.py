@@ -44,3 +44,14 @@ def test_registration_requires_mock_verification_code() -> None:
         assert client.post("/api/auth/register", json={"email": email, "password": "strong-password-123", "verification_code": "000000"}).status_code == 400
         assert client.post("/api/auth/register", json={"email": email, "password": "strong-password-123", "verification_code": "123456"}).status_code == 201
         assert client.post("/api/auth/send-code", json={"email": email}).status_code == 429
+
+
+def test_dev_test_identity_is_disabled_by_default_and_opt_in(monkeypatch) -> None:
+    monkeypatch.delenv("ENABLE_DEV_TEST_AUTH", raising=False)
+    with TestClient(app) as client:
+        assert client.get("/api/projects").status_code == 401
+        monkeypatch.setenv("ENABLE_DEV_TEST_AUTH", "true")
+        response = client.get("/api/projects")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+        assert client.get("/api/projects", headers={"Authorization": "Bearer dev-test-token"}).status_code == 200

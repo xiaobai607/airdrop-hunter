@@ -1,3 +1,4 @@
+import os
 import time
 from typing import Annotated
 from uuid import UUID
@@ -16,6 +17,30 @@ bearer_scheme = HTTPBearer(auto_error=False)
 MOCK_CODE = "123456"
 CODE_TTL_SECONDS = 600
 CODE_COOLDOWN_SECONDS = 60
+DEV_TEST_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
+DEV_TEST_USER_EMAIL = "dev-test-account@airdrop-hunter.invalid"
+
+
+def dev_test_auth_enabled() -> bool:
+    return os.getenv("ENABLE_DEV_TEST_AUTH", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
+async def get_or_create_dev_test_user(db: AsyncSession) -> User:
+    user = await db.scalar(select(User).where(User.id == DEV_TEST_USER_ID))
+    if user is not None:
+        return user
+    user = User(id=DEV_TEST_USER_ID, email=DEV_TEST_USER_EMAIL, display_name="Developer Test Account")
+    db.add(user)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        user = await db.scalar(select(User).where(User.id == DEV_TEST_USER_ID))
+        if user is None:
+            raise
+        return user
+    await db.refresh(user)
+    return user
 _verification_codes: dict[str, tuple[str, float, float]] = {}
 
 class SendCodeRequest(BaseModel):
@@ -59,6 +84,12 @@ async def send_code(payload: SendCodeRequest) -> SendCodeResponse:
 
 async def get_current_user(credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)], db: Annotated[AsyncSession, Depends(get_db)]) -> User:
     unauthorized = HTTPException(401, "登录状态无效或已过期，请重新登录", headers={"WWW-Authenticate": "Bearer"})
+    if dev_test_auth_enabled() and (
+        credentials is None
+        or (credentials.scheme.lower() == "bearer" and credentials.credentials == "dev-test-token")
+    ):
+        # Shared test identity is available only when the server-side opt-in is enabled.
+        return await get_or_create_dev_test_user(db)
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise unauthorized
     try:

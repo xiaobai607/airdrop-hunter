@@ -46,7 +46,7 @@ fun ProfileScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Row(
-            Modifier.clickable { if (isGuest) onRequireAuth() },
+            if (BuildConfig.DEV_TEST_MODE) Modifier else Modifier.clickable { if (isGuest) onRequireAuth() },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(13.dp)
         ) {
@@ -57,9 +57,9 @@ fun ProfileScreen(
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(if (isGuest) "游客模式" else "账户中心", color = AppColors.TextPrimary,
+                Text(if (BuildConfig.DEV_TEST_MODE) "开发者测试模式" else if (isGuest) "游客模式" else "账户中心", color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(if (isGuest) "登录后同步个人数据" else "数据来自你的账户记录",
+                Text(if (BuildConfig.DEV_TEST_MODE) "测试数据保存到专用测试账户" else if (isGuest) "登录后同步个人数据" else "数据来自你的账户记录",
                     color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
             }
         }
