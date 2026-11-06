@@ -74,11 +74,13 @@ private data class Destination(val label: Int, val icon: ImageVector)
 private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogout: () -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var showSources by rememberSaveable { mutableStateOf(false) }
+    var showAirdropHub by rememberSaveable { mutableStateOf(false) }
     var showWallet by remember { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
 
-    BackHandler(showSources || selectedProject != null) {
+    BackHandler(showSources || showAirdropHub || selectedProject != null) {
         showSources = false
+        showAirdropHub = false
         selectedProject = null
     }
 
@@ -89,6 +91,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
     )
     val secondaryTitle = when {
         showSources -> stringResource(R.string.sources_title)
+        showAirdropHub -> "空投大厅"
         else -> stringResource(R.string.project_detail)
     }
 
@@ -96,7 +99,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
         modifier = Modifier.fillMaxSize().background(AppColors.Background),
         containerColor = AppColors.Background,
         topBar = {
-            if (showSources || selectedProject != null) {
+            if (showSources || showAirdropHub || selectedProject != null) {
                 TopAppBar(
                     title = { Text(secondaryTitle, color = AppColors.TextPrimary) },
                     navigationIcon = {
@@ -112,7 +115,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
             }
         },
         bottomBar = {
-            if (!showSources && selectedProject == null) {
+            if (!showSources && !showAirdropHub && selectedProject == null) {
                 Box(Modifier.fillMaxWidth().height(80.dp)) {
                     Box(Modifier.fillMaxSize().blur(12.dp).background(AppColors.Navigation))
                     NavigationBar(
@@ -144,12 +147,14 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
         Box(Modifier.fillMaxSize().background(AppColors.Background).padding(padding)) {
             when {
                 showSources -> SourcesScreen(Modifier.fillMaxSize())
+                showAirdropHub -> AirdropHubScreen(Modifier.fillMaxSize())
                 selectedProject != null -> ProjectDetailScreen(selectedProject!!, Modifier.fillMaxSize())
                 tab == 0 -> HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     onOpenSources = { showSources = true },
                     onOpenWallet = { showWallet = true },
                     onOpenProjects = { tab = 1 },
+                    onOpenAirdropHub = { showAirdropHub = true },
                     isGuest = isGuest,
                     onRequireAuth = onRequireAuth
                 )
