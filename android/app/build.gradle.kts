@@ -14,10 +14,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.2.0"
-        val apiBaseUrl = providers.gradleProperty("API_BASE_URL").orNull
-            ?: System.getenv("API_BASE_URL")
-            ?: "https://airdrop-hunter-z6qn.onrender.com/"
-        buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl}\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://airdrop-hunter-z6qn.onrender.com/\"")
     }
 
     buildFeatures {
