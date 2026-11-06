@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.ui.theme.AppColors
+import java.util.Locale
 
 @Composable
 fun ProfileScreen(
@@ -30,28 +31,36 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
-    vm: ProfileMockViewModel = viewModel()
+    onManageWallets: () -> Unit = {},
+    vm: ProfileViewModel = viewModel()
 ) {
-    val state by vm.state.collectAsStateWithLifecycle()
+    val state by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    LaunchedEffect(isGuest) { vm.load(isGuest) }
+    val stats = if (isGuest) com.airdrophunter.app.data.UserStatsDto() else state.stats
 
     Column(
         modifier.fillMaxSize().background(AppColors.Background)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Row(Modifier.clickable { if (isGuest) onRequireAuth() }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+        Row(
+            Modifier.clickable { if (isGuest) onRequireAuth() },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(13.dp)
+        ) {
             Surface(shape = CircleShape, color = AppColors.MutedBackground, modifier = Modifier.size(52.dp)) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("L", color = AppColors.TextSecondary, style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold)
+                    Text(if (isGuest) "G" else "U", color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(if (isGuest) "未登录" else "账户中心", color = AppColors.TextPrimary,
+                Text(if (isGuest) "游客模式" else "账户中心", color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(if (isGuest) "游客模式" else "已登录", color = AppColors.TextHelper,
-                    style = MaterialTheme.typography.bodySmall)
+                Text(if (isGuest) "登录后同步个人数据" else "数据来自你的账户记录",
+                    color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
             }
         }
 
@@ -64,28 +73,39 @@ fun ProfileScreen(
         ) {
             Column {
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
-                    StatCell("跟踪项目", state.tracked, Modifier.weight(1f))
+                    StatCell("跟踪项目", stats.tracked_projects.toString(), Modifier.weight(1f))
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
-                    StatCell("已完成", state.completed, Modifier.weight(1f))
+                    StatCell("已完成", stats.completed_projects.toString(), Modifier.weight(1f))
                 }
                 HorizontalDivider(color = AppColors.Border)
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
-                    StatCell("累计收益", state.earnings, Modifier.weight(1f), "USD")
+                    StatCell("累计实际收益",
+                        String.format(Locale.US, "%.2f", stats.total_actual_income),
+                        Modifier.weight(1f), "USD")
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
-                    StatCell("交互天数", state.days, Modifier.weight(1f))
+                    StatCell("交互天数", stats.interaction_days.toString(), Modifier.weight(1f))
                 }
             }
         }
 
-
+        if (state.hasError && !isGuest) {
+            Text("统计数据暂时无法加载，服务器繁忙。", color = AppColors.Danger,
+                style = MaterialTheme.typography.bodySmall)
+        }
 
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("设置", color = AppColors.TextHelper, style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
-            SettingRow("钱包管理", Icons.Default.Wallet) { Toast.makeText(context, "钱包管理功能正在开发中", Toast.LENGTH_SHORT).show() }
-            SettingRow("消息通知", Icons.Default.NotificationsNone, showBadge = true) { Toast.makeText(context, "消息通知功能正在开发中", Toast.LENGTH_SHORT).show() }
-            SettingRow("安全设置", Icons.Default.Security) { Toast.makeText(context, "安全设置功能正在开发中", Toast.LENGTH_SHORT).show() }
-            SettingRow("关于", Icons.Default.Info) { Toast.makeText(context, "关于页面正在开发中", Toast.LENGTH_SHORT).show() }
+            SettingRow("钱包管理", Icons.Default.Wallet, onManageWallets)
+            SettingRow("消息通知", Icons.Default.NotificationsNone) {
+                Toast.makeText(context, "消息通知功能正在开发中", Toast.LENGTH_SHORT).show()
+            }
+            SettingRow("安全设置", Icons.Default.Security) {
+                Toast.makeText(context, "安全设置功能正在开发中", Toast.LENGTH_SHORT).show()
+            }
+            SettingRow("关于", Icons.Default.Info) {
+                Toast.makeText(context, "关于页面正在开发中", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }
@@ -110,7 +130,6 @@ private fun StatCell(label: String, value: String, modifier: Modifier, suffix: S
 private fun SettingRow(
     title: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    showBadge: Boolean = false,
     onClick: () -> Unit
 ) {
     Row(
@@ -121,11 +140,6 @@ private fun SettingRow(
         Icon(icon, null, tint = AppColors.TextSecondary, modifier = Modifier.size(21.dp))
         Text(title, Modifier.weight(1f), color = AppColors.TextPrimary,
             style = MaterialTheme.typography.bodyMedium)
-        if (showBadge) {
-            Box(Modifier.size(10.dp).background(AppColors.DangerBackground, CircleShape), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(5.dp).background(AppColors.Danger, CircleShape))
-            }
-        }
         Icon(Icons.Default.ChevronRight, null, tint = AppColors.TextHelper)
     }
 }

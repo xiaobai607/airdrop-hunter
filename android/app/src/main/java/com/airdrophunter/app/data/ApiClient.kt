@@ -12,14 +12,21 @@ object ApiClient {
         TokenStore.initialize(context)
         CacheStore.initialize(context)
     }
+
     private val client: OkHttpClient by lazy {
-        OkHttpClient.Builder().addInterceptor { chain ->
-            val original = chain.request()
-            val token = TokenStore.readTokenBlocking()
-            val request = if (token.isNullOrBlank()) original else original.newBuilder().header("Authorization", "Bearer $token").build()
-            chain.proceed(request)
-        }.connectTimeout(15, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()
+        OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val token = TokenStore.readTokenBlocking()
+                val request = if (token.isNullOrBlank()) original else original.newBuilder()
+                    .header("Authorization", "Bearer $token").build()
+                chain.proceed(request)
+            }
+            .connectTimeout(70, TimeUnit.SECONDS)
+            .readTimeout(70, TimeUnit.SECONDS)
+            .build()
     }
+
     val service: ApiService by lazy {
         Retrofit.Builder().baseUrl(BuildConfig.API_BASE_URL).client(client)
             .addConverterFactory(GsonConverterFactory.create()).build().create(ApiService::class.java)

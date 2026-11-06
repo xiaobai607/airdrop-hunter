@@ -5,6 +5,7 @@ data class ProjectWriteRequest(
     val description: String,
     val status: String,
     val official_url: String = "",
+    val claim_url: String = "",
     val twitter_url: String = "",
     val deadline: String? = null,
     val expected_income: Double = 0.0,
