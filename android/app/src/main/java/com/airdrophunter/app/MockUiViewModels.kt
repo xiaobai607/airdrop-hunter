@@ -55,9 +55,9 @@ data class ProjectsMockState(
     ),
     val projects: List<Project> = listOf(
         Project("Linea 空投任务", "待交互", .42f, 3, "11/12", "0x7f...a9c", "待交互"),
-        MockProject("Scroll 生态交互", "待交互", .28f, 5, "11/15", "0x2a...81d", "待交互"),
-        MockProject("zkSync Era", "已提交", .86f, 1, "已提交", "0x91...c20", "已提交"),
-        MockProject("Starknet 任务", "已空投", 1f, 0, "已完成", "0xb4...e17", "已空投")
+        Project("Scroll 生态交互", "待交互", .28f, 5, "11/15", "0x2a...81d", "待交互"),
+        Project("zkSync Era", "已提交", .86f, 1, "已提交", "0x91...c20", "已提交"),
+        Project("Starknet 任务", "已空投", 1f, 0, "已完成", "0xb4...e17", "已空投")
     )
 )
 
