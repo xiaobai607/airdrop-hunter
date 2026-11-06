@@ -185,7 +185,7 @@ fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, W
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text(if (state.isSaving) "保存中…" else "保存") } },
             dismissButton = { TextButton(onClick = { showAddForm = false }) { Text("取消") } })
     }
-    if (showEligibility) WalletCheckDialog(onDismiss = { showEligibility = false }, onOpenBrowser = { url, selectedWallet, allWallets, title ->
+    if (showEligibility) WalletCheckDialog(onDismiss = { showEligibility = false }, isGuest = isGuest, onOpenBrowser = { url, selectedWallet, allWallets, title ->
         showEligibility = false
         onOpenBrowser(url, selectedWallet, allWallets, title)
     })

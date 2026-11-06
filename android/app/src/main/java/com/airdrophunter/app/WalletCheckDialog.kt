@@ -24,7 +24,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun WalletCheckDialog(
     onDismiss: () -> Unit,
-    onOpenBrowser: (url: String, selectedWallet: WalletDto, wallets: List<WalletDto>, title: String) -> Unit
+    onOpenBrowser: (url: String, selectedWallet: WalletDto, wallets: List<WalletDto>, title: String) -> Unit,
+    isGuest: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
@@ -37,11 +38,23 @@ fun WalletCheckDialog(
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(isGuest) {
         try {
-            projects = ApiClient.service.getProjects()
-            wallets = ApiClient.service.getWallets()
-        } catch (_: Exception) { error = "请先登录并确保网络连接正常" }
+            if (isGuest) {
+                val gson = com.google.gson.Gson()
+                val projectType = object : com.google.gson.reflect.TypeToken<List<ProjectDto>>() {}.type
+                val walletType = object : com.google.gson.reflect.TypeToken<List<WalletDto>>() {}.type
+                projects = com.airdrophunter.app.data.CacheStore.readLocal("projects")?.let {
+                    runCatching { gson.fromJson<List<ProjectDto>>(it, projectType) }.getOrNull()
+                }.orEmpty()
+                wallets = com.airdrophunter.app.data.CacheStore.readLocal("wallets")?.let {
+                    runCatching { gson.fromJson<List<WalletDto>>(it, walletType) }.getOrNull()
+                }.orEmpty()
+            } else {
+                projects = ApiClient.service.getProjects()
+                wallets = ApiClient.service.getWallets()
+            }
+        } catch (_: Exception) { error = "读取数据失败，请稍后重试" }
         finally { loading = false }
     }
 
@@ -100,8 +113,12 @@ fun WalletCheckDialog(
                             if (!verified.valid) {
                                 error = verified.message
                             } else {
-                                val claim = ApiClient.service.getClaimUrl(project.id, wallet.id)
-                                onOpenBrowser(claim.url, wallet, wallets, project.name)
+                                val claimUrl = if (isGuest) project.claim_url else ApiClient.service.getClaimUrl(project.id, wallet.id).url
+                                if (claimUrl.startsWith("https://")) {
+                                    onOpenBrowser(claimUrl, wallet, wallets, project.name)
+                                } else {
+                                    error = "该项目尚未填写官方资格查询入口"
+                                }
                             }
                         } catch (e: retrofit2.HttpException) {
                             error = if (e.code() == 409) "该项目尚未设置官方资格查询入口" else "服务器繁忙，请稍后重试"
