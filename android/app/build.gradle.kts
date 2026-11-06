@@ -16,7 +16,7 @@ android {
         versionName = "0.2.0"
         val apiBaseUrl = providers.gradleProperty("API_BASE_URL").orNull
             ?: System.getenv("API_BASE_URL")
-            ?: "http://10.0.2.2:8000/"
+            ?: "https://airdrop-hunter-z6qn.onrender.com/"
         buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl}\"")
     }
 
