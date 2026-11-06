@@ -1,4 +1,5 @@
 package com.airdrophunter.app
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.airdrophunter.app.data.TronTokenBalance
@@ -11,14 +12,128 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 
-data class WalletDetailUiState(val address:String="",val isLoading:Boolean=false,val errorMessage:String?=null,val trxBalance:BigDecimal?=null,val totalUsd:BigDecimal?=null,val tokenList:List<TronTokenBalance> = emptyList(),val lastUpdatedEpochSeconds:Long?=null)
-class WalletDetailViewModel(private val repository:TronscanRepository=TronscanRepository()):ViewModel(){
- private val _uiState=MutableStateFlow(WalletDetailUiState());val uiState=_uiState.asStateFlow()
- private var requestJob:Job?=null;private var queuedJob:Job?=null;private var queued=false;private var lastRequestAt=0L;private val interval=5000L
- fun loadWallet(address:String){val a=address.trim();if(a.isBlank()){_uiState.value=WalletDetailUiState(errorMessage="钱包地址为空，无法查询链上资产。");return};_uiState.value=_uiState.value.copy(address=a);startRequest(a)}
- private fun startRequest(a:String){requestJob?.cancel();requestJob=viewModelScope.launch{_uiState.value=_uiState.value.copy(address=a,isLoading=true,errorMessage=null);lastRequestAt=System.currentTimeMillis();try{val r=repository.fetchWalletAssets(a);_uiState.value=_uiState.value.copy(address=r.address,isLoading=false,errorMessage=null,trxBalance=r.trxBalance,totalUsd=r.totalUsd,tokenList=r.tokenList,lastUpdatedEpochSeconds=r.lastUpdatedEpochSeconds)}catch(c:CancellationException){throw c}catch(e:Exception){_uiState.value=_uiState.value.copy(address=a,isLoading=false,errorMessage=e.message?:"查询 TRON 链上资产失败。")}finally{if(queued)schedule(a)}}}
- fun refresh(){val a=_uiState.value.address;if(a.isBlank())return;queued=true;if(requestJob?.isActive!=true)schedule(a)}
- private fun schedule(a:String){if(queuedJob?.isActive==true)return;queuedJob=viewModelScope.launch{val wait=(interval-(System.currentTimeMillis()-lastRequestAt)).coerceAtLeast(0);if(wait>0)delay(wait);if(queued&&_uiState.value.address==a){queued=false;startRequest(a)}}}
- fun clear(){requestJob?.cancel();queuedJob?.cancel();requestJob=null;queuedJob=null;queued=false;_uiState.value=WalletDetailUiState()}
- override fun onCleared(){requestJob?.cancel();queuedJob?.cancel();super.onCleared()}
+data class WalletDetailUiState(
+    val address: String = "",
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val trxBalance: BigDecimal? = null,
+    val totalUsd: BigDecimal? = null,
+    val tokenList: List<TronTokenBalance> = emptyList(),
+    val lastUpdatedEpochSeconds: Long? = null
+)
+
+class WalletDetailViewModel(
+    private val repository: TronscanRepository = TronscanRepository()
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(WalletDetailUiState())
+    val uiState = _uiState.asStateFlow()
+
+    private var requestJob: Job? = null
+    private var queuedRefreshJob: Job? = null
+    private var refreshQueued = false
+    private var lastRequestAtMillis = 0L
+
+    private companion object {
+        const val MIN_REQUEST_INTERVAL_MILLIS = 5_000L
+    }
+
+    fun loadWallet(address: String) {
+        val normalized = address.trim()
+        if (normalized.isBlank()) {
+            clear()
+            _uiState.value = WalletDetailUiState(
+                errorMessage = "钱包地址为空，无法查询链上资产。"
+            )
+            return
+        }
+        if (_uiState.value.address == normalized && requestJob?.isActive == true) return
+
+        queuedRefreshJob?.cancel()
+        queuedRefreshJob = null
+        refreshQueued = false
+        requestJob?.cancel()
+        _uiState.value = WalletDetailUiState(address = normalized, isLoading = true)
+        startRequest(normalized)
+    }
+
+    private fun startRequest(address: String) {
+        requestJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                address = address,
+                isLoading = true,
+                errorMessage = null
+            )
+            lastRequestAtMillis = System.currentTimeMillis()
+
+            try {
+                val result = repository.fetchWalletAssets(address)
+                if (_uiState.value.address != address) return@launch
+                _uiState.value = _uiState.value.copy(
+                    address = result.address,
+                    isLoading = false,
+                    errorMessage = null,
+                    trxBalance = result.trxBalance,
+                    totalUsd = result.totalUsd,
+                    tokenList = result.tokenList,
+                    lastUpdatedEpochSeconds = result.lastUpdatedEpochSeconds
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (_uiState.value.address != address) return@launch
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = error.message ?: "查询 TRON 链上资产失败，请稍后重试。"
+                )
+            } finally {
+                if (refreshQueued && _uiState.value.address == address) {
+                    scheduleQueuedRefresh(address)
+                }
+            }
+        }
+    }
+
+    /**
+     * Repeated taps are coalesced into at most one trailing refresh.
+     * The first page load is immediate; user refreshes never create parallel calls.
+     */
+    fun refresh() {
+        val address = _uiState.value.address
+        if (address.isBlank()) return
+
+        refreshQueued = true
+        if (requestJob?.isActive == true || queuedRefreshJob?.isActive == true) return
+        scheduleQueuedRefresh(address)
+    }
+
+    private fun scheduleQueuedRefresh(address: String) {
+        if (queuedRefreshJob?.isActive == true) return
+
+        queuedRefreshJob = viewModelScope.launch {
+            val elapsed = System.currentTimeMillis() - lastRequestAtMillis
+            val waitMillis = (MIN_REQUEST_INTERVAL_MILLIS - elapsed).coerceAtLeast(0L)
+            if (waitMillis > 0L) delay(waitMillis)
+
+            if (refreshQueued && _uiState.value.address == address) {
+                refreshQueued = false
+                startRequest(address)
+            }
+            queuedRefreshJob = null
+        }
+    }
+
+    fun clear() {
+        requestJob?.cancel()
+        queuedRefreshJob?.cancel()
+        requestJob = null
+        queuedRefreshJob = null
+        refreshQueued = false
+        _uiState.value = WalletDetailUiState()
+    }
+
+    override fun onCleared() {
+        requestJob?.cancel()
+        queuedRefreshJob?.cancel()
+        super.onCleared()
+    }
 }
