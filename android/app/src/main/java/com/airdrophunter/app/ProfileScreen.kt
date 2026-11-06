@@ -122,7 +122,9 @@ private fun SettingRow(
         Text(title, Modifier.weight(1f), color = AppColors.TextPrimary,
             style = MaterialTheme.typography.bodyMedium)
         if (showBadge) {
-            Surface(color = AppColors.Danger, shape = CircleShape, modifier = Modifier.size(8.dp)) {}
+            Box(Modifier.size(10.dp).background(AppColors.DangerBackground, CircleShape), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(5.dp).background(AppColors.Danger, CircleShape))
+            }
         }
         Icon(Icons.Default.ChevronRight, null, tint = AppColors.TextHelper)
     }
