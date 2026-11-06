@@ -30,14 +30,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ApiClient.initialize(applicationContext)
+        // Read only the local DataStore token; never wait for an API call before rendering the app.
+        val startupToken = TokenStore.readTokenBlocking()
         setContent {
             AirdropHunterTheme {
-                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = null)
-                when {
-                    token == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) }
-                    token.isNullOrBlank() -> AuthScreen()
-                    else -> AirdropHunterApp(onLogout = { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } })
-                }
+                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = startupToken)
+                if (token.isNullOrBlank()) AuthScreen()
+                else AirdropHunterApp(onLogout = { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } })
             }
         }
     }

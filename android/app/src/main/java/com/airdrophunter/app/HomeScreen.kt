@@ -17,30 +17,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.airdrophunter.app.data.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.CoinCreateRequest
+import com.airdrophunter.app.data.WalletCheckResponse
+import com.airdrophunter.app.ui.components.BaseCard
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
 import java.util.Locale
 
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier, onOpenSources: () -> Unit, onOpenWallet: () -> Unit, onOpenProjects: () -> Unit) {
-    val scope = rememberCoroutineScope()
+fun HomeScreen(
+    modifier: Modifier = Modifier,
+    onOpenSources: () -> Unit,
+    onOpenWallet: () -> Unit,
+    onOpenProjects: () -> Unit,
+    vm: HomeViewModel = viewModel()
+) {
+    val state by vm.uiState.collectAsStateWithLifecycle()
     val networkError = stringResource(R.string.network_error)
-    var market by remember { mutableStateOf<MarketResponse?>(null) }
-    var coins by remember { mutableStateOf<List<CoinDto>>(emptyList()) }
-    var error by remember { mutableStateOf<String?>(null) }
     var showAdd by remember { mutableStateOf(false) }
     var coinId by remember { mutableStateOf("") }
     var symbol by remember { mutableStateOf("") }
     var coinName by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(false) }
-    suspend fun refresh() {
-        loading = true
-        try { market = ApiClient.service.getMarketPrices(); coins = ApiClient.service.getCoins(); error = null }
-        catch (_: Exception) { error = networkError }
-        loading = false
-    }
-    LaunchedEffect(Unit) { refresh() }
+
+    LaunchedEffect(Unit) { vm.load() }
+
     Column(modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(stringResource(R.string.home_title), style = MaterialTheme.typography.headlineSmall, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
@@ -57,32 +60,36 @@ fun HomeScreen(modifier: Modifier = Modifier, onOpenSources: () -> Unit, onOpenW
                 Text(stringResource(R.string.market_provider), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
             IconButton(onClick = { showAdd = true }) { Icon(Icons.Default.Add, stringResource(R.string.add_coin), tint = AppColors.Primary) }
-            TextButton(onClick = { scope.launch { refresh() } }, enabled = !loading) { Text(stringResource(R.string.retry)) }
+            TextButton(onClick = vm::refresh, enabled = !state.isRefreshing) { Text(stringResource(R.string.retry)) }
         }
-        if (error != null && market == null) Text(networkError, color = AppColors.Danger)
-        if (loading && market == null) Box(Modifier.fillMaxWidth().height(90.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) }
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 4.dp)) {
-            items(market?.prices.orEmpty(), key = { it.coinpaprika_id }) { price ->
-                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border)) {
-                    Column(Modifier.width(150.dp).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(price.symbol, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.weight(1f))
-                            price.change_24h?.let { Text(String.format(Locale.US, "%.2f%%", it), color = if (it >= 0) AppColors.Success else AppColors.Danger, style = MaterialTheme.typography.labelSmall) }
-                        }
-                        Text(price.price_usd?.let { String.format(Locale.US, "$%,.2f", it) } ?: "—", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(price.name, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                        coins.firstOrNull { it.coinpaprika_id == price.coinpaprika_id }?.let { custom ->
-                            TextButton(onClick = { scope.launch { try { ApiClient.service.removeCoin(custom.id); refresh() } catch (_: Exception) { error = networkError } } }, contentPadding = PaddingValues(0.dp)) {
-                                Text(stringResource(R.string.remove_coin), color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+        if (state.hasError && state.market == null) Text(networkError, color = AppColors.Danger)
+        if (state.market == null && state.isLoading) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) { items(4) { SkeletonMarketCard() } }
+        } else {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 4.dp)) {
+                items(state.market?.prices.orEmpty(), key = { it.coinpaprika_id }) { price ->
+                    BaseCard(modifier = Modifier.width(150.dp)) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(price.symbol, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.weight(1f))
+                                price.change_24h?.let { Text(String.format(Locale.US, "%.2f%%", it), color = if (it >= 0) AppColors.Success else AppColors.Danger, style = MaterialTheme.typography.labelSmall) }
+                            }
+                            Text(price.price_usd?.let { String.format(Locale.US, "$%,.2f", it) } ?: "—", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(price.name, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            state.coins.firstOrNull { it.coinpaprika_id == price.coinpaprika_id }?.let { custom ->
+                                TextButton(onClick = { vm.removeCoin(custom) }, contentPadding = PaddingValues(0.dp)) {
+                                    Text(stringResource(R.string.remove_coin), color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                                }
                             }
                         }
                     }
                 }
             }
         }
-        if (market == null && !loading) Text(networkError, color = AppColors.TextSecondary)
+        if (state.hasError && state.market != null) Text(networkError, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
     }
+
     if (showAdd) AlertDialog(
         onDismissRequest = { showAdd = false }, containerColor = AppColors.Surface,
         title = { Text(stringResource(R.string.add_coin), color = AppColors.TextPrimary) },
@@ -90,14 +97,24 @@ fun HomeScreen(modifier: Modifier = Modifier, onOpenSources: () -> Unit, onOpenW
             OutlinedTextField(coinId, { coinId = it }, label = { Text(stringResource(R.string.coin_id_hint)) }, singleLine = true)
             OutlinedTextField(symbol, { symbol = it }, label = { Text(stringResource(R.string.coin_symbol_hint)) }, singleLine = true)
             OutlinedTextField(coinName, { coinName = it }, label = { Text(stringResource(R.string.coin_name_hint)) }, singleLine = true)
-            error?.let { Text(networkError, color = AppColors.Danger) }
         } },
-        confirmButton = { TextButton(onClick = { scope.launch {
-            try { ApiClient.service.addCoin(CoinCreateRequest(coinId.trim(), symbol.trim(), coinName.trim())); showAdd = false; coinId = ""; symbol = ""; coinName = ""; refresh() }
-            catch (_: Exception) { error = networkError }
-        } }, enabled = coinId.isNotBlank() && symbol.isNotBlank() && coinName.isNotBlank()) { Text(stringResource(R.string.save)) } },
+        confirmButton = { TextButton(onClick = {
+            vm.addCoin(CoinCreateRequest(coinId.trim(), symbol.trim(), coinName.trim()))
+            showAdd = false; coinId = ""; symbol = ""; coinName = ""
+        }, enabled = coinId.isNotBlank() && symbol.isNotBlank() && coinName.isNotBlank()) { Text(stringResource(R.string.save)) } },
         dismissButton = { TextButton(onClick = { showAdd = false }) { Text(stringResource(R.string.cancel)) } }
     )
+}
+
+@Composable
+private fun SkeletonMarketCard() {
+    BaseCard(modifier = Modifier.width(150.dp)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(Modifier.fillMaxWidth(.45f).height(14.dp), color = AppColors.Border, shape = RoundedCornerShape(5.dp)) {}
+            Surface(Modifier.fillMaxWidth().height(22.dp), color = AppColors.Border, shape = RoundedCornerShape(5.dp)) {}
+            Surface(Modifier.fillMaxWidth(.7f).height(12.dp), color = AppColors.Border, shape = RoundedCornerShape(5.dp)) {}
+        }
+    }
 }
 
 @Composable
@@ -117,7 +134,7 @@ fun WalletCheckDialog(onDismiss: () -> Unit) {
     val networkError = stringResource(R.string.network_error)
     var address by remember { mutableStateOf("") }
     var result by remember { mutableStateOf<WalletCheckResponse?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     AlertDialog(onDismissRequest = onDismiss, containerColor = AppColors.Surface,
         title = { Text(stringResource(R.string.wallet_title), color = AppColors.TextPrimary) },
@@ -125,11 +142,11 @@ fun WalletCheckDialog(onDismiss: () -> Unit) {
             OutlinedTextField(address, { address = it }, label = { Text(stringResource(R.string.wallet_address_hint)) }, singleLine = true)
             Text(stringResource(R.string.wallet_disclaimer), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
             result?.let { Text(if (it.eligible) stringResource(R.string.wallet_eligible) else stringResource(R.string.wallet_not_eligible), color = AppColors.Primary, fontWeight = FontWeight.Bold); Text(String.format(Locale.US, "≈ $%.2f", it.estimated_reward_usd), color = AppColors.TextPrimary) }
-            error?.let { Text(networkError, color = AppColors.Danger) }
+            if (error) Text(networkError, color = AppColors.Danger)
         } },
         confirmButton = { TextButton(enabled = address.length >= 20 && !loading, onClick = { scope.launch {
-            loading = true; error = null
-            try { result = ApiClient.service.checkWallet(address.trim()) } catch (_: Exception) { error = networkError }
+            loading = true; error = false
+            try { result = ApiClient.service.checkWallet(address.trim()) } catch (_: Exception) { error = true }
             loading = false
         } }) { Text(if (loading) stringResource(R.string.loading) else stringResource(R.string.check_now)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }

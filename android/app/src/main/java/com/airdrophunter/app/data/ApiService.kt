@@ -29,5 +29,7 @@ interface ApiService {
     @POST("api/coins") suspend fun addCoin(@Body request: CoinCreateRequest): CoinDto
     @DELETE("api/coins/{coinId}") suspend fun removeCoin(@Path("coinId") coinId: String)
     @GET("api/wallet/check") suspend fun checkWallet(@Query("address") address: String): WalletCheckResponse
+    @GET("api/wallet/sync") suspend fun syncWallet(@Query("public_key") publicKey: String): WalletSyncResponse
+    @GET("api/wallet") suspend fun getWallets(): List<WalletDto>
     @GET("api/stats") suspend fun getStats(): StatsDto
 }

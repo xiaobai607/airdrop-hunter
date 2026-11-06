@@ -13,15 +13,21 @@ data class MarketPrice(
 )
 data class CoinDto(val id: String, val coinpaprika_id: String, val symbol: String, val name: String)
 data class CoinCreateRequest(val coinpaprika_id: String, val symbol: String, val name: String)
-data class TaskDto(val id: String, val project_id: String, val task_name: String, val is_completed: Boolean)
-data class TaskCreateRequest(val task_name: String)
+data class TaskDto(val id: String, val project_id: String, val task_name: String, val is_completed: Boolean, val step_order: Int = 1)
+data class TaskCreateRequest(val task_name: String, val step_order: Int? = null)
 data class TaskUpdateRequest(val is_completed: Boolean)
 data class WalletCheckResponse(val address: String, val eligible: Boolean, val estimated_reward_usd: Double, val status: String, val notice: String)
+data class WalletSyncResponse(val wallet_id: String, val public_key: String, val chain: String, val daily_gas_usd: Double, val recent_airdrop_income_usd: Double, val status: String, val notice: String)
+data class WalletDto(val id: String, val public_key: String, val chain: String, val daily_gas_usd: Double, val recent_airdrop_income_usd: Double, val last_synced_at: String?)
 data class StatsDto(
     val currency: String,
     val project_count: Int,
     val total_actual_income: Double,
     val total_expected_income: Double,
     val total_gas_cost: Double,
-    val net_realized_income: Double
+    val net_realized_income: Double,
+    val wallet_count: Int = 0,
+    val project_gas_cost: Double = 0.0,
+    val wallet_daily_gas: Double = 0.0,
+    val wallet_airdrop_income: Double = 0.0
 )

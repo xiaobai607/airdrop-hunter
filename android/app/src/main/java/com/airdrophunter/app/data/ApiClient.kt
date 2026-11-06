@@ -1,12 +1,17 @@
 package com.airdrophunter.app.data
+
 import android.content.Context
 import com.airdrophunter.app.BuildConfig
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+
 object ApiClient {
-    fun initialize(context: Context) { TokenStore.initialize(context) }
+    fun initialize(context: Context) {
+        TokenStore.initialize(context)
+        CacheStore.initialize(context)
+    }
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder().addInterceptor { chain ->
             val original = chain.request()
