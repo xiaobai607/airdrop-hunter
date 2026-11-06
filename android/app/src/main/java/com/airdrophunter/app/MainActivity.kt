@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -60,29 +62,50 @@ private fun HomeScreen(
     uiState: ProjectsUiState,
     onRetry: () -> Unit
 ) {
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(16.dp),
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("你的空投管理中心", style = MaterialTheme.typography.headlineSmall)
-        Text("项目数据由后端 API 提供；当前为开发阶段模拟数据。")
+        item {
+            Text("你的空投管理中心", style = MaterialTheme.typography.headlineSmall)
+        }
+        item {
+            Text("项目数据由后端 API 提供；当前为开发阶段模拟数据。")
+        }
 
         when {
-            uiState.isLoading -> CircularProgressIndicator()
-            uiState.error != null -> {
-                Text("加载失败：${uiState.error}")
-                Button(onClick = onRetry) { Text("重新加载") }
+            uiState.isLoading -> {
+                item { CircularProgressIndicator() }
             }
-            uiState.projects.isEmpty() -> Text("暂时没有项目")
-            else -> uiState.projects.forEach { project ->
-                Card {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(project.name, style = MaterialTheme.typography.titleMedium)
-                        Text(project.description)
-                        Text("状态：${project.status}")
+            uiState.error != null -> {
+                item { Text("加载失败：${uiState.error}") }
+                item {
+                    Button(onClick = onRetry) {
+                        Text("重新加载")
+                    }
+                }
+            }
+            uiState.projects.isEmpty() -> {
+                item { Text("暂时没有项目") }
+            }
+            else -> {
+                items(
+                    items = uiState.projects,
+                    key = { project -> project.id }
+                ) { project ->
+                    Card {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                project.name,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(project.description)
+                            Text("状态：${project.status}")
+                        }
                     }
                 }
             }
