@@ -38,13 +38,31 @@ class AirdropHubViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                val projects = ApiClient.service.getAirdropHub(if (chain == "全部") null else chain)
-                val syncStatus = runCatching { ApiClient.service.getAirdropHubStatus() }.getOrNull()
+                var projects = ApiClient.service.getAirdropHub(if (chain == "全部") null else chain)
+                var syncStatus = runCatching { ApiClient.service.getAirdropHubStatus() }.getOrNull()
+                // First visit triggers one import attempt when the database has never been seeded.
+                if (projects.isEmpty() && syncStatus?.last_attempt_at == null) {
+                    try {
+                        ApiClient.service.refreshAirdropHub()
+                        projects = ApiClient.service.getAirdropHub(if (chain == "全部") null else chain)
+                        syncStatus = runCatching { ApiClient.service.getAirdropHubStatus() }.getOrNull()
+                    } catch (refreshError: Exception) {
+                        syncStatus = runCatching { ApiClient.service.getAirdropHubStatus() }.getOrNull()
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            projects = projects,
+                            error = (refreshError as? HttpException)?.response()?.errorBody()?.string()
+                                ?: refreshError.message ?: "数据源暂时不可用，请点击重试。",
+                            sourceError = syncStatus?.error
+                        )
+                        return@launch
+                    }
+                }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     projects = projects,
                     error = if (projects.isEmpty() && syncStatus?.error != null) syncStatus.error
-                        else if (projects.isEmpty()) "当前数据列表为空，请稍后重试或手动刷新数据源。"
+                        else if (projects.isEmpty()) "当前数据列表为空，请点击刷新重试。"
                         else null,
                     sourceError = syncStatus?.error
                 )
