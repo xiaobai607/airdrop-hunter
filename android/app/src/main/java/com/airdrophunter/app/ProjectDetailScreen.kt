@@ -21,7 +21,7 @@ import com.airdrophunter.app.ui.theme.AppColors
 import java.util.Locale
 
 @Composable
-fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, vm: ProjectDetailViewModel = viewModel()) {
+fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGuest: Boolean = false, vm: ProjectDetailViewModel = viewModel()) {
     val context = LocalContext.current
     val state by vm.uiState.collectAsStateWithLifecycle()
     val twitterTitle = stringResource(R.string.twitter)
@@ -29,7 +29,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, vm: 
     val completed = state.tasks.count { it.is_completed }
     val progress = if (state.tasks.isEmpty()) 0f else completed.toFloat() / state.tasks.size
 
-    LaunchedEffect(project.id) { vm.load(project.id) }
+    LaunchedEffect(project.id, isGuest) { vm.load(project.id, isGuest) }
 
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
@@ -55,7 +55,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, vm: 
                 LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth(), color = AppColors.Primary, trackColor = AppColors.Border)
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(taskName, { taskName = it }, Modifier.weight(1f), label = { Text(stringResource(R.string.task_hint)) }, singleLine = true)
-                    Button(enabled = taskName.isNotBlank() && !state.isBusy, onClick = { vm.addTask(project.id, taskName); taskName = "" }) { Text(stringResource(R.string.add_task)) }
+                    Button(enabled = taskName.isNotBlank() && !state.isBusy, onClick = { vm.addTask(project.id, taskName, isGuest); taskName = "" }) { Text(stringResource(R.string.add_task)) }
                 }
             }
         }
@@ -66,9 +66,9 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, vm: 
                     Surface(shape = CircleShape, color = AppColors.NavIndicator) {
                         Text(task.step_order.toString(), Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = AppColors.Primary, fontWeight = FontWeight.Bold)
                     }
-                    Checkbox(checked = task.is_completed, onCheckedChange = { checked -> vm.setCompleted(project.id, task, checked) })
+                    Checkbox(checked = task.is_completed, onCheckedChange = { checked -> vm.setCompleted(project.id, task, checked, isGuest) })
                     Text(task.task_name, Modifier.weight(1f), color = AppColors.TextPrimary)
-                    TextButton(onClick = { vm.deleteTask(project.id, task) }) { Text(stringResource(R.string.delete), color = AppColors.Danger) }
+                    TextButton(onClick = { vm.deleteTask(project.id, task, isGuest) }) { Text(stringResource(R.string.delete), color = AppColors.Danger) }
                 }
             }
         }

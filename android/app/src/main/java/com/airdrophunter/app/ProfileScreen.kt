@@ -93,6 +93,11 @@ fun ProfileScreen(
             }
         }
 
+        if (isGuest) {
+            Text("当前数据保存在本地，登录后可同步至云端", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+            Button(onClick = onRequireAuth, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("登录 / 注册") }
+        }
+
         if (state.hasError && !isGuest) {
             Text("账户或统计数据暂时无法加载，服务器繁忙。", color = AppColors.Danger,
                 style = MaterialTheme.typography.bodySmall)

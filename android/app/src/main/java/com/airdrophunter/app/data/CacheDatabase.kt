@@ -61,4 +61,14 @@ object CacheStore {
         runCatching { database?.cacheDao()?.write(CachedPayload(scopedKey(key), payload, System.currentTimeMillis())) }
         Unit
     }
+
+    // Local-first data is device-owned and must not be partitioned by login state.
+    suspend fun readLocal(key: String): String? = withContext(Dispatchers.IO) {
+        runCatching { database?.cacheDao()?.read("local:$key") }.getOrNull()
+    }
+
+    suspend fun writeLocal(key: String, payload: String) = withContext(Dispatchers.IO) {
+        runCatching { database?.cacheDao()?.write(CachedPayload("local:$key", payload, System.currentTimeMillis())) }
+        Unit
+    }
 }

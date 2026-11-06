@@ -28,6 +28,7 @@ import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class WalletNetwork(val key: String, val label: String, val symbol: String)
 private val walletNetworks = listOf(
@@ -42,34 +43,72 @@ data class WalletManagerUiState(val wallets: List<WalletDto> = emptyList(), val 
 class WalletManagerViewModel : ViewModel() {
     private val _state = MutableStateFlow(WalletManagerUiState(isLoading = true))
     val state = _state.asStateFlow()
-    fun load() = viewModelScope.launch {
+    private val gson = com.google.gson.Gson()
+    private val walletListType = object : com.google.gson.reflect.TypeToken<List<WalletDto>>() {}.type
+
+    fun load(isGuest: Boolean = false) = viewModelScope.launch {
         _state.value = _state.value.copy(isLoading = true, error = null)
-        try { _state.value = _state.value.copy(wallets = ApiClient.service.getWallets(), isLoading = false) }
-        catch (_: Exception) { _state.value = _state.value.copy(isLoading = false, error = "服务器繁忙，请稍后重试") }
+        if (isGuest) {
+            val local = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.airdrophunter.app.data.CacheStore.readLocal("wallets")?.let {
+                    runCatching { gson.fromJson<List<WalletDto>>(it, walletListType) }.getOrNull()
+                }
+            }.orEmpty()
+            _state.value = _state.value.copy(wallets = local, isLoading = false, error = null)
+            return@launch
+        }
+        try {
+            val wallets = ApiClient.service.getWallets()
+            _state.value = _state.value.copy(wallets = wallets, isLoading = false)
+            withContext(kotlinx.coroutines.Dispatchers.IO) { com.airdrophunter.app.data.CacheStore.write("wallets", gson.toJson(wallets)) }
+        } catch (_: Exception) { _state.value = _state.value.copy(isLoading = false, error = "服务器繁忙，请稍后重试") }
     }
-    fun add(request: WalletWriteRequest) = viewModelScope.launch {
+
+    fun add(request: WalletWriteRequest, isGuest: Boolean = false) = viewModelScope.launch {
         _state.value = _state.value.copy(isSaving = true, error = null)
         try {
-            ApiClient.service.addWallet(request)
-            _state.value = _state.value.copy(wallets = ApiClient.service.getWallets(), isSaving = false)
-        } catch (_: Exception) { _state.value = _state.value.copy(isSaving = false, error = "地址格式与所选网络不匹配，或服务器繁忙") }
+            if (isGuest) {
+                val wallet = WalletDto(
+                    id = java.util.UUID.randomUUID().toString(),
+                    wallet_name = request.wallet_name,
+                    chain = request.chain,
+                    network_icon = when (request.chain) { "Ethereum" -> "E"; "Tron" -> "T"; "Solana" -> "S"; else -> "B" },
+                    address = request.address
+                )
+                val wallets = _state.value.wallets + wallet
+                withContext(kotlinx.coroutines.Dispatchers.IO) { com.airdrophunter.app.data.CacheStore.writeLocal("wallets", gson.toJson(wallets)) }
+                _state.value = _state.value.copy(wallets = wallets, isSaving = false)
+            } else {
+                ApiClient.service.addWallet(request)
+                val wallets = ApiClient.service.getWallets()
+                _state.value = _state.value.copy(wallets = wallets, isSaving = false)
+                withContext(kotlinx.coroutines.Dispatchers.IO) { com.airdrophunter.app.data.CacheStore.write("wallets", gson.toJson(wallets)) }
+            }
+        } catch (_: Exception) { _state.value = _state.value.copy(isSaving = false, error = "保存失败，请检查地址或稍后重试") }
     }
-    fun delete(wallet: WalletDto) = viewModelScope.launch {
+
+    fun delete(wallet: WalletDto, isGuest: Boolean = false) = viewModelScope.launch {
         try {
-            ApiClient.service.deleteWallet(wallet.id)
-            _state.value = _state.value.copy(wallets = _state.value.wallets.filterNot { it.id == wallet.id })
+            val wallets = _state.value.wallets.filterNot { it.id == wallet.id }
+            if (isGuest) {
+                withContext(kotlinx.coroutines.Dispatchers.IO) { com.airdrophunter.app.data.CacheStore.writeLocal("wallets", gson.toJson(wallets)) }
+            } else {
+                ApiClient.service.deleteWallet(wallet.id)
+                withContext(kotlinx.coroutines.Dispatchers.IO) { com.airdrophunter.app.data.CacheStore.write("wallets", gson.toJson(wallets)) }
+            }
+            _state.value = _state.value.copy(wallets = wallets, error = null)
         } catch (_: Exception) { _state.value = _state.value.copy(error = "删除失败，请稍后重试") }
     }
 }
 
 @Composable
-fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, WalletDto, List<WalletDto>, String) -> Unit, vm: WalletManagerViewModel = viewModel()) {
+fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, WalletDto, List<WalletDto>, String) -> Unit, isGuest: Boolean = false, vm: WalletManagerViewModel = viewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     var selectedNetwork by remember { mutableStateOf<WalletNetwork?>(null) }
     var showNetworkPicker by remember { mutableStateOf(false) }
     var showAddForm by remember { mutableStateOf(false) }
     var showEligibility by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { vm.load() }
+    LaunchedEffect(isGuest) { vm.load(isGuest) }
 
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -108,7 +147,7 @@ fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, W
                                 }
                                 Text(shortAddress(wallet.address), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                             }
-                            IconButton(onClick = { vm.delete(wallet) }) { Icon(Icons.Default.DeleteOutline, "删除钱包", tint = AppColors.Danger) }
+                            IconButton(onClick = { vm.delete(wallet, isGuest) }) { Icon(Icons.Default.DeleteOutline, "删除钱包", tint = AppColors.Danger) }
                         }
                     }
                 }
@@ -138,11 +177,11 @@ fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, W
             text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(walletName, { walletName = it }, label = { Text("自定义名称，例如：主号") }, singleLine = true)
                 OutlinedTextField(address, { address = it }, label = { Text("公开钱包地址") }, singleLine = true)
-                Text("地址长度超过 20 位即可提交；网络格式由服务端校验。", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Text(if (isGuest) "地址仅保存在本地设备，不会发送到服务器。" else "地址由服务器校验并保存。", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 state.error?.let { Text(it, color = AppColors.Danger) }
             } },
             confirmButton = { Button(enabled = address.trim().length > 20 && walletName.isNotBlank() && !state.isSaving,
-                onClick = { vm.add(WalletWriteRequest(walletName.trim(), selectedNetwork!!.key, address.trim())); showAddForm = false },
+                onClick = { vm.add(WalletWriteRequest(walletName.trim(), selectedNetwork!!.key, address.trim()), isGuest); showAddForm = false },
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text(if (state.isSaving) "保存中…" else "保存") } },
             dismissButton = { TextButton(onClick = { showAddForm = false }) { Text("取消") } })
     }

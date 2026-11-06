@@ -38,24 +38,29 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         TokenStore.initialize(applicationContext)
         ApiClient.initialize(applicationContext)
-        val startupToken = TokenStore.readTokenBlocking()
         window.statusBarColor = android.graphics.Color.rgb(248, 249, 250)
         window.navigationBarColor = android.graphics.Color.rgb(248, 249, 250)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         setContent {
             AirdropHunterTheme {
-                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = startupToken)
-                var guestMode by rememberSaveable { mutableStateOf(false) }
-                when {
-                    !token.isNullOrBlank() -> AirdropHunterApp(false, {}, {
-                        lifecycleScope.launch { TokenStore.clearToken(applicationContext) }
-                    })
-                    guestMode -> AirdropHunterApp(true, {
-                        Toast.makeText(applicationContext, "请先登录以同步您的云端数据", Toast.LENGTH_LONG).show()
-                        guestMode = false
-                    }, { guestMode = false })
-                    else -> AuthScreen(onGuestMode = { guestMode = true })
+                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = null)
+                var showAuth by rememberSaveable { mutableStateOf(false) }
+                LaunchedEffect(token) { if (!token.isNullOrBlank()) showAuth = false }
+                LaunchedEffect(token) {
+                    if (!token.isNullOrBlank()) {
+                        com.airdrophunter.app.data.LocalDataSyncManager.prepareMockSync(applicationContext)
+                    }
+                }
+                if (showAuth && token.isNullOrBlank()) {
+                    AuthScreen(onGuestMode = { showAuth = false })
+                } else {
+                    AirdropHunterApp(
+                        isGuest = token.isNullOrBlank(),
+                        onRequireAuth = { showAuth = true },
+                        onLogout = { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } },
+                        onOpenAuth = { showAuth = true }
+                    )
                 }
             }
         }
@@ -66,7 +71,7 @@ private data class Destination(val label: Int, val icon: ImageVector)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogout: () -> Unit) {
+private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogout: () -> Unit, onOpenAuth: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var showSources by rememberSaveable { mutableStateOf(false) }
@@ -132,6 +137,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                 showAirdropHub -> AirdropHubScreen(Modifier.fillMaxSize())
                 showWalletManager -> WalletManagerScreen(
                     modifier = Modifier.fillMaxSize(),
+                    isGuest = isGuest,
                     onOpenBrowser = { url, selectedWallet, wallets, title ->
                         val walletJson = JSONArray().apply {
                             wallets.forEach { wallet ->
@@ -150,18 +156,18 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                             .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, selectedWallet.id))
                     }
                 )
-                selectedProject != null -> ProjectDetailScreen(selectedProject!!, Modifier.fillMaxSize())
+                selectedProject != null -> ProjectDetailScreen(selectedProject!!, Modifier.fillMaxSize(), isGuest)
                 tab == 0 -> HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     onOpenSources = { showSources = true },
-                    onOpenWallet = { if (isGuest) onRequireAuth() else showWalletManager = true },
+                    onOpenWallet = { showWalletManager = true },
                     onOpenProjects = { tab = 1 },
                     onOpenAirdropHub = { showAirdropHub = true },
                     isGuest = isGuest, onRequireAuth = onRequireAuth
                 )
                 tab == 1 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth)
                 else -> ProfileScreen(Modifier.fillMaxSize(), onLogout, isGuest, onRequireAuth,
-                    onManageWallets = { if (isGuest) onRequireAuth() else showWalletManager = true })
+                    onManageWallets = { showWalletManager = true })
             }
         }
     }

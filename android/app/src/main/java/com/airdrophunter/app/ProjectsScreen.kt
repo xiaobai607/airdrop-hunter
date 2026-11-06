@@ -40,9 +40,7 @@ fun ProjectsScreen(
     var newProjectOfficialUrl by remember { mutableStateOf("") }
     var newProjectClaimUrl by remember { mutableStateOf("") }
 
-    LaunchedEffect(isGuest) {
-        if (!isGuest) vm.loadProjects()
-    }
+    LaunchedEffect(isGuest) { vm.loadProjects(isGuest) }
 
     val filterOptions = listOf("全部" to state.projects.size) +
         listOf(
@@ -93,11 +91,6 @@ fun ProjectsScreen(
         }
 
         when {
-            isGuest -> EmptyProjects(
-                modifier = Modifier.weight(1f),
-                title = "登录后管理你的项目",
-                subtitle = "游客模式不会加载或展示虚构项目。"
-            )
             state.isLoading && state.projects.isEmpty() -> Box(
                 Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center
             ) { CircularProgressIndicator(color = AppColors.Primary) }
@@ -109,7 +102,7 @@ fun ProjectsScreen(
             filtered.isEmpty() -> EmptyProjects(
                 modifier = Modifier.weight(1f),
                 title = "还没有添加项目",
-                subtitle = "添加项目后，这里会显示你的真实项目与任务进度。"
+                subtitle = if (isGuest) "添加的项目只保存在这台设备上。" else "添加项目后，这里会显示你的项目与任务进度。"
             )
             else -> LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -175,7 +168,7 @@ fun ProjectsScreen(
                 OutlinedTextField(newProjectClaimUrl, { newProjectClaimUrl = it }, label = { Text("官方资格查询 HTTPS 链接（可选）") }, singleLine = true)
                 Text("资格查询链接请填写项目方官方页面，不要填写来历不明的第三方链接。",
                     color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                state.error?.let { Text("服务器繁忙或提交信息无效", color = AppColors.Danger) }
+                state.error?.let { Text(it, color = AppColors.Danger) }
             }
         },
         confirmButton = {
@@ -187,7 +180,7 @@ fun ProjectsScreen(
                         status = "tracking",
                         official_url = newProjectOfficialUrl.trim(),
                         claim_url = newProjectClaimUrl.trim()
-                    ))
+                    ), isGuest)
                     showAddDialog = false
                     newProjectName = ""; newProjectDescription = ""; newProjectOfficialUrl = ""; newProjectClaimUrl = ""
                 }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("保存项目") }
@@ -197,7 +190,7 @@ fun ProjectsScreen(
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
         FloatingActionButton(
-            onClick = { if (isGuest) onRequireAuth() else showAddDialog = true },
+            onClick = { showAddDialog = true },
             modifier = Modifier.padding(end = 20.dp, bottom = 20.dp).size(58.dp),
             shape = RoundedCornerShape(50),
             containerColor = AppColors.Primary,
