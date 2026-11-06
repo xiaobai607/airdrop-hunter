@@ -63,7 +63,10 @@ class WalletManagerViewModel : ViewModel() {
                     chain = request.chain, network_icon = when (request.chain) { "EVM" -> "E"; "TRON" -> "T"; else -> "S" },
                     address = request.address
                 )
-                val wallets = _state.value.wallets.filterNot { it.address.equals(request.address, true) } + wallet
+                val wallets = _state.value.wallets.filterNot {
+                    if (wallet.ecosystem == WalletEcosystem.EVM) it.address.equals(request.address, true)
+                    else it.address == request.address
+                } + wallet
                 withContext(kotlinx.coroutines.Dispatchers.IO) { com.airdrophunter.app.data.CacheStore.writeLocal("wallets", gson.toJson(wallets)) }
                 _state.value = _state.value.copy(wallets = wallets, isSaving = false)
             } else {
@@ -199,4 +202,4 @@ fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, W
     })
 }
 
-internal fun shortAddress(address: String): String = if (address.length > 13) address.take(6) + "…" + address.takeLast(5) else address
+internal fun shortAddress(address: String): String = if (address.length > 13) address.take(6) + "…" + address.takeLast(4) else address
