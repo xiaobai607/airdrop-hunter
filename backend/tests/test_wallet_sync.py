@@ -2,16 +2,15 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from app.main import app
 
+
 def auth(client):
-    email = f"wallet-{uuid4().hex}@example.com"
-    sent = client.post("/api/auth/send-code", json={"email": email})
-    assert sent.status_code == 200
+    username = f"wallet_{uuid4().hex[:12]}"
     registered = client.post("/api/auth/register", json={
-        "email": email, "password": "strong-password-123",
-        "verification_code": sent.json()["mock_code"]
+        "username": username, "password": "strong-password-123"
     })
     assert registered.status_code == 201
     return {"Authorization": f"Bearer {registered.json()['access_token']}"}
+
 
 def test_wallet_crud_and_project_claim_url_are_user_scoped():
     with TestClient(app) as client:
@@ -47,6 +46,7 @@ def test_wallet_crud_and_project_claim_url_are_user_scoped():
         assert client.delete(f"/api/wallets/{wallet['id']}", headers=alice).status_code == 204
         assert client.get("/api/wallets", headers=alice).json() == []
 
+
 def test_wallet_creation_rejects_chain_address_mismatch():
     with TestClient(app) as client:
         headers = auth(client)
@@ -55,6 +55,7 @@ def test_wallet_creation_rejects_chain_address_mismatch():
         })
         assert response.status_code == 422
 
+
 def test_claim_url_requires_https_and_configured_project():
     with TestClient(app) as client:
         headers = auth(client)
@@ -62,6 +63,7 @@ def test_claim_url_requires_https_and_configured_project():
             "name": "No claim", "claim_url": "http://unsafe.example"
         })
         assert project.status_code == 422
+
 
 def test_task_step_order_is_persisted_and_sorted():
     with TestClient(app) as client:

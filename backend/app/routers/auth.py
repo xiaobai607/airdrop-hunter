@@ -1,5 +1,4 @@
-import os
-import time
+import secrets
 from typing import Annotated
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,82 +13,39 @@ from app.security import create_access_token, decode_access_token, hash_password
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 bearer_scheme = HTTPBearer(auto_error=False)
-MOCK_CODE = "123456"
-CODE_TTL_SECONDS = 600
-CODE_COOLDOWN_SECONDS = 60
-DEV_TEST_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
-DEV_TEST_USER_EMAIL = "dev-test-account@airdrop-hunter.invalid"
 
-
-def dev_test_auth_enabled() -> bool:
-    return os.getenv("ENABLE_DEV_TEST_AUTH", "false").strip().lower() in {"1", "true", "yes", "on"}
-
-
-async def get_or_create_dev_test_user(db: AsyncSession) -> User:
-    user = await db.scalar(select(User).where(User.id == DEV_TEST_USER_ID))
-    if user is not None:
-        return user
-    user = User(id=DEV_TEST_USER_ID, email=DEV_TEST_USER_EMAIL, display_name="Developer Test Account")
-    db.add(user)
-    try:
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
-        user = await db.scalar(select(User).where(User.id == DEV_TEST_USER_ID))
-        if user is None:
-            raise
-        return user
-    await db.refresh(user)
-    return user
-_verification_codes: dict[str, tuple[str, float, float]] = {}
-
-class SendCodeRequest(BaseModel):
-    email: str = Field(min_length=3, max_length=320)
-
-class SendCodeResponse(BaseModel):
-    message: str
-    mock_code: str
-    retry_after_seconds: int
-    expires_in_seconds: int
 
 class AuthRequest(BaseModel):
-    email: str = Field(min_length=3, max_length=320)
+    username: str = Field(min_length=3, max_length=24, pattern=r"^[A-Za-z0-9_]+$")
     password: str = Field(min_length=8, max_length=128)
-    verification_code: str | None = Field(default=None, min_length=6, max_length=6)
+
 
 class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user_id: str
-    email: str
-    display_name: str | None
+    username: str
+    uid: str
+
 
 def auth_response(user: User) -> AuthResponse:
-    return AuthResponse(access_token=create_access_token(user.id), user_id=str(user.id), email=user.email, display_name=user.display_name)
+    return AuthResponse(
+        access_token=create_access_token(user.id),
+        user_id=str(user.id),
+        username=user.username,
+        uid=user.uid,
+    )
 
-@router.post("/send-code", response_model=SendCodeResponse)
-async def send_code(payload: SendCodeRequest) -> SendCodeResponse:
-    email = payload.email.strip().lower()
-    if "@" not in email or email.startswith("@") or email.endswith("@"):
-        raise HTTPException(422, "请输入有效的邮箱地址")
-    now = time.monotonic()
-    previous = _verification_codes.get(email)
-    if previous and now - previous[2] < CODE_COOLDOWN_SECONDS:
-        remaining = CODE_COOLDOWN_SECONDS - int(now - previous[2])
-        raise HTTPException(429, f"请等待 {remaining} 秒后再获取验证码")
-    _verification_codes[email] = (MOCK_CODE, now + CODE_TTL_SECONDS, now)
-    print(f"[MOCK EMAIL] verification code for {email}: {MOCK_CODE}")
-    return SendCodeResponse(message="Mock verification code generated", mock_code=MOCK_CODE,
-                            retry_after_seconds=CODE_COOLDOWN_SECONDS, expires_in_seconds=CODE_TTL_SECONDS)
 
-async def get_current_user(credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)], db: Annotated[AsyncSession, Depends(get_db)]) -> User:
-    unauthorized = HTTPException(401, "登录状态无效或已过期，请重新登录", headers={"WWW-Authenticate": "Bearer"})
-    if dev_test_auth_enabled() and (
-        credentials is None
-        or (credentials.scheme.lower() == "bearer" and credentials.credentials == "dev-test-token")
-    ):
-        # Shared test identity is available only when the server-side opt-in is enabled.
-        return await get_or_create_dev_test_user(db)
+async def get_current_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
+    unauthorized = HTTPException(
+        401,
+        "登录状态无效或已过期，请重新登录",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise unauthorized
     try:
@@ -101,27 +57,56 @@ async def get_current_user(credentials: Annotated[HTTPAuthorizationCredentials |
         raise unauthorized
     return user
 
+
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-async def register(payload: AuthRequest, db: Annotated[AsyncSession, Depends(get_db)]) -> AuthResponse:
-    email = payload.email.strip().lower()
-    if "@" not in email or email.startswith("@") or email.endswith("@"):
-        raise HTTPException(422, "请输入有效的邮箱地址")
-    issued = _verification_codes.get(email)
-    if not payload.verification_code or issued is None or issued[0] != payload.verification_code or time.monotonic() > issued[1]:
-        raise HTTPException(400, "验证码错误或已过期，请重新获取")
-    user = User(email=email, password_hash=hash_password(payload.password))
-    db.add(user)
-    try:
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(409, "该邮箱已注册，请直接登录")
-    await db.refresh(user)
-    return auth_response(user)
+async def register(
+    payload: AuthRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AuthResponse:
+    username = payload.username.strip().lower()
+    existing = await db.scalar(select(User).where(User.username == username))
+    if existing is not None:
+        raise HTTPException(400, "该账号已被占用")
+
+    # Six-digit IDs are allocated randomly and protected by a database unique index.
+    for _ in range(10):
+        uid = f"{secrets.randbelow(900000) + 100000:06d}"
+        user = User(
+            username=username,
+            uid=uid,
+            email=None,
+            display_name=username,
+            password_hash=hash_password(payload.password),
+        )
+        db.add(user)
+        try:
+            await db.commit()
+            await db.refresh(user)
+            return auth_response(user)
+        except IntegrityError:
+            await db.rollback()
+            duplicate = await db.scalar(select(User).where(User.username == username))
+            if duplicate is not None:
+                raise HTTPException(400, "该账号已被占用")
+    raise HTTPException(503, "暂时无法分配用户编号，请稍后重试")
+
 
 @router.post("/login", response_model=AuthResponse)
-async def login(payload: AuthRequest, db: Annotated[AsyncSession, Depends(get_db)]) -> AuthResponse:
-    user = await db.scalar(select(User).where(User.email == payload.email.strip().lower()))
+async def login(
+    payload: AuthRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AuthResponse:
+    username = payload.username.strip().lower()
+    user = await db.scalar(select(User).where(User.username == username))
     if user is None or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(401, "邮箱或密码错误", headers={"WWW-Authenticate": "Bearer"})
+        raise HTTPException(401, "账号或密码错误", headers={"WWW-Authenticate": "Bearer"})
     return auth_response(user)
+
+
+@router.get("/me")
+async def get_me(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    user = await get_current_user(credentials, db)
+    return {"user_id": str(user.id), "username": user.username, "uid": user.uid}
