@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -50,12 +50,12 @@ private fun AirdropHunterApp() {
     var selectedTab by remember { mutableIntStateOf(0) }
     val destinations = listOf(
         AppDestination("发现", Icons.Default.Explore),
-        AppDestination("空投记录", Icons.Default.TrackChanges),
+        AppDestination("我的", Icons.Default.Person),
         AppDestination("项目管理", Icons.Default.FolderOpen)
     )
     val title = when (selectedTab) {
         0 -> "发现"
-        1 -> "空投记录"
+        1 -> "我的"
         else -> "项目管理"
     }
 
@@ -63,12 +63,7 @@ private fun AirdropHunterApp() {
         containerColor = AppColors.Background,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
+                title = { Text(text = title, style = MaterialTheme.typography.titleLarge) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = AppColors.Background,
                     titleContentColor = AppColors.TextPrimary
@@ -109,7 +104,7 @@ private fun AirdropHunterApp() {
         ) {
             when (selectedTab) {
                 0 -> DiscoverScreen(modifier = Modifier.fillMaxSize())
-                1 -> AirdropDiscoveryScreen(modifier = Modifier.fillMaxSize())
+                1 -> ProfileScreen(modifier = Modifier.fillMaxSize())
                 else -> ProjectsScreen(modifier = Modifier.fillMaxSize())
             }
         }

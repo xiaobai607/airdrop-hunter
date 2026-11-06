@@ -9,6 +9,9 @@
         android:theme="@style/Theme.AirdropHunter"
         android:usesCleartextTraffic="true">
         <activity
+            android:name=".BrowserActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
