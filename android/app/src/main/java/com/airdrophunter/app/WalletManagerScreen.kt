@@ -15,7 +15,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -30,12 +29,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-private data class WalletNetwork(val key: String, val label: String, val symbol: String, val color: Color)
+private data class WalletNetwork(val key: String, val label: String, val symbol: String)
 private val walletNetworks = listOf(
-    WalletNetwork("Ethereum", "Ethereum · ERC20", "E", Color(0xFF627EEA)),
-    WalletNetwork("Tron", "Tron · TRC20", "T", Color(0xFFDC3434)),
-    WalletNetwork("Solana", "Solana", "S", Color(0xFF7B61C9)),
-    WalletNetwork("Bitcoin", "Bitcoin", "B", Color(0xFFF7931A))
+    WalletNetwork("Ethereum", "Ethereum · ERC20", "E"),
+    WalletNetwork("Tron", "Tron · TRC20", "T"),
+    WalletNetwork("Solana", "Solana", "S"),
+    WalletNetwork("Bitcoin", "Bitcoin", "B")
 )
 
 data class WalletManagerUiState(val wallets: List<WalletDto> = emptyList(), val isLoading: Boolean = false, val isSaving: Boolean = false, val error: String? = null)
@@ -100,7 +99,7 @@ fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, W
                     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                         border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(0.dp)) {
                         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            NetworkIcon(wallet.network_icon.ifBlank { network?.symbol ?: "?" }, network?.color ?: AppColors.Primary)
+                            ChainIcon(wallet.chain, wallet.network_icon, Modifier.size(44.dp))
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -124,7 +123,7 @@ fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, W
                 Surface(onClick = { selectedNetwork = network; showNetworkPicker = false; showAddForm = true },
                     color = AppColors.Surface, border = BorderStroke(1.dp, AppColors.Border), shape = RoundedCornerShape(12.dp)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        NetworkIcon(network.symbol, network.color); Spacer(Modifier.width(12.dp))
+                        ChainIcon(network.key, network.symbol, Modifier.size(40.dp)); Spacer(Modifier.width(12.dp))
                         Text(network.label, color = AppColors.TextPrimary, fontWeight = FontWeight.Medium)
                     }
                 }
@@ -151,13 +150,6 @@ fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, W
         showEligibility = false
         onOpenBrowser(url, selectedWallet, allWallets, title)
     })
-}
-
-@Composable
-private fun NetworkIcon(symbol: String, color: Color) {
-    Surface(shape = CircleShape, color = color, modifier = Modifier.size(40.dp)) {
-        Box(contentAlignment = Alignment.Center) { Text(symbol.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold) }
-    }
 }
 
 internal fun shortAddress(address: String): String = if (address.length > 13) address.take(6) + "…" + address.takeLast(5) else address

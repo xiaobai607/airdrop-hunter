@@ -19,10 +19,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
@@ -222,18 +220,13 @@ private fun WalletAddressAssistBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Surface(shape = CircleShape, color = AppColors.Primary.copy(alpha = 0.10f), modifier = Modifier.size(42.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.AccountBalanceWallet, contentDescription = "钱包", tint = AppColors.Primary)
-                }
-            }
+            ChainIcon(selectedWallet.chain, selectedWallet.networkIcon, Modifier.size(42.dp))
             Box(Modifier.weight(1f)) {
                 Row(
                     Modifier.fillMaxWidth().clickable(enabled = wallets.size > 1) { expanded = true },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    NetworkBadge(selectedWallet.networkIcon, selectedWallet.chain)
                     Column(Modifier.weight(1f)) {
                         Text(
                             "${selectedWallet.chain}  ${selectedWallet.walletName}",
@@ -275,21 +268,6 @@ private fun WalletAddressAssistBar(
                 Spacer(Modifier.width(5.dp))
                 Text("复制地址", maxLines = 1)
             }
-        }
-    }
-}
-
-@Composable
-private fun NetworkBadge(symbol: String, chain: String) {
-    val badgeColor = when {
-        symbol.equals("T", true) || chain.contains("tron", true) -> Color(0xFFDC3434)
-        symbol.equals("S", true) || chain.contains("sol", true) -> Color(0xFF7B61C9)
-        symbol.equals("B", true) || chain.contains("bitcoin", true) -> Color(0xFFF7931A)
-        else -> Color(0xFF627EEA)
-    }
-    Surface(shape = CircleShape, color = badgeColor, modifier = Modifier.size(30.dp)) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(symbol.ifBlank { chain.take(1) }.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }
