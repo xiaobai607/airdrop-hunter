@@ -34,14 +34,25 @@ fun ProjectsScreen(
     onRequireAuth: () -> Unit = {},
     vm: ProjectsViewModel = viewModel()
 ) {
+    var showGuestAuthDialog by remember { mutableStateOf(false) }
     if (isGuest) {
-        Column(modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("登录后即可添加和管理自己的空投项目", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-            Text("游客模式可以浏览行情和空投导航，云端项目需要账户同步。", color = AppColors.TextSecondary)
-            Spacer(Modifier.height(18.dp))
-            Button(onClick = onRequireAuth) { Text("登录 / 注册") }
+        Box(modifier.fillMaxSize()) {
+            Column(Modifier.align(Alignment.Center).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("登录后即可添加和管理自己的空投项目", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(12.dp))
+                Text("游客模式可以浏览行情和空投导航，云端项目需要账户同步。", color = AppColors.TextSecondary)
+            }
+            FloatingActionButton(onClick = { showGuestAuthDialog = true }, modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp), containerColor = AppColors.Primary, contentColor = AppColors.Background) {
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_project))
+            }
         }
+        if (showGuestAuthDialog) AlertDialog(
+            onDismissRequest = { showGuestAuthDialog = false }, containerColor = AppColors.Surface,
+            title = { Text(stringResource(R.string.guest_auth_title), color = AppColors.TextPrimary) },
+            text = { Text(stringResource(R.string.guest_auth_message), color = AppColors.TextSecondary) },
+            confirmButton = { TextButton(onClick = { showGuestAuthDialog = false; onRequireAuth() }) { Text(stringResource(R.string.guest_auth_login), color = AppColors.Primary) } },
+            dismissButton = { TextButton(onClick = { showGuestAuthDialog = false }) { Text(stringResource(R.string.cancel)) } }
+        )
         return
     }
     val state by vm.uiState.collectAsState()
@@ -62,7 +73,7 @@ fun ProjectsScreen(
             if (state.isLoading && state.projects.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) } }
             else if (state.projects.isEmpty()) item { Text(stringResource(R.string.empty_projects), color = AppColors.TextSecondary, modifier = Modifier.padding(vertical = 32.dp)) }
             items(state.projects, key = { it.id }) { p ->
-                Card(modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(p) }, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border)) {
+                Card(modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(p) }, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {

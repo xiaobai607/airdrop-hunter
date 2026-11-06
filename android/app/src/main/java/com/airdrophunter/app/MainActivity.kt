@@ -6,6 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FolderOpen
@@ -33,8 +36,8 @@ class MainActivity : ComponentActivity() {
         TokenStore.initialize(applicationContext)
         ApiClient.initialize(applicationContext)
         val startupToken = TokenStore.readTokenBlocking()
-        window.statusBarColor = android.graphics.Color.rgb(11, 14, 17)
-        window.navigationBarColor = android.graphics.Color.rgb(11, 14, 17)
+        window.statusBarColor = android.graphics.Color.rgb(15, 23, 42)
+        window.navigationBarColor = android.graphics.Color.rgb(2, 6, 23)
         setContent {
             AirdropHunterTheme {
                 val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = startupToken)
@@ -75,18 +78,19 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
     }
     val destinations = listOf(
         Destination(R.string.tab_home, Icons.Default.Home),
-        Destination(R.string.tab_profile, Icons.Default.Person),
-        Destination(R.string.tab_projects, Icons.Default.FolderOpen)
+        Destination(R.string.tab_projects, Icons.Default.FolderOpen),
+        Destination(R.string.tab_profile, Icons.Default.Person)
     )
     val pageTitle = when {
         showSources -> stringResource(R.string.sources_title)
         selectedProject != null -> stringResource(R.string.project_detail)
         tab == 0 -> stringResource(R.string.tab_home)
-        tab == 1 -> stringResource(R.string.tab_profile)
-        else -> stringResource(R.string.tab_projects)
+        tab == 1 -> stringResource(R.string.tab_projects)
+        else -> stringResource(R.string.tab_profile)
     }
     Scaffold(
-        containerColor = AppColors.Background,
+        modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(AppColors.Background, AppColors.BackgroundDeep))),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(pageTitle, color = AppColors.TextPrimary) },
@@ -97,7 +101,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background, titleContentColor = AppColors.TextPrimary)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = AppColors.TextPrimary)
             )
         },
         bottomBar = {
@@ -107,7 +111,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                     NavigationBarItem(
                         selected = tab == index,
                         onClick = {
-                            if (isGuest && index == 2) onRequireAuth() else tab = index
+                            tab = index
                         },
                         icon = { Icon(destination.icon, label) },
                         label = { Text(label) },
@@ -121,7 +125,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(AppColors.Background, AppColors.BackgroundDeep))).padding(padding)) {
             when {
                 showSources -> SourcesScreen(Modifier.fillMaxSize())
                 selectedProject != null -> ProjectDetailScreen(selectedProject!!, Modifier.fillMaxSize())
@@ -129,17 +133,18 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                     modifier = Modifier.fillMaxSize(),
                     onOpenSources = { showSources = true },
                     onOpenWallet = { showWallet = true },
-                    onOpenProjects = { if (isGuest) onRequireAuth() else tab = 2 },
+                    onOpenProjects = { tab = 1 },
                     isGuest = isGuest,
                     onRequireAuth = onRequireAuth
                 )
-                tab == 1 -> if (isGuest) GuestSettingsScreen(onRequireAuth) else ProfileScreen(Modifier.fillMaxSize(), onLogout)
-                else -> ProjectsScreen(
+                tab == 1 -> ProjectsScreen(
                     Modifier.fillMaxSize(),
                     onProjectSelected = { selectedProject = it },
                     isGuest = isGuest,
                     onRequireAuth = onRequireAuth
                 )
+                else -> if (isGuest) GuestSettingsScreen(onRequireAuth) else ProfileScreen(Modifier.fillMaxSize(), onLogout)
+                
             }
         }
     }

@@ -1,6 +1,8 @@
 package com.airdrophunter.app
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -46,7 +48,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
         }
     }
 
-    Surface(Modifier.fillMaxSize(), color = AppColors.Background) {
+    Surface(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(AppColors.Background, AppColors.BackgroundDeep))), color = androidx.compose.ui.graphics.Color.Transparent) {
         Column(
             Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 36.dp),
             verticalArrangement = Arrangement.Center
@@ -58,7 +60,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
             Text(stringResource(R.string.login_subtitle), Modifier.padding(top = 8.dp, bottom = 24.dp), color = AppColors.TextSecondary)
             Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.Border)) {
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     OutlinedTextField(email, { email = it; error = null; mockCode = null; verificationCode = ""; cooldown = 0 }, Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.email)) }, singleLine = true,

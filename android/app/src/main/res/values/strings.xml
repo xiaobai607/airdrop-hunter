@@ -18,4 +18,7 @@
     <string name="auth_get_code">Get code</string>
     <string name="auth_guest_mode">Browse as guest</string>
     <string name="auth_mock_code_notice">Development mock code: %1$s</string>
+    <string name="guest_auth_title">Login required</string>
+    <string name="guest_auth_message">Please log in to sync your data and manage projects.</string>
+    <string name="guest_auth_login">Log in / Register</string>
 </resources>
