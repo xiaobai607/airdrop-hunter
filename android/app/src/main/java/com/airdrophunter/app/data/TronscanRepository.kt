@@ -63,7 +63,7 @@ class TronscanRepository(
             }
             .build()
 
-        client.newCall(request).execute().use { response ->
+        return client.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 val message = when (response.code) {
