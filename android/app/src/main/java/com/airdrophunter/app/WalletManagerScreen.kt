@@ -64,7 +64,7 @@ class WalletManagerViewModel : ViewModel() {
 }
 
 @Composable
-fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, String, String) -> Unit, vm: WalletManagerViewModel = viewModel()) {
+fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, WalletDto, List<WalletDto>, String) -> Unit, vm: WalletManagerViewModel = viewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     var selectedNetwork by remember { mutableStateOf<WalletNetwork?>(null) }
     var showNetworkPicker by remember { mutableStateOf(false) }
@@ -147,8 +147,9 @@ fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, S
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text(if (state.isSaving) "保存中…" else "保存") } },
             dismissButton = { TextButton(onClick = { showAddForm = false }) { Text("取消") } })
     }
-    if (showEligibility) WalletCheckDialog(onDismiss = { showEligibility = false }, onOpenBrowser = { url, address, title ->
-        showEligibility = false; onOpenBrowser(url, address, title)
+    if (showEligibility) WalletCheckDialog(onDismiss = { showEligibility = false }, onOpenBrowser = { url, selectedWallet, allWallets, title ->
+        showEligibility = false
+        onOpenBrowser(url, selectedWallet, allWallets, title)
     })
 }
 
