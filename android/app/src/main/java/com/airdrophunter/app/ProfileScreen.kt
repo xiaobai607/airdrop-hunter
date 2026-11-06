@@ -1,58 +1,59 @@
 package com.airdrophunter.app
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.StatsDto
 import com.airdrophunter.app.ui.theme.AppColors
+import kotlinx.coroutines.launch
+import java.util.Locale
 
 @Composable
 fun ProfileScreen(modifier: Modifier = Modifier, onLogout: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var stats by remember { mutableStateOf<StatsDto?>(null) }
+    var error by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { try { stats = ApiClient.service.getStats() } catch (_: Exception) { error = true } }
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border)) {
-                Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Surface(Modifier.size(62.dp), shape = CircleShape, color = AppColors.SurfaceElevated) { Icon(Icons.Default.AccountCircle, "头像占位", tint = AppColors.Primary, modifier = Modifier.padding(7.dp)) }
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("我的账户", style = MaterialTheme.typography.titleLarge, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                        Text("Airdrop Hunter 用户中心", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
-                    }
-                }
-            }
+            Text(stringResource(R.string.profile_title), style = MaterialTheme.typography.headlineSmall, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.earnings_title), style = MaterialTheme.typography.titleMedium, color = AppColors.TextSecondary, modifier = Modifier.padding(top = 8.dp))
         }
-        item { Column { Text("收益总览", style = MaterialTheme.typography.titleMedium, color = AppColors.TextPrimary); Text("演示数据 · 后续接入真实统计", style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary) } }
-        item { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Metric("今日收益", "+\$12.80", Modifier.weight(1f), AppColors.Success)
-            Metric("本周收益", "+\$86.40", Modifier.weight(1f), AppColors.Success)
-        } }
-        item { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Metric("总 Gas 费", "\$24.60", Modifier.weight(1f))
-            Metric("累计收益", "+\$328.50", Modifier.weight(1f), AppColors.Success)
-        } }
-        item { Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border)) {
-            Column(Modifier.padding(16.dp)) {
-                Text("数据说明", color = AppColors.TextPrimary)
-                Text("当前金额仅用于展示界面，不代表真实钱包余额或实际收益。", color = AppColors.TextSecondary)
-            }
-        } }
-        item { Button(onClick = onLogout, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.SurfaceElevated, contentColor = AppColors.Danger)) { Text("退出登录") } }
+        if (error) item {
+            Text(stringResource(R.string.stats_unavailable), color = AppColors.Danger)
+            TextButton(onClick = { scope.launch { try { stats = ApiClient.service.getStats(); error = false } catch (_: Exception) { error = true } } }) { Text(stringResource(R.string.retry)) }
+        }
+        val s = stats
+        if (s != null) {
+            item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard(stringResource(R.string.actual_income), s.total_actual_income, Modifier.weight(1f), true)
+                MetricCard(stringResource(R.string.expected_income), s.total_expected_income, Modifier.weight(1f))
+            } }
+            item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard(stringResource(R.string.gas_total), s.total_gas_cost, Modifier.weight(1f))
+                MetricCard(stringResource(R.string.net_income), s.net_realized_income, Modifier.weight(1f), true)
+            } }
+            item { Text("${stringResource(R.string.project_count)}: ${s.project_count}", color = AppColors.TextSecondary) }
+        } else if (!error) item { CircularProgressIndicator(color = AppColors.Primary) }
+        item { Button(onClick = onLogout, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Surface, contentColor = AppColors.Danger)) { Text(stringResource(R.string.logout)) } }
     }
 }
+
 @Composable
-private fun Metric(title: String, value: String, modifier: Modifier, color: androidx.compose.ui.graphics.Color = AppColors.TextPrimary) {
+private fun MetricCard(label: String, value: Double, modifier: Modifier, positive: Boolean = false) {
     Card(modifier, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border)) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-            Text(value, color = color, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("USD · 示例", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text(label, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            Text(String.format(Locale.US, "$%,.2f", value), color = if (positive) AppColors.Success else AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("USD", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
         }
     }
 }

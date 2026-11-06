@@ -1,480 +1,130 @@
 package com.airdrophunter.app
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.ProjectWriteRequest
 import com.airdrophunter.app.ui.theme.AppColors
 
 @Composable
-fun ProjectsScreen(
-    modifier: Modifier = Modifier,
-    projectsViewModel: ProjectsViewModel = viewModel()
-) {
-    val uiState by projectsViewModel.uiState.collectAsState()
+fun ProjectsScreen(modifier: Modifier = Modifier, onProjectSelected: (ProjectDto) -> Unit, vm: ProjectsViewModel = viewModel()) {
+    val state by vm.uiState.collectAsState()
+    val networkError = stringResource(R.string.network_error)
     var showEditor by remember { mutableStateOf(false) }
-    var editingProject by remember { mutableStateOf<ProjectDto?>(null) }
-    var deletingProject by remember { mutableStateOf<ProjectDto?>(null) }
-
-    LaunchedEffect(Unit) {
-        projectsViewModel.loadProjects()
-    }
-
-    Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                top = 12.dp,
-                end = 16.dp,
-                bottom = 104.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+    var editing by remember { mutableStateOf<ProjectDto?>(null) }
+    var deleting by remember { mutableStateOf<ProjectDto?>(null) }
+    LaunchedEffect(Unit) { vm.loadProjects() }
+    Box(modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 100.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "我的项目",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = AppColors.TextPrimary
-                        )
-                        Text(
-                            "追踪你的空投参与进度",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AppColors.TextSecondary
-                        )
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = AppColors.Surface,
-                        border = BorderStroke(1.dp, AppColors.Border)
-                    ) {
-                        Text(
-                            "${uiState.projects.size} 个项目",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = AppColors.TextSecondary
-                        )
-                    }
+                Column {
+                    Text(stringResource(R.string.projects_title), style = MaterialTheme.typography.headlineSmall, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.projects_subtitle), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }
-
-            if (uiState.message != null) {
-                item {
-                    Text(
-                        uiState.message!!,
-                        color = AppColors.Success,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-
-            if (uiState.error != null) {
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            "操作失败：${uiState.error}",
-                            color = AppColors.Danger,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        TextButton(
-                            onClick = projectsViewModel::loadProjects,
-                            enabled = !uiState.isLoading
-                        ) {
-                            Text("重新加载")
+            if (state.error != null) item { Text(networkError, color = AppColors.Danger); TextButton(onClick = vm::loadProjects) { Text(stringResource(R.string.retry)) } }
+            if (state.isLoading && state.projects.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) } }
+            else if (state.projects.isEmpty()) item { Text(stringResource(R.string.empty_projects), color = AppColors.TextSecondary, modifier = Modifier.padding(vertical = 32.dp)) }
+            items(state.projects, key = { it.id }) { p ->
+                Card(modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(p) }, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(p.name, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                if (p.description.isNotBlank()) Text(p.description, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                            }
+                            IconButton(onClick = { editing = p; showEditor = true }) { Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.save), tint = AppColors.TextSecondary) }
+                            IconButton(onClick = { deleting = p }) { Icon(Icons.Default.DeleteOutline, contentDescription = stringResource(R.string.delete), tint = AppColors.Danger) }
                         }
-                    }
-                }
-            }
-
-            if (uiState.isLoading && uiState.projects.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = AppColors.Primary)
-                    }
-                }
-            } else if (uiState.projects.isEmpty()) {
-                item {
-                    EmptyProjectsState()
-                }
-            } else {
-                items(items = uiState.projects, key = { it.id }) { project ->
-                    ProjectCard(
-                        project = project,
-                        actionsEnabled = !uiState.isSaving,
-                        onEdit = {
-                            editingProject = project
-                            showEditor = true
-                        },
-                        onDelete = { deletingProject = project }
-                    )
-                }
-            }
-
-            if (uiState.isSaving) {
-                item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            color = AppColors.Primary,
-                            strokeWidth = 2.dp
-                        )
+                        StatusLabel(p.status)
                     }
                 }
             }
         }
-
-        FloatingActionButton(
-            onClick = {
-                editingProject = null
-                showEditor = true
-            },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
-            shape = CircleShape,
-            containerColor = AppColors.Primary,
-            contentColor = AppColors.Background
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "添加项目",
-                modifier = Modifier.size(26.dp)
-            )
+        FloatingActionButton(onClick = { editing = null; showEditor = true }, modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp), containerColor = AppColors.Primary, contentColor = AppColors.Background) {
+            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_project))
         }
     }
-
-    if (showEditor) {
-        ProjectEditorDialog(
-            project = editingProject,
-            saving = uiState.isSaving,
-            onDismiss = { showEditor = false },
-            onSave = { name, description, status ->
-                val current = editingProject
-                if (current == null) {
-                    projectsViewModel.createProject(name, description, status)
-                } else {
-                    projectsViewModel.updateProject(current, name, description, status)
-                }
-                showEditor = false
-            }
-        )
+    if (showEditor) ProjectEditor(editing, state.isSaving, onDismiss = { showEditor = false }) { request ->
+        val current = editing
+        if (current == null) vm.createProject(request) else vm.updateProject(current, request)
+        showEditor = false
     }
-
-    deletingProject?.let { project ->
-        AlertDialog(
-            onDismissRequest = { deletingProject = null },
-            containerColor = AppColors.Surface,
-            titleContentColor = AppColors.TextPrimary,
-            textContentColor = AppColors.TextSecondary,
-            title = { Text("删除项目") },
-            text = { Text("确定删除「${project.name}」吗？此操作不可撤销。") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        projectsViewModel.deleteProject(project)
-                        deletingProject = null
-                    }
-                ) {
-                    Text("确认删除", color = AppColors.Danger)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { deletingProject = null }) {
-                    Text("取消", color = AppColors.TextSecondary)
-                }
-            }
-        )
+    deleting?.let { p ->
+        AlertDialog(onDismissRequest = { deleting = null }, containerColor = AppColors.Surface,
+            title = { Text(stringResource(R.string.delete_project_title), color = AppColors.TextPrimary) },
+            text = { Text("${p.name} · ${stringResource(R.string.delete_project_message)}", color = AppColors.TextSecondary) },
+            confirmButton = { TextButton(onClick = { vm.deleteProject(p); deleting = null }) { Text(stringResource(R.string.delete), color = AppColors.Danger) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.cancel)) } })
     }
 }
 
 @Composable
-private fun ProjectCard(
-    project: ProjectDto,
-    actionsEnabled: Boolean,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-        border = BorderStroke(1.dp, AppColors.Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        project.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = AppColors.TextPrimary
-                    )
-                    if (project.description.isNotBlank()) {
-                        Text(
-                            project.description,
-                            modifier = Modifier.padding(top = 6.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AppColors.TextSecondary
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(onClick = onEdit, enabled = actionsEnabled) {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = "编辑项目",
-                        tint = AppColors.TextSecondary
-                    )
-                }
-                IconButton(onClick = onDelete, enabled = actionsEnabled) {
-                    Icon(
-                        Icons.Default.DeleteOutline,
-                        contentDescription = "删除项目",
-                        tint = AppColors.Danger
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ProjectStatusChip(project.status)
-                Spacer(modifier = Modifier.weight(1f))
-            }
-        }
+private fun StatusLabel(status: String) {
+    val label = when (status) { "tracking" -> stringResource(R.string.status_tracking); "completed" -> stringResource(R.string.status_completed); else -> stringResource(R.string.status_upcoming) }
+    Surface(color = AppColors.NavIndicator, shape = RoundedCornerShape(7.dp), modifier = Modifier.padding(top = 10.dp)) {
+        Text(label, Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
     }
 }
 
 @Composable
-private fun ProjectStatusChip(status: String) {
-    val isActive = status == "tracking"
-    val isCompleted = status == "completed"
-    val label = when (status) {
-        "tracking" -> "进行中"
-        "completed" -> "已完成"
-        else -> "待开始"
-    }
-    val background = if (isActive) AppColors.SuccessBackground else AppColors.MutedBackground
-    val foreground = if (isActive) AppColors.Success else AppColors.TextSecondary
-
-    Surface(
-        color = if (isCompleted) AppColors.NavIndicator else background,
-        shape = RoundedCornerShape(7.dp)
-    ) {
-        Text(
-            label,
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
-            color = if (isCompleted) AppColors.Primary else foreground
-        )
-    }
-}
-
-@Composable
-private fun EmptyProjectsState() {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 56.dp, bottom = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Surface(
-            modifier = Modifier.size(64.dp),
-            shape = CircleShape,
-            color = AppColors.SurfaceElevated
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text("◇", style = MaterialTheme.typography.headlineLarge, color = AppColors.Primary)
-            }
-        }
-        Text(
-            "还没有项目",
-            style = MaterialTheme.typography.titleMedium,
-            color = AppColors.TextPrimary
-        )
-        Text(
-            "点击右下角 + 添加你的第一个项目",
-            style = MaterialTheme.typography.bodySmall,
-            color = AppColors.TextSecondary
-        )
-    }
-}
-
-@Composable
-private fun ProjectEditorDialog(
-    project: ProjectDto?,
-    saving: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (String, String, String) -> Unit
-) {
+private fun ProjectEditor(project: ProjectDto?, saving: Boolean, onDismiss: () -> Unit, onSave: (ProjectWriteRequest) -> Unit) {
     var name by remember(project?.id) { mutableStateOf(project?.name.orEmpty()) }
     var description by remember(project?.id) { mutableStateOf(project?.description.orEmpty()) }
     var status by remember(project?.id) { mutableStateOf(project?.status ?: "upcoming") }
-    var statusMenuExpanded by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = AppColors.Surface,
-        titleContentColor = AppColors.TextPrimary,
-        textContentColor = AppColors.TextSecondary,
-        shape = RoundedCornerShape(20.dp),
-        title = {
-            Text(
-                if (project == null) "添加空投项目" else "编辑空投项目",
-                fontWeight = FontWeight.SemiBold
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("项目名称") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = darkFieldColors()
-                )
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("项目简介") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
-                    maxLines = 4,
-                    colors = darkFieldColors()
-                )
-                Text(
-                    "项目状态",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = AppColors.TextSecondary
-                )
-                Box {
-                    Surface(
-                        onClick = { statusMenuExpanded = true },
-                        color = AppColors.SurfaceElevated,
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, AppColors.Border)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            ProjectStatusChip(status)
-                            Spacer(Modifier.width(10.dp))
-                            Text("更改状态", color = AppColors.TextSecondary)
-                        }
-                    }
-                    DropdownMenu(
-                        expanded = statusMenuExpanded,
-                        onDismissRequest = { statusMenuExpanded = false },
-                        containerColor = AppColors.SurfaceElevated
-                    ) {
-                        listOf(
-                            "upcoming" to "待开始",
-                            "tracking" to "进行中",
-                            "completed" to "已完成"
-                        ).forEach { option ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(option.second, color = AppColors.TextPrimary)
-                                },
-                                onClick = {
-                                    status = option.first
-                                    statusMenuExpanded = false
-                                }
-                            )
-                        }
-                    }
+    var officialUrl by remember(project?.id) { mutableStateOf(project?.official_url.orEmpty()) }
+    var twitterUrl by remember(project?.id) { mutableStateOf(project?.twitter_url.orEmpty()) }
+    var deadline by remember(project?.id) { mutableStateOf(project?.deadline.orEmpty()) }
+    var expected by remember(project?.id) { mutableStateOf(project?.expected_income?.toString() ?: "0") }
+    var gas by remember(project?.id) { mutableStateOf(project?.gas_cost?.toString() ?: "0") }
+    var actual by remember(project?.id) { mutableStateOf(project?.actual_income?.toString() ?: "0") }
+    AlertDialog(onDismissRequest = onDismiss, containerColor = AppColors.Surface,
+        title = { Text(stringResource(R.string.add_project), color = AppColors.TextPrimary) },
+        text = { Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.project_name)) }, singleLine = true)
+            OutlinedTextField(description, { description = it }, label = { Text(stringResource(R.string.project_description)) }, minLines = 2)
+            OutlinedTextField(officialUrl, { officialUrl = it }, label = { Text(stringResource(R.string.official_website)) }, singleLine = true)
+            OutlinedTextField(twitterUrl, { twitterUrl = it }, label = { Text(stringResource(R.string.twitter)) }, singleLine = true)
+            OutlinedTextField(deadline, { deadline = it }, label = { Text(stringResource(R.string.deadline)) }, singleLine = true)
+            OutlinedTextField(expected, { expected = it }, label = { Text(stringResource(R.string.expected_reward)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+            OutlinedTextField(gas, { gas = it }, label = { Text(stringResource(R.string.gas_cost)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+            OutlinedTextField(actual, { actual = it }, label = { Text(stringResource(R.string.actual_reward)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+            Text(stringResource(R.string.project_status), color = AppColors.TextSecondary)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("upcoming", "tracking", "completed").forEach { value ->
+                    FilterChip(selected = status == value, onClick = { status = value }, label = { Text(when(value) { "tracking" -> stringResource(R.string.status_tracking); "completed" -> stringResource(R.string.status_completed); else -> stringResource(R.string.status_upcoming) }) })
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = name.isNotBlank() && !saving,
-                onClick = { onSave(name.trim(), description.trim(), status) }
-            ) {
-                Text(
-                    if (saving) "保存中…" else "保存",
-                    color = AppColors.Primary
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !saving) {
-                Text("取消", color = AppColors.TextSecondary)
-            }
-        }
-    )
+        } },
+        confirmButton = { TextButton(enabled = name.isNotBlank() && !saving, onClick = {
+            onSave(ProjectWriteRequest(
+                name = name.trim(), description = description.trim(), status = status,
+                official_url = officialUrl.trim(), twitter_url = twitterUrl.trim(),
+                deadline = deadline.trim().ifBlank { null },
+                expected_income = expected.toDoubleOrNull() ?: 0.0,
+                gas_cost = gas.toDoubleOrNull() ?: 0.0,
+                actual_income = actual.toDoubleOrNull() ?: 0.0
+            ))
+        }) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }
-
-@Composable
-private fun darkFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = AppColors.TextPrimary,
-    unfocusedTextColor = AppColors.TextPrimary,
-    focusedContainerColor = AppColors.Background,
-    unfocusedContainerColor = AppColors.Background,
-    focusedBorderColor = AppColors.Primary,
-    unfocusedBorderColor = AppColors.Border,
-    focusedLabelColor = AppColors.Primary,
-    unfocusedLabelColor = AppColors.TextSecondary,
-    cursorColor = AppColors.Primary
-)

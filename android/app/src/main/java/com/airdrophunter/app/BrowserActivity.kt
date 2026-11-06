@@ -1,4 +1,5 @@
 package com.airdrophunter.app
+
 import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.os.Bundle
@@ -19,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -59,12 +61,12 @@ private fun BrowserScreen(title: String, url: String, onExit: () -> Unit) {
         Column {
             TopAppBar(
                 title = { Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1) },
-                navigationIcon = { IconButton(onClick = onExit) { Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary) } },
+                navigationIcon = { IconButton(onClick = onExit) { Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AppColors.TextPrimary) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background, titleContentColor = AppColors.TextPrimary, navigationIconContentColor = AppColors.TextPrimary)
             )
             Surface(Modifier.fillMaxWidth(), color = Color(0xFF7F1D1D)) {
                 Box(Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-                    Text("⚠️ 安全提示：请勿输入私钥或助记词！", color = Color(0xFFFFE4E6), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 1)
+                    Text(stringResource(R.string.browser_safety), color = Color(0xFFFFE4E6), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 1)
                 }
             }
         }
@@ -89,8 +91,6 @@ private fun BrowserScreen(title: String, url: String, onExit: () -> Unit) {
                 }
                 loadUrl(url)
             }
-        }, modifier = Modifier.fillMaxSize().padding(padding), update = { view ->
-            if (browser !== view) browser = view
-        })
+        }, modifier = Modifier.fillMaxSize().padding(padding), update = { view -> if (browser !== view) browser = view })
     }
 }

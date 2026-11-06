@@ -28,35 +28,22 @@ class ProjectsViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null, message = null)
             try {
                 val projects = ApiClient.service.getProjects()
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    projects = projects,
-                    error = null
-                )
+                _uiState.value = _uiState.value.copy(isLoading = false, projects = projects, error = null)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = error.message ?: "无法连接服务器，请检查网络"
-                )
+                _uiState.value = _uiState.value.copy(isLoading = false, error = error.message ?: "Network error")
             }
         }
     }
 
-    fun createProject(name: String, description: String, status: String) {
-        mutateProjects("项目已添加") {
-            ApiClient.service.createProject(ProjectWriteRequest(name, description, status))
-        }
+    fun createProject(request: ProjectWriteRequest) {
+        mutateProjects("Project added") { ApiClient.service.createProject(request) }
     }
 
-    fun updateProject(project: ProjectDto, name: String, description: String, status: String) {
-        mutateProjects("项目已更新") {
-            ApiClient.service.updateProject(
-                project.id,
-                ProjectWriteRequest(name, description, status)
-            )
-        }
+    fun updateProject(project: ProjectDto, request: ProjectWriteRequest) {
+        // The editor submits all fields so editing a title cannot erase existing URLs or financial values.
+        mutateProjects("Project updated") { ApiClient.service.updateProject(project.id, request) }
     }
 
     fun deleteProject(project: ProjectDto) {
@@ -64,18 +51,11 @@ class ProjectsViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isSaving = true, error = null, message = null)
             try {
                 ApiClient.service.deleteProject(project.id)
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    projects = _uiState.value.projects.filterNot { it.id == project.id },
-                    message = "项目已删除"
-                )
+                _uiState.value = _uiState.value.copy(isSaving = false, projects = _uiState.value.projects.filterNot { it.id == project.id }, message = "Project deleted")
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    error = error.message ?: "删除失败"
-                )
+                _uiState.value = _uiState.value.copy(isSaving = false, error = error.message ?: "Delete failed")
             }
         }
     }
@@ -86,19 +66,11 @@ class ProjectsViewModel : ViewModel() {
             try {
                 request()
                 val projects = ApiClient.service.getProjects()
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    projects = projects,
-                    error = null,
-                    message = successMessage
-                )
+                _uiState.value = _uiState.value.copy(isSaving = false, projects = projects, error = null, message = successMessage)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    error = error.message ?: "保存失败"
-                )
+                _uiState.value = _uiState.value.copy(isSaving = false, error = error.message ?: "Save failed")
             }
         }
     }
