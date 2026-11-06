@@ -30,14 +30,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.AirdropWriteRequest
 
 @Composable
-fun AirdropDiscoveryScreen(viewModel: AirdropsViewModel = viewModel()) {
+fun AirdropDiscoveryScreen(
+    modifier: Modifier = Modifier,
+    viewModel: AirdropsViewModel = viewModel()
+) {
     val state by viewModel.uiState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.loadAirdrops() }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text("发现真实空投机会", style = MaterialTheme.typography.headlineSmall)
