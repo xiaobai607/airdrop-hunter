@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -33,11 +34,13 @@ fun HomeScreen(
     onOpenSources: () -> Unit,
     onOpenWallet: () -> Unit,
     onOpenProjects: () -> Unit,
+    onOpenAirdropHub: () -> Unit = {},
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
     vm: DashboardMockViewModel = viewModel()
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var showSearch by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
 
@@ -58,6 +61,7 @@ fun HomeScreen(
         }
 
         Card(
+            onClick = onOpenAirdropHub,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
@@ -137,9 +141,9 @@ fun HomeScreen(
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                SectionHeading("行情看板")
+                Text("行情看板", modifier = Modifier.clickable { Toast.makeText(context, "行情详情页正在开发中", Toast.LENGTH_SHORT).show() }, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                Text("全部", color = AppColors.Primary, style = MaterialTheme.typography.labelLarge)
+                Text("全部", modifier = Modifier.clickable { Toast.makeText(context, "行情详情页正在开发中", Toast.LENGTH_SHORT).show() }, color = AppColors.Primary, style = MaterialTheme.typography.labelLarge)
             }
             Card(
                 modifier = Modifier.fillMaxWidth(),
