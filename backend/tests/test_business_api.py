@@ -3,7 +3,10 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 def make_auth(client, prefix):
-    r=client.post("/api/auth/register",json={"email":f"{prefix}-{uuid4().hex}@example.com","password":"strong-password-123"})
+    email=f"{prefix}-{uuid4().hex}@example.com"
+    code=client.post("/api/auth/send-code",json={"email":email})
+    assert code.status_code==200
+    r=client.post("/api/auth/register",json={"email":email,"password":"strong-password-123","verification_code":code.json()["mock_code"]})
     assert r.status_code==201
     return {"Authorization":f"Bearer {r.json()['access_token']}"}
 
