@@ -7,11 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -20,13 +19,15 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,7 +52,40 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @androidx.compose.runtime.Composable
-private fun AirdropHunterApp(projectsViewModel: ProjectsViewModel = viewModel()) {
+private fun AirdropHunterApp() {
+    var selectedTab by remember { mutableStateOf(0) }
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Airdrop Hunter") }) }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(innerPadding)
+        ) {
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("空投发现") }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("项目管理") }
+                )
+            }
+            if (selectedTab == 0) {
+                AirdropDiscoveryScreen(modifier = Modifier.weight(1f))
+            } else {
+                ProjectManagementScreen(modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun ProjectManagementScreen(
+    modifier: Modifier = Modifier,
+    projectsViewModel: ProjectsViewModel = viewModel()
+) {
     val uiState by projectsViewModel.uiState.collectAsState()
     var showEditor by remember { mutableStateOf(false) }
     var editingProject by remember { mutableStateOf<ProjectDto?>(null) }
@@ -61,81 +95,74 @@ private fun AirdropHunterApp(projectsViewModel: ProjectsViewModel = viewModel())
         projectsViewModel.loadProjects()
     }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Airdrop Hunter") }) }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Text("你的空投管理中心", style = MaterialTheme.typography.headlineSmall)
+    LazyColumn(
+        modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("你的项目管理中心", style = MaterialTheme.typography.headlineSmall)
+        }
+        item {
+            Text("项目数据保存在云端数据库，可新增、编辑和删除。")
+        }
+        item {
+            Button(
+                onClick = {
+                    editingProject = null
+                    showEditor = true
+                },
+                enabled = !uiState.isSaving,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("＋ 添加项目")
             }
-            item {
-                Text("项目数据保存在云端数据库，可新增、编辑和删除。")
-            }
-            item {
-                Button(
-                    onClick = {
-                        editingProject = null
-                        showEditor = true
-                    },
-                    enabled = !uiState.isSaving,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("＋ 添加项目")
-                }
-            }
-            if (uiState.message != null) {
-                item { Text(uiState.message!!, color = MaterialTheme.colorScheme.primary) }
-            }
-            if (uiState.error != null) {
-                item { Text("操作失败：${uiState.error}", color = MaterialTheme.colorScheme.error) }
-                item { Button(onClick = projectsViewModel::loadProjects) { Text("重新加载") } }
-            }
-            if (uiState.isLoading && uiState.projects.isEmpty()) {
-                item { CircularProgressIndicator() }
-            } else if (uiState.projects.isEmpty()) {
-                item { Text("还没有项目，点击上方按钮添加第一个项目。") }
-            } else {
-                items(items = uiState.projects, key = { it.id }) { project ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(project.name, style = MaterialTheme.typography.titleMedium)
-                            if (project.description.isNotBlank()) {
-                                Text(project.description, modifier = Modifier.padding(top = 4.dp))
-                            }
-                            Text(
-                                "状态：${statusLabel(project.status)}",
-                                modifier = Modifier.padding(top = 6.dp)
-                            )
-                            Row(
-                                modifier = Modifier.padding(top = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                TextButton(
-                                    enabled = !uiState.isSaving,
-                                    onClick = {
-                                        editingProject = project
-                                        showEditor = true
-                                    }
-                                ) { Text("编辑") }
-                                TextButton(
-                                    enabled = !uiState.isSaving,
-                                    onClick = { deletingProject = project }
-                                ) { Text("删除", color = MaterialTheme.colorScheme.error) }
-                            }
+        }
+        if (uiState.message != null) {
+            item { Text(uiState.message!!, color = MaterialTheme.colorScheme.primary) }
+        }
+        if (uiState.error != null) {
+            item { Text("操作失败：${uiState.error}", color = MaterialTheme.colorScheme.error) }
+            item { Button(onClick = projectsViewModel::loadProjects) { Text("重新加载") } }
+        }
+        if (uiState.isLoading && uiState.projects.isEmpty()) {
+            item { CircularProgressIndicator() }
+        } else if (uiState.projects.isEmpty()) {
+            item { Text("还没有项目，点击上方按钮添加第一个项目。") }
+        } else {
+            items(items = uiState.projects, key = { it.id }) { project ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(project.name, style = MaterialTheme.typography.titleMedium)
+                        if (project.description.isNotBlank()) {
+                            Text(project.description, modifier = Modifier.padding(top = 4.dp))
+                        }
+                        Text(
+                            "状态：${statusLabel(project.status)}",
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                        Row(
+                            modifier = Modifier.padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            TextButton(
+                                enabled = !uiState.isSaving,
+                                onClick = {
+                                    editingProject = project
+                                    showEditor = true
+                                }
+                            ) { Text("编辑") }
+                            TextButton(
+                                enabled = !uiState.isSaving,
+                                onClick = { deletingProject = project }
+                            ) { Text("删除", color = MaterialTheme.colorScheme.error) }
                         }
                     }
                 }
             }
-            if (uiState.isSaving) {
-                item { CircularProgressIndicator() }
-            }
+        }
+        if (uiState.isSaving) {
+            item { CircularProgressIndicator() }
         }
     }
 
