@@ -37,13 +37,7 @@ import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import org.json.JSONArray
 
-private data class BrowserWallet(
-    val id: String,
-    val chain: String,
-    val networkIcon: String,
-    val walletName: String,
-    val address: String
-)
+private data class BrowserWallet(val id: String, val chain: String, val networkIcon: String, val walletName: String, val address: String)
 
 class BrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,34 +50,20 @@ class BrowserActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = AndroidColor.rgb(248, 249, 250)
         window.navigationBarColor = AndroidColor.rgb(248, 249, 250)
-        setContent {
-            AirdropHunterTheme {
-                BrowserScreen(site.ifBlank { Uri.parse(url).host.orEmpty() }, url, wallets, selectedId) { finish() }
-            }
-        }
+        setContent { AirdropHunterTheme { BrowserScreen(site.ifBlank { Uri.parse(url).host.orEmpty() }, url, wallets, selectedId) { finish() } } }
     }
-
     private fun validHttps(value: String): Boolean = try {
-        val uri = Uri.parse(value)
-        uri.scheme.equals("https", true) && !uri.host.isNullOrBlank() && uri.userInfo == null
+        val uri = Uri.parse(value); uri.scheme.equals("https", true) && !uri.host.isNullOrBlank() && uri.userInfo == null
     } catch (_: Exception) { false }
-
     private fun parseWallets(raw: String): List<BrowserWallet> = try {
         val array = JSONArray(raw)
         (0 until array.length()).mapNotNull { index ->
             val item = array.optJSONObject(index) ?: return@mapNotNull null
             val address = item.optString("address")
             if (address.isBlank()) return@mapNotNull null
-            BrowserWallet(
-                id = item.optString("id"),
-                chain = item.optString("chain"),
-                networkIcon = item.optString("network_icon"),
-                walletName = item.optString("wallet_name"),
-                address = address
-            )
+            BrowserWallet(item.optString("id"), item.optString("chain"), item.optString("network_icon"), item.optString("wallet_name"), address)
         }
     } catch (_: Exception) { emptyList() }
-
     companion object {
         const val EXTRA_URL = "com.airdrophunter.app.extra.BROWSER_URL"
         const val EXTRA_TITLE = "com.airdrophunter.app.extra.BROWSER_TITLE"
@@ -94,183 +74,79 @@ class BrowserActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BrowserScreen(
-    title: String,
-    url: String,
-    wallets: List<BrowserWallet>,
-    selectedWalletId: String,
-    onExit: () -> Unit
-) {
+private fun BrowserScreen(title: String, url: String, wallets: List<BrowserWallet>, selectedWalletId: String, onExit: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var browser by remember { mutableStateOf<WebView?>(null) }
-    var selectedWallet by remember(wallets, selectedWalletId) {
-        mutableStateOf(wallets.firstOrNull { it.id == selectedWalletId } ?: wallets.firstOrNull())
-    }
-    BackHandler {
-        val web = browser
-        if (web != null && web.canGoBack()) web.goBack() else onExit()
-    }
-    DisposableEffect(browser) {
-        onDispose {
-            browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() }
-        }
-    }
-
+    var selectedWallet by remember(wallets, selectedWalletId) { mutableStateOf(wallets.firstOrNull { it.id == selectedWalletId } ?: wallets.firstOrNull()) }
+    BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
+    DisposableEffect(browser) { onDispose { browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() } } }
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = AppColors.Background,
+        modifier = Modifier.fillMaxSize(), containerColor = AppColors.Background,
         topBar = {
             Column {
-                TopAppBar(
-                    title = { Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1) },
-                    navigationIcon = {
-                        IconButton(onClick = onExit) {
-                            Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = AppColors.Background,
-                        titleContentColor = AppColors.TextPrimary
-                    )
-                )
+                TopAppBar(title = { Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1) },
+                    navigationIcon = { IconButton(onClick = onExit) { Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary) } },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background, titleContentColor = AppColors.TextPrimary))
                 Surface(Modifier.fillMaxWidth(), color = Color(0xFF7F1D1D)) {
-                    Box(Modifier.fillMaxWidth().height(42.dp).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-                        Text(
-                            "请确认当前网站为项目官方页面；App 不会连接或签署钱包交易。",
-                            color = Color(0xFFFFE4E6),
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                    }
+                    Text("请确认当前网站为项目官方页面；App 不会连接或签署钱包交易",
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                        color = Color(0xFFFFE4E6), style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold, maxLines = 2)
                 }
             }
         },
         bottomBar = {
-            if (selectedWallet != null) {
-                WalletAddressAssistBar(
-                    wallets = wallets,
-                    selectedWallet = selectedWallet!!,
-                    onSelect = { selectedWallet = it },
-                    onCopy = {
-                        // One-way clipboard write only. Never read clipboard contents or observe clipboard changes.
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", selectedWallet!!.address))
-                        Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding()
-                )
-            }
+            if (selectedWallet != null) WalletAddressAssistBar(wallets, selectedWallet!!, { selectedWallet = it }, {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", selectedWallet!!.address))
+                Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
+            }, Modifier.fillMaxWidth().navigationBarsPadding())
         }
     ) { padding ->
-        AndroidView(
-            factory = { ctx ->
-                WebView(ctx).apply {
-                    browser = this
-                    setBackgroundColor(AndroidColor.rgb(248, 249, 250))
-                    settings.apply {
-                        // JavaScript remains available for normal website functionality.
-                        // No app-injected JavaScript, DOM access, or form autofill is performed.
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        allowFileAccess = false
-                        allowContentAccess = false
-                        javaScriptCanOpenWindowsAutomatically = false
-                        setSupportMultipleWindows(false)
-                        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                        safeBrowsingEnabled = true
-                    }
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
-                    webViewClient = object : WebViewClient() {
-                        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                            val target = request?.url ?: return true
-                            return !target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null
-                        }
-                        override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
-                            handler?.cancel()
-                        }
-                    }
-                    loadUrl(url)
+        AndroidView(factory = { ctx ->
+            WebView(ctx).apply {
+                browser = this; setBackgroundColor(AndroidColor.rgb(248, 249, 250))
+                settings.apply {
+                    javaScriptEnabled = true; domStorageEnabled = true; allowFileAccess = false; allowContentAccess = false
+                    javaScriptCanOpenWindowsAutomatically = false; setSupportMultipleWindows(false)
+                    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW; safeBrowsingEnabled = true
                 }
-            },
-            modifier = Modifier.fillMaxSize().padding(padding),
-            update = { view -> if (browser !== view) browser = view }
-        )
+                CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                        val target = request?.url ?: return true
+                        return !target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null
+                    }
+                    override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) { handler?.cancel() }
+                }
+                loadUrl(url)
+            }
+        }, modifier = Modifier.fillMaxSize().padding(padding), update = { view -> if (browser !== view) browser = view })
     }
 }
 
 @Composable
-private fun WalletAddressAssistBar(
-    wallets: List<BrowserWallet>,
-    selectedWallet: BrowserWallet,
-    onSelect: (BrowserWallet) -> Unit,
-    onCopy: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun WalletAddressAssistBar(wallets: List<BrowserWallet>, selectedWallet: BrowserWallet, onSelect: (BrowserWallet) -> Unit, onCopy: () -> Unit, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
-    Surface(
-        modifier = modifier,
-        color = AppColors.Surface,
-        border = BorderStroke(1.dp, AppColors.Border),
-        shadowElevation = 10.dp,
-        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+    Surface(modifier = modifier, color = AppColors.Surface, border = BorderStroke(1.dp, AppColors.Border),
+        shadowElevation = 10.dp, shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ChainIcon(selectedWallet.chain, selectedWallet.networkIcon, Modifier.size(42.dp))
             Box(Modifier.weight(1f)) {
-                Row(
-                    Modifier.fillMaxWidth().clickable(enabled = wallets.size > 1) { expanded = true },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Row(Modifier.fillMaxWidth().clickable(enabled = wallets.size > 1) { expanded = true }, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(
-                            "${selectedWallet.chain}  ${selectedWallet.walletName}",
-                            color = AppColors.TextPrimary,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            shortBrowserAddress(selectedWallet.address),
-                            color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1
-                        )
+                        Text(selectedWallet.chain, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(shortAddress(selectedWallet.address), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
                     }
                 }
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    wallets.forEach { wallet ->
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text("${wallet.chain}  ${wallet.walletName}", fontWeight = FontWeight.SemiBold)
-                                    Text(shortBrowserAddress(wallet.address), style = MaterialTheme.typography.bodySmall)
-                                }
-                            },
-                            onClick = { onSelect(wallet); expanded = false }
-                        )
-                    }
+                    wallets.forEach { wallet -> DropdownMenuItem(text = { Column { Text(wallet.chain, fontWeight = FontWeight.SemiBold); Text(shortAddress(wallet.address), style = MaterialTheme.typography.bodySmall) } }, onClick = { onSelect(wallet); expanded = false }) }
                 }
             }
-            Button(
-                onClick = onCopy,
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 11.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(5.dp))
-                Text("复制地址", maxLines = 1)
+            Button(onClick = onCopy, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 11.dp), shape = RoundedCornerShape(12.dp)) {
+                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(5.dp)); Text("复制地址", maxLines = 1)
             }
         }
     }
 }
-
-private fun shortBrowserAddress(address: String): String =
-    if (address.length > 13) address.take(6) + "…" + address.takeLast(5) else address

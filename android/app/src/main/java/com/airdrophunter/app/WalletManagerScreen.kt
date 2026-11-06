@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -23,20 +22,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.WalletDto
+import com.airdrophunter.app.data.WalletEcosystem
 import com.airdrophunter.app.data.WalletWriteRequest
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-private data class WalletNetwork(val key: String, val label: String, val symbol: String)
-private val walletNetworks = listOf(
-    WalletNetwork("Ethereum", "Ethereum · ERC20", "E"),
-    WalletNetwork("Tron", "Tron · TRC20", "T"),
-    WalletNetwork("Solana", "Solana", "S"),
-    WalletNetwork("Bitcoin", "Bitcoin", "B")
-)
 
 data class WalletManagerUiState(val wallets: List<WalletDto> = emptyList(), val isLoading: Boolean = false, val isSaving: Boolean = false, val error: String? = null)
 
@@ -50,11 +42,9 @@ class WalletManagerViewModel : ViewModel() {
         _state.value = _state.value.copy(isLoading = true, error = null)
         if (isGuest) {
             val local = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                com.airdrophunter.app.data.CacheStore.readLocal("wallets")?.let {
-                    runCatching { gson.fromJson<List<WalletDto>>(it, walletListType) }.getOrNull()
-                }
+                com.airdrophunter.app.data.CacheStore.readLocal("wallets")?.let { runCatching { gson.fromJson<List<WalletDto>>(it, walletListType) }.getOrNull() }
             }.orEmpty()
-            _state.value = _state.value.copy(wallets = local, isLoading = false, error = null)
+            _state.value = _state.value.copy(wallets = local, isLoading = false)
             return@launch
         }
         try {
@@ -69,13 +59,11 @@ class WalletManagerViewModel : ViewModel() {
         try {
             if (isGuest) {
                 val wallet = WalletDto(
-                    id = java.util.UUID.randomUUID().toString(),
-                    wallet_name = request.wallet_name,
-                    chain = request.chain,
-                    network_icon = when (request.chain) { "Ethereum" -> "E"; "Tron" -> "T"; "Solana" -> "S"; else -> "B" },
+                    id = java.util.UUID.randomUUID().toString(), wallet_name = request.wallet_name,
+                    chain = request.chain, network_icon = when (request.chain) { "EVM" -> "E"; "TRON" -> "T"; else -> "S" },
                     address = request.address
                 )
-                val wallets = _state.value.wallets + wallet
+                val wallets = _state.value.wallets.filterNot { it.address.equals(request.address, true) } + wallet
                 withContext(kotlinx.coroutines.Dispatchers.IO) { com.airdrophunter.app.data.CacheStore.writeLocal("wallets", gson.toJson(wallets)) }
                 _state.value = _state.value.copy(wallets = wallets, isSaving = false)
             } else {
@@ -90,9 +78,8 @@ class WalletManagerViewModel : ViewModel() {
     fun delete(wallet: WalletDto, isGuest: Boolean = false) = viewModelScope.launch {
         try {
             val wallets = _state.value.wallets.filterNot { it.id == wallet.id }
-            if (isGuest) {
-                withContext(kotlinx.coroutines.Dispatchers.IO) { com.airdrophunter.app.data.CacheStore.writeLocal("wallets", gson.toJson(wallets)) }
-            } else {
+            if (isGuest) withContext(kotlinx.coroutines.Dispatchers.IO) { com.airdrophunter.app.data.CacheStore.writeLocal("wallets", gson.toJson(wallets)) }
+            else {
                 ApiClient.service.deleteWallet(wallet.id)
                 withContext(kotlinx.coroutines.Dispatchers.IO) { com.airdrophunter.app.data.CacheStore.write("wallets", gson.toJson(wallets)) }
             }
@@ -101,22 +88,34 @@ class WalletManagerViewModel : ViewModel() {
     }
 }
 
+private fun detectEcosystem(address: String): String? {
+    val value = address.trim()
+    return when {
+        Regex("^0x[a-fA-F0-9]{40}$").matches(value) -> WalletEcosystem.EVM
+        Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$").matches(value) -> WalletEcosystem.TRON
+        Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$").matches(value) -> WalletEcosystem.SOL
+        else -> null
+    }
+}
+
 @Composable
 fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, WalletDto, List<WalletDto>, String) -> Unit, isGuest: Boolean = false, vm: WalletManagerViewModel = viewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
-    var selectedNetwork by remember { mutableStateOf<WalletNetwork?>(null) }
-    var showNetworkPicker by remember { mutableStateOf(false) }
     var showAddForm by remember { mutableStateOf(false) }
     var showEligibility by remember { mutableStateOf(false) }
+    var address by remember { mutableStateOf("") }
+    var walletName by remember { mutableStateOf("") }
+    var inputError by remember { mutableStateOf<String?>(null) }
+    val detected = remember(address) { detectEcosystem(address) }
     LaunchedEffect(isGuest) { vm.load(isGuest) }
 
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("我的钱包", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("仅管理公开地址，不保存私钥或助记词", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Text("按生态管理公开地址，一个地址对应一个生态", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
-            Button(onClick = { showNetworkPicker = true }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
+            Button(onClick = { address = ""; walletName = ""; inputError = null; showAddForm = true }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
                 Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text("添加钱包")
             }
         }
@@ -129,23 +128,35 @@ fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, W
             state.isLoading && state.wallets.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) }
             state.wallets.isEmpty() -> Column(Modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text("还没有添加钱包", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("添加常用网络的公开地址，方便后续统一查询", color = AppColors.TextSecondary)
-                state.error?.let { Text(it, color = AppColors.Danger) }
+                Text("添加 0x、TRON 或 Solana 公开地址，即可按生态统一管理", color = AppColors.TextSecondary)
             }
             else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(state.wallets, key = { it.id }) { wallet ->
-                    val network = walletNetworks.firstOrNull { it.key == wallet.chain || it.symbol == wallet.network_icon }
-                    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                         border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(0.dp)) {
                         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            ChainIcon(wallet.chain, wallet.network_icon, Modifier.size(44.dp))
+                            DynamicChainIcon(wallet.ecosystem, Modifier.size(42.dp))
                             Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(wallet.chain, color = AppColors.Primary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                    Text(wallet.wallet_name, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(shortAddress(wallet.address), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text(WalletEcosystem.label(wallet.ecosystem), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                if (wallet.ecosystem == WalletEcosystem.EVM) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        listOf("Ethereum", "BNB Chain", "Arbitrum").forEach { chain ->
+                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                DynamicChainIcon(chain, Modifier.size(15.dp))
+                                                Text(when (chain) { "Ethereum" -> "ETH"; "BNB Chain" -> "BSC"; else -> "ARB" },
+                                                    color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    val chainName = if (wallet.ecosystem == WalletEcosystem.TRON) "TRON" else "SOL"
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        DynamicChainIcon(chainName, Modifier.size(16.dp))
+                                        Text(chainName, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                                    }
                                 }
-                                Text(shortAddress(wallet.address), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                             }
                             IconButton(onClick = { vm.delete(wallet, isGuest) }) { Icon(Icons.Default.DeleteOutline, "删除钱包", tint = AppColors.Danger) }
                         }
@@ -155,36 +166,33 @@ fun WalletManagerScreen(modifier: Modifier = Modifier, onOpenBrowser: (String, W
         }
     }
 
-    if (showNetworkPicker) AlertDialog(onDismissRequest = { showNetworkPicker = false }, containerColor = AppColors.Surface,
-        title = { Text("选择网络 / 链", color = AppColors.TextPrimary) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            walletNetworks.forEach { network ->
-                Surface(onClick = { selectedNetwork = network; showNetworkPicker = false; showAddForm = true },
-                    color = AppColors.Surface, border = BorderStroke(1.dp, AppColors.Border), shape = RoundedCornerShape(12.dp)) {
-                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        ChainIcon(network.key, network.symbol, Modifier.size(40.dp)); Spacer(Modifier.width(12.dp))
-                        Text(network.label, color = AppColors.TextPrimary, fontWeight = FontWeight.Medium)
-                    }
+    if (showAddForm) AlertDialog(
+        onDismissRequest = { showAddForm = false }, containerColor = AppColors.Surface,
+        title = { Text("添加公开钱包地址", color = AppColors.TextPrimary) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(address, { address = it; inputError = null }, label = { Text("粘贴钱包地址") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(walletName, { walletName = it }, label = { Text("备注名称（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                when (detected) {
+                    WalletEcosystem.EVM -> Text("识别为 EVM：同一地址通用于 Ethereum、BSC、Arbitrum 等 EVM 链。", color = AppColors.Primary, style = MaterialTheme.typography.bodySmall)
+                    WalletEcosystem.TRON -> Text("识别为 TRON 生态地址。", color = AppColors.Primary, style = MaterialTheme.typography.bodySmall)
+                    WalletEcosystem.SOL -> Text("识别为 Solana 生态地址。", color = AppColors.Primary, style = MaterialTheme.typography.bodySmall)
+                    else -> Text("支持 0x EVM 地址、T 开头 TRON 地址及 Solana 地址。", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
+                Text(if (isGuest) "地址仅保存在本地设备，不会发送到服务器。" else "仅保存公开地址，不保存私钥或助记词。", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                inputError?.let { Text(it, color = AppColors.Danger) }
             }
-        } }, confirmButton = { TextButton(onClick = { showNetworkPicker = false }) { Text("取消") } })
-
-    if (showAddForm && selectedNetwork != null) {
-        var walletName by remember { mutableStateOf("") }
-        var address by remember { mutableStateOf("") }
-        AlertDialog(onDismissRequest = { showAddForm = false }, containerColor = AppColors.Surface,
-            title = { Text("添加 ${selectedNetwork!!.label} 钱包", color = AppColors.TextPrimary) },
-            text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(walletName, { walletName = it }, label = { Text("自定义名称，例如：主号") }, singleLine = true)
-                OutlinedTextField(address, { address = it }, label = { Text("公开钱包地址") }, singleLine = true)
-                Text(if (isGuest) "地址仅保存在本地设备，不会发送到服务器。" else "地址由服务器校验并保存。", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                state.error?.let { Text(it, color = AppColors.Danger) }
-            } },
-            confirmButton = { Button(enabled = address.trim().length > 20 && walletName.isNotBlank() && !state.isSaving,
-                onClick = { vm.add(WalletWriteRequest(walletName.trim(), selectedNetwork!!.key, address.trim()), isGuest); showAddForm = false },
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text(if (state.isSaving) "保存中…" else "保存") } },
-            dismissButton = { TextButton(onClick = { showAddForm = false }) { Text("取消") } })
-    }
+        },
+        confirmButton = {
+            Button(enabled = detected != null && !state.isSaving, onClick = {
+                val ecosystem = detected ?: return@Button
+                val name = walletName.trim().ifBlank { "$ecosystem Wallet" }
+                vm.add(WalletWriteRequest(name, ecosystem, address.trim()), isGuest)
+                showAddForm = false
+            }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text(if (state.isSaving) "保存中…" else "保存") }
+        },
+        dismissButton = { TextButton(onClick = { showAddForm = false }) { Text("取消") } }
+    )
     if (showEligibility) WalletCheckDialog(onDismiss = { showEligibility = false }, isGuest = isGuest, onOpenBrowser = { url, selectedWallet, allWallets, title ->
         showEligibility = false
         onOpenBrowser(url, selectedWallet, allWallets, title)

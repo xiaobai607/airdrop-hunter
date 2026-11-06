@@ -10,7 +10,39 @@ data class WalletDto(
     val daily_gas_usd: Double = 0.0,
     val recent_airdrop_income_usd: Double = 0.0,
     val last_synced_at: String? = null
-)
+) {
+    // The address determines the ecosystem. An EVM address is shared by all EVM networks.
+    val ecosystem: String
+        get() = WalletEcosystem.fromAddress(address, chain)
+}
+
+object WalletEcosystem {
+    const val EVM = "EVM"
+    const val TRON = "TRON"
+    const val SOL = "SOL"
+
+    fun fromAddress(address: String, legacyChain: String = ""): String {
+        val value = address.trim()
+        return when {
+            Regex("^0x[a-fA-F0-9]{40}$").matches(value) -> EVM
+            Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$").matches(value) -> TRON
+            Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$").matches(value) -> SOL
+            legacyChain.equals("Ethereum", true) || legacyChain.equals("ERC20", true) ||
+                legacyChain.equals(EVM, true) -> EVM
+            legacyChain.equals("Tron", true) || legacyChain.equals("TRC20", true) ||
+                legacyChain.equals(TRON, true) -> TRON
+            legacyChain.equals("Solana", true) || legacyChain.equals(SOL, true) -> SOL
+            else -> "OTHER"
+        }
+    }
+
+    fun label(ecosystem: String): String = when (ecosystem) {
+        EVM -> "EVM 生态通用"
+        TRON -> "TRON 生态"
+        SOL -> "Solana 生态"
+        else -> "其他网络"
+    }
+}
 
 data class WalletWriteRequest(
     val wallet_name: String,
