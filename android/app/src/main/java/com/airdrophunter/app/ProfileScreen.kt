@@ -1,6 +1,8 @@
 package com.airdrophunter.app
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -15,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,13 +33,14 @@ fun ProfileScreen(
     vm: ProfileMockViewModel = viewModel()
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Column(
         modifier.fillMaxSize().background(AppColors.Background)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+        Row(Modifier.clickable { if (isGuest) onRequireAuth() }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
             Surface(shape = CircleShape, color = AppColors.MutedBackground, modifier = Modifier.size(52.dp)) {
                 Box(contentAlignment = Alignment.Center) {
                     Text("L", color = AppColors.TextSecondary, style = MaterialTheme.typography.titleLarge,
@@ -73,23 +77,15 @@ fun ProfileScreen(
             }
         }
 
-        Button(
-            onClick = { if (isGuest) onRequireAuth() else onLogout() },
-            modifier = Modifier.fillMaxWidth().height(54.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary, contentColor = AppColors.Surface)
-        ) {
-            Text(if (isGuest) "登录/注册" else "退出登录", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold)
-        }
+
 
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("设置", color = AppColors.TextHelper, style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
-            SettingRow("钱包管理", Icons.Default.Wallet)
-            SettingRow("消息通知", Icons.Default.NotificationsNone, badge = "3")
-            SettingRow("安全设置", Icons.Default.Security)
-            SettingRow("关于", Icons.Default.Info)
+            SettingRow("钱包管理", Icons.Default.Wallet) { Toast.makeText(context, "钱包管理功能正在开发中", Toast.LENGTH_SHORT).show() }
+            SettingRow("消息通知", Icons.Default.NotificationsNone, showBadge = true) { Toast.makeText(context, "消息通知功能正在开发中", Toast.LENGTH_SHORT).show() }
+            SettingRow("安全设置", Icons.Default.Security) { Toast.makeText(context, "安全设置功能正在开发中", Toast.LENGTH_SHORT).show() }
+            SettingRow("关于", Icons.Default.Info) { Toast.makeText(context, "关于页面正在开发中", Toast.LENGTH_SHORT).show() }
         }
     }
 }
@@ -114,20 +110,20 @@ private fun StatCell(label: String, value: String, modifier: Modifier, suffix: S
 private fun SettingRow(
     title: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    badge: String? = null
+    showBadge: Boolean = false,
+    onClick: () -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth().height(54.dp),
+        Modifier.fillMaxWidth().height(54.dp).clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         Icon(icon, null, tint = AppColors.TextSecondary, modifier = Modifier.size(21.dp))
         Text(title, Modifier.weight(1f), color = AppColors.TextPrimary,
             style = MaterialTheme.typography.bodyMedium)
-        if (badge != null) {
-            Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
-                Text(badge, Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                    color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+        if (showBadge) {
+            Box(Modifier.size(10.dp).background(AppColors.DangerBackground, CircleShape), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(5.dp).background(AppColors.Danger, CircleShape))
             }
         }
         Icon(Icons.Default.ChevronRight, null, tint = AppColors.TextHelper)

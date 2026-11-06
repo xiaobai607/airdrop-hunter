@@ -21,7 +21,7 @@ object AppColors {
     val MutedBackground = Color(0xFFF3F4F6)
     val Danger = Color(0xFFDC5555)
     val DangerBackground = Color(0xFFFCEEEE)
-    val NavIndicator = Color(0x141E7A78)
+    val NavIndicator = Color(0xFFE7F3F2)
     val Navigation = Color(0xEFFFFFFF)
     val TealTint = Color(0xFFE7F3F2)
     val TealSoft = Color(0xFFD7ECEA)
