@@ -80,7 +80,7 @@ def _normalize(payload: Any) -> list[dict[str, str]]:
             chain_values = ["Unknown"]
         if not chain_values:
             chain_values = ["Unknown"]
-        status = _status_label(item.get("status") or item.get("riskFlag") or item.get("risk_flag"))
+        status = _status_label(item.get("status"))
         source_id = str(item.get("slug") or item.get("id") or name.lower().replace(" ", "-"))
         for chain in chain_values:
             key = f"{source_id}:{chain.lower()}"
