@@ -22,8 +22,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -54,28 +54,33 @@ class MainActivity : ComponentActivity() {
 private fun AirdropHunterApp() {
     var selectedTab by remember { mutableStateOf(0) }
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Airdrop Hunter") }) }
+        topBar = { TopAppBar(title = { Text("Airdrop Hunter") }) },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    icon = { Text("🌐") },
+                    label = { Text("发现") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    icon = { Text("🎯") },
+                    label = { Text("空投记录") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    icon = { Text("📁") },
+                    label = { Text("项目管理") }
+                )
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding)
         ) {
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("发现") }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("空投记录") }
-                )
-                Tab(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    text = { Text("项目管理") }
-                )
-            }
             if (selectedTab == 0) {
                 DiscoverScreen(modifier = Modifier.weight(1f))
             } else if (selectedTab == 1) {
