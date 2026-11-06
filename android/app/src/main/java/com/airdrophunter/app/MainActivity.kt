@@ -6,7 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.background
+import androidx.compose.foundation.background\nimport androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
@@ -36,8 +36,8 @@ class MainActivity : ComponentActivity() {
         TokenStore.initialize(applicationContext)
         ApiClient.initialize(applicationContext)
         val startupToken = TokenStore.readTokenBlocking()
-        window.statusBarColor = android.graphics.Color.rgb(15, 23, 42)
-        window.navigationBarColor = android.graphics.Color.rgb(2, 6, 23)
+        window.statusBarColor = android.graphics.Color.rgb(11, 16, 28)
+        window.navigationBarColor = android.graphics.Color.rgb(11, 16, 28)
         setContent {
             AirdropHunterTheme {
                 val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = startupToken)
@@ -105,7 +105,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
             )
         },
         bottomBar = {
-            if (!showSources && selectedProject == null) NavigationBar(containerColor = AppColors.Navigation, tonalElevation = 0.dp) {
+            if (!showSources && selectedProject == null) NavigationBar(modifier = Modifier.height(84.dp), containerColor = AppColors.Navigation, tonalElevation = 0.dp) {
                 destinations.forEachIndexed { index, destination ->
                     val label = stringResource(destination.label)
                     NavigationBarItem(
@@ -154,9 +154,9 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
 @Composable
 private fun GuestSettingsScreen(onRequireAuth: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Text("游客模式", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall)
+        Surface(shape = RoundedCornerShape(50), color = AppColors.Primary.copy(alpha = 0.12f), modifier = Modifier.size(64.dp)) { Box(contentAlignment = androidx.compose.ui.Alignment.Center) { Icon(Icons.Default.Person, null, tint = AppColors.Primary, modifier = Modifier.size(32.dp)) } }\n        Spacer(Modifier.height(24.dp))\n        Text("游客模式", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))
-        Text("你可以浏览公开行情和空投导航。登录后即可同步个人项目与云端数据。", color = AppColors.TextSecondary)
+        Text("你可以先浏览公开行情与空投导航。登录后即可保存项目、追踪任务并同步个人数据。", color = AppColors.TextHelper, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         Spacer(Modifier.height(18.dp))
         Button(onClick = onRequireAuth) { Text("登录 / 注册") }
     }
