@@ -15,6 +15,9 @@ interface ApiService {
     @POST("api/auth/login") suspend fun login(@Body request: AuthRequest): AuthResponse
     @GET("api/sources") suspend fun getSources(): List<SourceDto>
     @GET("api/airdrops") suspend fun getAirdrops(): List<AirdropDto>
+    @GET("api/airdrops/hub") suspend fun getAirdropHub(@Query("chain") chain: String? = null): List<AirdropHubDto>
+    @GET("api/airdrops/hub/status") suspend fun getAirdropHubStatus(): AirdropHubSyncStatusDto
+    @POST("api/airdrops/hub/refresh") suspend fun refreshAirdropHub(): AirdropHubRefreshResponse
     @POST("api/airdrops") suspend fun createAirdrop(@Body request: AirdropWriteRequest): AirdropDto
     @GET("api/projects") suspend fun getProjects(): List<ProjectDto>
     @GET("api/projects/{projectId}") suspend fun getProject(@Path("projectId") projectId: String): ProjectDto
