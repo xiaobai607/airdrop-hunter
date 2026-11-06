@@ -1,6 +1,7 @@
 package com.airdrophunter.app.data
 
 import android.content.Context
+import com.airdrophunter.app.BuildConfig
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
