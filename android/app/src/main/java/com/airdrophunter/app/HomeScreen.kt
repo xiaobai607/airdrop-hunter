@@ -47,9 +47,9 @@ fun HomeScreen(
 
     LaunchedEffect(isGuest) { vm.load(isGuest) }
 
-    Column(modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stringResource(R.string.home_title), style = MaterialTheme.typography.headlineSmall, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.home_title), style = MaterialTheme.typography.headlineLarge, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.home_subtitle), style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -59,7 +59,7 @@ fun HomeScreen(
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.market_title), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.market_title), color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                 Text(stringResource(R.string.market_provider), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
             IconButton(onClick = { if (isGuest) onRequireAuth() else showAdd = true }) { Icon(Icons.Default.Add, stringResource(R.string.add_coin), tint = AppColors.Primary) }
@@ -71,8 +71,8 @@ fun HomeScreen(
         } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 4.dp)) {
                 items(state.market?.prices.orEmpty(), key = { it.coinpaprika_id }) { price ->
-                    BaseCard(modifier = Modifier.width(150.dp)) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    BaseCard(modifier = Modifier.width(160.dp).height(140.dp)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(price.symbol, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.weight(1f))
@@ -128,10 +128,10 @@ private fun SkeletonMarketCard() {
 
 @Composable
 private fun QuickAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = modifier.height(104.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(defaultElevation = 7.dp)) {
+    Card(onClick = onClick, modifier = modifier.height(160.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(defaultElevation = 7.dp)) {
         Column(Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Surface(shape = RoundedCornerShape(50), color = AppColors.Primary.copy(alpha = 0.14f), modifier = Modifier.size(42.dp)) {
-                Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = label, tint = AppColors.Primary, modifier = Modifier.size(23.dp)) }
+            Surface(shape = RoundedCornerShape(50), color = AppColors.Primary.copy(alpha = 0.14f), modifier = Modifier.size(56.dp)) {
+                Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = label, tint = AppColors.Primary, modifier = Modifier.size(28.dp)) }
             }
             Spacer(Modifier.height(6.dp))
             Text(label, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall, maxLines = 2)
