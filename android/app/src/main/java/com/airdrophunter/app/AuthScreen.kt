@@ -58,9 +58,9 @@ fun AuthScreen(onGuestMode: () -> Unit) {
             Text(stringResource(if (register) R.string.register_title else R.string.login_title),
                 style = MaterialTheme.typography.headlineLarge, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.login_subtitle), Modifier.padding(top = 8.dp, bottom = 24.dp), color = AppColors.TextSecondary)
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)) {
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     OutlinedTextField(email, { email = it; error = null; mockCode = null; verificationCode = ""; cooldown = 0 }, Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.email)) }, singleLine = true,
@@ -119,7 +119,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                             }
                         }
                     }, enabled = !loading && email.isNotBlank() && password.length >= 8 && (!register || verificationCode.length == 6),
-                        modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary, contentColor = AppColors.Background)) {
                         Text(if (loading) stringResource(R.string.please_wait) else stringResource(if (register) R.string.register else R.string.login),
                             fontWeight = FontWeight.Bold)
@@ -135,7 +135,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
             if (!register) {
                 Spacer(Modifier.height(18.dp))
                 OutlinedButton(onClick = onGuestMode, modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(14.dp), border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.Primary),
+                    shape = RoundedCornerShape(12.dp), border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.Primary),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Primary)) {
                     Text(stringResource(R.string.auth_guest_mode), fontWeight = FontWeight.SemiBold)
                 }
