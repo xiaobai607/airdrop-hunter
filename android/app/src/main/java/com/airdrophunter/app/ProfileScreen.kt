@@ -1,82 +1,135 @@
 package com.airdrophunter.app
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.airdrophunter.app.data.WalletSyncResponse
 import com.airdrophunter.app.ui.theme.AppColors
-import java.util.Locale
 
 @Composable
-fun ProfileScreen(modifier: Modifier = Modifier, onLogout: () -> Unit, vm: ProfileViewModel = viewModel()) {
-    val state by vm.uiState.collectAsStateWithLifecycle()
-    val networkError = stringResource(R.string.network_error)
-    var publicKey by remember { mutableStateOf("") }
+fun ProfileScreen(
+    modifier: Modifier = Modifier,
+    onLogout: () -> Unit,
+    isGuest: Boolean = true,
+    onRequireAuth: () -> Unit = {},
+    vm: ProfileMockViewModel = viewModel()
+) {
+    val state by vm.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) { vm.load() }
+    Column(
+        modifier.fillMaxSize().background(AppColors.Background)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+            Surface(shape = CircleShape, color = AppColors.MutedBackground, modifier = Modifier.size(52.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text("L", color = AppColors.TextSecondary, style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(if (isGuest) "未登录" else "账户中心", color = AppColors.TextPrimary,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(if (isGuest) "游客模式" else "已登录", color = AppColors.TextHelper,
+                    style = MaterialTheme.typography.bodySmall)
+            }
+        }
 
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp, 16.dp, 24.dp, 32.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item {
-            Text(stringResource(R.string.profile_title), style = MaterialTheme.typography.headlineSmall, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
-            Text(stringResource(R.string.earnings_title), style = MaterialTheme.typography.titleMedium, color = AppColors.TextSecondary, modifier = Modifier.padding(top = 8.dp))
-        }
-        if (state.stats == null && state.isLoading) item { CircularProgressIndicator(modifier = Modifier.size(24.dp), color = AppColors.Primary) }
-        if (state.hasError && state.stats == null) item {
-            Text(stringResource(R.string.stats_unavailable), color = AppColors.Danger)
-            TextButton(onClick = vm::refresh) { Text(stringResource(R.string.retry)) }
-        }
-        state.stats?.let { stats ->
-            item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricCard(stringResource(R.string.actual_income), stats.total_actual_income, Modifier.weight(1f), true)
-                MetricCard(stringResource(R.string.expected_income), stats.total_expected_income, Modifier.weight(1f))
-            } }
-            item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricCard(stringResource(R.string.gas_total), stats.total_gas_cost, Modifier.weight(1f))
-                MetricCard(stringResource(R.string.net_income), stats.net_realized_income, Modifier.weight(1f), true)
-            } }
-            item { Text("${stringResource(R.string.project_count)}: ${stats.project_count}", color = AppColors.TextSecondary) }
-        }
-        item {
-            Card(colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border), shape = RoundedCornerShape(24.dp)) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.wallet_sync_title), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    OutlinedTextField(publicKey, { publicKey = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.wallet_address_hint)) }, singleLine = true)
-                    Text(stringResource(R.string.wallet_disclaimer), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                    Button(enabled = publicKey.length >= 20 && !state.isSyncing, onClick = { vm.syncWallet(publicKey) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (state.isSyncing) stringResource(R.string.loading) else stringResource(R.string.sync_wallet))
-                    }
-                    state.syncResult?.let { result -> WalletSyncSummary(result) }
-                    if (state.hasError) Text(networkError, color = AppColors.Danger)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+            border = BorderStroke(1.dp, AppColors.Border),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column {
+                Row(Modifier.fillMaxWidth().height(100.dp)) {
+                    StatCell("跟踪项目", state.tracked, Modifier.weight(1f))
+                    Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
+                    StatCell("已完成", state.completed, Modifier.weight(1f))
+                }
+                HorizontalDivider(color = AppColors.Border)
+                Row(Modifier.fillMaxWidth().height(100.dp)) {
+                    StatCell("累计收益", state.earnings, Modifier.weight(1f), "USD")
+                    Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
+                    StatCell("交互天数", state.days, Modifier.weight(1f))
                 }
             }
         }
-        item { Button(onClick = onLogout, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Surface, contentColor = AppColors.Danger)) { Text(stringResource(R.string.logout)) } }
+
+        Button(
+            onClick = { if (isGuest) onRequireAuth() else onLogout() },
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary, contentColor = AppColors.Surface)
+        ) {
+            Text(if (isGuest) "登录/注册" else "退出登录", style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold)
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("设置", color = AppColors.TextHelper, style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+            SettingRow("钱包管理", Icons.Default.Wallet)
+            SettingRow("消息通知", Icons.Default.NotificationsNone, badge = "3")
+            SettingRow("安全设置", Icons.Default.Security)
+            SettingRow("关于", Icons.Default.Info)
+        }
     }
 }
 
 @Composable
-private fun WalletSyncSummary(result: WalletSyncResponse) {
-    Text("${stringResource(R.string.daily_gas)}: ${String.format(Locale.US, "$%,.2f USD", result.daily_gas_usd)}", color = AppColors.TextPrimary)
-    Text("${stringResource(R.string.recent_airdrop_income)}: ${String.format(Locale.US, "$%,.2f USD", result.recent_airdrop_income_usd)}", color = AppColors.Success)
-    Text(result.notice, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+private fun StatCell(label: String, value: String, modifier: Modifier, suffix: String = "") {
+    Column(
+        modifier.fillMaxHeight().padding(horizontal = 14.dp, vertical = 15.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(label, color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(value, color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold)
+            if (suffix.isNotBlank()) Text(suffix, color = AppColors.TextSecondary,
+                style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 5.dp))
+        }
+    }
 }
 
 @Composable
-private fun MetricCard(label: String, value: Double, modifier: Modifier, positive: Boolean = false) {
-    Card(modifier, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border)) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            Text(label, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-            Text(String.format(Locale.US, "$%,.2f", value), color = if (positive) AppColors.Success else AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("USD", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+private fun SettingRow(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    badge: String? = null
+) {
+    Row(
+        Modifier.fillMaxWidth().height(54.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(13.dp)
+    ) {
+        Icon(icon, null, tint = AppColors.TextSecondary, modifier = Modifier.size(21.dp))
+        Text(title, Modifier.weight(1f), color = AppColors.TextPrimary,
+            style = MaterialTheme.typography.bodyMedium)
+        if (badge != null) {
+            Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
+                Text(badge, Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+            }
         }
+        Icon(Icons.Default.ChevronRight, null, tint = AppColors.TextHelper)
     }
 }
