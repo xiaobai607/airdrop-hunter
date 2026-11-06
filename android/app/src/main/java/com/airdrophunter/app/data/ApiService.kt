@@ -10,9 +10,9 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
-    @POST("api/auth/send-code") suspend fun sendVerificationCode(@Body request: SendCodeRequest): SendCodeResponse
     @POST("api/auth/register") suspend fun register(@Body request: AuthRequest): AuthResponse
     @POST("api/auth/login") suspend fun login(@Body request: AuthRequest): AuthResponse
+    @GET("api/auth/me") suspend fun getMe(): UserProfileDto
     @GET("api/sources") suspend fun getSources(): List<SourceDto>
     @GET("api/airdrops") suspend fun getAirdrops(): List<AirdropDto>
     @GET("api/airdrops/hub") suspend fun getAirdropHub(@Query("chain") chain: String? = null): List<AirdropHubDto>

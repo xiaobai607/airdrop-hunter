@@ -1,7 +1,6 @@
 package com.airdrophunter.app.data
 
 import android.content.Context
-import com.airdrophunter.app.BuildConfig
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -17,7 +16,7 @@ object ApiClient {
         OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val original = chain.request()
-                val token = if (BuildConfig.DEV_TEST_MODE) "dev-test-token" else TokenStore.readTokenBlocking()
+                val token = TokenStore.readTokenBlocking()
                 val request = if (token.isNullOrBlank()) original else original.newBuilder()
                     .header("Authorization", "Bearer $token").build()
                 chain.proceed(request)

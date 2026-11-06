@@ -46,7 +46,7 @@ fun ProfileScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Row(
-            if (BuildConfig.DEV_TEST_MODE) Modifier else Modifier.clickable { if (isGuest) onRequireAuth() },
+            if (isGuest) Modifier.clickable { onRequireAuth() } else Modifier,
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(13.dp)
         ) {
@@ -57,19 +57,25 @@ fun ProfileScreen(
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(if (BuildConfig.DEV_TEST_MODE) "开发者测试模式" else if (isGuest) "游客模式" else "账户中心", color = AppColors.TextPrimary,
-                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(if (BuildConfig.DEV_TEST_MODE) "测试数据保存到专用测试账户" else if (isGuest) "登录后同步个人数据" else "数据来自你的账户记录",
-                    color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                Text(if (isGuest) "游客模式" else (state.profile?.username ?: "账户中心"),
+                    color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold)
+                Text(
+                    when {
+                        isGuest -> "登录后同步个人数据"
+                        state.profile != null -> "ID: " + state.profile!!.uid
+                        state.isLoading -> "正在加载账户信息…"
+                        else -> "账户信息暂时无法加载"
+                    },
+                    color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall
+                )
             }
         }
 
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-            border = BorderStroke(1.dp, AppColors.Border),
-            elevation = CardDefaults.cardElevation(0.dp)
+            border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column {
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
@@ -79,8 +85,7 @@ fun ProfileScreen(
                 }
                 HorizontalDivider(color = AppColors.Border)
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
-                    StatCell("累计实际收益",
-                        String.format(Locale.US, "%.2f", stats.total_actual_income),
+                    StatCell("累计实际收益", String.format(Locale.US, "%.2f", stats.total_actual_income),
                         Modifier.weight(1f), "USD")
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
                     StatCell("交互天数", stats.interaction_days.toString(), Modifier.weight(1f))
@@ -89,7 +94,7 @@ fun ProfileScreen(
         }
 
         if (state.hasError && !isGuest) {
-            Text("统计数据暂时无法加载，服务器繁忙。", color = AppColors.Danger,
+            Text("账户或统计数据暂时无法加载，服务器繁忙。", color = AppColors.Danger,
                 style = MaterialTheme.typography.bodySmall)
         }
 
@@ -112,10 +117,8 @@ fun ProfileScreen(
 
 @Composable
 private fun StatCell(label: String, value: String, modifier: Modifier, suffix: String = "") {
-    Column(
-        modifier.fillMaxHeight().padding(horizontal = 14.dp, vertical = 15.dp),
-        verticalArrangement = Arrangement.Center
-    ) {
+    Column(modifier.fillMaxHeight().padding(horizontal = 14.dp, vertical = 15.dp),
+        verticalArrangement = Arrangement.Center) {
         Text(label, color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(value, color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineMedium,
@@ -132,11 +135,8 @@ private fun SettingRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
-    Row(
-        Modifier.fillMaxWidth().height(54.dp).clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(13.dp)
-    ) {
+    Row(Modifier.fillMaxWidth().height(54.dp).clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
         Icon(icon, null, tint = AppColors.TextSecondary, modifier = Modifier.size(21.dp))
         Text(title, Modifier.weight(1f), color = AppColors.TextPrimary,
             style = MaterialTheme.typography.bodyMedium)

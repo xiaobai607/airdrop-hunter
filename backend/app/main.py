@@ -18,9 +18,23 @@ from app import models  # noqa: F401
 
 logger = logging.getLogger("airdrop_hunter.api")
 
+
 async def migrate_existing_schema() -> None:
     statements = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(24)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS uid VARCHAR(6)",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)",
+        "UPDATE users SET username = 'legacy_' || substr(replace(id::text, '-', ''), 1, 17) WHERE username IS NULL OR btrim(username) = ''",
+        """WITH numbered AS (
+            SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) AS n
+            FROM users WHERE uid IS NULL OR btrim(uid) = ''
+        ) UPDATE users AS u SET uid = lpad((99999 + numbered.n)::text, 6, '0')
+          FROM numbered WHERE u.id = numbered.id""",
+        "ALTER TABLE users ALTER COLUMN username SET NOT NULL",
+        "ALTER TABLE users ALTER COLUMN uid SET NOT NULL",
+        "ALTER TABLE users ALTER COLUMN email DROP NOT NULL",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_username ON users (username)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_uid ON users (uid)",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id UUID",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS official_url VARCHAR(1000) NOT NULL DEFAULT ''",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS claim_url VARCHAR(1000) NOT NULL DEFAULT ''",
@@ -51,7 +65,8 @@ async def migrate_existing_schema() -> None:
         "CREATE INDEX IF NOT EXISTS ix_wallets_user_id ON wallets(user_id)",
     ]
     async with engine.begin() as conn:
-        for statement in statements: await conn.execute(text(statement))
+        for statement in statements:
+            await conn.execute(text(statement))
         await conn.execute(text("""
             DO $$ BEGIN
               IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_projects_user_id_users') THEN
@@ -61,22 +76,42 @@ async def migrate_existing_schema() -> None:
             END $$;
         """))
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    async with engine.begin() as conn: await conn.run_sync(Base.metadata.create_all)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     await migrate_existing_schema()
     yield
     await engine.dispose()
 
-app = FastAPI(title="Airdrop Hunter API", version="0.8.0", description="Airdrop discovery, project tracking and wallet management API.", lifespan=lifespan)
+
+app = FastAPI(
+    title="Airdrop Hunter API",
+    version="0.8.0",
+    description="Airdrop discovery, project tracking and wallet management API.",
+    lifespan=lifespan,
+)
+
 
 @app.exception_handler(Exception)
 async def unexpected_exception_handler(request: Request, exc: Exception):
-    logger.error("Unhandled API error on %s %s", request.method, request.url.path, exc_info=(type(exc), exc, exc.__traceback__))
+    logger.error(
+        "Unhandled API error on %s %s",
+        request.method,
+        request.url.path,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
     return JSONResponse(status_code=500, content={"detail": "服务器繁忙"})
 
-for router in (auth_router, projects_router, market_router, wallet_router, wallets_router, tasks_router, stats_router, airdrops_router, airdrop_hub_router, airdrop_sync_router, sources_router):
+
+for router in (
+    auth_router, projects_router, market_router, wallet_router, wallets_router,
+    tasks_router, stats_router, airdrops_router, airdrop_hub_router,
+    airdrop_sync_router, sources_router,
+):
     app.include_router(router)
+
 
 @app.get("/health", tags=["system"])
 async def health():
