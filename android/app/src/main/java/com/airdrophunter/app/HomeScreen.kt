@@ -1,33 +1,30 @@
 package com.airdrophunter.app
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.airdrophunter.app.data.ApiClient
-import com.airdrophunter.app.data.CoinCreateRequest
-import com.airdrophunter.app.data.WalletCheckResponse
-import com.airdrophunter.app.ui.components.BaseCard
 import com.airdrophunter.app.ui.theme.AppColors
-import kotlinx.coroutines.launch
 import java.util.Locale
 
 @Composable
@@ -36,132 +33,182 @@ fun HomeScreen(
     onOpenSources: () -> Unit,
     onOpenWallet: () -> Unit,
     onOpenProjects: () -> Unit,
-    isGuest: Boolean = false,
+    isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
-    vm: HomeViewModel = viewModel()
+    vm: DashboardMockViewModel = viewModel()
 ) {
-    val state by vm.uiState.collectAsStateWithLifecycle()
-    val networkError = stringResource(R.string.network_error)
-    var showAdd by remember { mutableStateOf(false) }
-    var coinId by remember { mutableStateOf("") }
-    var symbol by remember { mutableStateOf("") }
-    var coinName by remember { mutableStateOf("") }
+    val state by vm.state.collectAsStateWithLifecycle()
+    var showSearch by remember { mutableStateOf(false) }
+    var showNotifications by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isGuest) { vm.load(isGuest) }
-
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stringResource(R.string.home_title), style = MaterialTheme.typography.headlineLarge, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
-            Text(stringResource(R.string.home_subtitle), style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            QuickAction(stringResource(R.string.quick_airdrop), Icons.Default.Explore, Modifier.weight(1f), onOpenSources)
-            QuickAction(stringResource(R.string.quick_wallet), Icons.Default.AccountBalanceWallet, Modifier.weight(1f), onOpenWallet)
-            QuickAction(stringResource(R.string.quick_projects), Icons.Default.FolderOpen, Modifier.weight(1f), onOpenProjects)
-        }
+    Column(
+        modifier.fillMaxSize().background(AppColors.Background)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp)
+    ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.market_title), color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                Text(stringResource(R.string.market_provider), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+            Text("指挥中心", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
+                color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
+            IconButton(onClick = { showSearch = true }) {
+                Icon(Icons.Default.Search, "搜索", tint = AppColors.TextSecondary)
             }
-            IconButton(onClick = { if (isGuest) onRequireAuth() else showAdd = true }) { Icon(Icons.Default.Add, stringResource(R.string.add_coin), tint = AppColors.Primary) }
-            if (state.hasError) TextButton(onClick = { vm.refresh(isGuest) }, enabled = !state.isRefreshing) { Text(stringResource(R.string.retry)) }
+            IconButton(onClick = { showNotifications = true }) {
+                Icon(Icons.Default.NotificationsNone, "通知", tint = AppColors.TextSecondary)
+            }
         }
-        if (state.hasError && state.market == null) Text(networkError, color = AppColors.Danger)
-        if (state.market == null && state.isLoading) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) { items(4) { SkeletonMarketCard() } }
-        } else {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 4.dp)) {
-                items(state.market?.prices.orEmpty(), key = { it.coinpaprika_id }) { price ->
-                    BaseCard(modifier = Modifier.width(160.dp).height(140.dp)) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(price.symbol, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
-                                Spacer(Modifier.weight(1f))
-                                price.change_24h?.let { change ->
-                                    val positive = change >= 0
-                                    Surface(color = if (positive) AppColors.SuccessBackground else AppColors.DangerBackground, shape = RoundedCornerShape(6.dp)) {
-                                        Text(String.format(Locale.US, "%+.2f%%", change), Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                                            color = if (positive) AppColors.Success else AppColors.Danger, style = MaterialTheme.typography.labelSmall)
-                                    }
-                                }
-                            }
-                            Text(price.price_usd?.let { String.format(Locale.US, "$%,.2f", it) } ?: "—", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                            Text(price.name, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                            state.coins.firstOrNull { it.coinpaprika_id == price.coinpaprika_id }?.let { custom ->
-                                TextButton(onClick = { vm.removeCoin(custom) }, contentPadding = PaddingValues(0.dp)) {
-                                    Text(stringResource(R.string.remove_coin), color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
-                                }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+            border = BorderStroke(1.dp, AppColors.Border),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("本周空投窗口", Modifier.weight(1f), color = AppColors.TextPrimary,
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
+                        Text("进行中", Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
+                            color = AppColors.Primary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+                    }
+                }
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(state.weekTotal.toString(), color = AppColors.TextPrimary,
+                        style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+                    Text("个待交互机会", Modifier.padding(bottom = 9.dp), color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    repeat(state.weekTotal) { index ->
+                        Box(Modifier.weight(1f).height(7.dp).background(
+                            if (index < state.weekDone) AppColors.Primary else AppColors.Border,
+                            RoundedCornerShape(99.dp)
+                        ))
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(state.weekRange, Modifier.weight(1f), color = AppColors.TextHelper,
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("${state.weekDone} / ${state.weekTotal}", color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SectionHeading("入口")
+            state.entries.forEach { entry ->
+                val icon = when (entry.iconKey) {
+                    "shield" -> Icons.Default.Shield
+                    "folder" -> Icons.Default.FolderOpen
+                    else -> Icons.Default.Explore
+                }
+                val action = when (entry.iconKey) {
+                    "shield" -> onOpenWallet
+                    "folder" -> onOpenProjects
+                    else -> onOpenSources
+                }
+                Card(
+                    onClick = action,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                    border = BorderStroke(1.dp, AppColors.Border),
+                    elevation = CardDefaults.cardElevation(0.dp)
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Surface(shape = RoundedCornerShape(11.dp), color = AppColors.TealTint, modifier = Modifier.size(46.dp)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(icon, entry.title, tint = AppColors.Primary, modifier = Modifier.size(23.dp))
                             }
                         }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(entry.title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold)
+                            Text(entry.subtitle, color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text("›", color = AppColors.TextHelper, style = MaterialTheme.typography.headlineSmall)
                     }
                 }
             }
         }
-        if (state.hasError && state.market != null) Text(networkError, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-    }
 
-    if (showAdd) AlertDialog(
-        onDismissRequest = { showAdd = false }, containerColor = AppColors.Surface,
-        title = { Text(stringResource(R.string.add_coin), color = AppColors.TextPrimary) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(coinId, { coinId = it }, label = { Text(stringResource(R.string.coin_id_hint)) }, singleLine = true)
-            OutlinedTextField(symbol, { symbol = it }, label = { Text(stringResource(R.string.coin_symbol_hint)) }, singleLine = true)
-            OutlinedTextField(coinName, { coinName = it }, label = { Text(stringResource(R.string.coin_name_hint)) }, singleLine = true)
-        } },
-        confirmButton = { TextButton(onClick = {
-            vm.addCoin(CoinCreateRequest(coinId.trim(), symbol.trim(), coinName.trim()))
-            showAdd = false; coinId = ""; symbol = ""; coinName = ""
-        }, enabled = coinId.isNotBlank() && symbol.isNotBlank() && coinName.isNotBlank()) { Text(stringResource(R.string.save)) } },
-        dismissButton = { TextButton(onClick = { showAdd = false }) { Text(stringResource(R.string.cancel)) } }
-    )
-}
-
-@Composable
-private fun SkeletonMarketCard() {
-    BaseCard(modifier = Modifier.width(150.dp)) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Surface(Modifier.fillMaxWidth(.45f).height(14.dp), color = AppColors.Border, shape = RoundedCornerShape(5.dp)) {}
-            Surface(Modifier.fillMaxWidth().height(22.dp), color = AppColors.Border, shape = RoundedCornerShape(5.dp)) {}
-            Surface(Modifier.fillMaxWidth(.7f).height(12.dp), color = AppColors.Border, shape = RoundedCornerShape(5.dp)) {}
-        }
-    }
-}
-
-@Composable
-private fun QuickAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = modifier.height(160.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(defaultElevation = 7.dp)) {
-        Column(Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Surface(shape = RoundedCornerShape(50), color = AppColors.Primary.copy(alpha = 0.14f), modifier = Modifier.size(56.dp)) {
-                Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = label, tint = AppColors.Primary, modifier = Modifier.size(28.dp)) }
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                SectionHeading("行情看板")
+                Spacer(Modifier.weight(1f))
+                Text("全部", color = AppColors.Primary, style = MaterialTheme.typography.labelLarge)
             }
-            Spacer(Modifier.height(16.dp))
-            Text(label, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                border = BorderStroke(1.dp, AppColors.Border),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column {
+                    state.markets.forEachIndexed { index, coin ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(coin.symbol, Modifier.weight(1f), color = AppColors.TextPrimary,
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Sparkline(coin.spark, coin.positive, Modifier.width(76.dp).height(26.dp))
+                            Column(Modifier.weight(1.35f), horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(coin.price, color = AppColors.TextPrimary,
+                                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(coin.change, color = if (coin.positive) AppColors.Success else AppColors.Danger,
+                                    style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        if (index != state.markets.lastIndex) HorizontalDivider(color = AppColors.Border, thickness = 1.dp)
+                    }
+                }
+            }
         }
+        Spacer(Modifier.height(8.dp))
     }
+
+    if (showSearch) AlertDialog(
+        onDismissRequest = { showSearch = false },
+        containerColor = AppColors.Surface,
+        title = { Text("搜索", color = AppColors.TextPrimary) },
+        text = { Text("搜索入口将在后续版本接入。", color = AppColors.TextSecondary) },
+        confirmButton = { TextButton(onClick = { showSearch = false }) { Text("知道了") } }
+    )
+    if (showNotifications) AlertDialog(
+        onDismissRequest = { showNotifications = false },
+        containerColor = AppColors.Surface,
+        title = { Text("消息通知", color = AppColors.TextPrimary) },
+        text = { Text("当前有 3 条模拟提醒。", color = AppColors.TextSecondary) },
+        confirmButton = { TextButton(onClick = { showNotifications = false }) { Text("关闭") } }
+    )
 }
 
 @Composable
-fun WalletCheckDialog(onDismiss: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    val networkError = stringResource(R.string.network_error)
-    var address by remember { mutableStateOf("") }
-    var result by remember { mutableStateOf<WalletCheckResponse?>(null) }
-    var error by remember { mutableStateOf(false) }
-    var loading by remember { mutableStateOf(false) }
-    AlertDialog(onDismissRequest = onDismiss, containerColor = AppColors.Surface,
-        title = { Text(stringResource(R.string.wallet_title), color = AppColors.TextPrimary) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(address, { address = it }, label = { Text(stringResource(R.string.wallet_address_hint)) }, singleLine = true)
-            Text(stringResource(R.string.wallet_disclaimer), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-            result?.let { Text(if (it.eligible) stringResource(R.string.wallet_eligible) else stringResource(R.string.wallet_not_eligible), color = AppColors.Primary, fontWeight = FontWeight.Bold); Text(String.format(Locale.US, "≈ $%.2f", it.estimated_reward_usd), color = AppColors.TextPrimary) }
-            if (error) Text(networkError, color = AppColors.Danger)
-        } },
-        confirmButton = { TextButton(enabled = address.length >= 20 && !loading, onClick = { scope.launch {
-            loading = true; error = false
-            try { result = ApiClient.service.checkWallet(address.trim()) } catch (_: Exception) { error = true }
-            loading = false
-        } }) { Text(if (loading) stringResource(R.string.loading) else stringResource(R.string.check_now)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
-    )
+private fun SectionHeading(text: String) {
+    Text(text, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold)
+}
+
+@Composable
+private fun Sparkline(values: List<Float>, positive: Boolean, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        if (values.size < 2) return@Canvas
+        val color = if (positive) AppColors.Success else AppColors.Danger
+        val step = size.width / (values.size - 1)
+        for (i in 0 until values.lastIndex) {
+            drawLine(
+                color = color,
+                start = Offset(i * step, size.height * (1f - values[i])),
+                end = Offset((i + 1) * step, size.height * (1f - values[i + 1])),
+                strokeWidth = 2.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+        }
+    }
 }
