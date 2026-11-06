@@ -37,12 +37,12 @@ fun ProjectsScreen(
     var showGuestAuthDialog by remember { mutableStateOf(false) }
     if (isGuest) {
         Box(modifier.fillMaxSize()) {
-            Column(Modifier.align(Alignment.Center).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("登录后即可添加和管理自己的空投项目", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+            Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("登录后管理你的空投项目", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Spacer(Modifier.height(12.dp))
-                Text("游客模式可以浏览行情和空投导航，云端项目需要账户同步。", color = AppColors.TextSecondary)
+                Text("游客模式可以浏览公开行情和空投导航。登录后即可同步项目与任务进度。", color = AppColors.TextHelper, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
-            FloatingActionButton(onClick = { showGuestAuthDialog = true }, modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp), containerColor = AppColors.Primary, contentColor = AppColors.Background) {
+            FloatingActionButton(onClick = { showGuestAuthDialog = true }, modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp).size(64.dp), shape = RoundedCornerShape(50), containerColor = AppColors.Primary, contentColor = AppColors.Background) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_project))
             }
         }
@@ -62,7 +62,7 @@ fun ProjectsScreen(
     var deleting by remember { mutableStateOf<ProjectDto?>(null) }
     LaunchedEffect(Unit) { vm.loadProjects() }
     Box(modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 100.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp, 16.dp, 24.dp, 112.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Column {
                     Text(stringResource(R.string.projects_title), style = MaterialTheme.typography.headlineSmall, color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
@@ -73,7 +73,7 @@ fun ProjectsScreen(
             if (state.isLoading && state.projects.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) } }
             else if (state.projects.isEmpty()) item { Text(stringResource(R.string.empty_projects), color = AppColors.TextSecondary, modifier = Modifier.padding(vertical = 32.dp)) }
             items(state.projects, key = { it.id }) { p ->
-                Card(modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(p) }, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)) {
+                Card(modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(p) }, shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface), border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
@@ -88,7 +88,7 @@ fun ProjectsScreen(
                 }
             }
         }
-        FloatingActionButton(onClick = { editing = null; showEditor = true }, modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp), containerColor = AppColors.Primary, contentColor = AppColors.Background) {
+        FloatingActionButton(onClick = { editing = null; showEditor = true }, modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp).size(64.dp), shape = RoundedCornerShape(50), containerColor = AppColors.Primary, contentColor = AppColors.Background) {
             Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_project))
         }
     }
