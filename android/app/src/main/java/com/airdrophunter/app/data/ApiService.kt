@@ -8,6 +8,12 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 
 interface ApiService {
+    @GET("api/airdrops")
+    suspend fun getAirdrops(): List<AirdropDto>
+
+    @POST("api/airdrops")
+    suspend fun createAirdrop(@Body request: AirdropWriteRequest): AirdropDto
+
     @GET("api/projects")
     suspend fun getProjects(): List<ProjectDto>
 
