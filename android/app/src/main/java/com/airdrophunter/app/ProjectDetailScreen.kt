@@ -24,10 +24,8 @@ import java.util.Locale
 fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, vm: ProjectDetailViewModel = viewModel()) {
     val context = LocalContext.current
     val state by vm.uiState.collectAsStateWithLifecycle()
-    val networkError = stringResource(R.string.network_error)
     val twitterTitle = stringResource(R.string.twitter)
     var taskName by remember(project.id) { mutableStateOf("") }
-    var address by remember(project.id) { mutableStateOf("") }
     val completed = state.tasks.count { it.is_completed }
     val progress = if (state.tasks.isEmpty()) 0f else completed.toFloat() / state.tasks.size
 
@@ -74,16 +72,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, vm: 
                 }
             }
         }
-        item {
-            Divider(color = AppColors.Border)
-            Text(stringResource(R.string.wallet_address), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            OutlinedTextField(address, { address = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.wallet_address_hint)) }, singleLine = true)
-            Button(enabled = address.length >= 20 && !state.isBusy, onClick = { vm.checkWallet(address) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.check_now)) }
-            state.walletResult?.let { result ->
-                Text(if (result.eligible) stringResource(R.string.wallet_eligible) else stringResource(R.string.wallet_not_eligible), color = AppColors.Primary, fontWeight = FontWeight.Bold)
-                Text(String.format(Locale.US, "≈ $%.2f USD", result.estimated_reward_usd), color = AppColors.TextPrimary)
-            }
-            if (state.hasError) Text(networkError, color = AppColors.Danger)
-        }
+
     }
 }

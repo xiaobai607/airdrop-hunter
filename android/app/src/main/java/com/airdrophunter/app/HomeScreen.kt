@@ -1,15 +1,14 @@
 package com.airdrophunter.app
 
 import android.widget.Toast
-
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -20,13 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.airdrophunter.app.data.MarketPrice
 import com.airdrophunter.app.ui.theme.AppColors
 import java.util.Locale
 
@@ -39,20 +36,23 @@ fun HomeScreen(
     onOpenAirdropHub: () -> Unit = {},
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
-    vm: DashboardMockViewModel = viewModel()
+    vm: HomeViewModel = viewModel()
 ) {
-    val state by vm.state.collectAsStateWithLifecycle()
+    val state by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showSearch by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
 
+    LaunchedEffect(isGuest) { vm.load(isGuest) }
+
     Column(
         modifier.fillMaxSize().background(AppColors.Background)
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(22.dp)
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("指挥中心", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
+            Text("首页", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
                 color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
             IconButton(onClick = { showSearch = true }) {
                 Icon(Icons.Default.Search, "搜索", tint = AppColors.TextSecondary)
@@ -70,82 +70,78 @@ fun HomeScreen(
             border = BorderStroke(1.dp, AppColors.Border),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
-            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("本周空投窗口", Modifier.weight(1f), color = AppColors.TextPrimary,
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 17.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("空投聚合大厅", color = AppColors.TextPrimary,
                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
-                        Text("进行中", Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
-                            color = AppColors.Primary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
-                    }
+                    Text("浏览从公开数据源同步的项目", color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall)
                 }
-                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(state.weekTotal.toString(), color = AppColors.TextPrimary,
-                        style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
-                    Text("个待交互机会", Modifier.padding(bottom = 9.dp), color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.bodyMedium)
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    repeat(state.weekTotal) { index ->
-                        Box(Modifier.weight(1f).height(7.dp).background(
-                            if (index < state.weekDone) AppColors.Primary else AppColors.Border,
-                            RoundedCornerShape(99.dp)
-                        ))
-                    }
-                }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(state.weekRange, Modifier.weight(1f), color = AppColors.TextHelper,
-                        style = MaterialTheme.typography.labelSmall)
-                    Text("${state.weekDone} / ${state.weekTotal}", color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                }
+                Text("›", color = AppColors.Primary, style = MaterialTheme.typography.headlineMedium)
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SectionHeading("入口")
-            state.entries.forEach { entry ->
-                val icon = when (entry.iconKey) {
-                    "shield" -> Icons.Default.Shield
-                    "folder" -> Icons.Default.FolderOpen
-                    else -> Icons.Default.Explore
-                }
-                val action = when (entry.iconKey) {
-                    "shield" -> onOpenWallet
-                    "folder" -> onOpenProjects
-                    else -> onOpenSources
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Text("快捷入口", color = AppColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            val entries = listOf(
+                Triple("空投导航", "打开常用空投信息网站", Icons.Default.Explore),
+                Triple("安全查钱包", "通过公链网络验证公开地址", Icons.Default.Shield),
+                Triple("我的项目", "查看已添加的项目与任务", Icons.Default.FolderOpen)
+            )
+            entries.forEachIndexed { index, entry ->
+                val action = when (index) {
+                    0 -> onOpenSources
+                    1 -> onOpenWallet
+                    else -> onOpenProjects
                 }
                 Card(
                     onClick = action,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(13.dp),
                     colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                     border = BorderStroke(1.dp, AppColors.Border),
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Surface(shape = RoundedCornerShape(11.dp), color = AppColors.TealTint, modifier = Modifier.size(46.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(11.dp)
+                    ) {
+                        Surface(shape = RoundedCornerShape(9.dp), color = AppColors.TealTint,
+                            modifier = Modifier.size(38.dp)) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(icon, entry.title, tint = AppColors.Primary, modifier = Modifier.size(23.dp))
+                                Icon(entry.third, entry.first, tint = AppColors.Primary,
+                                    modifier = Modifier.size(20.dp))
                             }
                         }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(entry.title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold)
-                            Text(entry.subtitle, color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(entry.first, color = AppColors.TextPrimary,
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text(entry.second, color = AppColors.TextHelper,
+                                style = MaterialTheme.typography.bodySmall)
                         }
-                        Text("›", color = AppColors.TextHelper, style = MaterialTheme.typography.headlineSmall)
+                        Text("›", color = AppColors.TextHelper, style = MaterialTheme.typography.titleLarge)
                     }
                 }
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("行情看板", modifier = Modifier.clickable { Toast.makeText(context, "行情详情页正在开发中", Toast.LENGTH_SHORT).show() }, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("行情看板", color = AppColors.TextPrimary,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                Text("全部", modifier = Modifier.clickable { Toast.makeText(context, "行情详情页正在开发中", Toast.LENGTH_SHORT).show() }, color = AppColors.Primary, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "全部",
+                    modifier = Modifier.clickable {
+                        Toast.makeText(context, "功能开发中", Toast.LENGTH_SHORT).show()
+                    }.padding(6.dp),
+                    color = AppColors.Primary, style = MaterialTheme.typography.labelLarge
+                )
             }
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -154,24 +150,23 @@ fun HomeScreen(
                 border = BorderStroke(1.dp, AppColors.Border),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
-                Column {
-                    state.markets.forEachIndexed { index, coin ->
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(coin.symbol, Modifier.weight(1f), color = AppColors.TextPrimary,
-                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Sparkline(coin.spark, coin.positive, Modifier.width(76.dp).height(26.dp))
-                            Column(Modifier.weight(1.35f), horizontalAlignment = Alignment.End,
-                                verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(coin.price, color = AppColors.TextPrimary,
-                                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                Text(coin.change, color = if (coin.positive) AppColors.Success else AppColors.Danger,
-                                    style = MaterialTheme.typography.labelSmall)
+                when {
+                    state.isLoading && state.market == null -> Box(
+                        Modifier.fillMaxWidth().padding(22.dp), contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator(color = AppColors.Primary) }
+                    state.market?.prices.isNullOrEmpty() -> Text(
+                        if (state.hasError) "行情暂不可用，请稍后重试" else "暂无行情数据",
+                        Modifier.padding(18.dp), color = AppColors.TextSecondary
+                    )
+                    else -> Column {
+                        state.market?.prices.orEmpty().forEachIndexed { index, price ->
+                            MarketRow(price) {
+                                Toast.makeText(context, "功能开发中", Toast.LENGTH_SHORT).show()
+                            }
+                            if (index != state.market?.prices?.lastIndex) {
+                                HorizontalDivider(color = AppColors.Border, thickness = 1.dp)
                             }
                         }
-                        if (index != state.markets.lastIndex) HorizontalDivider(color = AppColors.Border, thickness = 1.dp)
                     }
                 }
             }
@@ -183,38 +178,44 @@ fun HomeScreen(
         onDismissRequest = { showSearch = false },
         containerColor = AppColors.Surface,
         title = { Text("搜索", color = AppColors.TextPrimary) },
-        text = { Text("搜索入口将在后续版本接入。", color = AppColors.TextSecondary) },
+        text = { Text("搜索功能正在开发中。", color = AppColors.TextSecondary) },
         confirmButton = { TextButton(onClick = { showSearch = false }) { Text("知道了") } }
     )
     if (showNotifications) AlertDialog(
         onDismissRequest = { showNotifications = false },
         containerColor = AppColors.Surface,
         title = { Text("消息通知", color = AppColors.TextPrimary) },
-        text = { Text("当前有 3 条模拟提醒。", color = AppColors.TextSecondary) },
+        text = { Text("通知功能正在开发中。", color = AppColors.TextSecondary) },
         confirmButton = { TextButton(onClick = { showNotifications = false }) { Text("关闭") } }
     )
 }
 
 @Composable
-private fun SectionHeading(text: String) {
-    Text(text, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.Bold)
-}
-
-@Composable
-private fun Sparkline(values: List<Float>, positive: Boolean, modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        if (values.size < 2) return@Canvas
-        val color = if (positive) AppColors.Success else AppColors.Danger
-        val step = size.width / (values.size - 1)
-        for (i in 0 until values.lastIndex) {
-            drawLine(
-                color = color,
-                start = Offset(i * step, size.height * (1f - values[i])),
-                end = Offset((i + 1) * step, size.height * (1f - values[i + 1])),
-                strokeWidth = 2.dp.toPx(),
-                cap = StrokeCap.Round
-            )
+private fun MarketRow(price: MarketPrice, onClick: () -> Unit) {
+    val value = price.price_usd?.let {
+        if (it >= 1) String.format(Locale.US, "$%,.2f", it)
+        else String.format(Locale.US, "$%.6f", it)
+    } ?: "—"
+    val change = price.change_24h?.let { String.format(Locale.US, "%+.2f%%", it) } ?: "—"
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .padding(horizontal = 15.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(price.symbol, color = AppColors.TextPrimary,
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(price.name, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+        }
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(value, color = AppColors.TextPrimary,
+                style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text(change, color = when {
+                price.change_24h == null -> AppColors.TextHelper
+                price.change_24h >= 0 -> AppColors.Success
+                else -> AppColors.Danger
+            }, style = MaterialTheme.typography.labelSmall)
         }
     }
 }

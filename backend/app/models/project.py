@@ -9,12 +9,12 @@ from app.database import Base
 class Project(Base):
     __tablename__ = "projects"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # Nullable only for legacy records created before account isolation.
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", name="fk_projects_user_id_users", ondelete="CASCADE"), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="upcoming")
     official_url: Mapped[str] = mapped_column(String(1000), nullable=False, default="")
+    claim_url: Mapped[str] = mapped_column(String(1000), nullable=False, default="")
     twitter_url: Mapped[str] = mapped_column(String(1000), nullable=False, default="")
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     expected_income: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)

@@ -2,13 +2,14 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
+from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.routers.auth import get_current_user
 from app.database import get_db
-from app.models import Project, User
+from app.models import Project, User, Wallet
 
 router = APIRouter(prefix="/api", tags=["projects"])
 ProjectStatus = Literal["tracking", "upcoming", "completed"]
@@ -19,6 +20,7 @@ class ProjectWrite(BaseModel):
     description: str = Field(default="", max_length=5000)
     status: ProjectStatus = "upcoming"
     official_url: str = Field(default="", max_length=1000)
+    claim_url: str = Field(default="", max_length=1000)
     twitter_url: str = Field(default="", max_length=1000)
     deadline: datetime | None = None
     expected_income: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
@@ -32,6 +34,7 @@ class ProjectResponse(BaseModel):
     description: str
     status: ProjectStatus
     official_url: str
+    claim_url: str
     twitter_url: str
     deadline: datetime | None
     expected_income: Decimal
@@ -39,18 +42,36 @@ class ProjectResponse(BaseModel):
     actual_income: Decimal
 
 def serialize_project(p: Project) -> ProjectResponse:
-    return ProjectResponse(id=str(p.id), name=p.name, description=p.description, status=p.status, official_url=p.official_url or "", twitter_url=p.twitter_url or "", deadline=p.deadline, expected_income=p.expected_income or Decimal("0"), gas_cost=p.gas_cost or Decimal("0"), actual_income=p.actual_income or Decimal("0"))
+    return ProjectResponse(id=str(p.id), name=p.name, description=p.description, status=p.status,
+        official_url=p.official_url or "", claim_url=p.claim_url or "", twitter_url=p.twitter_url or "",
+        deadline=p.deadline, expected_income=p.expected_income or Decimal("0"),
+        gas_cost=p.gas_cost or Decimal("0"), actual_income=p.actual_income or Decimal("0"))
 
 async def owned_project(project_id: UUID, user: User, db: AsyncSession) -> Project:
     p = await db.scalar(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if p is None:
-        raise HTTPException(404, "项目不存在")
+    if p is None: raise HTTPException(404, "项目不存在")
     return p
 
+@router.get("/user/projects", response_model=list[ProjectResponse], include_in_schema=False)
 @router.get("/projects", response_model=list[ProjectResponse])
 async def list_projects(db: Annotated[AsyncSession, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
     rows = await db.scalars(select(Project).where(Project.user_id == user.id).order_by(Project.created_at.desc()))
     return [serialize_project(p) for p in rows]
+
+@router.get("/projects/{project_id}/claim-url")
+async def build_claim_url(project_id: UUID, wallet_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    project = await owned_project(project_id, user, db)
+    wallet = await db.scalar(select(Wallet).where(Wallet.id == wallet_id, Wallet.user_id == user.id))
+    if wallet is None: raise HTTPException(404, "钱包不存在")
+    raw_url = (project.claim_url or "").strip()
+    parsed = urlparse(raw_url)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+        raise HTTPException(409, "该项目尚未配置经过确认的 HTTPS 资格查询入口")
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query["address"] = wallet.address or wallet.public_key
+    final_url = urlunparse(parsed._replace(query=urlencode(query)))
+    return {"url": final_url, "project_name": project.name, "wallet_name": wallet.wallet_name,
+            "address": wallet.address or wallet.public_key}
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
 async def get_project(project_id: UUID, db: Annotated[AsyncSession, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
@@ -58,31 +79,22 @@ async def get_project(project_id: UUID, db: Annotated[AsyncSession, Depends(get_
 
 @router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(payload: ProjectWrite, db: Annotated[AsyncSession, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
-    data = payload.model_dump()
-    data["name"] = payload.name.strip()
-    data["description"] = payload.description.strip()
-    if not data["name"]:
-        raise HTTPException(422, "项目名称不能为空")
-    p = Project(user_id=user.id, **data)
-    db.add(p)
-    await db.commit()
-    await db.refresh(p)
+    data = payload.model_dump(); data["name"] = payload.name.strip(); data["description"] = payload.description.strip()
+    if not data["name"]: raise HTTPException(422, "项目名称不能为空")
+    if data["claim_url"] and (urlparse(data["claim_url"]).scheme != "https" or not urlparse(data["claim_url"]).hostname):
+        raise HTTPException(422, "资格查询入口必须是 HTTPS URL")
+    p = Project(user_id=user.id, **data); db.add(p); await db.commit(); await db.refresh(p)
     return serialize_project(p)
 
 @router.put("/projects/{project_id}", response_model=ProjectResponse)
-async def update_project(project_id: UUID, payload: ProjectWrite, db: Annotated[AsyncSession, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
+async def update_project(project_id: UUID, payload: ProjectWrite, db: Annotated[AsyncSession, Depends(get_db)], user: User = Depends(get_current_user)):
     p = await owned_project(project_id, user, db)
-    for key, value in payload.model_dump().items():
-        setattr(p, key, value.strip() if isinstance(value, str) else value)
-    if not p.name:
-        raise HTTPException(422, "项目名称不能为空")
-    await db.commit()
-    await db.refresh(p)
-    return serialize_project(p)
+    for key, value in payload.model_dump().items(): setattr(p, key, value.strip() if isinstance(value, str) else value)
+    if not p.name: raise HTTPException(422, "项目名称不能为空")
+    if p.claim_url and (urlparse(p.claim_url).scheme != "https" or not urlparse(p.claim_url).hostname):
+        raise HTTPException(422, "资格查询入口必须是 HTTPS URL")
+    await db.commit(); await db.refresh(p); return serialize_project(p)
 
 @router.delete("/projects/{project_id}", status_code=204)
-async def delete_project(project_id: UUID, db: Annotated[AsyncSession, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
-    p = await owned_project(project_id, user, db)
-    await db.delete(p)
-    await db.commit()
-    return Response(status_code=204)
+async def delete_project(project_id: UUID, db: Annotated[AsyncSession, Depends(get_db)], user: User = Depends(get_current_user)):
+    p = await owned_project(project_id, user, db); await db.delete(p); await db.commit(); return Response(status_code=204)
