@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,9 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.CacheStore
 import androidx.compose.runtime.collectAsState
 import com.airdrophunter.app.ui.theme.AppColors
@@ -31,6 +34,7 @@ fun ProjectsScreen(
     onProjectSelected: (ProjectDto) -> Unit,
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
+    onOpenCommunity: (ProjectDto) -> Unit = {},
     vm: ProjectsViewModel = viewModel()
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -114,56 +118,76 @@ fun ProjectsScreen(
             ) {
                 items(filtered, key = { it.id }) { project ->
                     Card(
-                        onClick = { onProjectSelected(project) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                         border = BorderStroke(1.dp, AppColors.Border),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary,
-                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                val label = when (project.status) {
-                                    "tracking" -> "进行中"
-                                    "completed" -> "已完成"
-                                    else -> "待开始"
+                        Row(
+                            Modifier.fillMaxWidth().padding(13.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Column(
+                                Modifier.weight(1f).clickable { onProjectSelected(project) },
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Surface(shape = RoundedCornerShape(10.dp), color = AppColors.TealTint) {
+                                        Icon(Icons.Default.FolderOpen, null, tint = AppColors.Primary, modifier = Modifier.padding(8.dp).size(19.dp))
+                                    }
+                                    Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary,
+                                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                    val statusLabel = when (project.status) { "tracking" -> "进行中"; "completed" -> "已完成"; else -> "待开始" }
+                                    Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
+                                        Text(statusLabel, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                                    }
                                 }
-                                Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
-                                    Text(label, Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                        color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                                if (project.description.isNotBlank()) {
+                                    Text(project.description, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                                }
+                                val pnl = pnlRecords.firstOrNull { it.projectOfficialId == project.officialIdentifier() }
+                                if (pnl != null) {
+                                    Text(String.format(Locale.US, "累计消耗 $%.2f · 累计收益 $%.2f", pnl.totalGasCostUsd, pnl.totalRewardUsd),
+                                        color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                    Text(String.format(Locale.US, "真实净盈亏 %s$%.2f", if (pnl.netProfitUsd >= 0) "+" else "-", kotlin.math.abs(pnl.netProfitUsd)),
+                                        color = if (pnl.netProfitUsd >= 0) AppColors.Success else AppColors.Danger,
+                                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    TextButton(
+                                        onClick = {
+                                            if (project.official_url.startsWith("https://")) {
+                                                context.startActivity(Intent(context, BrowserActivity::class.java)
+                                                    .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
+                                                    .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
+                                            } else onProjectSelected(project)
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                                    ) { Text("去交互  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium) }
+                                    Text(" · 查看项目详情", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
-                            if (project.description.isNotBlank()) {
-                                Text(project.description, color = AppColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodySmall, maxLines = 2)
-                            }
-                            project.deadline?.takeIf { it.isNotBlank() }?.let {
-                                Text("截止时间：$it", color = AppColors.TextHelper,
-                                    style = MaterialTheme.typography.labelSmall)
-                            }
-                            val pnl = pnlRecords.firstOrNull { it.projectId == project.id }
-                            if (pnl != null) {
-                                Text(String.format(Locale.US, "累计消耗 $%.2f · 累计收益 $%.2f",
-                                    pnl.totalGasCostUsd, pnl.totalRewardUsd),
-                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                Text(String.format(Locale.US, "真实净盈亏 %s$%.2f",
-                                    if (pnl.netProfitUsd >= 0) "+" else "-", kotlin.math.abs(pnl.netProfitUsd)),
-                                    color = if (pnl.netProfitUsd >= 0) AppColors.Success else AppColors.Danger,
-                                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                            }
-                            if (project.expected_income > 0 || project.actual_income > 0) {
-                                Text(
-                                    String.format(Locale.US, "实际收益 $%.2f · 预期 $%.2f",
-                                        project.actual_income, project.expected_income),
-                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
-                                )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Surface(
+                                    onClick = { onOpenCommunity(project) },
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = Color(0xFFFFF4E5),
+                                    border = BorderStroke(1.dp, Color(0xFFFFD9A8))
+                                ) {
+                                    Row(Modifier.padding(horizontal = 11.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text("微社区", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
+                                        Text("4.9", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                Text("好评如潮", color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
                             }
                         }
-                    }
-                }
+                    }                }
             }
         }
     }

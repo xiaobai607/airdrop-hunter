@@ -19,7 +19,26 @@ data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, 
 data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long)
 
 @Entity(tableName = "pnl_records")
-data class PnlRecordEntity(@PrimaryKey val projectId: String, val walletAddress: String, val totalGasCostUsd: Double, val totalRewardUsd: Double, val netProfitUsd: Double)
+data class PnlRecordEntity(
+    @PrimaryKey val projectOfficialId: String,
+    val projectCustomName: String,
+    val walletAddress: String,
+    val totalGasCostUsd: Double,
+    val totalRewardUsd: Double,
+    val netProfitUsd: Double
+)
+
+@Entity(
+    tableName = "project_ratings",
+    indices = [Index(value = ["projectOfficialId", "walletAddress"], unique = true)]
+)
+data class ProjectRatingEntity(
+    @PrimaryKey val id: String,
+    val projectOfficialId: String,
+    val walletAddress: String,
+    val score: Int,
+    val timestamp: Long
+)
 
 @Dao
 interface CacheDao {
@@ -49,21 +68,36 @@ interface PnlRecordDao {
     suspend fun insert(record: PnlRecordEntity)
     @Query("SELECT * FROM pnl_records ORDER BY netProfitUsd DESC")
     fun observeAll(): Flow<List<PnlRecordEntity>>
-    @Query("SELECT * FROM pnl_records WHERE projectId = :projectId LIMIT 1")
-    suspend fun findByProject(projectId: String): PnlRecordEntity?
-    @Query("UPDATE pnl_records SET walletAddress = :walletAddress, totalGasCostUsd = totalGasCostUsd + :gas, totalRewardUsd = totalRewardUsd + :reward, netProfitUsd = netProfitUsd + :net WHERE projectId = :projectId")
-    suspend fun addAmounts(projectId: String, walletAddress: String, gas: Double, reward: Double, net: Double): Int
+    @Query("SELECT * FROM pnl_records WHERE projectOfficialId = :projectOfficialId LIMIT 1")
+    suspend fun findByProject(projectOfficialId: String): PnlRecordEntity?
+    @Query("UPDATE pnl_records SET projectCustomName = :customName, walletAddress = :walletAddress, totalGasCostUsd = totalGasCostUsd + :gas, totalRewardUsd = totalRewardUsd + :reward, netProfitUsd = netProfitUsd + :net WHERE projectOfficialId = :projectOfficialId")
+    suspend fun addAmounts(projectOfficialId: String, customName: String, walletAddress: String, gas: Double, reward: Double, net: Double): Int
     @Transaction
-    suspend fun addToProject(projectId: String, walletAddress: String, gas: Double, reward: Double) {
-        if (addAmounts(projectId, walletAddress, gas, reward, reward - gas) == 0) insert(PnlRecordEntity(projectId, walletAddress, gas, reward, reward - gas))
+    suspend fun addToProject(projectOfficialId: String, customName: String, walletAddress: String, gas: Double, reward: Double) {
+        if (addAmounts(projectOfficialId, customName, walletAddress, gas, reward, reward - gas) == 0) {
+            insert(PnlRecordEntity(projectOfficialId, customName, walletAddress, gas, reward, reward - gas))
+        }
     }
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class], version = 2, exportSchema = false)
+@Dao
+interface ProjectRatingDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(rating: ProjectRatingEntity)
+    @Query("SELECT * FROM project_ratings WHERE projectOfficialId = :projectOfficialId ORDER BY timestamp DESC")
+    fun observeByProject(projectOfficialId: String): Flow<List<ProjectRatingEntity>>
+    @Query("SELECT * FROM project_ratings WHERE projectOfficialId = :projectOfficialId AND walletAddress = :walletAddress LIMIT 1")
+    suspend fun findByWallet(projectOfficialId: String, walletAddress: String): ProjectRatingEntity?
+    @Query("SELECT AVG(score) FROM project_ratings WHERE projectOfficialId = :projectOfficialId")
+    fun observeAverage(projectOfficialId: String): Flow<Double?>
+}
+
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class], version = 3, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
     abstract fun pnlRecordDao(): PnlRecordDao
+    abstract fun projectRatingDao(): ProjectRatingDao
 }
 
 object CacheStore {
@@ -74,20 +108,42 @@ object CacheStore {
             db.execSQL("CREATE TABLE IF NOT EXISTS pnl_records (projectId TEXT NOT NULL PRIMARY KEY, walletAddress TEXT NOT NULL, totalGasCostUsd REAL NOT NULL, totalRewardUsd REAL NOT NULL, netProfitUsd REAL NOT NULL)")
         }
     }
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE pnl_records RENAME COLUMN projectId TO projectOfficialId")
+            db.execSQL("ALTER TABLE pnl_records ADD COLUMN projectCustomName TEXT NOT NULL DEFAULT ''")
+            db.execSQL("CREATE TABLE IF NOT EXISTS project_ratings (id TEXT NOT NULL PRIMARY KEY, projectOfficialId TEXT NOT NULL, walletAddress TEXT NOT NULL, score INTEGER NOT NULL, timestamp INTEGER NOT NULL)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_project_ratings_projectOfficialId_walletAddress ON project_ratings(projectOfficialId, walletAddress)")
+        }
+    }
     fun initialize(context: Context) {
         if (database != null) return
         synchronized(this) {
-            if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache").addMigrations(MIGRATION_1_2).build()
+            if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache").addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
         }
     }
     fun observePendingBills(): Flow<List<PendingBillEntity>> = database?.pendingBillDao()?.observeAll() ?: flowOf(emptyList())
     fun observePnlRecords(): Flow<List<PnlRecordEntity>> = database?.pnlRecordDao()?.observeAll() ?: flowOf(emptyList())
+    fun observeProjectRatings(projectOfficialId: String): Flow<List<ProjectRatingEntity>> =
+        database?.projectRatingDao()?.observeByProject(projectOfficialId) ?: flowOf(emptyList())
+    fun observeProjectRatingAverage(projectOfficialId: String): Flow<Double?> =
+        database?.projectRatingDao()?.observeAverage(projectOfficialId) ?: flowOf(null)
+    suspend fun hasPnlParticipation(projectOfficialId: String): Boolean = withContext(Dispatchers.IO) {
+        database?.pnlRecordDao()?.findByProject(projectOfficialId) != null
+    }
+    suspend fun saveProjectRating(projectOfficialId: String, walletAddress: String, score: Int): Boolean = withContext(Dispatchers.IO) {
+        if (score !in 1..5) return@withContext false
+        val db = database ?: return@withContext false
+        if (db.pnlRecordDao().findByProject(projectOfficialId) == null) return@withContext false
+        db.projectRatingDao().insert(ProjectRatingEntity(java.util.UUID.randomUUID().toString(), projectOfficialId, walletAddress, score, System.currentTimeMillis()))
+        true
+    }
     suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) { database?.pendingBillDao()?.insert(bill) }
-    suspend fun confirmPendingBill(id: String, projectId: String, gas: Double, reward: Double): Boolean = withContext(Dispatchers.IO) {
+    suspend fun confirmPendingBill(id: String, projectOfficialId: String, projectCustomName: String, gas: Double, reward: Double): Boolean = withContext(Dispatchers.IO) {
         val db = database ?: return@withContext false
         db.withTransaction {
             val bill = db.pendingBillDao().findById(id) ?: return@withTransaction false
-            db.pnlRecordDao().addToProject(projectId, bill.walletAddress, gas, reward)
+            db.pnlRecordDao().addToProject(projectOfficialId, projectCustomName, bill.walletAddress, gas, reward)
             db.pendingBillDao().delete(id)
             true
         }

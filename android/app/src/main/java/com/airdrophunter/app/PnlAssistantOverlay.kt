@@ -54,7 +54,7 @@ fun PnlAssistantOverlay(modifier: Modifier = Modifier) {
             raw?.let { runCatching { gson.fromJson<List<ProjectDto>>(it, type) }.getOrNull() }
         }.flatten()
         projects = lists.distinctBy { it.id }
-        selectedProject = projects.firstOrNull()?.id.orEmpty()
+        selectedProject = projects.firstOrNull()?.officialIdentifier().orEmpty()
         val walletType = object : TypeToken<List<WalletDto>>() {}.type
         val wallets = CacheStore.readLocal("wallets")?.let { runCatching { gson.fromJson<List<WalletDto>>(it, walletType) }.getOrNull() }.orEmpty()
         wallet = wallets.firstOrNull()?.address ?: "MOCK-WALLET-LOCAL"
@@ -64,7 +64,7 @@ fun PnlAssistantOverlay(modifier: Modifier = Modifier) {
         activeBill = bill
         gas = String.format(java.util.Locale.US, "%.2f", bill.gasCostUsd)
         reward = "0"
-        if (selectedProject.isBlank()) selectedProject = projects.firstOrNull()?.id.orEmpty()
+        if (selectedProject.isBlank()) selectedProject = projects.firstOrNull()?.officialIdentifier().orEmpty()
         sheet = true
     }
 
@@ -120,11 +120,11 @@ fun PnlAssistantOverlay(modifier: Modifier = Modifier) {
                 OutlinedTextField(gas, { gas = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Gas 费 (USD)") },
                     singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
                 Box {
-                    OutlinedTextField(value = projects.firstOrNull { it.id == selectedProject }?.name ?: "请选择项目",
+                    OutlinedTextField(value = projects.firstOrNull { it.officialIdentifier() == selectedProject }?.name ?: "请选择项目",
                         onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(), label = { Text("归属空投项目") },
                         trailingIcon = { TextButton(onClick = { menu = true }) { Text("选择") } })
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        projects.forEach { project -> DropdownMenuItem(text = { Text(project.name) }, onClick = { selectedProject = project.id; menu = false }) }
+                        projects.forEach { project -> DropdownMenuItem(text = { Text(project.name) }, onClick = { selectedProject = project.officialIdentifier(); menu = false }) }
                         DropdownMenuItem(text = { Text("+ 新建项目", color = AppColors.Primary) }, onClick = { menu = false; newProjectDialog = true })
                     }
                 }
@@ -137,7 +137,7 @@ fun PnlAssistantOverlay(modifier: Modifier = Modifier) {
                     if (g != null && r != null && g >= 0 && r >= 0 && selectedProject.isNotBlank() && bill != null && !saving) {
                         saving = true
                         scope.launch {
-                            val done = CacheStore.confirmPendingBill(bill.id, selectedProject, g, r)
+                            val done = CacheStore.confirmPendingBill(bill.id, selectedProject, projects.firstOrNull { it.officialIdentifier() == selectedProject }?.name ?: "空投项目", g, r)
                             saving = false
                             if (done) { sheet = false; activeBill = null }
                         }
@@ -154,7 +154,7 @@ fun PnlAssistantOverlay(modifier: Modifier = Modifier) {
         confirmButton = { TextButton(enabled = newProjectName.isNotBlank(), onClick = {
             val project = ProjectDto(UUID.randomUUID().toString(), newProjectName.trim(), "本地盈亏记账项目", "tracking")
             projects = projects + project
-            selectedProject = project.id
+            selectedProject = project.officialIdentifier()
             newProjectName = ""
             newProjectDialog = false
             scope.launch {
@@ -169,7 +169,7 @@ fun PnlAssistantOverlay(modifier: Modifier = Modifier) {
 
 @Composable
 private fun PnlRecordRow(record: PnlRecordEntity, projects: List<ProjectDto>) {
-    val name = projects.firstOrNull { it.id == record.projectId }?.name ?: "空投项目"
+    val name = record.projectCustomName.ifBlank { projects.firstOrNull { it.officialIdentifier() == record.projectOfficialId }?.name ?: "空投项目" }
     Row(Modifier.fillMaxWidth().background(AppColors.Background, RoundedCornerShape(11.dp)).padding(9.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(name, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
