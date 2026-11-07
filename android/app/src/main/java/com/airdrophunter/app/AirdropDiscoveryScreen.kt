@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.AirdropWriteRequest
@@ -32,12 +33,17 @@ import com.airdrophunter.app.data.AirdropWriteRequest
 @Composable
 fun AirdropDiscoveryScreen(
     modifier: Modifier = Modifier,
-    viewModel: AirdropsViewModel = viewModel()
+    viewModel: AirdropsViewModel? = null
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val airdropsViewModel: AirdropsViewModel = viewModel ?: viewModel(
+        factory = AirdropsViewModelFactory(application.appContainer.airdropsRepository)
+    )
+    val state by airdropsViewModel.uiState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { viewModel.loadAirdrops() }
+    LaunchedEffect(Unit) { airdropsViewModel.loadAirdrops() }
 
     Column(
         modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -110,7 +116,7 @@ fun AirdropDiscoveryScreen(
             saving = state.isSaving,
             onDismiss = { showAddDialog = false },
             onSave = { request ->
-                viewModel.createAirdrop(request)
+                airdropsViewModel.createAirdrop(request)
                 showAddDialog = false
             }
         )

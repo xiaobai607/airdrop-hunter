@@ -23,10 +23,14 @@ import com.airdrophunter.app.ui.theme.AppColors
 @Composable
 fun AirdropHubScreen(
     modifier: Modifier = Modifier,
-    vm: AirdropHubViewModel = viewModel()
+    vm: AirdropHubViewModel? = null
 ) {
-    val state by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val hubViewModel: AirdropHubViewModel = vm ?: viewModel(
+        factory = AirdropHubViewModelFactory(application.appContainer.airdropHubRepository)
+    )
+    val state by hubViewModel.uiState.collectAsStateWithLifecycle()
 
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
         LazyRow(
@@ -34,10 +38,10 @@ fun AirdropHubScreen(
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(vm.chains) { chain ->
+            items(hubViewModel.chains) { chain ->
                 val selected = state.selectedChain == chain
                 Surface(
-                    onClick = { vm.selectChain(chain) },
+                    onClick = { hubViewModel.selectChain(chain) },
                     shape = RoundedCornerShape(999.dp),
                     color = if (selected) AppColors.Primary else AppColors.Surface,
                     border = if (selected) null else BorderStroke(1.dp, AppColors.Border)
@@ -83,7 +87,7 @@ fun AirdropHubScreen(
                 Text(state.error.orEmpty(), color = AppColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall)
                 Button(
-                    onClick = vm::refresh,
+                    onClick = hubViewModel::refresh,
                     enabled = !state.isRefreshing,
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
                 ) {
