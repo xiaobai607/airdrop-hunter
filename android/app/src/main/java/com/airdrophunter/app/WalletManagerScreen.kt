@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.*
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.ui.platform.LocalContext
@@ -18,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.navigation.material.BottomSheetNavigator
+import com.google.accompanist.navigation.material.ExperimentalMaterialNavigationApi
 import com.google.accompanist.navigation.material.ModalBottomSheetLayout
 import com.reown.appkit.client.AppKit
 import com.reown.appkit.ui.AppKitTheme
@@ -170,6 +172,7 @@ private fun detectEcosystem(address: String): String? =
         else -> null
     }
 
+@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class)
 @Composable
 fun WalletManagerScreen(
     modifier: Modifier = Modifier,
