@@ -85,12 +85,12 @@ interface PnlRecordDao {
     @Query("SELECT * FROM pnl_records WHERE projectOfficialId = :projectOfficialId AND accountScope = :accountScope LIMIT 1")
     suspend fun findByProject(projectOfficialId: String, accountScope: String): PnlRecordEntity?
 
-    @Query("UPDATE pnl_records SET projectOfficialId = :projectOfficialId, projectCustomName = :customName, walletAddress = :walletAddress, totalGasCostUsd = totalGasCostUsd + :gas, totalRewardUsd = totalRewardUsd + :reward, netProfitUsd = netProfitUsd + :net WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope")
-    suspend fun addAmounts(projectLocalId: String, projectOfficialId: String?, customName: String, walletAddress: String, gas: Double, reward: Double, net: Double, accountScope: String): Int
+    @Query("UPDATE pnl_records SET projectOfficialId = :projectOfficialId, projectCustomName = :customName, walletAddress = :walletAddress, totalGasCostUsd = totalGasCostUsd + :gas, totalRewardUsd = totalRewardUsd + :reward, netProfitUsd = (totalRewardUsd + :reward) - (totalGasCostUsd + :gas) WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope")
+    suspend fun addAmounts(projectLocalId: String, projectOfficialId: String?, customName: String, walletAddress: String, gas: Double, reward: Double, accountScope: String): Int
 
     @Transaction
     suspend fun addToProject(projectLocalId: String, projectOfficialId: String?, customName: String, walletAddress: String, gas: Double, reward: Double, accountScope: String) {
-        if (addAmounts(projectLocalId, projectOfficialId, customName, walletAddress, gas, reward, reward - gas, accountScope) == 0) {
+        if (addAmounts(projectLocalId, projectOfficialId, customName, walletAddress, gas, reward, accountScope) == 0) {
             insert(PnlRecordEntity(
                 java.util.UUID.randomUUID().toString(), projectOfficialId, projectLocalId,
                 customName, walletAddress, gas, reward, reward - gas, accountScope
