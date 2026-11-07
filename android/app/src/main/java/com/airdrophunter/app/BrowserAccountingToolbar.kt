@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
@@ -33,6 +35,7 @@ import java.util.UUID
 @Composable
 fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val pending by CacheStore.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var activeBill by remember { mutableStateOf<PendingBillEntity?>(null) }
