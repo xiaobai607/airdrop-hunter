@@ -111,7 +111,6 @@ private fun detectEcosystem(address: String): String? =
     }
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class)
-@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class)
 @Composable
 fun WalletManagerScreen(
     modifier: Modifier = Modifier,
