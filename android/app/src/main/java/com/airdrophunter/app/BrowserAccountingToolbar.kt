@@ -1,18 +1,20 @@
 package com.airdrophunter.app
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,230 +24,199 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
+import java.util.Locale
 import java.util.UUID
 
 @Composable
-fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
+fun BrowserAccountingToolbar(
+    walletAddress: String,
+    onCopyAddress: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val pending by CacheStore.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var activeBill by remember { mutableStateOf<PendingBillEntity?>(null) }
-    var showPanel by remember { mutableStateOf(false) }
-    var showCopyCard by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
-    var showCreateProject by remember { mutableStateOf(false) }
-    var showCommunityMatchDialog by remember { mutableStateOf(false) }
-    var matchedCommunityProject by remember { mutableStateOf<CommunityStandardProject?>(null) }
-    var dismissedMatchOfficialId by remember { mutableStateOf("") }
+    var showProjectPicker by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
     var selectedProjectLocalId by remember { mutableStateOf("") }
-    var gas by remember { mutableStateOf("2.50") }
-    var reward by remember { mutableStateOf("0") }
+    var gas by remember { mutableStateOf("") }
+    var reward by remember { mutableStateOf("0.00") }
     var saving by remember { mutableStateOf(false) }
     var fetchingGas by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val type = object : TypeToken<List<ProjectDto>>() {}.type
-        val storedLists = listOfNotNull(
+        val sources = listOfNotNull(
             CacheStore.readLocal("projects"),
             CacheStore.read("projects"),
             CacheStore.readLocal("pnl_projects")
         )
-        projects = storedLists.flatMap { raw ->
+        projects = sources.flatMap { raw ->
             runCatching { Gson().fromJson<List<ProjectDto>>(raw, type) }.getOrNull().orEmpty()
         }.distinctBy { it.id }
         selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
     }
 
-    fun persistProject(project: ProjectDto) {
+    fun saveProjectLocally(project: ProjectDto) {
         projects = (projects.filterNot { it.id == project.id } + project)
         selectedProjectLocalId = project.id
         scope.launch {
-            val old = CacheStore.readLocal("pnl_projects")?.let {
-                runCatching { Gson().fromJson<List<ProjectDto>>(it, object : TypeToken<List<ProjectDto>>() {}.type) }.getOrNull()
+            val type = object : TypeToken<List<ProjectDto>>() {}.type
+            val existing = CacheStore.readLocal("pnl_projects")?.let { raw ->
+                runCatching { Gson().fromJson<List<ProjectDto>>(raw, type) }.getOrNull()
             }.orEmpty()
-            CacheStore.writeLocal("pnl_projects", Gson().toJson((old.filterNot { it.id == project.id } + project)))
+            CacheStore.writeLocal(
+                "pnl_projects",
+                Gson().toJson((existing.filterNot { it.id == project.id } + project))
+            )
         }
     }
 
-    fun createCustomProject() {
+    fun createAndSelectProject() {
         val name = newProjectName.trim()
         if (name.isBlank()) return
-        persistProject(ProjectDto(UUID.randomUUID().toString(), name, "本地自定义项目", "tracking", communityOfficialId = null))
-        newProjectName = ""
-        dismissedMatchOfficialId = ""
-        showCreateProject = false
-    }
-
-    fun createLinkedProject(community: CommunityStandardProject) {
         val project = ProjectDto(
             id = UUID.randomUUID().toString(),
-            name = community.name,
-            description = community.description,
-            status = "tracking",
-            communityOfficialId = community.officialId
+            name = name,
+            description = "本地自定义项目",
+            status = "tracking"
         )
-        persistProject(project)
+        saveProjectLocally(project)
         newProjectName = ""
-        matchedCommunityProject = null
-        showCommunityMatchDialog = false
+        showProjectPicker = false
     }
 
-    LaunchedEffect(newProjectName, showConfirm) {
-        val match = CommunityProjectCatalog.findMatch(newProjectName)
-        if (showConfirm && match != null && dismissedMatchOfficialId != match.officialId) {
-            matchedCommunityProject = match
-            showCommunityMatchDialog = true
-        } else if (!showConfirm || match == null) {
-            matchedCommunityProject = null
-            showCommunityMatchDialog = false
-            dismissedMatchOfficialId = ""
+    fun openBill(bill: PendingBillEntity) {
+        activeBill = bill
+        gas = String.format(Locale.US, "%.2f", bill.gasCostUsd)
+        reward = "0.00"
+        if (selectedProjectLocalId.isBlank()) {
+            selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
         }
+        showConfirm = true
     }
 
     fun fetchRealGasBill() {
         if (fetchingGas) return
-        if (walletAddress.isBlank()) {
-            Toast.makeText(context, "请先选择钱包地址", Toast.LENGTH_SHORT).show()
+        if (walletAddress.isBlank() || walletAddress == "MOCK-WALLET-LOCAL") {
+            Toast.makeText(context, "请先选择有效的钱包地址", Toast.LENGTH_SHORT).show()
             return
         }
         fetchingGas = true
         scope.launch {
-            val result = runCatching {
-                RealGasTrackerRepository().fetchLatestGasCost(walletAddress)
-            }.getOrNull()
-            fetchingGas = false
-            if (result == null || result.txHash.isBlank() ||
-                !result.gasCostUsd.isFinite() || result.gasCostUsd < 0.0
-            ) {
-                Toast.makeText(context, "抓取失败", Toast.LENGTH_SHORT).show()
-                return@launch
+            try {
+                val result = RealGasTrackerRepository().fetchLatestGasCost(walletAddress)
+                if (result == null || result.txHash.isBlank() ||
+                    !result.gasCostUsd.isFinite() || result.gasCostUsd < 0.0
+                ) {
+                    Toast.makeText(context, "抓取失败或无记录", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val bill = PendingBillEntity(
+                    id = UUID.randomUUID().toString(),
+                    txHash = result.txHash,
+                    walletAddress = walletAddress,
+                    gasCostUsd = result.gasCostUsd,
+                    interactionMethod = result.interactionMethod,
+                    timestamp = System.currentTimeMillis()
+                )
+                CacheStore.addPendingBill(bill)
+                activeBill = bill
+                gas = String.format(Locale.US, "%.2f", result.gasCostUsd)
+                reward = "0.00"
+                if (selectedProjectLocalId.isBlank()) {
+                    selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
+                }
+                showConfirm = true
+            } catch (_: Exception) {
+                Toast.makeText(context, "抓取失败或无记录", Toast.LENGTH_SHORT).show()
+            } finally {
+                fetchingGas = false
             }
-
-            val bill = PendingBillEntity(
-                UUID.randomUUID().toString(),
-                result.txHash,
-                walletAddress,
-                result.gasCostUsd,
-                result.interactionMethod,
-                System.currentTimeMillis()
-            )
-            runCatching { CacheStore.addPendingBill(bill) }
-                .onSuccess {
-                    activeBill = bill
-                    gas = String.format(java.util.Locale.US, "%.2f", result.gasCostUsd)
-                    reward = "0"
-                    if (selectedProjectLocalId.isBlank()) {
-                        selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
-                    }
-                    showConfirm = true
-                }
-                .onFailure {
-                    Toast.makeText(context, "抓取失败", Toast.LENGTH_SHORT).show()
-                }
         }
     }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color(0xDDF7F9FC),
-        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+        modifier = modifier.fillMaxWidth(),
+        color = Color(0xFFFDFEFF),
+        shape = RoundedCornerShape(30.dp),
         border = BorderStroke(1.dp, AppColors.Border),
-        shadowElevation = 5.dp
+        shadowElevation = 9.dp
     ) {
         Row(
-            Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 16.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            ToolbarCircleIcon(Icons.Default.FlashOn, if (fetchingGas) "正在抓取" else "一键抓取", Color(0xFFEAF7F1), Color(0xFF16845B), ::fetchRealGasBill)
-            Spacer(Modifier.width(22.dp))
-            ToolbarCircleIcon(Icons.Default.ContentCopy, "复制地址", Color(0xFFEDF3FF), Color(0xFF356BC5), { showCopyCard = true })
-            Spacer(Modifier.width(22.dp))
-            ToolbarCircleIcon(Icons.Default.ReceiptLong, "待确认账单", Color(0xFFFFF3E7), Color(0xFFB86A18), { showPanel = true })
-            Spacer(Modifier.width(22.dp))
-            ToolbarCircleIcon(Icons.Default.Add, "新建项目", Color(0xFFF0EDFF), Color(0xFF7055B8), {
-                newProjectName = ""
-                showCreateProject = true
-            })
-        }
-    }
-
-    if (showCopyCard) {
-        Dialog(onDismissRequest = { showCopyCard = false }) {
-            Surface(Modifier.fillMaxWidth(), color = Color.White,
-                shape = RoundedCornerShape(22.dp), shadowElevation = 14.dp) {
-                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                    Text("复制钱包地址", color = AppColors.TextPrimary,
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text(walletAddress.ifBlank { "当前没有可用的钱包地址" },
-                        color = AppColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                    Button(onClick = { onCopyAddress(); showCopyCard = false },
-                        enabled = walletAddress.isNotBlank(), modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(13.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
-                        Text("复制到剪贴板")
-                    }
+            ToolbarCircleButton(
+                description = "一键抓取",
+                background = Color(0xFFEAF7F1),
+                tint = Color(0xFF16845B),
+                loading = fetchingGas,
+                onClick = ::fetchRealGasBill
+            ) {
+                if (fetchingGas) {
+                    CircularProgressIndicator(Modifier.size(21.dp), color = Color(0xFF16845B), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Default.FlashOn, contentDescription = "一键抓取", tint = Color(0xFF16845B), modifier = Modifier.size(21.dp))
                 }
             }
-        }
-    }
-
-    if (showPanel) {
-        Dialog(onDismissRequest = { showPanel = false }) {
-            Surface(Modifier.fillMaxWidth(), color = Color.White,
-                shape = RoundedCornerShape(24.dp), shadowElevation = 14.dp) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("待确认账单", color = AppColors.TextPrimary,
-                                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text("${pending.size} 笔等待确认", color = AppColors.TextSecondary,
-                                style = MaterialTheme.typography.labelSmall)
-                        }
-                        TextButton(onClick = { showPanel = false }) { Text("关闭") }
-                    }
-                    if (pending.isEmpty()) {
-                        Text("暂无待确认账单。点击底部闪电图标可抓取一笔账单。",
-                            color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                    } else {
-                        LazyColumn(Modifier.heightIn(max = 300.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(pending, key = { it.id }) { bill ->
-                                Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFF7F9FC),
-                                    border = BorderStroke(1.dp, AppColors.Border)) {
-                                    Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f).clickable {
-                                            activeBill = bill
-                                            gas = String.format(java.util.Locale.US, "%.2f", bill.gasCostUsd)
-                                            reward = "0"
-                                            if (selectedProjectLocalId.isBlank()) selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
-                                            showPanel = false
-                                            showConfirm = true
-                                        }) {
-                                            Text(bill.interactionMethod, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                                            Text(String.format(java.util.Locale.US, "Gas $%.2f · 点击确认", bill.gasCostUsd),
-                                                color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                        }
-                                        TextButton(onClick = { scope.launch { CacheStore.deletePendingBill(bill.id) } }) {
-                                            Text("删除", color = Color(0xFFD83242))
-                                        }
-                                    }
-                                }
+            ToolbarCircleButton(
+                description = "复制地址",
+                background = Color(0xFFEDF3FF),
+                tint = Color(0xFF356BC5),
+                onClick = onCopyAddress
+            ) {
+                Icon(Icons.Default.ContentCopy, contentDescription = "复制地址", tint = Color(0xFF356BC5), modifier = Modifier.size(20.dp))
+            }
+            if (pending.isEmpty()) {
+                Text(
+                    "暂无待确认账单",
+                    modifier = Modifier.weight(1f).padding(start = 3.dp),
+                    color = AppColors.TextHelper,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1
+                )
+            } else {
+                LazyRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(end = 2.dp)
+                ) {
+                    items(pending, key = { it.id }) { bill ->
+                        Surface(
+                            onClick = { openBill(bill) },
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFFFFF4E8),
+                            border = BorderStroke(1.dp, Color(0xFFF2D8B9))
+                        ) {
+                            Column(Modifier.padding(horizontal = 11.dp, vertical = 7.dp)) {
+                                Text(
+                                    String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd),
+                                    color = Color(0xFF9A5A16),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    bill.interactionMethod,
+                                    color = AppColors.TextSecondary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
+                                )
                             }
                         }
-                    }
-                    OutlinedButton(onClick = { showPanel = false; newProjectName = ""; showCreateProject = true },
-                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
-                        Text("+ 新建本地项目")
                     }
                 }
             }
@@ -253,38 +224,189 @@ fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
     }
 
     if (showConfirm && activeBill != null) {
-        AlertDialog(
-            onDismissRequest = { showConfirm = false; activeBill = null },
-            containerColor = Color.White, shape = RoundedCornerShape(22.dp),
-            title = { Text("确认本次记账", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(Modifier.fillMaxWidth().heightIn(max = 500.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(gas, { gas = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Gas 费 (USD)") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                    Text("我的已有项目", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelLarge)
-                    if (projects.isEmpty()) {
-                        Text("还没有项目，请在下方引入或新建。", color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.bodySmall)
-                    } else {
-                        Column(Modifier.heightIn(max = 150.dp)) {
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        val gasValue = gas.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
+        val rewardValue = reward.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
+        Dialog(
+            onDismissRequest = {
+                if (!saving) {
+                    showConfirm = false
+                    activeBill = null
+                }
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.94f).heightIn(max = 640.dp),
+                color = Color.White,
+                shape = RoundedCornerShape(24.dp),
+                shadowElevation = 16.dp
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text("确认本次记账", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "交易：${activeBill?.txHash?.take(12)}…",
+                        color = AppColors.TextHelper,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+
+                    // 1. Gas fee input
+                    OutlinedTextField(
+                        value = gas,
+                        onValueChange = { gas = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Gas 费 (USD)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(13.dp)
+                    )
+
+                    // 2. Project selector
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("归属项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                        val selectedProject = projects.firstOrNull { it.id == selectedProjectLocalId }
+                        OutlinedButton(
+                            onClick = { showProjectPicker = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(13.dp)
+                        ) {
+                            Text(
+                                selectedProject?.name ?: "选择项目",
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1
+                            )
+                            Text("选择", color = AppColors.Primary)
+                        }
+                        if (selectedProject == null) {
+                            Text("请先从项目列表选择，或新建一个本地项目。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+
+                    // 3. Actual reward input
+                    OutlinedTextField(
+                        value = reward,
+                        onValueChange = { reward = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("实际收益 (USD)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(13.dp)
+                    )
+
+                    // 4. Confirm action is in normal vertical flow, never overlaid on fields.
+                    Button(
+                        enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null,
+                        onClick = {
+                            val bill = activeBill ?: return@Button
+                            val project = projects.firstOrNull { it.id == selectedProjectLocalId } ?: return@Button
+                            val safeGas = gasValue ?: return@Button
+                            val safeReward = rewardValue ?: return@Button
+                            if (saving) return@Button
+                            saving = true
+                            scope.launch {
+                                val ok = runCatching {
+                                    CacheStore.confirmPendingBill(
+                                        bill.id,
+                                        project.id,
+                                        project.communityOfficialId,
+                                        project.name,
+                                        safeGas,
+                                        safeReward
+                                    )
+                                }.getOrDefault(false)
+                                saving = false
+                                if (ok) {
+                                    showConfirm = false
+                                    activeBill = null
+                                    Toast.makeText(context, "已确认入账", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "入账失败，请重试", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(13.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                    ) {
+                        if (saving) {
+                            CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(if (saving) "入账中…" else "确认入账")
+                    }
+                    TextButton(
+                        enabled = !saving,
+                        onClick = { showConfirm = false; activeBill = null },
+                        modifier = Modifier.align(Alignment.End)
+                    ) { Text("取消") }
+                }
+            }
+        }
+    }
+
+    if (showProjectPicker) {
+        Dialog(
+            onDismissRequest = { showProjectPicker = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).heightIn(max = 620.dp),
+                    color = Color.White,
+                    shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+                    shadowElevation = 18.dp
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().imePadding().padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("选择归属项目", Modifier.weight(1f), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            TextButton(onClick = { showProjectPicker = false }) { Text("关闭") }
+                        }
+                        Text("新建项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                        OutlinedTextField(
+                            value = newProjectName,
+                            onValueChange = { newProjectName = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("输入新项目名称") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(13.dp)
+                        )
+                        Button(
+                            onClick = ::createAndSelectProject,
+                            enabled = newProjectName.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(13.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                        ) { Text("+ 新建并选中项目") }
+                        HorizontalDivider(color = AppColors.Border)
+                        Text("本地已有项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                        if (projects.isEmpty()) {
+                            Text("暂无项目，请在上方新建。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.heightIn(max = 280.dp),
+                                verticalArrangement = Arrangement.spacedBy(7.dp)
+                            ) {
                                 items(projects, key = { it.id }) { project ->
                                     val selected = selectedProjectLocalId == project.id
                                     Surface(
-                                        modifier = Modifier.fillMaxWidth().clickable { selectedProjectLocalId = project.id },
-                                        color = if (selected) Color(0xFFE8F3F1) else Color(0xFFF7F9FC),
-                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            selectedProjectLocalId = project.id
+                                            showProjectPicker = false
+                                        },
+                                        color = if (selected) Color(0xFFE8F3F1) else Color(0xFFF8FAFC),
+                                        shape = RoundedCornerShape(12.dp),
                                         border = BorderStroke(1.dp, if (selected) AppColors.Primary else AppColors.Border)
                                     ) {
-                                        Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 9.dp),
-                                            verticalAlignment = Alignment.CenterVertically) {
-                                            Column(Modifier.weight(1f)) {
-                                                Text(project.name, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                                                Text(if (project.communityOfficialId != null) "已关联社区标准项目" else "仅本地保存",
-                                                    color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                                            }
+                                        Row(
+                                            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                                             if (selected) Text("已选择", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
                                         }
                                     }
@@ -292,111 +414,29 @@ fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
                             }
                         }
                     }
-                    HorizontalDivider(color = AppColors.Border)
-                    Text("引入新项目", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelLarge)
-                    OutlinedTextField(
-                        newProjectName,
-                        { newProjectName = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("搜索社区项目或输入自定义名称") },
-                        placeholder = { Text("例如：Linea / Linea 测试号") },
-                        singleLine = true
-                    )
-                    Text("关联社区标准项目后，已确认账单会计入该项目的大盘；自定义项目只保存在本地。",
-                        color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                    OutlinedButton(
-                        onClick = { createCustomProject() },
-                        enabled = newProjectName.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("创建为纯自定义项目（不关联社区）") }
-                    OutlinedTextField(reward, { reward = it }, modifier = Modifier.fillMaxWidth(),
-                        label = { Text("实际收益 (USD)") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
                 }
-            },
-            confirmButton = {
-                Button(enabled = !saving && selectedProjectLocalId.isNotBlank() &&
-                    gas.toDoubleOrNull()?.let { it >= 0 } == true && reward.toDoubleOrNull()?.let { it >= 0 } == true,
-                    onClick = {
-                        val bill = activeBill ?: return@Button
-                        val selected = projects.firstOrNull { it.id == selectedProjectLocalId } ?: return@Button
-                        val g = gas.toDoubleOrNull() ?: return@Button
-                        val r = reward.toDoubleOrNull() ?: return@Button
-                        saving = true
-                        scope.launch {
-                            val ok = CacheStore.confirmPendingBill(
-                                bill.id, selected.id, selected.communityOfficialId, selected.name, g, r
-                            )
-                            saving = false
-                            if (ok) {
-                                showConfirm = false
-                                activeBill = null
-                                newProjectName = ""
-                            }
-                        }
-                    }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
-                    Text(if (saving) "入账中…" else "确认入账")
-                }
-            },
-            dismissButton = { TextButton(onClick = { showConfirm = false; activeBill = null }) { Text("取消") } }
-        )
-    }
-
-    if (showCommunityMatchDialog && matchedCommunityProject != null) {
-        AlertDialog(
-            onDismissRequest = {
-                dismissedMatchOfficialId = matchedCommunityProject?.officialId.orEmpty()
-                showCommunityMatchDialog = false
-            },
-            containerColor = Color.White,
-            title = { Text("发现社区标准项目", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold) },
-            text = { Text("🤔 社区里已经有【${matchedCommunityProject!!.name}】项目，是否直接关联？",
-                color = AppColors.TextSecondary) },
-            confirmButton = {
-                TextButton(onClick = { createLinkedProject(matchedCommunityProject!!) }) {
-                    Text("直接关联", color = AppColors.Primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    dismissedMatchOfficialId = matchedCommunityProject?.officialId.orEmpty()
-                    showCommunityMatchDialog = false
-                }) { Text("暂不关联") }
             }
-        )
-    }
-
-    if (showCreateProject) {
-        AlertDialog(
-            onDismissRequest = { showCreateProject = false },
-            containerColor = Color.White,
-            title = { Text("新建本地项目", color = AppColors.TextPrimary) },
-            text = {
-                OutlinedTextField(newProjectName, { newProjectName = it },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("项目名称") }, singleLine = true)
-            },
-            confirmButton = {
-                TextButton(enabled = newProjectName.isNotBlank(), onClick = { createCustomProject() }) {
-                    Text("创建", color = AppColors.Primary)
-                }
-            },
-            dismissButton = { TextButton(onClick = { showCreateProject = false }) { Text("取消") } }
-        )
+        }
     }
 }
 
 @Composable
-private fun ToolbarCircleIcon(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun ToolbarCircleButton(
     description: String,
     background: Color,
     tint: Color,
-    onClick: () -> Unit
+    loading: Boolean = false,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
 ) {
-    Surface(onClick = onClick, shape = CircleShape, color = background, modifier = Modifier.size(42.dp)) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(21.dp))
-        }
+    Surface(
+        onClick = onClick,
+        enabled = !loading,
+        shape = CircleShape,
+        color = background,
+        modifier = Modifier.size(44.dp),
+        border = BorderStroke(1.dp, tint.copy(alpha = 0.12f))
+    ) {
+        Box(contentAlignment = Alignment.Center) { content() }
     }
 }
