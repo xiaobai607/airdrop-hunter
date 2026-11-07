@@ -25,7 +25,9 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
     override suspend fun readLocal(key: String): String? = CacheStore.readLocal(key)
     override suspend fun read(key: String): String? = CacheStore.read(key)
     override suspend fun writeLocal(key: String, payload: String) = CacheStore.writeLocal(key, payload)
-    override suspend fun addPendingBill(bill: PendingBillEntity) = CacheStore.addPendingBill(bill)
+    override suspend fun addPendingBill(bill: PendingBillEntity) {
+        CacheStore.addPendingBill(bill)
+    }
     override suspend fun confirmPendingBill(
         id: String,
         projectLocalId: String,
