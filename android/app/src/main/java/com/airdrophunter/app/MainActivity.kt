@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
