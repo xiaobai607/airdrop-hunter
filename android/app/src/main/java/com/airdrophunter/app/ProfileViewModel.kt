@@ -7,6 +7,7 @@ import com.airdrophunter.app.data.ProfileRepository
 import com.airdrophunter.app.data.UserProfileDto
 import com.airdrophunter.app.data.UserStatsDto
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,13 +25,15 @@ class ProfileViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+    private var loadJob: Job? = null
 
     fun load(isGuest: Boolean) {
+        loadJob?.cancel()
         if (isGuest) {
             _uiState.value = ProfileUiState()
             return
         }
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, hasError = false)
             try {
                 val snapshot = repository.load()

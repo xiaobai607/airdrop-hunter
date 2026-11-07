@@ -50,7 +50,13 @@ class AirdropHubRepository(
 ) {
     suspend fun load(chain: String?): AirdropHubSnapshot {
         var projects = remote.getProjects(chain)
-        val status = runCatching { remote.getStatus() }.getOrNull()
+        val status = try {
+            remote.getStatus()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
         if (projects.isEmpty() && status?.last_attempt_at == null) {
             remote.sync()
             projects = remote.getProjects(chain)
