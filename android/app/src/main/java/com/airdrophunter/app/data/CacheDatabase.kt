@@ -18,7 +18,7 @@ data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, 
 @Entity(tableName = "pending_bills")
 data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long)
 
-@Entity(tableName = "pnl_records")
+@Entity(tableName = "pnl_records", indices = [Index(value = ["projectOfficialId"], unique = true)])
 data class PnlRecordEntity(
     @PrimaryKey val id: String,
     val projectOfficialId: String,
@@ -155,6 +155,7 @@ object CacheStore {
         true
     }
     suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) { database?.pendingBillDao()?.insert(bill) }
+    suspend fun deletePendingBill(id: String) = withContext(Dispatchers.IO) { database?.pendingBillDao()?.delete(id) }
     suspend fun confirmPendingBill(id: String, projectOfficialId: String, projectCustomName: String, gas: Double, reward: Double): Boolean = withContext(Dispatchers.IO) {
         val db = database ?: return@withContext false
         db.withTransaction {

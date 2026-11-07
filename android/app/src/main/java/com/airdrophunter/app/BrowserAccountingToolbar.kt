@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FlashOn
@@ -142,7 +143,14 @@ fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
             properties = DialogProperties(usePlatformDefaultWidth = false),
             containerColor = Color.White,
             shape = RoundedCornerShape(22.dp),
-            title = { Text("确认本次记账", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("确认本次记账", Modifier.weight(1f), color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = { showConfirm = false; activeBill = null }) {
+                        Icon(Icons.Default.Close, "关闭", tint = AppColors.TextSecondary)
+                    }
+                }
+            },
             text = {
                 Column(Modifier.fillMaxWidth().padding(top = 2.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("${activeBill!!.interactionMethod} · Mock 账单", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
