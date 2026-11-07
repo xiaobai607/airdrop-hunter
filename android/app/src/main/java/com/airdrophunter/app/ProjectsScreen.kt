@@ -37,12 +37,16 @@ fun ProjectsScreen(
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
     onOpenCommunity: (ProjectDto) -> Unit = {},
-    vm: ProjectsViewModel = viewModel()
+    vm: ProjectsViewModel? = null
 ) {
-    val state by vm.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val projectsViewModel: ProjectsViewModel = vm ?: viewModel(
+        factory = ProjectsViewModelFactory(application.appContainer.apiService)
+    )
+    val state by projectsViewModel.uiState.collectAsStateWithLifecycle()
     val pnlRecords by CacheStore.observePnlRecords().collectAsState(initial = emptyList())
     val allRatings by CacheStore.observeAllProjectRatings().collectAsState(initial = emptyList())
-    val context = LocalContext.current
     var selectedFilter by remember { mutableStateOf("全部") }
     var showAddDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
@@ -50,7 +54,7 @@ fun ProjectsScreen(
     var newProjectOfficialUrl by remember { mutableStateOf("") }
     var newProjectClaimUrl by remember { mutableStateOf("") }
 
-    LaunchedEffect(isGuest) { vm.loadProjects(isGuest) }
+    LaunchedEffect(isGuest) { projectsViewModel.loadProjects(isGuest) }
 
     val filterOptions = listOf("全部" to state.projects.size) +
         listOf(
@@ -210,7 +214,7 @@ fun ProjectsScreen(
         confirmButton = {
             Button(enabled = newProjectName.isNotBlank() && !state.isSaving,
                 onClick = {
-                    vm.createProject(com.airdrophunter.app.data.ProjectWriteRequest(
+                    projectsViewModel.createProject(com.airdrophunter.app.data.ProjectWriteRequest(
                         name = newProjectName.trim(),
                         description = newProjectDescription.trim(),
                         status = "tracking",

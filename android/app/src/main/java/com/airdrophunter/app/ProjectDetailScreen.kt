@@ -25,15 +25,19 @@ import java.util.Locale
 
 @Composable
 fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGuest: Boolean = false,
-    vm: ProjectDetailViewModel = viewModel()) {
+    vm: ProjectDetailViewModel? = null) {
     val context = LocalContext.current
-    val state by vm.uiState.collectAsStateWithLifecycle()
+    val application = context.applicationContext as AirdropHunterApplication
+    val projectDetailViewModel: ProjectDetailViewModel = vm ?: viewModel(
+        factory = ProjectDetailViewModelFactory(application.appContainer.apiService)
+    )
+    val state by projectDetailViewModel.uiState.collectAsStateWithLifecycle()
     val twitterTitle = stringResource(R.string.twitter)
     var taskName by remember(project.id) { mutableStateOf("") }
     val completed = state.tasks.count { it.is_completed }
     val progress = if (state.tasks.isEmpty()) 0f else completed.toFloat() / state.tasks.size
 
-    LaunchedEffect(project.id, isGuest) { vm.load(project.id, isGuest) }
+    LaunchedEffect(project.id, isGuest) { projectDetailViewModel.load(project.id, isGuest) }
 
     LazyColumn(
         modifier.fillMaxSize().background(AppColors.Background),
@@ -98,7 +102,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         modifier = Modifier.fillMaxWidth(), placeholder = { Text("添加一个待办任务…") },
                         singleLine = true, shape = RoundedCornerShape(13.dp))
                     Button(enabled = taskName.isNotBlank() && !state.isBusy,
-                        onClick = { vm.addTask(project.id, taskName.trim(), isGuest); taskName = "" },
+                        onClick = { projectDetailViewModel.addTask(project.id, taskName.trim(), isGuest); taskName = "" },
                         modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(13.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
                         Text("＋ 添加任务", fontWeight = FontWeight.SemiBold)
@@ -122,11 +126,11 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             color = AppColors.Primary, fontWeight = FontWeight.Bold)
                     }
                     Checkbox(checked = task.is_completed,
-                        onCheckedChange = { checked -> vm.setCompleted(project.id, task, checked, isGuest) })
+                        onCheckedChange = { checked -> projectDetailViewModel.setCompleted(project.id, task, checked, isGuest) })
                     Text(task.task_name, Modifier.weight(1f),
                         color = if (task.is_completed) AppColors.TextHelper else AppColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = { vm.deleteTask(project.id, task, isGuest) }) {
+                    TextButton(onClick = { projectDetailViewModel.deleteTask(project.id, task, isGuest) }) {
                         Text("删除", color = AppColors.Danger)
                     }
                 }
