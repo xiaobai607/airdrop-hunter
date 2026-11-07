@@ -151,6 +151,8 @@ private fun BrowserScreen(
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
     var approvedExternalEntry by remember(url) { mutableStateOf(false) }
+    var approvedHost by remember(url) { mutableStateOf(Uri.parse(url).host.orEmpty().lowercase()) }
+    var pendingNavigationUrl by remember { mutableStateOf<String?>(null) }
     val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
 
@@ -190,10 +192,10 @@ private fun BrowserScreen(
                 Surface(Modifier.fillMaxWidth(), color = Color(0xFFFFF4E5)) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text("真实域名", color = Color(0xFF8A4B08), style = MaterialTheme.typography.labelSmall,
+                        Text("当前主机", color = Color(0xFF8A4B08), style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold)
                         Spacer(Modifier.width(8.dp))
-                        Text(registrableDomain(currentPageUrl), color = Color(0xFF7A271A),
+                        Text(displayHost(currentPageUrl), color = Color(0xFF7A271A),
                             style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1)
                     }
                 }
@@ -215,22 +217,38 @@ private fun BrowserScreen(
                             userAgentString = "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
                             allowFileAccess = false
                             allowContentAccess = false
+                            allowUniversalAccessFromFileURLs = false
+                            allowFileAccessFromFileURLs = false
                             javaScriptCanOpenWindowsAutomatically = false
                             setSupportMultipleWindows(false)
                             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                             safeBrowsingEnabled = true
                         }
                         CookieManager.getInstance().setAcceptCookie(true)
-                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
                         webChromeClient = object : WebChromeClient() {
                             override fun onPermissionRequest(request: PermissionRequest?) {
                                 request?.deny()
                             }
+                            override fun onGeolocationPermissionsShowPrompt(origin: String?, callback: android.webkit.GeolocationPermissions.Callback?) {
+                                callback?.invoke(origin, false, false)
+                            }
+                            override fun onShowFileChooser(webView: WebView?, filePathCallback: android.webkit.ValueCallback<Array<Uri>>?, fileChooserParams: FileChooserParams?): Boolean {
+                                filePathCallback?.onReceiveValue(null)
+                                return true
+                            }
+                            override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message?): Boolean = false
                         }
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 val target = request?.url ?: return true
-                                return !target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null
+                                if (!target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null) return true
+                                val targetHost = target.host.orEmpty().lowercase()
+                                if (targetHost != approvedHost) {
+                                    pendingNavigationUrl = target.toString()
+                                    return true
+                                }
+                                return false
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
                                 pageUrl?.let { currentPageUrl = it }
@@ -310,7 +328,7 @@ private fun BrowserScreen(
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text("您即将离开 Airdrop Hunter，进入第三方网站。本 App 无法控制该网站安全，请核对域名，切勿泄露私钥。",
                         color = AppColors.TextPrimary, style = MaterialTheme.typography.bodyMedium)
-                    Text("目标域名：${registrableDomain(url)}", color = Color(0xFFB42318),
+                    Text("目标域名：${displayHost(url)}", color = Color(0xFFB42318),
                         fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                     Button(onClick = { approvedExternalEntry = true },
                         modifier = Modifier.fillMaxWidth(),
@@ -321,6 +339,31 @@ private fun BrowserScreen(
                 }
             }
         }
+    }
+
+    pendingNavigationUrl?.let { targetUrl ->
+        val targetHost = displayHost(targetUrl)
+        AlertDialog(
+            onDismissRequest = { pendingNavigationUrl = null },
+            title = { Text("⚠️ 即将切换第三方网站", color = Color(0xFFB42318), fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("当前网页：${displayHost(currentPageUrl)}", color = AppColors.TextSecondary)
+                    Text("即将访问：$targetHost", color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
+                    Text("这是不同的网站主机。请确认域名完全正确；不要输入助记词、私钥或验证码。", color = AppColors.TextPrimary)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    approvedHost = Uri.parse(targetUrl).host.orEmpty().lowercase()
+                    pendingNavigationUrl = null
+                    browser?.loadUrl(targetUrl)
+                }) { Text("确认访问", color = Color(0xFFB42318)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingNavigationUrl = null }) { Text("留在当前网站") }
+            }
+        )
     }
 
     if (pendingSslMessage != null) {
@@ -374,19 +417,10 @@ private fun BrowserScreen(
 }
 
 
-private fun registrableDomain(rawUrl: String): String {
-    val host = runCatching { Uri.parse(rawUrl).host.orEmpty().lowercase() }.getOrDefault("")
-    if (host.isBlank()) return "未知域名"
-    val labels = host.split(".").filter { it.isNotBlank() }
-    if (labels.size < 3) return host
-    val twoLevelSuffixes = setOf(
-        "co.uk", "org.uk", "ac.uk", "com.au", "net.au", "org.au",
-        "co.jp", "ne.jp", "com.br", "com.cn", "com.hk", "com.sg",
-        "co.nz", "co.kr", "com.mx", "com.tr", "com.tw", "co.in"
-    )
-    val suffix = labels.takeLast(2).joinToString(".")
-    return if (suffix in twoLevelSuffixes) labels.takeLast(3).joinToString(".")
-    else labels.takeLast(2).joinToString(".")
+private fun displayHost(rawUrl: String): String {
+    return runCatching {
+        Uri.parse(rawUrl).host.orEmpty().lowercase().ifBlank { "未知主机" }
+    }.getOrDefault("未知主机")
 }
 
 private enum class BrowserPageState { Loading, Success, Error }
