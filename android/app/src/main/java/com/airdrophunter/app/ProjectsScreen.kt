@@ -42,7 +42,7 @@ fun ProjectsScreen(
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
     val projectsViewModel: ProjectsViewModel = vm ?: viewModel(
-        factory = ProjectsViewModelFactory(application.appContainer.apiService)
+        factory = ProjectsViewModelFactory(application.appContainer.projectsRepository)
     )
     val state by projectsViewModel.uiState.collectAsStateWithLifecycle()
     val pnlRecords by CacheStore.observePnlRecords().collectAsState(initial = emptyList())

@@ -29,7 +29,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
     val projectDetailViewModel: ProjectDetailViewModel = vm ?: viewModel(
-        factory = ProjectDetailViewModelFactory(application.appContainer.apiService)
+        factory = ProjectDetailViewModelFactory(application.appContainer.projectsRepository)
     )
     val state by projectDetailViewModel.uiState.collectAsStateWithLifecycle()
     val twitterTitle = stringResource(R.string.twitter)
