@@ -96,26 +96,6 @@ fun HomeScreen(
             }
         }
 
-        Card(
-            onClick = onOpenAirdropHub,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-            border = BorderStroke(1.dp, AppColors.Border),
-            elevation = CardDefaults.cardElevation(0.dp)
-        ) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 17.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("空投聚合大厅", color = AppColors.TextPrimary,
-                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("浏览从公开数据源同步的项目", color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.bodySmall)
-                }
-                Text("›", color = AppColors.Primary, style = MaterialTheme.typography.headlineMedium)
-            }
-        }
-
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("快捷入口", color = AppColors.TextPrimary,
                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -211,7 +191,6 @@ fun HomeScreen(
         }
         Spacer(Modifier.height(8.dp))
     }
-    PnlAssistantOverlay(Modifier.align(Alignment.TopEnd).padding(top = 62.dp, end = 8.dp))
     }
 
     if (showNavOverlay) {

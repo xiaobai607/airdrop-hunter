@@ -120,81 +120,63 @@ fun ProjectsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filtered, key = { it.id }) { project ->
+                    val pnl = pnlRecords.firstOrNull { it.projectOfficialId == project.officialIdentifier() }
+                    val gasTotal = pnl?.totalGasCostUsd ?: 0.0
+                    val rewardTotal = pnl?.totalRewardUsd ?: 0.0
+                    val netProfit = pnl?.netProfitUsd ?: 0.0
+                    val projectRatings = allRatings.filter { it.projectOfficialId == project.officialIdentifier() }
+                    val communityAverage = if (projectRatings.isEmpty()) 4.9 else projectRatings.map { it.score }.average()
+                    val positiveRate = if (projectRatings.isEmpty()) 96 else projectRatings.count { it.score >= 4 } * 100 / projectRatings.size
+                    val communityLabel = when {
+                        positiveRate >= 95 -> "好评如潮"
+                        positiveRate >= 85 -> "特别好评"
+                        positiveRate >= 75 -> "多半好评"
+                        else -> "褒贬不一"
+                    }
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(project) },
+                        shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                         border = BorderStroke(1.dp, AppColors.Border),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(13.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Column(
-                                Modifier.weight(1f).clickable { onProjectSelected(project) },
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Surface(shape = RoundedCornerShape(10.dp), color = AppColors.TealTint) {
-                                        Icon(Icons.Default.FolderOpen, null, tint = AppColors.Primary, modifier = Modifier.padding(8.dp).size(19.dp))
-                                    }
+                        Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary,
-                                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
                                     val statusLabel = when (project.status) { "tracking" -> "进行中"; "completed" -> "已完成"; else -> "待开始" }
                                     Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
-                                        Text(statusLabel, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                                        Text(statusLabel, Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                            color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
-                                if (project.description.isNotBlank()) {
-                                    Text(project.description, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 2)
-                                }
-                                val pnl = pnlRecords.firstOrNull { it.projectOfficialId == project.officialIdentifier() }
-                                if (pnl != null) {
-                                    Text(String.format(Locale.US, "累计消耗 $%.2f · 累计收益 $%.2f", pnl.totalGasCostUsd, pnl.totalRewardUsd),
-                                        color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                    Text(String.format(Locale.US, "真实净盈亏 %s$%.2f", if (pnl.netProfitUsd >= 0) "+" else "-", kotlin.math.abs(pnl.netProfitUsd)),
-                                        color = if (pnl.netProfitUsd >= 0) AppColors.Success else AppColors.Danger,
-                                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    TextButton(
-                                        onClick = {
-                                            if (project.official_url.startsWith("https://")) {
-                                                context.startActivity(Intent(context, BrowserActivity::class.java)
-                                                    .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
-                                                    .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
-                                            } else onProjectSelected(project)
-                                        },
-                                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
-                                    ) { Text("去交互  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium) }
-                                    Text(" · 查看项目详情", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                                }
+                                Text(String.format(Locale.US, "累计消耗 $%.2f  ·  累计收益 $%.2f", gasTotal, rewardTotal),
+                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Text(String.format(Locale.US, "真实净盈亏  %s$%.2f",
+                                    if (netProfit >= 0) "+" else "-", kotlin.math.abs(netProfit)),
+                                    color = if (netProfit >= 0) AppColors.Success else AppColors.Danger,
+                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                                Text("去交互  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable {
+                                        if (project.official_url.startsWith("https://")) {
+                                            context.startActivity(Intent(context, BrowserActivity::class.java)
+                                                .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
+                                                .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
+                                        } else onProjectSelected(project)
+                                    })
                             }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                val projectRatings = allRatings.filter { it.projectOfficialId == project.officialIdentifier() }
-                                val communityAverage = if (projectRatings.isEmpty()) 4.9 else projectRatings.map { it.score }.average()
-                                val positiveRate = if (projectRatings.isEmpty()) 96 else projectRatings.count { it.score >= 4 } * 100 / projectRatings.size
-                                val communityLabel = when {
-                                    positiveRate >= 95 -> "好评如潮"
-                                    positiveRate >= 85 -> "特别好评"
-                                    positiveRate >= 75 -> "多半好评"
-                                    positiveRate < 40 -> "褒贬不一"
-                                    else -> "褒贬不一"
-                                }
-                                Surface(
-                                    onClick = { onOpenCommunity(project) },
-                                    shape = RoundedCornerShape(999.dp),
-                                    color = Color(0xFFFFF4E5),
-                                    border = BorderStroke(1.dp, Color(0xFFFFD9A8))
-                                ) {
-                                    Row(Modifier.padding(horizontal = 11.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Surface(onClick = { onOpenCommunity(project) }, shape = RoundedCornerShape(999.dp),
+                                    color = Color(0xFFFFF4E5), border = BorderStroke(1.dp, Color(0xFFFFD9A8))) {
+                                    Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text("微社区", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
-                                        Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12),
+                                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                     }
                                 }
                                 Text(communityLabel, color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
