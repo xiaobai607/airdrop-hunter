@@ -2,6 +2,11 @@ package com.airdrophunter.app
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
@@ -41,6 +47,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
@@ -50,6 +57,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onOpenSources: () -> Unit,
     onOpenWallet: () -> Unit,
+    onOpenCheckWallet: () -> Unit,
     onOpenProjects: () -> Unit,
     onOpenAirdropHub: () -> Unit = {},
     isGuest: Boolean = true,
@@ -62,6 +70,8 @@ fun HomeScreen(
     var showSearch by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
     var showNavOverlay by remember { mutableStateOf(false) }
+    var navContentVisible by remember { mutableStateOf(false) }
+    fun closeNavOverlay() { scope.launch { navContentVisible = false; delay(180); showNavOverlay = false } }
     var sites by remember { mutableStateOf(AirdropSiteStore.defaults) }
 
     LaunchedEffect(isGuest) {
@@ -106,66 +116,43 @@ fun HomeScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("快捷入口", color = AppColors.TextPrimary,
                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Card(
-                    onClick = { showNavOverlay = true },
-                    modifier = Modifier.weight(1f).height(164.dp),
-                    shape = RoundedCornerShape(18.dp),
+                    onClick = { showNavOverlay = true; navContentVisible = true },
+                    modifier = Modifier.weight(1f).wrapContentHeight(),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                     border = BorderStroke(1.dp, AppColors.Border),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(1.dp)
                 ) {
-                    Column(
-                        Modifier.fillMaxSize().padding(13.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            sites.sortedByDescending { it.clickCount }.take(4).chunked(2).forEach { rowSites ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    rowSites.forEach { site ->
-                                        FaviconTile(site, Modifier.size(25.dp))
-                                    }
-                                }
-                            }
+                    Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            sites.sortedByDescending { it.clickCount }.take(4).forEach { FaviconTile(it, Modifier.size(25.dp)) }
                         }
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("空投平台导航", color = AppColors.TextPrimary,
-                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
-                                maxLines = 1)
-                            Text("常用活动网站", color = AppColors.TextSecondary,
-                                style = MaterialTheme.typography.bodySmall, maxLines = 2)
-                        }
+                        Text("空投导航", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text("常用活动网站", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-
-                Card(
+                ShortcutCard(
+                    icon = Icons.Default.Shield,
+                    title = "安全查钱包",
+                    subtitle = "临时查询公开地址",
+                    onClick = onOpenCheckWallet,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ShortcutCard(
+                    icon = Icons.Default.AccountBalanceWallet,
+                    title = "钱包管理",
+                    subtitle = "管理已保存地址",
                     onClick = onOpenWallet,
-                    modifier = Modifier.weight(1f).height(164.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                    border = BorderStroke(1.dp, AppColors.Border),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        Modifier.fillMaxSize().padding(13.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Icon(Icons.Default.Shield, contentDescription = null,
-                            tint = AppColors.Primary, modifier = Modifier.size(48.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("安全查钱包", color = AppColors.TextPrimary,
-                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Text("查询公开地址资产", color = AppColors.TextSecondary,
-                                style = MaterialTheme.typography.bodySmall, maxLines = 2)
-                        }
-                    }
-                }
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.weight(1f))
             }
         }
 
@@ -227,60 +214,63 @@ fun HomeScreen(
 
     if (showNavOverlay) {
         Dialog(
-            onDismissRequest = { showNavOverlay = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+            onDismissRequest = { closeNavOverlay() },
+            properties = DialogProperties(usePlatformDefaultWidth = true)
         ) {
-            GlassBackground(
-                modifier = Modifier.fillMaxSize(),
-                blurRadius = 30.dp,
-                cornerRadius = 0.dp
+            AnimatedVisibility(
+                visible = navContentVisible,
+                enter = fadeIn() + scaleIn(initialScale = 0.88f),
+                exit = fadeOut() + scaleOut(targetScale = 0.92f)
             ) {
-                Column(
-                    Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 18.dp)
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(12.dp)
                 ) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(Modifier.weight(1f))
-                        Text("空投导航", color = Color.White, style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.weight(1f))
-                        TextButton(onClick = { showNavOverlay = false }) { Text("关闭", color = Color.White) }
-                    }
-                    Spacer(Modifier.height(22.dp))
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
-                    ) {
-                        items(sites, key = { it.id }) { site ->
-                            Column(
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                                    .clickable {
-                                        showNavOverlay = false
-                                        scope.launch {
-                                            val updated = withContext(Dispatchers.IO) { AirdropSiteStore.recordClick(site) }
-                                            sites = updated
-                                            val walletRows = withContext(Dispatchers.IO) {
-                                                val raw = CacheStore.readLocal("wallets")
-                                                val type = object : TypeToken<List<WalletDto>>() {}.type
-                                                raw?.let { runCatching { Gson().fromJson<List<WalletDto>>(it, type) }.getOrNull() }.orEmpty()
+                    Column(Modifier.fillMaxWidth().padding(18.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("空投导航", modifier = Modifier.weight(1f), color = AppColors.TextPrimary,
+                                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            TextButton(onClick = { closeNavOverlay() }) { Text("关闭", color = AppColors.Primary) }
+                        }
+                        Text("选择一个平台打开", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(12.dp))
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp),
+                            contentPadding = PaddingValues(bottom = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(sites, key = { it.id }) { site ->
+                                Column(
+                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                                        .clickable {
+                                            closeNavOverlay()
+                                            scope.launch {
+                                                val updated = withContext(Dispatchers.IO) { AirdropSiteStore.recordClick(site) }
+                                                sites = updated
+                                                val walletRows = withContext(Dispatchers.IO) {
+                                                    val raw = CacheStore.readLocal("wallets")
+                                                    val type = object : TypeToken<List<WalletDto>>() {}.type
+                                                    raw?.let { runCatching { Gson().fromJson<List<WalletDto>>(it, type) }.getOrNull() }.orEmpty()
+                                                }
+                                                val intent = Intent(context, BrowserActivity::class.java)
+                                                    .putExtra(BrowserActivity.EXTRA_URL, site.url)
+                                                    .putExtra(BrowserActivity.EXTRA_TITLE, site.name)
+                                                    .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, Gson().toJson(walletRows))
+                                                walletRows.firstOrNull()?.let { intent.putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, it.id) }
+                                                context.startActivity(intent)
                                             }
-                                            val walletJson = com.google.gson.Gson().toJson(walletRows)
-                                            val intent = Intent(context, BrowserActivity::class.java)
-                                                .putExtra(BrowserActivity.EXTRA_URL, site.url)
-                                                .putExtra(BrowserActivity.EXTRA_TITLE, site.name)
-                                                .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, walletJson)
-                                            walletRows.firstOrNull()?.let { intent.putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, it.id) }
-                                            context.startActivity(intent)
-                                        }
-                                    }.padding(10.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                FaviconTile(site, Modifier.size(62.dp))
-                                Text(site.name, color = Color.White, style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, maxLines = 2)
+                                        }.padding(vertical = 10.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                                ) {
+                                    FaviconTile(site, Modifier.size(52.dp))
+                                    Text(site.name, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, maxLines = 2)
+                                }
                             }
                         }
                     }
@@ -352,6 +342,31 @@ private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker) {
                 style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             Text(change, color = if (ticker.change24hPercent >= 0) AppColors.Success else AppColors.Danger,
                 style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+
+@Composable
+private fun ShortcutCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.wrapContentHeight(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+        border = BorderStroke(1.dp, AppColors.Border),
+        elevation = CardDefaults.cardElevation(1.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(34.dp))
+            Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

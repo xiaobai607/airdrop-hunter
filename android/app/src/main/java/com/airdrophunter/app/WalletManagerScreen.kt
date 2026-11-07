@@ -42,7 +42,7 @@ class WalletManagerViewModel : ViewModel() {
  }
  fun delete(w:WalletDto,isGuest:Boolean=false)=viewModelScope.launch {try{val rows=_state.value.wallets.filterNot{it.id==w.id};if(isGuest)withContext(kotlinx.coroutines.Dispatchers.IO){CacheStore.writeLocal("wallets",gson.toJson(rows))}else{ApiClient.service.deleteWallet(w.id);withContext(kotlinx.coroutines.Dispatchers.IO){CacheStore.write("wallets",gson.toJson(rows))}};_state.value=_state.value.copy(wallets=rows,error=null)}catch(_:Exception){_state.value=_state.value.copy(error="删除失败，请稍后重试")}}
 }
-private fun detectEcosystem(a:String):String?=when{Regex("^0x[a-fA-F0-9]{40}$").matches(a.trim())->WalletEcosystem.EVM;Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$").matches(a.trim())->WalletEcosystem.TRON;Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$").matches(a.trim())->WalletEcosystem.SOL;else->null}
+private fun detectEcosystem(a:String):String?=when(com.airdrophunter.app.data.AddressDetector.detect(a)){com.airdrophunter.app.data.DetectedNetwork.EVM->WalletEcosystem.EVM;com.airdrophunter.app.data.DetectedNetwork.TRON->WalletEcosystem.TRON;com.airdrophunter.app.data.DetectedNetwork.SOL->WalletEcosystem.SOL;else->null}
 
 @Composable
 fun WalletManagerScreen(modifier:Modifier=Modifier,onOpenBrowser:(String,WalletDto,List<WalletDto>,String)->Unit,isGuest:Boolean=false,vm:WalletManagerViewModel=viewModel()){
