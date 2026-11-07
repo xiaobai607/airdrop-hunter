@@ -29,6 +29,8 @@ object TokenStore {
 
     private val key = stringPreferencesKey("access_token")
     @Volatile private var appContext: Context? = null
+    @Volatile private var cachedToken: String? = null
+    @Volatile private var tokenLoaded: Boolean = false
 
     fun initialize(context: Context) {
         appContext = context.applicationContext
@@ -36,32 +38,47 @@ object TokenStore {
 
     fun observeToken(context: Context): Flow<String?> =
         context.applicationContext.authDataStore.data.map { preferences ->
-            preferences[key]?.let(::decryptIfNeeded)
+            val token = preferences[key]?.let(::decryptIfNeeded)
+            cachedToken = token
+            tokenLoaded = true
+            token
         }
 
     suspend fun saveToken(context: Context, token: String) = withContext(Dispatchers.IO) {
         val encrypted = encrypt(token)
         context.applicationContext.authDataStore.edit { it[key] = encrypted }
+        cachedToken = token
+        tokenLoaded = true
     }
 
     suspend fun clearToken(context: Context) = withContext(Dispatchers.IO) {
         context.applicationContext.authDataStore.edit { it.remove(key) }
+        cachedToken = null
+        tokenLoaded = true
     }
 
+    @Synchronized
     fun readTokenBlocking(): String? {
+        if (tokenLoaded) return cachedToken
         val context = appContext ?: return null
         return runBlocking(Dispatchers.IO) {
-            val stored = context.authDataStore.data.first()[key] ?: return@runBlocking null
-            if (stored.startsWith(ENCRYPTED_PREFIX)) {
-                val decoded = decryptIfNeeded(stored)
-                if (decoded == null) context.authDataStore.edit { it.remove(key) }
-                decoded
-            } else {
-                // Migrate existing plaintext tokens in place without forcing users to sign in again.
-                val encrypted = runCatching { encrypt(stored) }.getOrNull()
-                if (encrypted != null) context.authDataStore.edit { it[key] = encrypted }
-                stored
+            val stored = context.authDataStore.data.first()[key]
+            val decoded = when {
+                stored == null -> null
+                stored.startsWith(ENCRYPTED_PREFIX) -> decryptIfNeeded(stored)
+                else -> {
+                    // Migrate existing plaintext tokens in place without forcing users to sign in again.
+                    val encrypted = runCatching { encrypt(stored) }.getOrNull()
+                    if (encrypted != null) context.authDataStore.edit { it[key] = encrypted }
+                    stored
+                }
             }
+            if (stored != null && stored.startsWith(ENCRYPTED_PREFIX) && decoded == null) {
+                context.authDataStore.edit { it.remove(key) }
+            }
+            cachedToken = decoded
+            tokenLoaded = true
+            decoded
         }
     }
 
