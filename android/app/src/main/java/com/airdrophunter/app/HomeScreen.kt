@@ -60,6 +60,7 @@ fun HomeScreen(
     onOpenGlobalSearch: () -> Unit,
     onOpenProjects: () -> Unit,
     onOpenAirdropHub: () -> Unit = {},
+    onOpenTronEnergy: () -> Unit = {},
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
     vm: HomeViewModel = viewModel()
@@ -132,7 +133,13 @@ fun HomeScreen(
                     onClick = onOpenWallet,
                     modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.weight(1f))
+                ShortcutCard(
+                    icon = Icons.Default.Shield,
+                    title = "⚡️ TRON 能量租赁",
+                    subtitle = "租赁前核对转出地址",
+                    onClick = onOpenTronEnergy,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 
