@@ -187,7 +187,8 @@ fun ProjectsScreen(
                                 Text("好评如潮", color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
                             }
                         }
-                    }                }
+                    }
+                }
             }
         }
     }

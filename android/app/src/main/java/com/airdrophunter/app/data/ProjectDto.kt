@@ -16,5 +16,4 @@ data class ProjectDto(
 
 
 /** Stable local aggregation key: official URL when available, otherwise the saved project ID. */
-fun ProjectDto.officialIdentifier(): String =
-    official_url.trim().trimEnd('/').ifBlank { id }
+fun ProjectDto.officialIdentifier(): String = id
