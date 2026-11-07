@@ -23,7 +23,14 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 
-private data class RatingPeriod(val title: String, val score: Double, val people: Int, val label: String)
+private data class RatingPeriod(val title: String, val score: Double, val people: Int, val positivePercent: Int)
+
+private fun steamLabel(positivePercent: Int): String = when {
+    positivePercent >= 95 -> "好评如潮"
+    positivePercent >= 85 -> "特别好评"
+    positivePercent >= 75 -> "多半好评"
+    else -> "褒贬不一"
+}
 
 @Composable
 fun MicroCommunityScreen(
@@ -42,10 +49,10 @@ fun MicroCommunityScreen(
     var saving by remember { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
     val periods = listOf(
-        RatingPeriod("近 1 天", 4.9, 12, "好评如潮"),
-        RatingPeriod("近 3 天", 4.5, 45, "特别好评"),
-        RatingPeriod("近 1 周", 3.2, 120, "褒贬不一"),
-        RatingPeriod("总体评价", 3.8, 300, "多半好评")
+        RatingPeriod("近 1 天", 4.9, 12, 96),
+        RatingPeriod("近 3 天", 4.5, 45, 91),
+        RatingPeriod("近 1 周", 3.2, 120, 68),
+        RatingPeriod("总体评价", 3.8, 300, 79)
     )
 
     LaunchedEffect(projectOfficialId) {
@@ -96,7 +103,7 @@ fun MicroCommunityScreen(
                             Surface(color = when (index) {
                                 0 -> Color(0xFFE8F7EF); 1 -> Color(0xFFEAF3FF); 2 -> Color(0xFFFFF2E4); else -> Color(0xFFF0EDFF)
                             }, shape = RoundedCornerShape(999.dp)) {
-                                Text(period.label, Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                Text(steamLabel(period.positivePercent), Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                     color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                             }
                             Spacer(Modifier.width(9.dp))
@@ -106,8 +113,16 @@ fun MicroCommunityScreen(
                         }
                         if (index != periods.lastIndex) HorizontalDivider(color = AppColors.Border)
                     }
+                    Text("好评率按 4–5 星统计 · 各周期为 Mock 样本", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     Text("本地真实评分：${ratings.size} 人 · 平均 ${String.format(java.util.Locale.US, "%.1f", average ?: 0.0)} 星",
                         color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    ratings.take(3).forEach { rating ->
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("匿名猎人 #${rating.walletAddress.takeLast(4).uppercase()}",
+                                Modifier.weight(1f), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text("★".repeat(rating.score), color = Color(0xFFFFB12B), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
             }
             Spacer(Modifier.weight(1f))
