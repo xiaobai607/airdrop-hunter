@@ -57,7 +57,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onOpenSources: () -> Unit,
     onOpenWallet: () -> Unit,
-    onOpenCheckWallet: () -> Unit,
+    onOpenGlobalSearch: () -> Unit,
     onOpenProjects: () -> Unit,
     onOpenAirdropHub: () -> Unit = {},
     isGuest: Boolean = true,
@@ -67,7 +67,6 @@ fun HomeScreen(
     val state by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var showSearch by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
     var showNavOverlay by remember { mutableStateOf(false) }
     var navContentVisible by remember { mutableStateOf(false) }
@@ -88,7 +87,7 @@ fun HomeScreen(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("首页", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
                 color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { showSearch = true }) {
+            IconButton(onClick = onOpenGlobalSearch) {
                 Icon(Icons.Default.Search, "搜索", tint = AppColors.TextSecondary)
             }
             IconButton(onClick = { showNotifications = true }) {
@@ -137,10 +136,10 @@ fun HomeScreen(
                     }
                 }
                 ShortcutCard(
-                    icon = Icons.Default.Shield,
-                    title = "安全查钱包",
-                    subtitle = "临时查询公开地址",
-                    onClick = onOpenCheckWallet,
+                    icon = Icons.Default.Search,
+                    title = "全局搜索",
+                    subtitle = "搜索币种、地址、DApp",
+                    onClick = onOpenGlobalSearch,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -279,12 +278,6 @@ fun HomeScreen(
         }
     }
 
-    if (showSearch) AlertDialog(
-        onDismissRequest = { showSearch = false }, containerColor = AppColors.Surface,
-        title = { Text("搜索", color = AppColors.TextPrimary) },
-        text = { Text("搜索功能正在开发中。", color = AppColors.TextSecondary) },
-        confirmButton = { TextButton(onClick = { showSearch = false }) { Text("知道了") } }
-    )
     if (showNotifications) AlertDialog(
         onDismissRequest = { showNotifications = false }, containerColor = AppColors.Surface,
         title = { Text("消息通知", color = AppColors.TextPrimary) },

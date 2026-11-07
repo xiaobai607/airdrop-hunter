@@ -77,11 +77,11 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
     var showSources by rememberSaveable { mutableStateOf(false) }
     var showAirdropHub by rememberSaveable { mutableStateOf(false) }
     var showWalletManager by rememberSaveable { mutableStateOf(false) }
-    var showCheckWallet by rememberSaveable { mutableStateOf(false) }
+    var showGlobalSearch by rememberSaveable { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
 
-    BackHandler(showSources || showAirdropHub || showWalletManager || showCheckWallet || selectedProject != null) {
-        showSources = false; showAirdropHub = false; showWalletManager = false; showCheckWallet = false; selectedProject = null
+    BackHandler(showSources || showAirdropHub || showWalletManager || showGlobalSearch || selectedProject != null) {
+        showSources = false; showAirdropHub = false; showWalletManager = false; showGlobalSearch = false; selectedProject = null
     }
 
     val destinations = listOf(
@@ -93,7 +93,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
         showSources -> stringResource(R.string.sources_title)
         showAirdropHub -> "空投大厅"
         showWalletManager -> "钱包管理"
-        showCheckWallet -> "安全查钱包"
+        showGlobalSearch -> "全局搜索"
         else -> stringResource(R.string.project_detail)
     }
 
@@ -101,11 +101,11 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
         modifier = Modifier.fillMaxSize().background(AppColors.Background),
         containerColor = AppColors.Background,
         topBar = {
-            if (showSources || showAirdropHub || showWalletManager || showCheckWallet || selectedProject != null) {
+            if (showSources || showAirdropHub || showWalletManager || selectedProject != null) {
                 TopAppBar(
                     title = { Text(secondaryTitle, color = AppColors.TextPrimary) },
                     navigationIcon = {
-                        IconButton(onClick = { showSources = false; showAirdropHub = false; showWalletManager = false; showCheckWallet = false; selectedProject = null }) {
+                        IconButton(onClick = { showSources = false; showAirdropHub = false; showWalletManager = false; showGlobalSearch = false; selectedProject = null }) {
                             Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AppColors.TextPrimary)
                         }
                     },
@@ -114,7 +114,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
             }
         },
         bottomBar = {
-            if (!showSources && !showAirdropHub && !showWalletManager && !showCheckWallet && selectedProject == null) {
+            if (!showSources && !showAirdropHub && !showWalletManager && !showGlobalSearch && selectedProject == null) {
                 Box(Modifier.fillMaxWidth().height(80.dp)) {
                     Box(Modifier.fillMaxSize().blur(12.dp).background(AppColors.Navigation))
                     NavigationBar(modifier = Modifier.fillMaxSize(), containerColor = Color.Transparent, tonalElevation = 0.dp) {
@@ -137,9 +137,17 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
             when {
                 showSources -> SourcesScreen(Modifier.fillMaxSize())
                 showAirdropHub -> AirdropHubScreen(Modifier.fillMaxSize())
-                showCheckWallet -> CheckWalletScreen(
+                showGlobalSearch -> GlobalSearchScreen(
                     modifier = Modifier.fillMaxSize(),
-                    onBack = { showCheckWallet = false }
+                    onCancel = { showGlobalSearch = false },
+                    onSearch = { url ->
+                        showGlobalSearch = false
+                        context.startActivity(
+                            Intent(context, BrowserActivity::class.java)
+                                .putExtra(BrowserActivity.EXTRA_URL, url)
+                                .putExtra(BrowserActivity.EXTRA_TITLE, "OKLink 全链搜索")
+                        )
+                    }
                 )
                 showWalletManager -> WalletManagerScreen(
                     modifier = Modifier.fillMaxSize(),
@@ -167,7 +175,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                     modifier = Modifier.fillMaxSize(),
                     onOpenSources = { showSources = true },
                     onOpenWallet = { showWalletManager = true },
-                    onOpenCheckWallet = { showCheckWallet = true },
+                    onOpenGlobalSearch = { showGlobalSearch = true },
                     onOpenProjects = { tab = 1 },
                     onOpenAirdropHub = { showAirdropHub = true },
                     isGuest = isGuest, onRequireAuth = onRequireAuth

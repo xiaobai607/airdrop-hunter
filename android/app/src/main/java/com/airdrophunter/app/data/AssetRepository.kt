@@ -17,6 +17,7 @@ enum class DetectedNetwork(val label: String) {
     EVM("EVM"), TRON("TRON"), SOL("Solana"), UNKNOWN("未知网络")
 }
 
+@Deprecated("地址搜索已统一交由 OKLink GlobalSearchScreen 处理。")
 object AddressDetector {
     private val evm = Regex("^0x[a-fA-F0-9]{40}$")
     private val tron = Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$")

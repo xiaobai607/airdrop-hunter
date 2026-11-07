@@ -162,6 +162,7 @@ private fun BrowserScreen(
                     settings.apply {
                         javaScriptEnabled = true
                         domStorageEnabled = true
+                        userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
                         allowFileAccess = false
                         allowContentAccess = false
                         javaScriptCanOpenWindowsAutomatically = false

@@ -20,6 +20,7 @@ import com.airdrophunter.app.data.AddressDetector
 import com.airdrophunter.app.data.DetectedNetwork
 import com.airdrophunter.app.ui.theme.AppColors
 
+@Deprecated("请使用 GlobalSearchScreen；地址查询由 OKLink 网页处理。")
 @Composable
 fun CheckWalletScreen(
     modifier: Modifier = Modifier,
