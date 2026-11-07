@@ -41,6 +41,7 @@ fun ProjectsScreen(
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
     val pnlRecords by CacheStore.observePnlRecords().collectAsState(initial = emptyList())
+    val allRatings by CacheStore.observeAllProjectRatings().collectAsState(initial = emptyList())
     val context = LocalContext.current
     var selectedFilter by remember { mutableStateOf("全部") }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -173,6 +174,16 @@ fun ProjectsScreen(
                                 }
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                val projectRatings = allRatings.filter { it.projectOfficialId == project.officialIdentifier() }
+                                val communityAverage = if (projectRatings.isEmpty()) 4.9 else projectRatings.map { it.score }.average()
+                                val positiveRate = if (projectRatings.isEmpty()) 96 else projectRatings.count { it.score >= 4 } * 100 / projectRatings.size
+                                val communityLabel = when {
+                                    positiveRate >= 95 -> "好评如潮"
+                                    positiveRate >= 85 -> "特别好评"
+                                    positiveRate >= 75 -> "多半好评"
+                                    positiveRate < 40 -> "褒贬不一"
+                                    else -> "褒贬不一"
+                                }
                                 Surface(
                                     onClick = { onOpenCommunity(project) },
                                     shape = RoundedCornerShape(999.dp),
@@ -183,10 +194,10 @@ fun ProjectsScreen(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text("微社区", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
-                                        Text("4.9", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                     }
                                 }
-                                Text("好评如潮", color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
+                                Text(communityLabel, color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
