@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -22,12 +23,15 @@ import com.airdrophunter.app.ui.theme.AppColors
 fun WalletDetailScreen(
     wallet: WalletDto,
     onBack: () -> Unit,
-    vm: WalletDetailViewModel = viewModel()
+    vm: WalletDetailViewModel? = null
 ) {
-    val state by vm.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val walletDetailViewModel: WalletDetailViewModel = vm ?: viewModel(factory = WalletDetailViewModelFactory(application.appContainer.assetRepository))
+    val state by walletDetailViewModel.uiState.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
-    LaunchedEffect(wallet.address) { vm.loadWallet(wallet.address) }
-    DisposableEffect(vm) { onDispose { vm.clear() } }
+    LaunchedEffect(wallet.address) { walletDetailViewModel.loadWallet(wallet.address) }
+    DisposableEffect(walletDetailViewModel) { onDispose { walletDetailViewModel.clear() } }
 
     Column(Modifier.fillMaxSize().background(AppColors.Background)) {
         Row(
@@ -47,7 +51,7 @@ fun WalletDetailScreen(
             assets = state.assets,
             isLoading = state.isLoading,
             errorMessage = state.errorMessage,
-            onRefresh = vm::refresh,
+            onRefresh = walletDetailViewModel::refresh,
             modifier = Modifier.weight(1f)
         )
     }

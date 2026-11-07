@@ -3,7 +3,7 @@ package com.airdrophunter.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.airdrophunter.app.data.AssetRepository
-import com.airdrophunter.app.data.AssetRepositoryProvider
+import androidx.lifecycle.ViewModelProvider
 import com.airdrophunter.app.data.UnifiedAssetData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +16,7 @@ data class CheckWalletUiState(
 )
 
 class CheckWalletViewModel(
-    private val repository: AssetRepository = AssetRepositoryProvider.instance
+    private val repository: AssetRepository
 ) : ViewModel() {
     private val _state = MutableStateFlow(CheckWalletUiState())
     val state = _state.asStateFlow()
@@ -35,4 +35,12 @@ class CheckWalletViewModel(
     }
 
     fun clearResult() { _state.value = CheckWalletUiState() }
+}
+
+class CheckWalletViewModelFactory(private val repository: AssetRepository) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(CheckWalletViewModel::class.java)) return CheckWalletViewModel(repository) as T
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+    }
 }

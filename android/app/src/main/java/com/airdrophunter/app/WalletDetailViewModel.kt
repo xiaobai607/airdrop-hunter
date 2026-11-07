@@ -3,7 +3,7 @@ package com.airdrophunter.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.airdrophunter.app.data.AssetRepository
-import com.airdrophunter.app.data.AssetRepositoryProvider
+import androidx.lifecycle.ViewModelProvider
 import com.airdrophunter.app.data.UnifiedAssetData
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -20,7 +20,7 @@ data class WalletDetailUiState(
 )
 
 class WalletDetailViewModel(
-    private val repository: AssetRepository = AssetRepositoryProvider.instance
+    private val repository: AssetRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WalletDetailUiState())
     val uiState = _uiState.asStateFlow()
@@ -103,5 +103,13 @@ class WalletDetailViewModel(
         requestJob?.cancel()
         queuedRefreshJob?.cancel()
         super.onCleared()
+    }
+}
+
+class WalletDetailViewModelFactory(private val repository: AssetRepository) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(WalletDetailViewModel::class.java)) return WalletDetailViewModel(repository) as T
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }

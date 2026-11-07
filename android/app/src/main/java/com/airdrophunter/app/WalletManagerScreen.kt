@@ -14,6 +14,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -39,114 +41,52 @@ data class WalletManagerUiState(
     val error: String? = null
 )
 
-class WalletManagerViewModel : ViewModel() {
+class WalletManagerViewModel(private val repository: WalletRepository) : ViewModel() {
     private val _state = MutableStateFlow(WalletManagerUiState(isLoading = true))
     val state = _state.asStateFlow()
 
-    private val gson = Gson()
-    private val walletListType = object : TypeToken<List<WalletDto>>() {}.type
-
     fun load(isGuest: Boolean = false) = viewModelScope.launch {
         _state.value = _state.value.copy(isLoading = true, error = null)
-        if (isGuest) {
-            val localWallets = withContext(Dispatchers.IO) {
-                CacheStore.readLocal("wallets")
-                    ?.let { raw -> runCatching { gson.fromJson<List<WalletDto>>(raw, walletListType) }.getOrNull() }
-                    .orEmpty()
-            }
-            _state.value = _state.value.copy(wallets = localWallets, isLoading = false)
-            return@launch
-        }
-
         try {
-            val remoteWallets = ApiClient.service.getWallets()
-            _state.value = _state.value.copy(wallets = remoteWallets, isLoading = false)
-            withContext(Dispatchers.IO) {
-                CacheStore.write("wallets", gson.toJson(remoteWallets))
-            }
+            val wallets = repository.load(isGuest)
+            _state.value = _state.value.copy(wallets = wallets, isLoading = false)
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            _state.value = _state.value.copy(
-                isLoading = false,
-                error = "服务器繁忙，请稍后重试"
-            )
+            _state.value = _state.value.copy(isLoading = false, error = "服务器繁忙，请稍后重试")
         }
     }
 
     fun add(request: WalletWriteRequest, isGuest: Boolean = false) = viewModelScope.launch {
         _state.value = _state.value.copy(isSaving = true, error = null)
         try {
-            if (isGuest) {
-                val newWallet = WalletDto(
-                    id = UUID.randomUUID().toString(),
-                    wallet_name = request.wallet_name,
-                    chain = request.chain,
-                    network_icon = when (request.chain) {
-                        WalletEcosystem.EVM -> "E"
-                        WalletEcosystem.TRON -> "T"
-                        else -> "S"
-                    },
-                    address = request.address
-                )
-                val updatedWallets = _state.value.wallets
-                    .filterNot { existing ->
-                        if (newWallet.ecosystem == WalletEcosystem.EVM) {
-                            existing.address.equals(request.address, ignoreCase = true)
-                        } else {
-                            existing.address == request.address
-                        }
-                    } + newWallet
-
-                withContext(Dispatchers.IO) {
-                    CacheStore.writeLocal("wallets", gson.toJson(updatedWallets))
-                }
-                _state.value = _state.value.copy(wallets = updatedWallets, isSaving = false)
-            } else {
-                ApiClient.service.addWallet(request)
-                val remoteWallets = ApiClient.service.getWallets()
-                _state.value = _state.value.copy(wallets = remoteWallets, isSaving = false)
-                withContext(Dispatchers.IO) {
-                    CacheStore.write("wallets", gson.toJson(remoteWallets))
-                }
-            }
+            val wallets = repository.add(request, isGuest)
+            _state.value = _state.value.copy(wallets = wallets, isSaving = false)
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            _state.value = _state.value.copy(
-                isSaving = false,
-                error = "保存失败，请检查地址或稍后重试"
-            )
+            _state.value = _state.value.copy(isSaving = false, error = "保存失败，请检查地址或稍后重试")
         }
     }
 
     fun delete(wallet: WalletDto, isGuest: Boolean = false) = viewModelScope.launch {
         _state.value = _state.value.copy(isSaving = true, error = null)
         try {
-            val updatedWallets = _state.value.wallets.filterNot { it.id == wallet.id }
-            if (isGuest) {
-                withContext(Dispatchers.IO) {
-                    CacheStore.writeLocal("wallets", gson.toJson(updatedWallets))
-                }
-            } else {
-                ApiClient.service.deleteWallet(wallet.id)
-                withContext(Dispatchers.IO) {
-                    CacheStore.write("wallets", gson.toJson(updatedWallets))
-                }
-            }
-            _state.value = _state.value.copy(
-                wallets = updatedWallets,
-                isSaving = false,
-                error = null
-            )
+            val wallets = repository.delete(wallet, isGuest, _state.value.wallets)
+            _state.value = _state.value.copy(wallets = wallets, isSaving = false, error = null)
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            _state.value = _state.value.copy(
-                isSaving = false,
-                error = "删除失败，请稍后重试"
-            )
+            _state.value = _state.value.copy(isSaving = false, error = "删除失败，请稍后重试")
         }
+    }
+}
+
+class WalletManagerViewModelFactory(private val repository: WalletRepository) : androidx.lifecycle.ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(WalletManagerViewModel::class.java)) return WalletManagerViewModel(repository) as T
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
 
@@ -163,9 +103,12 @@ fun WalletManagerScreen(
     modifier: Modifier = Modifier,
     onOpenBrowser: (String, WalletDto, List<WalletDto>, String) -> Unit,
     isGuest: Boolean = false,
-    vm: WalletManagerViewModel = viewModel()
+    vm: WalletManagerViewModel? = null
 ) {
-    val state by vm.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val walletViewModel: WalletManagerViewModel = vm ?: viewModel(factory = WalletManagerViewModelFactory(application.appContainer.walletRepository))
+    val state by walletViewModel.state.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
     var address by remember { mutableStateOf("") }
     var walletName by remember { mutableStateOf("") }
@@ -173,7 +116,7 @@ fun WalletManagerScreen(
     val ecosystem = remember(address) { detectEcosystem(address.trim()) }
 
     LaunchedEffect(isGuest) {
-        vm.load(isGuest)
+        walletViewModel.load(isGuest)
     }
 
     selectedWallet?.let { wallet ->
@@ -293,7 +236,7 @@ fun WalletManagerScreen(
                                     )
                                 }
                                 IconButton(
-                                    onClick = { vm.delete(wallet, isGuest) },
+                                    onClick = { walletViewModel.delete(wallet, isGuest) },
                                     enabled = !state.isSaving
                                 ) {
                                     Icon(
@@ -351,7 +294,7 @@ fun WalletManagerScreen(
                     enabled = ecosystem != null && !state.isSaving,
                     onClick = {
                         val detectedEcosystem = ecosystem ?: return@Button
-                        vm.add(
+                        walletViewModel.add(
                             WalletWriteRequest(
                                 wallet_name = walletName.trim().ifBlank { "$detectedEcosystem Wallet" },
                                 chain = detectedEcosystem,
