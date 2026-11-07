@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.CacheStore
+import androidx.compose.runtime.collectAsState
 import com.airdrophunter.app.ui.theme.AppColors
 import java.util.Locale
 
@@ -32,6 +34,7 @@ fun ProjectsScreen(
     vm: ProjectsViewModel = viewModel()
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val pnlRecords by CacheStore.observePnlRecords().collectAsState(initial = emptyList())
     val context = LocalContext.current
     var selectedFilter by remember { mutableStateOf("全部") }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -140,6 +143,16 @@ fun ProjectsScreen(
                             project.deadline?.takeIf { it.isNotBlank() }?.let {
                                 Text("截止时间：$it", color = AppColors.TextHelper,
                                     style = MaterialTheme.typography.labelSmall)
+                            }
+                            val pnl = pnlRecords.firstOrNull { it.projectId == project.id }
+                            if (pnl != null) {
+                                Text(String.format(Locale.US, "累计消耗 $%.2f · 累计收益 $%.2f",
+                                    pnl.totalGasCostUsd, pnl.totalRewardUsd),
+                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                Text(String.format(Locale.US, "真实净盈亏 %s$%.2f",
+                                    if (pnl.netProfitUsd >= 0) "+" else "-", kotlin.math.abs(pnl.netProfitUsd)),
+                                    color = if (pnl.netProfitUsd >= 0) AppColors.Success else AppColors.Danger,
+                                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                             }
                             if (project.expected_income > 0 || project.actual_income > 0) {
                                 Text(

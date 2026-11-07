@@ -31,6 +31,15 @@ class ProjectsViewModel : ViewModel() {
     private val gson = Gson()
     private val projectListType = object : TypeToken<List<ProjectDto>>() {}.type
 
+    private suspend fun mergePnlProjects(base: List<ProjectDto>): List<ProjectDto> {
+        val extras = withContext(Dispatchers.IO) {
+            CacheStore.readLocal("pnl_projects")?.let {
+                runCatching { gson.fromJson<List<ProjectDto>>(it, projectListType) }.getOrNull()
+            }.orEmpty()
+        }
+        return (base + extras).distinctBy { it.id }
+    }
+
     fun loadProjects(isGuest: Boolean = false) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -38,7 +47,7 @@ class ProjectsViewModel : ViewModel() {
                 val local = withContext(Dispatchers.IO) {
                     CacheStore.readLocal("projects")?.let { runCatching { gson.fromJson<List<ProjectDto>>(it, projectListType) }.getOrNull() }
                 }.orEmpty()
-                _uiState.value = _uiState.value.copy(isLoading = false, projects = local, error = null)
+                _uiState.value = _uiState.value.copy(isLoading = false, projects = mergePnlProjects(local), error = null)
                 return@launch
             }
             withContext(Dispatchers.IO) {
@@ -48,7 +57,8 @@ class ProjectsViewModel : ViewModel() {
             }
             try {
                 val projects = ApiClient.service.getProjects()
-                _uiState.value = _uiState.value.copy(isLoading = false, projects = projects, error = null)
+                val merged = mergePnlProjects(projects)
+                _uiState.value = _uiState.value.copy(isLoading = false, projects = merged, error = null)
                 withContext(Dispatchers.IO) { CacheStore.write("projects", gson.toJson(projects)) }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) {

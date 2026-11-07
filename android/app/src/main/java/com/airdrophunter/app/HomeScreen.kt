@@ -78,6 +78,7 @@ fun HomeScreen(
         vm.load(isGuest)
     }
 
+    Box(Modifier.fillMaxSize()) {
     Column(
         modifier.fillMaxSize().background(AppColors.Background)
             .verticalScroll(rememberScrollState())
@@ -209,6 +210,8 @@ fun HomeScreen(
             }
         }
         Spacer(Modifier.height(8.dp))
+    }
+    PnlAssistantOverlay(Modifier.align(Alignment.TopEnd).padding(top = 62.dp, end = 8.dp))
     }
 
     if (showNavOverlay) {

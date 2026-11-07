@@ -36,6 +36,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
 import com.airdrophunter.app.data.WalletDto
+import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import org.json.JSONArray
@@ -51,6 +52,7 @@ private data class BrowserWallet(
 class BrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ApiClient.initialize(applicationContext)
         val url = intent.getStringExtra(EXTRA_URL).orEmpty()
         val site = intent.getStringExtra(EXTRA_TITLE).orEmpty()
         if (!validHttps(url)) { finish(); return }
@@ -154,6 +156,7 @@ private fun BrowserScreen(
             }
         }
     ) { padding ->
+        Box(Modifier.fillMaxSize()) {
         AndroidView(
             factory = { ctx ->
                 WebView(ctx).apply {
@@ -186,6 +189,8 @@ private fun BrowserScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
             update = { view -> if (browser !== view) browser = view }
         )
+        PnlAssistantOverlay(Modifier.align(Alignment.TopEnd).padding(top = 104.dp, end = 8.dp))
+        }
     }
 
     if (showWalletPicker) {
