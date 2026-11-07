@@ -40,7 +40,7 @@ class AirdropHubViewModel(
         loadJob?.cancel()
         val chain = _uiState.value.selectedChain
         loadJob = viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.value = _uiState.value.copy(isLoading = true, isRefreshing = false, error = null)
             try {
                 val snapshot = repository.load(chain.takeUnless { it == "全部" })
                 _uiState.value = _uiState.value.copy(
@@ -60,7 +60,7 @@ class AirdropHubViewModel(
     fun refresh() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
+            _uiState.value = _uiState.value.copy(isRefreshing = true, isLoading = false, error = null)
             try {
                 val chain = _uiState.value.selectedChain
                 val projects = repository.refresh(chain.takeUnless { it == "全部" })
