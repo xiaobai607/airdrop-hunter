@@ -6,6 +6,11 @@ import com.airdrophunter.app.data.CacheStoreProjectsLocalDataSource
 import com.airdrophunter.app.data.OkxMarketRepository
 import com.airdrophunter.app.data.ProjectsRepository
 import com.airdrophunter.app.data.RetrofitProjectsRemoteDataSource
+import com.airdrophunter.app.data.WalletRepository
+import com.airdrophunter.app.data.RetrofitWalletRemoteDataSource
+import com.airdrophunter.app.data.CacheStoreWalletLocalDataSource
+import com.airdrophunter.app.data.DefaultAssetRepository
+import com.airdrophunter.app.data.AssetRepository
 
 /**
  * Lightweight process-level composition root. Feature dependencies are singletons
@@ -20,6 +25,14 @@ class AppContainer {
             local = CacheStoreProjectsLocalDataSource()
         )
     }
+
+    val walletRepository: WalletRepository by lazy {
+        WalletRepository(RetrofitWalletRemoteDataSource(apiService), CacheStoreWalletLocalDataSource())
+    }
+
+    val assetRepository: AssetRepository by lazy { DefaultAssetRepository() }
+
+    val gasTrackerRepository: RealGasTrackerRepository by lazy { RealGasTrackerRepository(apiService) }
 
     val okxMarketRepository: OkxMarketRepository by lazy {
         OkxMarketRepository()

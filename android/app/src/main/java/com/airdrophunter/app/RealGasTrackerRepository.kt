@@ -1,7 +1,7 @@
 package com.airdrophunter.app
 
 import android.util.Log
-import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.ApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
@@ -22,7 +22,7 @@ data class RealGasResult(
  * Reads the latest outgoing transaction for a public wallet address.
  * It never requests a signature and never accesses wallet keys.
  */
-class RealGasTrackerRepository {
+class RealGasTrackerRepository(private val apiService: ApiService) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
@@ -89,7 +89,7 @@ class RealGasTrackerRepository {
      * validated transaction fields needed to calculate the historical gas cost.
      */
     private suspend fun fetchEvmGas(address: String): RealGasResult? {
-        val tx = ApiClient.service.getLatestEvmTransaction(address)
+        val tx = apiService.getLatestEvmTransaction(address)
         val hash = tx.hash.takeIf { it.matches(Regex("^0x[a-fA-F0-9]{64}$")) } ?: return null
         val gasUsed = tx.gasUsed.toBigDecimalOrNull() ?: return null
         val gasPriceWei = tx.gasPrice.toBigDecimalOrNull() ?: return null

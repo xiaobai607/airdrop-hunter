@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,14 +26,17 @@ import com.airdrophunter.app.ui.theme.AppColors
 fun CheckWalletScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit,
-    vm: CheckWalletViewModel = viewModel()
+    vm: CheckWalletViewModel? = null
 ) {
+    val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val checkWalletViewModel: CheckWalletViewModel = vm ?: viewModel(factory = CheckWalletViewModelFactory(application.appContainer.assetRepository))
     var address by remember { mutableStateOf("") }
-    val state by vm.state.collectAsStateWithLifecycle()
+    val state by checkWalletViewModel.state.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     val detected = remember(address) { AddressDetector.detect(address) }
 
-    DisposableEffect(vm) { onDispose { vm.clearResult() } }
+    DisposableEffect(vm) { onDispose { checkWalletViewModel.clearResult() } }
 
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
         Row(
@@ -54,13 +58,13 @@ fun CheckWalletScreen(
                     Text("输入公开钱包地址", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(
                         value = address,
-                        onValueChange = { address = it; vm.clearResult() },
+                        onValueChange = { address = it; checkWalletViewModel.clearResult() },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("粘贴 0x / T / Solana 地址") },
                         trailingIcon = {
                             IconButton(onClick = {
                                 val pasted = clipboard.getText()?.text.orEmpty()
-                                if (pasted.isNotBlank()) { address = pasted.trim(); vm.clearResult() }
+                                if (pasted.isNotBlank()) { address = pasted.trim(); checkWalletViewModel.clearResult() }
                             }) { Icon(Icons.Default.ContentPaste, "粘贴地址", tint = AppColors.Primary) }
                         },
                         singleLine = true,
@@ -73,7 +77,7 @@ fun CheckWalletScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Button(
-                        onClick = { vm.query(address) },
+                        onClick = { checkWalletViewModel.query(address) },
                         enabled = recognized && !state.isLoading,
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary, disabledContainerColor = AppColors.Border),

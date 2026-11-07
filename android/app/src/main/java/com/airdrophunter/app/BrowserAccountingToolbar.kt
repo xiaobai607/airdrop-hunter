@@ -43,6 +43,8 @@ fun BrowserAccountingToolbar(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val gasTrackerRepository = remember(application) { application.appContainer.gasTrackerRepository }
     val pending by CacheStore.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var activeBill by remember { mutableStateOf<PendingBillEntity?>(null) }
@@ -116,7 +118,7 @@ fun BrowserAccountingToolbar(
         fetchingGas = true
         scope.launch {
             try {
-                val result = RealGasTrackerRepository().fetchLatestGasCost(walletAddress)
+                val result = gasTrackerRepository.fetchLatestGasCost(walletAddress)
                 if (result == null || result.txHash.isBlank() ||
                     !result.gasCostUsd.isFinite() || result.gasCostUsd < 0.0
                 ) {
