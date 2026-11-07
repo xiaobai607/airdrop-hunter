@@ -50,4 +50,5 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    testImplementation("junit:junit:4.13.2")
 }

@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.ui.theme.AppColors
 import java.util.Locale
 
@@ -41,13 +43,13 @@ private enum class CommunityRanking(val title: String) {
 }
 
 private val communityMockProjects = listOf(
-    CommunityProject("linea", "Linea", "Consensys zkEVM", "L", 18420.0, 4280.0, 4.9, 97, 1280, listOf("L2", "零撸", "明牌空投"), 5),
-    CommunityProject("scroll", "Scroll", "zkEVM", "S", 12860.0, 3860.0, 4.8, 95, 964, listOf("L2", "需测试网", "明牌空投"), 7),
-    CommunityProject("zksync", "zkSync", "ZK Rollup", "Z", 15600.0, 6200.0, 4.7, 93, 1820, listOf("L2", "高Gas", "明牌空投"), 4),
-    CommunityProject("starknet", "Starknet", "Validity Rollup", "✦", 9800.0, 5100.0, 4.4, 88, 1450, listOf("L2", "需测试网", "高Gas"), 3),
-    CommunityProject("base", "Base", "Ethereum L2", "B", 22600.0, 7300.0, 4.9, 96, 2200, listOf("L2", "零撸", "高Gas"), 2),
-    CommunityProject("arbitrum", "Arbitrum", "Ethereum L2", "A", 14200.0, 8400.0, 4.2, 82, 1730, listOf("L2", "高Gas"), 1),
-    CommunityProject("optimism", "Optimism", "Superchain", "O", 11700.0, 4900.0, 4.6, 91, 1390, listOf("L2", "零撸", "明牌空投"), 6)
+    CommunityProject("linea", "Linea", "Consensys zkEVM", "L", 184.20, 42.80, 4.9, 97, 1280, listOf("L2", "零撸", "明牌空投"), 5),
+    CommunityProject("scroll", "Scroll", "zkEVM", "S", 128.60, 38.60, 4.8, 95, 964, listOf("L2", "需测试网", "明牌空投"), 7),
+    CommunityProject("zksync", "zkSync", "ZK Rollup", "Z", 156.00, 62.00, 4.7, 93, 1820, listOf("L2", "高Gas", "明牌空投"), 4),
+    CommunityProject("starknet", "Starknet", "Validity Rollup", "✦", 98.00, 51.00, 4.4, 88, 1450, listOf("L2", "需测试网", "高Gas"), 3),
+    CommunityProject("base", "Base", "Ethereum L2", "B", 226.00, 73.00, 4.9, 96, 2200, listOf("L2", "零撸", "高Gas"), 2),
+    CommunityProject("arbitrum", "Arbitrum", "Ethereum L2", "A", 142.00, 84.00, 4.2, 82, 1730, listOf("L2", "高Gas"), 1),
+    CommunityProject("optimism", "Optimism", "Superchain", "O", 117.00, 49.00, 4.6, 91, 1390, listOf("L2", "零撸", "明牌空投"), 6)
 )
 
 @Composable
@@ -55,17 +57,26 @@ fun CommunitySquareScreen(
     modifier: Modifier = Modifier,
     onProjectSelected: (String, String, String) -> Unit
 ) {
+    val pnlRecords by CacheStore.observePnlRecords().collectAsStateWithLifecycle(initialValue = emptyList())
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
     var selectedTag by remember { mutableStateOf<String?>(null) }
     val allTags = listOf("L2", "零撸", "需测试网", "高Gas", "明牌空投")
-    val displayedProjects = remember(ranking, selectedTag) {
-        val filtered = communityMockProjects.filter { selectedTag == null || selectedTag in it.tags }
-        when (ranking) {
-            CommunityRanking.REWARD -> filtered.sortedByDescending { it.reward }
-            CommunityRanking.GAS -> filtered.sortedByDescending { it.gas }
-            CommunityRanking.NEW -> filtered.sortedByDescending { it.freshness }
-        }
+
+    val combinedProjects = communityMockProjects.map { base ->
+        val linkedRecords = pnlRecords.filter { it.projectOfficialId == base.id }
+        base.copy(
+            reward = base.reward + linkedRecords.sumOf { it.totalRewardUsd },
+            gas = base.gas + linkedRecords.sumOf { it.totalGasCostUsd }
+        )
     }
+    val displayedProjects = combinedProjects.filter { selectedTag == null || selectedTag in it.tags }
+        .let { filtered ->
+            when (ranking) {
+                CommunityRanking.REWARD -> filtered.sortedByDescending { it.reward }
+                CommunityRanking.GAS -> filtered.sortedByDescending { it.gas }
+                CommunityRanking.NEW -> filtered.sortedByDescending { it.freshness }
+            }
+        }
 
     LazyColumn(
         modifier.fillMaxSize().background(AppColors.Background),
@@ -77,7 +88,7 @@ fun CommunitySquareScreen(
                 Text("微社区广场", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("像逛 Steam 一样发现空投项目，按收益、风险和标签探索", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 Surface(color = Color(0xFFFFF4E5), shape = RoundedCornerShape(999.dp)) {
-                    Text("MOCK 社区数据 · 榜单仅供界面预览", Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    Text("Mock 基础样本 + 当前账号本地已确认账单 · 不上传自定义项目", Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                 }
             }
@@ -99,8 +110,8 @@ fun CommunitySquareScreen(
                     }
                 }
                 Text(when (ranking) {
-                    CommunityRanking.REWARD -> "按模拟全网总收益从高到低排列"
-                    CommunityRanking.GAS -> "按模拟 Gas 消耗从高到低排列，优先查看成本风险"
+                    CommunityRanking.REWARD -> "按 Mock 基础收益 + 本地已确认收益排列"
+                    CommunityRanking.GAS -> "按 Mock 基础 Gas + 本地已确认 Gas 排列"
                     CommunityRanking.NEW -> "按模拟加入时间从近到远排列"
                 }, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
@@ -168,9 +179,6 @@ fun CommunitySquareScreen(
                     }
                 }
             }
-        }
-        if (displayedProjects.isEmpty()) {
-            item { Text("当前标签下暂无项目", color = AppColors.TextHelper, modifier = Modifier.padding(vertical = 24.dp)) }
         }
     }
 }

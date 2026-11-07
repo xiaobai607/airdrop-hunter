@@ -193,7 +193,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                 tab == 2 -> CommunitySquareScreen(
                     modifier = Modifier.fillMaxSize(),
                     onProjectSelected = { id, name, description ->
-                        selectedCommunityProject = ProjectDto(id, name, description, "tracking")
+                        selectedCommunityProject = ProjectDto(id, name, description, "tracking", communityOfficialId = id)
                     }
                 )
                 tab == 1 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth,

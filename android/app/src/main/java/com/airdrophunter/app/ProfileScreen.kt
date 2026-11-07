@@ -46,7 +46,7 @@ fun ProfileScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Row(
-            if (isGuest) Modifier.clickable { onRequireAuth() } else Modifier,
+            Modifier,
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(13.dp)
         ) {
@@ -62,7 +62,7 @@ fun ProfileScreen(
                     fontWeight = FontWeight.Bold)
                 Text(
                     when {
-                        isGuest -> "登录后同步个人数据"
+                        isGuest -> "登录 / 注册账户，使用账户服务"
                         state.profile != null -> "ID: " + state.profile!!.uid
                         state.isLoading -> "正在加载账户信息…"
                         else -> "账户信息暂时无法加载"
@@ -94,7 +94,7 @@ fun ProfileScreen(
         }
 
         if (isGuest) {
-            Text("当前数据保存在本地，登录后可同步至云端", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+            Text("当前数据保存在本机；跨设备云同步功能正在开发中", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
             Button(onClick = onRequireAuth, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("登录 / 注册") }
         }
 

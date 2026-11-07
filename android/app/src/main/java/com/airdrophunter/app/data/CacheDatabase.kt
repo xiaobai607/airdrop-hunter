@@ -21,10 +21,16 @@ data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, 
 @Entity(tableName = "pending_bills")
 data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest")
 
-@Entity(tableName = "pnl_records", indices = [Index(value = ["accountScope", "projectOfficialId"], unique = true)])
+@Entity(
+    tableName = "pnl_records",
+    indices = [Index(value = ["accountScope", "projectLocalId"], unique = true)]
+)
 data class PnlRecordEntity(
     @PrimaryKey val id: String,
-    val projectOfficialId: String,
+    /** Nullable by design. Only an explicit community association may populate this field. */
+    val projectOfficialId: String?,
+    /** Stable local project ID; custom projects aggregate here without entering community totals. */
+    val projectLocalId: String,
     val projectCustomName: String,
     val walletAddress: String,
     val totalGasCostUsd: Double,
@@ -72,16 +78,23 @@ interface PendingBillDao {
 interface PnlRecordDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: PnlRecordEntity)
+
     @Query("SELECT * FROM pnl_records WHERE accountScope = :accountScope ORDER BY netProfitUsd DESC")
     fun observeAll(accountScope: String): Flow<List<PnlRecordEntity>>
+
     @Query("SELECT * FROM pnl_records WHERE projectOfficialId = :projectOfficialId AND accountScope = :accountScope LIMIT 1")
     suspend fun findByProject(projectOfficialId: String, accountScope: String): PnlRecordEntity?
-    @Query("UPDATE pnl_records SET projectCustomName = :customName, walletAddress = :walletAddress, totalGasCostUsd = totalGasCostUsd + :gas, totalRewardUsd = totalRewardUsd + :reward, netProfitUsd = netProfitUsd + :net WHERE projectOfficialId = :projectOfficialId AND accountScope = :accountScope")
-    suspend fun addAmounts(projectOfficialId: String, customName: String, walletAddress: String, gas: Double, reward: Double, net: Double, accountScope: String): Int
+
+    @Query("UPDATE pnl_records SET projectOfficialId = :projectOfficialId, projectCustomName = :customName, walletAddress = :walletAddress, totalGasCostUsd = totalGasCostUsd + :gas, totalRewardUsd = totalRewardUsd + :reward, netProfitUsd = netProfitUsd + :net WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope")
+    suspend fun addAmounts(projectLocalId: String, projectOfficialId: String?, customName: String, walletAddress: String, gas: Double, reward: Double, net: Double, accountScope: String): Int
+
     @Transaction
-    suspend fun addToProject(projectOfficialId: String, customName: String, walletAddress: String, gas: Double, reward: Double, accountScope: String) {
-        if (addAmounts(projectOfficialId, customName, walletAddress, gas, reward, reward - gas, accountScope) == 0) {
-            insert(PnlRecordEntity(java.util.UUID.randomUUID().toString(), projectOfficialId, customName, walletAddress, gas, reward, reward - gas, accountScope))
+    suspend fun addToProject(projectLocalId: String, projectOfficialId: String?, customName: String, walletAddress: String, gas: Double, reward: Double, accountScope: String) {
+        if (addAmounts(projectLocalId, projectOfficialId, customName, walletAddress, gas, reward, reward - gas, accountScope) == 0) {
+            insert(PnlRecordEntity(
+                java.util.UUID.randomUUID().toString(), projectOfficialId, projectLocalId,
+                customName, walletAddress, gas, reward, reward - gas, accountScope
+            ))
         }
     }
 }
@@ -100,7 +113,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class], version = 5, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class], version = 6, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -142,7 +155,7 @@ object CacheStore {
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
         }
     }
     private fun accountScopeFromToken(token: String?): String {
@@ -194,12 +207,23 @@ object CacheStore {
     suspend fun deletePendingBill(id: String) = withContext(Dispatchers.IO) {
         database?.pendingBillDao()?.delete(id, currentAccountScope())
     }
-    suspend fun confirmPendingBill(id: String, projectOfficialId: String, projectCustomName: String, gas: Double, reward: Double): Boolean = withContext(Dispatchers.IO) {
+    suspend fun confirmPendingBill(
+        id: String,
+        projectLocalId: String,
+        projectOfficialId: String?,
+        projectCustomName: String,
+        gas: Double,
+        reward: Double
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (projectLocalId.isBlank() || gas < 0.0 || reward < 0.0) return@withContext false
         val db = database ?: return@withContext false
         val scope = currentAccountScope()
         db.withTransaction {
             val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
-            db.pnlRecordDao().addToProject(projectOfficialId, projectCustomName, bill.walletAddress, gas, reward, scope)
+            val canonicalOfficialId = projectOfficialId?.takeIf { candidate ->
+                CommunityProjectCatalog.projects.any { it.officialId == candidate }
+            }
+            db.pnlRecordDao().addToProject(projectLocalId, canonicalOfficialId, projectCustomName, bill.walletAddress, gas, reward, scope)
             db.pendingBillDao().delete(id, scope)
             true
         }
@@ -214,6 +238,39 @@ object CacheStore {
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pnl_records_accountScope_projectOfficialId ON pnl_records(accountScope, projectOfficialId)")
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_project_ratings_accountScope_projectOfficialId_walletAddress ON project_ratings(accountScope, projectOfficialId, walletAddress)")
             db.execSQL("UPDATE cached_payloads SET cacheKey = 'guest:' || cacheKey WHERE cacheKey LIKE 'local:%'")
+        }
+    }
+    private val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE pnl_records_new (
+                    id TEXT NOT NULL,
+                    projectOfficialId TEXT,
+                    projectLocalId TEXT NOT NULL,
+                    projectCustomName TEXT NOT NULL,
+                    walletAddress TEXT NOT NULL,
+                    totalGasCostUsd REAL NOT NULL,
+                    totalRewardUsd REAL NOT NULL,
+                    netProfitUsd REAL NOT NULL,
+                    accountScope TEXT NOT NULL DEFAULT 'guest',
+                    PRIMARY KEY(id)
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO pnl_records_new (
+                    id, projectOfficialId, projectLocalId, projectCustomName, walletAddress,
+                    totalGasCostUsd, totalRewardUsd, netProfitUsd, accountScope
+                )
+                SELECT id,
+                    CASE WHEN projectOfficialId IN ('linea','scroll','zksync','starknet','base','arbitrum','optimism')
+                         THEN projectOfficialId ELSE NULL END,
+                    projectOfficialId, projectCustomName, walletAddress,
+                    totalGasCostUsd, totalRewardUsd, netProfitUsd, accountScope
+                FROM pnl_records
+            """.trimIndent())
+            db.execSQL("DROP TABLE pnl_records")
+            db.execSQL("ALTER TABLE pnl_records_new RENAME TO pnl_records")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pnl_records_accountScope_projectLocalId ON pnl_records(accountScope, projectLocalId)")
         }
     }
     private fun scopedKey(key: String): String {
