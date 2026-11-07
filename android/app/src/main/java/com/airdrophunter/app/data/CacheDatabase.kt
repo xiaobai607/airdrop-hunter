@@ -7,8 +7,11 @@ import androidx.room.migration.Migration
 import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -16,9 +19,9 @@ import org.json.JSONObject
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
 
 @Entity(tableName = "pending_bills")
-data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long)
+data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, val accountScope: String = "guest")
 
-@Entity(tableName = "pnl_records", indices = [Index(value = ["projectOfficialId"], unique = true)])
+@Entity(tableName = "pnl_records", indices = [Index(value = ["accountScope", "projectOfficialId"], unique = true)])
 data class PnlRecordEntity(
     @PrimaryKey val id: String,
     val projectOfficialId: String,
@@ -26,19 +29,21 @@ data class PnlRecordEntity(
     val walletAddress: String,
     val totalGasCostUsd: Double,
     val totalRewardUsd: Double,
-    val netProfitUsd: Double
+    val netProfitUsd: Double,
+    val accountScope: String = "guest"
 )
 
 @Entity(
     tableName = "project_ratings",
-    indices = [Index(value = ["projectOfficialId", "walletAddress"], unique = true)]
+    indices = [Index(value = ["accountScope", "projectOfficialId", "walletAddress"], unique = true)]
 )
 data class ProjectRatingEntity(
     @PrimaryKey val id: String,
     val projectOfficialId: String,
     val walletAddress: String,
     val score: Int,
-    val timestamp: Long
+    val timestamp: Long,
+    val accountScope: String = "guest"
 )
 
 @Dao
@@ -55,28 +60,28 @@ interface CacheDao {
 interface PendingBillDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(bill: PendingBillEntity)
-    @Query("SELECT * FROM pending_bills ORDER BY timestamp DESC")
-    fun observeAll(): Flow<List<PendingBillEntity>>
-    @Query("SELECT * FROM pending_bills WHERE id = :id LIMIT 1")
-    suspend fun findById(id: String): PendingBillEntity?
-    @Query("DELETE FROM pending_bills WHERE id = :id")
-    suspend fun delete(id: String)
+    @Query("SELECT * FROM pending_bills WHERE accountScope = :accountScope ORDER BY timestamp DESC")
+    fun observeAll(accountScope: String): Flow<List<PendingBillEntity>>
+    @Query("SELECT * FROM pending_bills WHERE id = :id AND accountScope = :accountScope LIMIT 1")
+    suspend fun findById(id: String, accountScope: String): PendingBillEntity?
+    @Query("DELETE FROM pending_bills WHERE id = :id AND accountScope = :accountScope")
+    suspend fun delete(id: String, accountScope: String)
 }
 
 @Dao
 interface PnlRecordDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: PnlRecordEntity)
-    @Query("SELECT * FROM pnl_records ORDER BY netProfitUsd DESC")
-    fun observeAll(): Flow<List<PnlRecordEntity>>
-    @Query("SELECT * FROM pnl_records WHERE projectOfficialId = :projectOfficialId LIMIT 1")
-    suspend fun findByProject(projectOfficialId: String): PnlRecordEntity?
-    @Query("UPDATE pnl_records SET projectCustomName = :customName, walletAddress = :walletAddress, totalGasCostUsd = totalGasCostUsd + :gas, totalRewardUsd = totalRewardUsd + :reward, netProfitUsd = netProfitUsd + :net WHERE projectOfficialId = :projectOfficialId")
-    suspend fun addAmounts(projectOfficialId: String, customName: String, walletAddress: String, gas: Double, reward: Double, net: Double): Int
+    @Query("SELECT * FROM pnl_records WHERE accountScope = :accountScope ORDER BY netProfitUsd DESC")
+    fun observeAll(accountScope: String): Flow<List<PnlRecordEntity>>
+    @Query("SELECT * FROM pnl_records WHERE projectOfficialId = :projectOfficialId AND accountScope = :accountScope LIMIT 1")
+    suspend fun findByProject(projectOfficialId: String, accountScope: String): PnlRecordEntity?
+    @Query("UPDATE pnl_records SET projectCustomName = :customName, walletAddress = :walletAddress, totalGasCostUsd = totalGasCostUsd + :gas, totalRewardUsd = totalRewardUsd + :reward, netProfitUsd = netProfitUsd + :net WHERE projectOfficialId = :projectOfficialId AND accountScope = :accountScope")
+    suspend fun addAmounts(projectOfficialId: String, customName: String, walletAddress: String, gas: Double, reward: Double, net: Double, accountScope: String): Int
     @Transaction
-    suspend fun addToProject(projectOfficialId: String, customName: String, walletAddress: String, gas: Double, reward: Double) {
-        if (addAmounts(projectOfficialId, customName, walletAddress, gas, reward, reward - gas) == 0) {
-            insert(PnlRecordEntity(java.util.UUID.randomUUID().toString(), projectOfficialId, customName, walletAddress, gas, reward, reward - gas))
+    suspend fun addToProject(projectOfficialId: String, customName: String, walletAddress: String, gas: Double, reward: Double, accountScope: String) {
+        if (addAmounts(projectOfficialId, customName, walletAddress, gas, reward, reward - gas, accountScope) == 0) {
+            insert(PnlRecordEntity(java.util.UUID.randomUUID().toString(), projectOfficialId, customName, walletAddress, gas, reward, reward - gas, accountScope))
         }
     }
 }
@@ -85,17 +90,17 @@ interface PnlRecordDao {
 interface ProjectRatingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(rating: ProjectRatingEntity)
-    @Query("SELECT * FROM project_ratings WHERE projectOfficialId = :projectOfficialId ORDER BY timestamp DESC")
-    fun observeByProject(projectOfficialId: String): Flow<List<ProjectRatingEntity>>
-    @Query("SELECT * FROM project_ratings WHERE projectOfficialId = :projectOfficialId AND walletAddress = :walletAddress LIMIT 1")
-    suspend fun findByWallet(projectOfficialId: String, walletAddress: String): ProjectRatingEntity?
-    @Query("SELECT AVG(score) FROM project_ratings WHERE projectOfficialId = :projectOfficialId")
-    fun observeAverage(projectOfficialId: String): Flow<Double?>
-    @Query("SELECT * FROM project_ratings ORDER BY timestamp DESC")
-    fun observeAll(): Flow<List<ProjectRatingEntity>>
+    @Query("SELECT * FROM project_ratings WHERE projectOfficialId = :projectOfficialId AND accountScope = :accountScope ORDER BY timestamp DESC")
+    fun observeByProject(projectOfficialId: String, accountScope: String): Flow<List<ProjectRatingEntity>>
+    @Query("SELECT * FROM project_ratings WHERE projectOfficialId = :projectOfficialId AND walletAddress = :walletAddress AND accountScope = :accountScope LIMIT 1")
+    suspend fun findByWallet(projectOfficialId: String, walletAddress: String, accountScope: String): ProjectRatingEntity?
+    @Query("SELECT AVG(score) FROM project_ratings WHERE projectOfficialId = :projectOfficialId AND accountScope = :accountScope")
+    fun observeAverage(projectOfficialId: String, accountScope: String): Flow<Double?>
+    @Query("SELECT * FROM project_ratings WHERE accountScope = :accountScope ORDER BY timestamp DESC")
+    fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class], version = 4, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class], version = 5, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -103,6 +108,7 @@ abstract class CacheDatabase : RoomDatabase() {
     abstract fun projectRatingDao(): ProjectRatingDao
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 object CacheStore {
     @Volatile private var database: CacheDatabase? = null
     private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -130,39 +136,84 @@ object CacheStore {
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pnl_records_projectOfficialId ON pnl_records(projectOfficialId)")
         }
     }
+    @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
+        appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
-            if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
+            if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
         }
     }
-    fun observePendingBills(): Flow<List<PendingBillEntity>> = database?.pendingBillDao()?.observeAll() ?: flowOf(emptyList())
-    fun observePnlRecords(): Flow<List<PnlRecordEntity>> = database?.pnlRecordDao()?.observeAll() ?: flowOf(emptyList())
+    private fun accountScopeFromToken(token: String?): String {
+        if (token.isNullOrBlank()) return "guest"
+        val payload = token.split(".").getOrNull(1) ?: return "invalid-session"
+        return try {
+            val decoded = Base64.decode(payload, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+            val userId = JSONObject(String(decoded, Charsets.UTF_8)).optString("sub", "")
+            if (userId.isBlank()) "invalid-session" else "user:$userId"
+        } catch (_: Exception) { "invalid-session" }
+    }
+    private fun currentAccountScope(): String = accountScopeFromToken(TokenStore.readTokenBlocking())
+    private fun observeAccountScope(): Flow<String> {
+        val context = appContext ?: return flowOf("guest")
+        return TokenStore.observeToken(context).map { accountScopeFromToken(it) }
+    }
+    fun observePendingBills(): Flow<List<PendingBillEntity>> = observeAccountScope().flatMapLatest { scope ->
+        database?.pendingBillDao()?.observeAll(scope) ?: flowOf(emptyList())
+    }
+    fun observePnlRecords(): Flow<List<PnlRecordEntity>> = observeAccountScope().flatMapLatest { scope ->
+        database?.pnlRecordDao()?.observeAll(scope) ?: flowOf(emptyList())
+    }
     fun observeProjectRatings(projectOfficialId: String): Flow<List<ProjectRatingEntity>> =
-        database?.projectRatingDao()?.observeByProject(projectOfficialId) ?: flowOf(emptyList())
+        observeAccountScope().flatMapLatest { scope ->
+            database?.projectRatingDao()?.observeByProject(projectOfficialId, scope) ?: flowOf(emptyList())
+        }
     fun observeProjectRatingAverage(projectOfficialId: String): Flow<Double?> =
-        database?.projectRatingDao()?.observeAverage(projectOfficialId) ?: flowOf(null)
-    fun observeAllProjectRatings(): Flow<List<ProjectRatingEntity>> =
-        database?.projectRatingDao()?.observeAll() ?: flowOf(emptyList())
+        observeAccountScope().flatMapLatest { scope ->
+            database?.projectRatingDao()?.observeAverage(projectOfficialId, scope) ?: flowOf(null)
+        }
+    fun observeAllProjectRatings(): Flow<List<ProjectRatingEntity>> = observeAccountScope().flatMapLatest { scope ->
+        database?.projectRatingDao()?.observeAll(scope) ?: flowOf(emptyList())
+    }
     suspend fun hasPnlParticipation(projectOfficialId: String): Boolean = withContext(Dispatchers.IO) {
-        database?.pnlRecordDao()?.findByProject(projectOfficialId) != null
+        val scope = currentAccountScope()
+        database?.pnlRecordDao()?.findByProject(projectOfficialId, scope) != null
     }
     suspend fun saveProjectRating(projectOfficialId: String, walletAddress: String, score: Int): Boolean = withContext(Dispatchers.IO) {
         if (score !in 1..5) return@withContext false
         val db = database ?: return@withContext false
-        if (db.pnlRecordDao().findByProject(projectOfficialId) == null) return@withContext false
-        db.projectRatingDao().insert(ProjectRatingEntity(java.util.UUID.randomUUID().toString(), projectOfficialId, walletAddress, score, System.currentTimeMillis()))
+        val scope = currentAccountScope()
+        if (db.pnlRecordDao().findByProject(projectOfficialId, scope) == null) return@withContext false
+        db.projectRatingDao().insert(ProjectRatingEntity(java.util.UUID.randomUUID().toString(), projectOfficialId, walletAddress, score, System.currentTimeMillis(), scope))
         true
     }
-    suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) { database?.pendingBillDao()?.insert(bill) }
-    suspend fun deletePendingBill(id: String) = withContext(Dispatchers.IO) { database?.pendingBillDao()?.delete(id) }
+    suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) {
+        database?.pendingBillDao()?.insert(bill.copy(accountScope = currentAccountScope()))
+    }
+    suspend fun deletePendingBill(id: String) = withContext(Dispatchers.IO) {
+        database?.pendingBillDao()?.delete(id, currentAccountScope())
+    }
     suspend fun confirmPendingBill(id: String, projectOfficialId: String, projectCustomName: String, gas: Double, reward: Double): Boolean = withContext(Dispatchers.IO) {
         val db = database ?: return@withContext false
+        val scope = currentAccountScope()
         db.withTransaction {
-            val bill = db.pendingBillDao().findById(id) ?: return@withTransaction false
-            db.pnlRecordDao().addToProject(projectOfficialId, projectCustomName, bill.walletAddress, gas, reward)
-            db.pendingBillDao().delete(id)
+            val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
+            db.pnlRecordDao().addToProject(projectOfficialId, projectCustomName, bill.walletAddress, gas, reward, scope)
+            db.pendingBillDao().delete(id, scope)
             true
+        }
+    }
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE pending_bills ADD COLUMN accountScope TEXT NOT NULL DEFAULT 'guest'")
+            db.execSQL("ALTER TABLE pnl_records ADD COLUMN accountScope TEXT NOT NULL DEFAULT 'guest'")
+            db.execSQL("ALTER TABLE project_ratings ADD COLUMN accountScope TEXT NOT NULL DEFAULT 'guest'")
+            db.execSQL("DROP INDEX IF EXISTS index_pnl_records_projectOfficialId")
+            db.execSQL("DROP INDEX IF EXISTS index_project_ratings_projectOfficialId_walletAddress")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pnl_records_accountScope_projectOfficialId ON pnl_records(accountScope, projectOfficialId)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_project_ratings_accountScope_projectOfficialId_walletAddress ON project_ratings(accountScope, projectOfficialId, walletAddress)")
+            db.execSQL("UPDATE cached_payloads SET cacheKey = 'guest:' || cacheKey WHERE cacheKey LIKE 'local:%'")
         }
     }
     private fun scopedKey(key: String): String {
@@ -178,8 +229,8 @@ object CacheStore {
     suspend fun write(key: String, payload: String) = withContext(Dispatchers.IO) {
         runCatching { database?.cacheDao()?.write(CachedPayload(scopedKey(key), payload, System.currentTimeMillis())) }; Unit
     }
-    suspend fun readLocal(key: String): String? = withContext(Dispatchers.IO) { runCatching { database?.cacheDao()?.read("local:$key") }.getOrNull() }
+    suspend fun readLocal(key: String): String? = withContext(Dispatchers.IO) { runCatching { database?.cacheDao()?.read("${currentAccountScope()}:local:$key") }.getOrNull() }
     suspend fun writeLocal(key: String, payload: String) = withContext(Dispatchers.IO) {
-        runCatching { database?.cacheDao()?.write(CachedPayload("local:$key", payload, System.currentTimeMillis())) }; Unit
+        runCatching { database?.cacheDao()?.write(CachedPayload("${currentAccountScope()}:local:$key", payload, System.currentTimeMillis())) }; Unit
     }
 }
