@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
@@ -49,9 +50,16 @@ class BrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ApiClient.initialize(applicationContext)
-        val url = intent.getStringExtra(EXTRA_URL).orEmpty()
+        val receivedUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
+        Log.d(TAG, "BrowserActivity received URL: $receivedUrl")
+        val url = normalizeHttpsUrl(receivedUrl)
         val site = intent.getStringExtra(EXTRA_TITLE).orEmpty()
-        if (!validHttps(url)) { finish(); return }
+        if (url == null) {
+            Log.e(TAG, "Rejected invalid browser URL: $receivedUrl")
+            Toast.makeText(this, "网址无效，请检查链接后重试", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
         val wallets = parseWallets(intent.getStringExtra(EXTRA_WALLETS_JSON).orEmpty())
         val selectedId = intent.getStringExtra(EXTRA_SELECTED_WALLET_ID).orEmpty()
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -66,10 +74,18 @@ class BrowserActivity : ComponentActivity() {
         }
     }
 
-    private fun validHttps(value: String): Boolean = try {
-        val uri = Uri.parse(value)
-        uri.scheme.equals("https", true) && !uri.host.isNullOrBlank() && uri.userInfo == null
-    } catch (_: Exception) { false }
+    private fun normalizeHttpsUrl(value: String): String? {
+        return try {
+            val trimmed = value.trim()
+            if (trimmed.isBlank()) null
+            else {
+                val withScheme = if ("://" in trimmed) trimmed else "https://$trimmed"
+                val parsed = Uri.parse(withScheme)
+                if (!parsed.scheme.equals("https", true) || parsed.host.isNullOrBlank() || parsed.userInfo != null) null
+                else parsed.toString()
+            }
+        } catch (_: Exception) { null }
+    }
 
     private fun parseWallets(raw: String): List<BrowserWallet> = try {
         val array = JSONArray(raw)
@@ -83,6 +99,7 @@ class BrowserActivity : ComponentActivity() {
     } catch (_: Exception) { emptyList() }
 
     companion object {
+        private const val TAG = "AirdropBrowser"
         const val EXTRA_URL = "com.airdrophunter.app.extra.BROWSER_URL"
         const val EXTRA_TITLE = "com.airdrophunter.app.extra.BROWSER_TITLE"
         const val EXTRA_WALLETS_JSON = "com.airdrophunter.app.extra.BROWSER_WALLETS_JSON"
@@ -105,6 +122,8 @@ private fun BrowserScreen(
         mutableStateOf(wallets.firstOrNull { it.id == selectedWalletId } ?: wallets.firstOrNull())
     }
     var showWalletPicker by remember { mutableStateOf(false) }
+    var pendingSslHandler by remember { mutableStateOf<SslErrorHandler?>(null) }
+    var pendingSslMessage by remember { mutableStateOf<String?>(null) }
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
 
     DisposableEffect(browser) {
@@ -143,7 +162,9 @@ private fun BrowserScreen(
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
-                            userAgentString = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+                            databaseEnabled = true
+                            loadsImagesAutomatically = true
+                            userAgentString = "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
                             allowFileAccess = false
                             allowContentAccess = false
                             javaScriptCanOpenWindowsAutomatically = false
@@ -157,14 +178,29 @@ private fun BrowserScreen(
                                 val target = request?.url ?: return true
                                 return !target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null
                             }
+                            override fun onReceivedError(
+                                view: WebView?,
+                                request: WebResourceRequest?,
+                                error: android.webkit.WebResourceError?
+                            ) {
+                                super.onReceivedError(view, request, error)
+                                if (request?.isForMainFrame == true) {
+                                    Log.e("AirdropBrowser", "Main-frame load error: ${error?.errorCode} ${error?.description}")
+                                }
+                            }
+
                             override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
-                                handler?.cancel()
+                                if (handler == null) return
+                                pendingSslHandler?.cancel()
+                                pendingSslHandler = handler
+                                pendingSslMessage = "网站证书验证失败（${error?.primaryError ?: "未知错误"}）。继续访问可能导致账号、密码或钱包信息泄露。仅在确认网址可信且不输入敏感信息时继续。"
+                                Log.w("AirdropBrowser", "SSL certificate error: $error")
                             }
                         }
                         loadUrl(url)
                     }
                 },
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier.weight(1f).fillMaxWidth().background(Color.White),
                 update = { view -> if (browser !== view) browser = view }
             )
             BrowserAccountingToolbar(
@@ -180,6 +216,32 @@ private fun BrowserScreen(
                 }
             )
         }
+    }
+
+    if (pendingSslMessage != null) {
+        AlertDialog(
+            onDismissRequest = {
+                pendingSslHandler?.cancel()
+                pendingSslHandler = null
+                pendingSslMessage = null
+            },
+            title = { Text("网站证书不安全", color = AppColors.TextPrimary) },
+            text = { Text(pendingSslMessage.orEmpty(), color = AppColors.TextSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingSslHandler?.proceed()
+                    pendingSslHandler = null
+                    pendingSslMessage = null
+                }) { Text("仍然继续（不安全）", color = Color(0xFFB42318)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    pendingSslHandler?.cancel()
+                    pendingSslHandler = null
+                    pendingSslMessage = null
+                }) { Text("取消并返回") }
+            }
+        )
     }
 
     if (showWalletPicker) {
