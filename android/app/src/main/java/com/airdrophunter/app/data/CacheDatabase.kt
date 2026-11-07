@@ -19,7 +19,7 @@ import org.json.JSONObject
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
 
 @Entity(tableName = "pending_bills")
-data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, val accountScope: String = "guest")
+data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest")
 
 @Entity(tableName = "pnl_records", indices = [Index(value = ["accountScope", "projectOfficialId"], unique = true)])
 data class PnlRecordEntity(
@@ -30,7 +30,7 @@ data class PnlRecordEntity(
     val totalGasCostUsd: Double,
     val totalRewardUsd: Double,
     val netProfitUsd: Double,
-    val accountScope: String = "guest"
+    @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest"
 )
 
 @Entity(
@@ -43,7 +43,7 @@ data class ProjectRatingEntity(
     val walletAddress: String,
     val score: Int,
     val timestamp: Long,
-    val accountScope: String = "guest"
+    @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest"
 )
 
 @Dao
