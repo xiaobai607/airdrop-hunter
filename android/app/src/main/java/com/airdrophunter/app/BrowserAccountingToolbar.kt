@@ -51,6 +51,7 @@ fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
     var gas by remember { mutableStateOf("2.50") }
     var reward by remember { mutableStateOf("0") }
     var saving by remember { mutableStateOf(false) }
+    var fetchingGas by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val type = object : TypeToken<List<ProjectDto>>() {}.type
