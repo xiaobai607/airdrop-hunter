@@ -13,6 +13,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebChromeClient
+import android.webkit.PermissionRequest
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -147,11 +149,16 @@ private fun BrowserScreen(
     var pendingSslHandler by remember { mutableStateOf<SslErrorHandler?>(null) }
     var pendingSslMessage by remember { mutableStateOf<String?>(null) }
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
+    var currentPageUrl by remember(url) { mutableStateOf(url) }
+    var approvedExternalEntry by remember(url) { mutableStateOf(false) }
     val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
 
     DisposableEffect(browser) {
         onDispose { browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() } }
+    }
+    LaunchedEffect(approvedExternalEntry, browser) {
+        if (approvedExternalEntry) browser?.loadUrl(url)
     }
 
     val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
@@ -176,9 +183,19 @@ private fun BrowserScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background)
                 )
                 Surface(Modifier.fillMaxWidth(), color = Color(0xFF9F2525)) {
-                    Text("⚠️ 安全提醒：本 App 不保存私钥。交易签名将在外部钱包 App 中完成，请仔细核对。",
+                    Text("⚠️ 安全提醒：本 App 不保存私钥。当前为第三方网页，签名将在外部钱包完成，请仔细核对！",
                         Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
                         color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                }
+                Surface(Modifier.fillMaxWidth(), color = Color(0xFFFFF4E5)) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("真实域名", color = Color(0xFF8A4B08), style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(8.dp))
+                        Text(registrableDomain(currentPageUrl), color = Color(0xFF7A271A),
+                            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
                 }
             }
         }
@@ -205,17 +222,24 @@ private fun BrowserScreen(
                         }
                         CookieManager.getInstance().setAcceptCookie(true)
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onPermissionRequest(request: PermissionRequest?) {
+                                request?.deny()
+                            }
+                        }
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 val target = request?.url ?: return true
                                 return !target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
+                                pageUrl?.let { currentPageUrl = it }
                                 pageState = BrowserPageState.Loading
                                 Log.d("AirdropBrowser", "Page started: $pageUrl")
                             }
 
                             override fun onPageFinished(view: WebView?, pageUrl: String?) {
+                                pageUrl?.let { currentPageUrl = it }
                                 pageState = BrowserPageState.Success
                                 Log.d("AirdropBrowser", "Page finished: $pageUrl")
                             }
@@ -252,7 +276,6 @@ private fun BrowserScreen(
                                 Log.w("AirdropBrowser", "SSL certificate error: $error")
                             }
                         }
-                        loadUrl(url)
                     }
                 },
                 modifier = Modifier.fillMaxSize().background(Color.White).alpha(webAlpha),
@@ -274,6 +297,29 @@ private fun BrowserScreen(
                     }
                 }
             )
+        }
+    }
+
+    if (!approvedExternalEntry) {
+        Dialog(onDismissRequest = onExit, properties = DialogProperties(
+            dismissOnBackPress = false, dismissOnClickOutside = false
+        )) {
+            Surface(shape = RoundedCornerShape(22.dp), color = Color.White) {
+                Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text("⚠️ 第三方网站安全提醒", color = Color(0xFFB42318),
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("您即将离开 Airdrop Hunter，进入第三方网站。本 App 无法控制该网站安全，请核对域名，切勿泄露私钥。",
+                        color = AppColors.TextPrimary, style = MaterialTheme.typography.bodyMedium)
+                    Text("目标域名：${registrableDomain(url)}", color = Color(0xFFB42318),
+                        fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                    Button(onClick = { approvedExternalEntry = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB42318))) {
+                        Text("已了解，继续", color = Color.White)
+                    }
+                    TextButton(onClick = onExit, modifier = Modifier.fillMaxWidth()) { Text("取消并返回") }
+                }
+            }
         }
     }
 
@@ -327,6 +373,21 @@ private fun BrowserScreen(
     }
 }
 
+
+private fun registrableDomain(rawUrl: String): String {
+    val host = runCatching { Uri.parse(rawUrl).host.orEmpty().lowercase() }.getOrDefault("")
+    if (host.isBlank()) return "未知域名"
+    val labels = host.split(".").filter { it.isNotBlank() }
+    if (labels.size < 3) return host
+    val twoLevelSuffixes = setOf(
+        "co.uk", "org.uk", "ac.uk", "com.au", "net.au", "org.au",
+        "co.jp", "ne.jp", "com.br", "com.cn", "com.hk", "com.sg",
+        "co.nz", "co.kr", "com.mx", "com.tr", "com.tw", "co.in"
+    )
+    val suffix = labels.takeLast(2).joinToString(".")
+    return if (suffix in twoLevelSuffixes) labels.takeLast(3).joinToString(".")
+    else labels.takeLast(2).joinToString(".")
+}
 
 private enum class BrowserPageState { Loading, Success, Error }
 
