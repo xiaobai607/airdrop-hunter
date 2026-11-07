@@ -17,6 +17,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -132,7 +133,7 @@ private fun BrowserScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = AppColors.Background,
+        containerColor = Color.White,
         topBar = {
             Column {
                 TopAppBar(
@@ -153,7 +154,7 @@ private fun BrowserScreen(
             }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().padding(padding).navigationBarsPadding().background(Color.White)) {
             AndroidView(
                 factory = { ctx ->
                     WebView(ctx).apply {
@@ -172,12 +173,21 @@ private fun BrowserScreen(
                             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                             safeBrowsingEnabled = true
                         }
-                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+                        CookieManager.getInstance().setAcceptCookie(true)
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 val target = request?.url ?: return true
                                 return !target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null
                             }
+                            override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
+                                Log.d(TAG, "Page started: $pageUrl")
+                            }
+
+                            override fun onPageFinished(view: WebView?, pageUrl: String?) {
+                                Log.d(TAG, "Page finished: $pageUrl")
+                            }
+
                             override fun onReceivedError(
                                 view: WebView?,
                                 request: WebResourceRequest?,
