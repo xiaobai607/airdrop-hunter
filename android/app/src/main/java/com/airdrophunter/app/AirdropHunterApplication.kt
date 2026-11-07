@@ -33,9 +33,13 @@ class AirdropHunterApplication : Application() {
         ) { error ->
             Log.e("AirdropWallet", "WalletConnect core initialization failed", error.throwable)
         }
-        AppKit.initialize(Modal.Params.Init(core = CoreClient)) { error ->
-            Log.e("AirdropWallet", "AppKit initialization failed", error.throwable)
-        }
+        AppKit.initialize(
+            init = Modal.Params.Init(core = CoreClient),
+            onSuccess = { AppKit.setDelegate(WalletConnectSessionDelegate) },
+            onError = { error ->
+                Log.e("AirdropWallet", "AppKit initialization failed", error.throwable)
+            }
+        )
         AppKit.setChains(AppKitChainsPresets.ethChains.values.toList())
     }
 }

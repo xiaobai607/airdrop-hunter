@@ -10,6 +10,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.ModalBottomSheetValue
+import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +24,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.google.accompanist.navigation.material.BottomSheetNavigator
+import com.google.accompanist.navigation.material.ExperimentalMaterialNavigationApi
+import com.google.accompanist.navigation.material.ModalBottomSheetLayout
+import com.reown.appkit.client.AppKit
+import com.reown.appkit.ui.AppKitTheme
+import com.reown.appkit.ui.appKitGraph
+import com.reown.appkit.ui.openAppKit
 import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
 import com.google.gson.Gson
@@ -97,6 +110,7 @@ private fun detectEcosystem(address: String): String? =
         else -> null
     }
 
+@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class)
 @Composable
 fun WalletManagerScreen(
     modifier: Modifier = Modifier,
@@ -113,6 +127,25 @@ fun WalletManagerScreen(
     var walletName by remember { mutableStateOf("") }
     var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
     val ecosystem = remember(address) { detectEcosystem(address.trim()) }
+    val connectedAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
+    var pendingConnectedAccount by remember { mutableStateOf<WalletConnectAccount?>(null) }
+    var connectedWalletName by remember { mutableStateOf("") }
+    val walletSheetState = rememberModalBottomSheetState(
+        initialValue = ModalBottomSheetValue.Hidden,
+        skipHalfExpanded = true
+    )
+    val walletSheetNavigator = remember(walletSheetState) { BottomSheetNavigator(walletSheetState) }
+    val walletNavController = rememberNavController(walletSheetNavigator)
+
+    LaunchedEffect(connectedAccounts, state.wallets) {
+        val unsaved = connectedAccounts.firstOrNull { connected ->
+            state.wallets.none { it.address.equals(connected.address, ignoreCase = true) }
+        }
+        if (unsaved != null && pendingConnectedAccount == null) {
+            pendingConnectedAccount = unsaved
+            connectedWalletName = unsaved.walletLabel
+        }
+    }
 
     LaunchedEffect(isGuest) {
         walletViewModel.load(isGuest)
@@ -123,6 +156,11 @@ fun WalletManagerScreen(
         return
     }
 
+    AppKitTheme(mode = AppKitTheme.Mode.LIGHT) {
+    ModalBottomSheetLayout(
+        bottomSheetNavigator = walletSheetNavigator,
+        sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -158,6 +196,26 @@ fun WalletManagerScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Text("添加钱包")
+            }
+        }
+
+        if (connectedAccounts.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("WalletConnect 已连接", color = AppColors.Primary, fontWeight = FontWeight.SemiBold)
+                    Text("已读取外部钱包公开地址；连接不代表允许交易", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                }
+                TextButton(onClick = {
+                    AppKit.disconnect(
+                        onSuccess = { WalletConnectSessionDelegate.clearSession() },
+                        onError = { error ->
+                            android.widget.Toast.makeText(context, "断开连接失败", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    )
+                }) { Text("断开连接", color = AppColors.Danger) }
             }
         }
 
@@ -259,6 +317,20 @@ fun WalletManagerScreen(
             title = { Text("添加公开钱包地址") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "推荐使用外部钱包安全连接。Airdrop Hunter 只读取钱包公开地址，不会获取私钥或助记词。",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            showAddDialog = false
+                            walletNavController.openAppKit()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("连接外部钱包（WalletConnect）")
+                    }
                     OutlinedTextField(
                         value = address,
                         onValueChange = { address = it },
@@ -317,6 +389,55 @@ fun WalletManagerScreen(
                 }
             }
         )
+    }
+
+    pendingConnectedAccount?.let { connected ->
+        AlertDialog(
+            onDismissRequest = { pendingConnectedAccount = null },
+            containerColor = AppColors.Surface,
+            title = { Text("外部钱包连接成功") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("已从 WalletConnect 会话读取公开地址：", color = AppColors.TextSecondary)
+                    Text(connected.address, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    Text("来源：${connected.walletLabel} · EVM 链 ${connected.chainId}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text("保存只记录公开地址，不授予网站交易或签名权限。每笔交易仍需在外部钱包单独确认。", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(
+                        value = connectedWalletName,
+                        onValueChange = { connectedWalletName = it },
+                        label = { Text("钱包备注名称") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        walletViewModel.add(
+                            WalletWriteRequest(
+                                wallet_name = connectedWalletName.trim().ifBlank { connected.walletLabel },
+                                chain = WalletEcosystem.EVM,
+                                address = connected.address
+                            ),
+                            isGuest
+                        )
+                        pendingConnectedAccount = null
+                    },
+                    enabled = !state.isSaving,
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                ) { Text("保存公开地址") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingConnectedAccount = null }) { Text("暂不保存") }
+            }
+        )
+    }
+
+    NavHost(walletNavController, startDestination = "wallet_manager_host") {
+        composable("wallet_manager_host") { }
+        appKitGraph(walletNavController)
+    }
+    }
     }
 }
 
