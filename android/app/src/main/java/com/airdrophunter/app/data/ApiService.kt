@@ -9,6 +9,12 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
+data class EvmGasTransactionDto(
+    val hash: String,
+    val gasUsed: String,
+    val gasPrice: String
+)
+
 interface ApiService {
     @POST("api/auth/register") suspend fun register(@Body request: AuthRequest): AuthResponse
     @POST("api/auth/login") suspend fun login(@Body request: AuthRequest): AuthResponse
@@ -40,4 +46,5 @@ interface ApiService {
     @DELETE("api/wallets/{walletId}") suspend fun deleteWallet(@Path("walletId") walletId: String)
     @GET("api/stats") suspend fun getStats(): StatsDto
     @GET("api/user/stats") suspend fun getUserStats(): UserStatsDto
+    @GET("api/gas/evm/latest") suspend fun getLatestEvmTransaction(@Query("address") address: String): EvmGasTransactionDto
 }

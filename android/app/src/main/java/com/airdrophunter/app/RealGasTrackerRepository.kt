@@ -1,6 +1,7 @@
 package com.airdrophunter.app
 
 import android.util.Log
+import com.airdrophunter.app.data.ApiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
@@ -27,9 +28,6 @@ class RealGasTrackerRepository {
         .readTimeout(15, TimeUnit.SECONDS)
         .callTimeout(25, TimeUnit.SECONDS)
         .build()
-
-    // Etherscan API key supplied for this integration. Client-side keys are visible in APKs.
-    private val etherscanApiKey = "5MVN2SCP1A2HBFX62FNQTD4RRCSU9DUUY5"
 
     suspend fun fetchLatestGasCost(address: String): RealGasResult? = withContext(Dispatchers.IO) {
         try {
@@ -87,52 +85,27 @@ class RealGasTrackerRepository {
     }
 
     /**
-     * Etherscan V2 is queried for Ethereum mainnet (chainid=1).
-     * The transaction's actual gasUsed * gasPrice is converted from wei to ETH,
-     * then valued using OKX's public ETH-USDT ticker.
+     * Etherscan credentials stay on the backend. The app receives only the
+     * validated transaction fields needed to calculate the historical gas cost.
      */
-    private fun fetchEvmGas(address: String): RealGasResult? {
-        val url = HttpUrl.Builder()
-            .scheme("https")
-            .host("api.etherscan.io")
-            .addPathSegments("v2/api")
-            .addQueryParameter("chainid", "1")
-            .addQueryParameter("module", "account")
-            .addQueryParameter("action", "txlist")
-            .addQueryParameter("address", address)
-            .addQueryParameter("page", "1")
-            .addQueryParameter("offset", "1")
-            .addQueryParameter("sort", "desc")
-            .addQueryParameter("apikey", etherscanApiKey)
-            .build()
+    private suspend fun fetchEvmGas(address: String): RealGasResult? {
+        val tx = ApiClient.service.getLatestEvmTransaction(address)
+        val hash = tx.hash.takeIf { it.matches(Regex("^0x[a-fA-F0-9]{64}$")) } ?: return null
+        val gasUsed = tx.gasUsed.toBigDecimalOrNull() ?: return null
+        val gasPriceWei = tx.gasPrice.toBigDecimalOrNull() ?: return null
+        if (gasUsed.signum() < 0 || gasPriceWei.signum() < 0) return null
 
-        val request = Request.Builder().url(url).header("User-Agent", "AirdropHunter/1.0").build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
-            val json = JSONObject(response.body?.string() ?: return null)
-            if (json.optString("status") != "1") {
-                Log.w("GasTracker", "Etherscan returned: ${json.optString("message")}")
-                return null
-            }
-            val transactions = json.optJSONArray("result") ?: return null
-            if (transactions.length() == 0) return null
+        val ethSpent = gasUsed.multiply(gasPriceWei)
+            .divide(BigDecimal("1000000000000000000"), 18, RoundingMode.HALF_UP)
+        val ethPrice = getOkxPrice("ETH-USDT") ?: return null
+        val usd = ethSpent.multiply(BigDecimal.valueOf(ethPrice))
+            .setScale(2, RoundingMode.HALF_UP)
 
-            val tx = transactions.optJSONObject(0) ?: return null
-            val hash = tx.optString("hash").takeIf { it.isNotBlank() } ?: return null
-            val gasUsed = tx.optString("gasUsed").toBigDecimalOrNull() ?: return null
-            val gasPriceWei = tx.optString("gasPrice").toBigDecimalOrNull() ?: return null
-            val ethSpent = gasUsed.multiply(gasPriceWei)
-                .divide(BigDecimal("1000000000000000000"), 18, RoundingMode.HALF_UP)
-            val ethPrice = getOkxPrice("ETH-USDT") ?: return null
-            val usd = ethSpent.multiply(BigDecimal.valueOf(ethPrice))
-                .setScale(2, RoundingMode.HALF_UP)
-
-            return RealGasResult(
-                gasCostUsd = usd.toDouble(),
-                interactionMethod = "EVM Transaction",
-                txHash = hash
-            )
-        }
+        return RealGasResult(
+            gasCostUsd = usd.toDouble(),
+            interactionMethod = "EVM Transaction",
+            txHash = hash
+        )
     }
 
     private fun getOkxPrice(instId: String): Double? {
