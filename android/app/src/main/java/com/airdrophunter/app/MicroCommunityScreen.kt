@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.WalletDto
@@ -39,11 +41,13 @@ fun MicroCommunityScreen(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val ratings by CacheStore.observeProjectRatings(projectOfficialId).collectAsStateWithLifecycle(initialValue = emptyList())
     val average by CacheStore.observeProjectRatingAverage(projectOfficialId).collectAsStateWithLifecycle(initialValue = null)
     val pnl by CacheStore.observePnlRecords().collectAsStateWithLifecycle(initialValue = emptyList())
     var wallet by remember { mutableStateOf("MOCK-WALLET-LOCAL") }
     var canRate by remember { mutableStateOf(false) }
+    var participationChecked by remember { mutableStateOf(false) }
     var selectedScore by remember { mutableIntStateOf(0) }
     var saved by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
@@ -68,6 +72,7 @@ fun MicroCommunityScreen(
         }.orEmpty()
         wallet = wallets.firstOrNull()?.address ?: "MOCK-WALLET-LOCAL"
         canRate = CacheStore.hasPnlParticipation(projectOfficialId)
+        participationChecked = true
     }
     LaunchedEffect(myRating) {
         if (myRating != null) { selectedScore = myRating.score; saved = true }
@@ -145,12 +150,16 @@ fun MicroCommunityScreen(
                                 imageVector = if (score <= selectedScore) Icons.Default.Star else Icons.Outlined.StarBorder,
                                 contentDescription = "$score 星",
                                 tint = if (score <= selectedScore) Color(0xFFFFB12B) else AppColors.TextHelper,
-                                modifier = Modifier.size(34.dp).clickable(enabled = canRate && !saved) { selectedScore = score }
+                                modifier = Modifier.size(34.dp).clickable(enabled = !saved) {
+                                    if (!participationChecked || !canRate) {
+                                        Toast.makeText(context, "仅限真实参与该项目的用户打分", Toast.LENGTH_SHORT).show()
+                                    } else selectedScore = score
+                                }
                             )
                         }
                     }
                     if (!canRate) {
-                        Text("仅限真实参与用户评价", color = AppColors.TextHelper, style = MaterialTheme.typography.labelMedium)
+                        Text("仅限真实参与该项目的用户打分", color = AppColors.TextHelper, style = MaterialTheme.typography.labelMedium)
                     } else if (saved) {
                         Text("已提交：匿名猎人 #${wallet.takeLast(4).uppercase()}", color = AppColors.Success, style = MaterialTheme.typography.labelMedium)
                     } else {
@@ -158,7 +167,9 @@ fun MicroCommunityScreen(
                     }
                     Button(
                         onClick = {
-                            if (canRate && selectedScore in 1..5 && !saved && !saving) {
+                            if (!participationChecked || !canRate) {
+                                Toast.makeText(context, "仅限真实参与该项目的用户打分", Toast.LENGTH_SHORT).show()
+                            } else if (selectedScore in 1..5 && !saved && !saving) {
                                 saving = true
                                 scope.launch {
                                     val ok = CacheStore.saveProjectRating(projectOfficialId, wallet, selectedScore)

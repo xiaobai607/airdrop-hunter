@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -89,6 +90,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
     val destinations = listOf(
         Destination(R.string.tab_home, Icons.Default.Home),
         Destination(R.string.tab_projects, Icons.Default.GridView),
+        Destination(R.string.tab_community, Icons.Default.Public),
         Destination(R.string.tab_profile, Icons.Default.Person)
     )
     val secondaryTitle = when {
@@ -187,6 +189,12 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                     onOpenProjects = { tab = 1 },
                     onOpenAirdropHub = { showAirdropHub = true },
                     isGuest = isGuest, onRequireAuth = onRequireAuth
+                )
+                tab == 2 -> CommunitySquareScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onProjectSelected = { id, name, description ->
+                        selectedCommunityProject = ProjectDto(id, name, description, "tracking")
+                    }
                 )
                 tab == 1 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth,
                     onOpenCommunity = { selectedCommunityProject = it })
