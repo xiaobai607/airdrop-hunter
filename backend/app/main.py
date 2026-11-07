@@ -29,7 +29,13 @@ logger = logging.getLogger("airdrop_hunter.api")
 
 async def run_database_migrations() -> None:
     """Run versioned PostgreSQL migrations off the event loop."""
-    config_path = Path(__file__).resolve().parent.parent / "alembic.ini"
+    candidates = (
+        Path.cwd() / "alembic.ini",
+        Path(__file__).resolve().parent.parent / "alembic.ini",
+    )
+    config_path = next((candidate for candidate in candidates if candidate.is_file()), None)
+    if config_path is None:
+        raise RuntimeError("Alembic configuration file was not found")
     config = Config(str(config_path))
     await asyncio.to_thread(command.upgrade, config, "head")
 

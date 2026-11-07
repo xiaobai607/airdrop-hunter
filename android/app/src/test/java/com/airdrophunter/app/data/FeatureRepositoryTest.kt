@@ -78,6 +78,7 @@ private class FakeHubRemote : AirdropHubRemoteDataSource {
     private val items = listOf(AirdropHubDto("1", "Example", "Base", "desc", "active", "https://example.org"))
     override suspend fun getProjects(chain: String?): List<AirdropHubDto> {
         lastChain = chain
+        if (syncCalls == 0 && status.last_attempt_at == null) return emptyList()
         return if (chain == null) items else items.filter { it.chain == chain }
     }
     override suspend fun getStatus() = status
