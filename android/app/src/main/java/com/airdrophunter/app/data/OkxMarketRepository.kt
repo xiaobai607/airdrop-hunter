@@ -67,7 +67,7 @@ class OkxMarketRepository {
 
             val missing = wanted.filterNot { byInstrument.containsKey(it) }
             if (missing.isNotEmpty()) {
-                throw IllegalStateException("OKX 行情数据不完整，缺少：\${missing.joinToString("、")}")
+                throw IllegalStateException("OKX 行情数据不完整，缺少：" + missing.joinToString("、") + "")
             }
 
             wanted.map { byInstrument.getValue(it) }

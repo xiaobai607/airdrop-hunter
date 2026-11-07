@@ -350,7 +350,7 @@ private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker) {
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text("$ $price", color = AppColors.TextPrimary,
                 style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Text(change, color = if (ticker.priceChangePercent >= 0) AppColors.Success else AppColors.Danger,
+            Text(change, color = if (ticker.change24hPercent >= 0) AppColors.Success else AppColors.Danger,
                 style = MaterialTheme.typography.labelSmall)
         }
     }
