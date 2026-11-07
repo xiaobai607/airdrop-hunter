@@ -3,7 +3,6 @@ package com.airdrophunter.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.airdrophunter.app.data.ProjectDetailUnusedMarker
 import com.airdrophunter.app.data.ProjectsRepository
 import com.airdrophunter.app.data.TaskDto
 import com.airdrophunter.app.data.WalletCheckResponse

@@ -82,7 +82,7 @@ class ProjectsRepository(
 
     suspend fun createProject(request: ProjectWriteRequest, guest: Boolean): List<ProjectDto> {
         if (guest) {
-            val current = decodeList<ProjectDto>(local.read("projects", true), projectsType)
+            val current = readCachedProjects(guest = true)
             val created = ProjectDto(
                 id = UUID.randomUUID().toString(),
                 name = request.name,
@@ -123,7 +123,7 @@ class ProjectsRepository(
 
     suspend fun deleteProject(project: ProjectDto, guest: Boolean): List<ProjectDto> {
         if (!guest) remote.deleteProject(project.id)
-        val current = decodeList<ProjectDto>(local.read("projects", guest), projectsType)
+        val current = readCachedProjects(guest)
         val updated = current.filterNot { it.id == project.id }
         local.write("projects", gson.toJson(updated), guest)
         return mergePnlProjects(updated)
