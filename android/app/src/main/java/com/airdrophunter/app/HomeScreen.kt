@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -108,43 +109,62 @@ fun HomeScreen(
         Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Text("快捷入口", color = AppColors.TextPrimary,
                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Card(
-                onClick = { showNavOverlay = true },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border),
-                elevation = CardDefaults.cardElevation(0.dp)
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("空投平台导航", Modifier.weight(1f), color = AppColors.TextPrimary,
-                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("打开文件夹  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        sites.sortedByDescending { it.clickCount }.take(4).forEach { site ->
-                            FaviconTile(site, Modifier.size(42.dp))
+                Card(
+                    onClick = { showNavOverlay = true },
+                    modifier = Modifier.weight(1f).height(164.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                    border = BorderStroke(1.dp, AppColors.Border),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        Modifier.fillMaxSize().padding(13.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            sites.sortedByDescending { it.clickCount }.take(4).chunked(2).forEach { rowSites ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    rowSites.forEach { site ->
+                                        FaviconTile(site, Modifier.size(25.dp))
+                                    }
+                                }
+                            }
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("空投平台导航", color = AppColors.TextPrimary,
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                                maxLines = 1)
+                            Text("常用活动网站", color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall, maxLines = 2)
                         }
                     }
                 }
-            }
-            Card(
-                onClick = onOpenWallet,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(13.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border),
-                elevation = CardDefaults.cardElevation(0.dp)
-            ) {
-                Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Shield, null, tint = AppColors.Primary, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("安全查钱包", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                        Text("通过公链网络验证公开地址", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+
+                Card(
+                    onClick = onOpenWallet,
+                    modifier = Modifier.weight(1f).height(164.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                    border = BorderStroke(1.dp, AppColors.Border),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        Modifier.fillMaxSize().padding(13.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Icon(Icons.Default.Shield, contentDescription = null,
+                            tint = AppColors.Primary, modifier = Modifier.size(48.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("安全查钱包", color = AppColors.TextPrimary,
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text("查询公开地址资产", color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                        }
                     }
-                    Text("›", color = AppColors.TextHelper)
                 }
             }
         }
@@ -154,9 +174,21 @@ fun HomeScreen(
                 Text("行情看板", color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
+                TextButton(
+                    onClick = {
+                        context.startActivity(
+                            Intent(context, BrowserActivity::class.java)
+                                .putExtra(BrowserActivity.EXTRA_URL, "https://m.coinmarketcap.com/")
+                                .putExtra(BrowserActivity.EXTRA_TITLE, "CoinMarketCap 行情")
+                        )
+                    },
+                    contentPadding = PaddingValues(horizontal = 5.dp, vertical = 4.dp)
+                ) {
+                    Text("全部行情 / 自主搜索", style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                }
                 Text(if (state.isRefreshing) "更新中" else "刷新",
-                    modifier = Modifier.clickable { vm.refresh(isGuest) }.padding(6.dp),
-                    color = AppColors.Primary, style = MaterialTheme.typography.labelLarge)
+                    modifier = Modifier.clickable { vm.refresh(isGuest) }.padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
+                    color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
             }
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -169,10 +201,18 @@ fun HomeScreen(
                     state.isLoading && state.market.isEmpty() -> Box(
                         Modifier.fillMaxWidth().padding(22.dp), contentAlignment = Alignment.Center
                     ) { CircularProgressIndicator(color = AppColors.Primary) }
-                    state.market.isEmpty() -> Text(
-                        if (state.hasError) "行情暂不可用，请稍后重试" else "暂无行情数据",
-                        Modifier.padding(18.dp), color = AppColors.TextSecondary
-                    )
+                    state.market.isEmpty() -> Column(
+                        Modifier.fillMaxWidth().padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("无法获取实时行情", color = AppColors.TextPrimary,
+                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(state.marketError ?: "请检查网络连接后重试。",
+                            color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { vm.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
+                            Text("点击重试", color = AppColors.Primary)
+                        }
+                    }
                     else -> Column {
                         state.market.forEachIndexed { index, ticker ->
                             MarketRow(ticker)
@@ -268,20 +308,19 @@ private fun FaviconTile(site: AirdropSite, modifier: Modifier = Modifier) {
     val primaryUrl = "https://www.google.com/s2/favicons?domain=${site.domain}&sz=128"
     val fallbackUrl = "https://icons.duckduckgo.com/ip3/${site.domain}.ico"
     var useFallback by remember(site.id) { mutableStateOf(false) }
-    Surface(modifier = modifier, shape = RoundedCornerShape(12.dp), color = Color(0xFFF3F5F7)) {
-        SubcomposeAsyncImage(
-            model = if (useFallback) fallbackUrl else primaryUrl,
-            contentDescription = site.name,
-            modifier = Modifier.fillMaxSize().padding(7.dp),
-            loading = { FaviconLetter(site) },
-            error = {
-                if (!useFallback) {
-                    LaunchedEffect(site.id) { useFallback = true }
-                    FaviconLetter(site)
-                } else FaviconLetter(site)
-            }
-        )
-    }
+    SubcomposeAsyncImage(
+        model = if (useFallback) fallbackUrl else primaryUrl,
+        contentDescription = site.name,
+        modifier = modifier.clip(RoundedCornerShape(8.dp)),
+        contentScale = ContentScale.Fit,
+        loading = { FaviconLetter(site) },
+        error = {
+            if (!useFallback) {
+                LaunchedEffect(site.id) { useFallback = true }
+                FaviconLetter(site)
+            } else FaviconLetter(site)
+        }
+    )
 }
 
 @Composable
@@ -293,20 +332,20 @@ private fun FaviconLetter(site: AirdropSite) {
 }
 
 @Composable
-private fun MarketRow(ticker: BinanceTicker) {
+private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker) {
     val price = NumberFormat.getNumberInstance(Locale.US).apply {
         minimumFractionDigits = 2
         maximumFractionDigits = 2
     }.format(ticker.lastPrice)
-    val change = String.format(Locale.US, "%+.2f%%", ticker.priceChangePercent)
+    val change = String.format(Locale.US, "%+.2f%%", ticker.change24hPercent)
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(ticker.shortSymbol, color = AppColors.TextPrimary,
+            Text(ticker.symbol, color = AppColors.TextPrimary,
                 style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Text(ticker.fullName, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            Text(ticker.displayName, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text("$ $price", color = AppColors.TextPrimary,
