@@ -120,11 +120,11 @@ fun ProjectsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filtered, key = { it.id }) { project ->
-                    val pnl = pnlRecords.firstOrNull { it.projectOfficialId == project.officialIdentifier() }
+                    val pnl = pnlRecords.firstOrNull { it.projectLocalId == project.id }
                     val gasTotal = pnl?.totalGasCostUsd ?: 0.0
                     val rewardTotal = pnl?.totalRewardUsd ?: 0.0
                     val netProfit = pnl?.netProfitUsd ?: 0.0
-                    val projectRatings = allRatings.filter { it.projectOfficialId == project.officialIdentifier() }
+                    val projectRatings = allRatings.filter { it.projectOfficialId == project.communityOfficialId }
                     val communityAverage = if (projectRatings.isEmpty()) 4.9 else projectRatings.map { it.score }.average()
                     val positiveRate = if (projectRatings.isEmpty()) 96 else projectRatings.count { it.score >= 4 } * 100 / projectRatings.size
                     val communityLabel = when {
@@ -169,11 +169,14 @@ fun ProjectsScreen(
                                     })
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Surface(onClick = { onOpenCommunity(project) }, shape = RoundedCornerShape(999.dp),
+                                Surface(onClick = {
+                                    if (project.communityOfficialId != null) onOpenCommunity(project)
+                                    else Toast.makeText(context, "这是纯本地项目，尚未关联社区标准项目", Toast.LENGTH_SHORT).show()
+                                }, shape = RoundedCornerShape(999.dp),
                                     color = Color(0xFFFFF4E5), border = BorderStroke(1.dp, Color(0xFFFFD9A8))) {
                                     Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text("微社区", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        Text(if (project.communityOfficialId != null) "微社区" else "本地项目", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
                                         Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12),
                                             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
