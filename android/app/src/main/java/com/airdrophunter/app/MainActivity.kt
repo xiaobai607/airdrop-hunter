@@ -80,11 +80,12 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
     var showAirdropHub by rememberSaveable { mutableStateOf(false) }
     var showWalletManager by rememberSaveable { mutableStateOf(false) }
     var showGlobalSearch by rememberSaveable { mutableStateOf(false) }
+    var showTronEnergy by rememberSaveable { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
     var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
 
-    BackHandler(showSources || showAirdropHub || showWalletManager || showGlobalSearch || selectedProject != null || selectedCommunityProject != null) {
-        showSources = false; showAirdropHub = false; showWalletManager = false; showGlobalSearch = false; selectedProject = null; selectedCommunityProject = null
+    BackHandler(showSources || showAirdropHub || showWalletManager || showGlobalSearch || showTronEnergy || selectedProject != null || selectedCommunityProject != null) {
+        showSources = false; showAirdropHub = false; showWalletManager = false; showGlobalSearch = false; showTronEnergy = false; selectedProject = null; selectedCommunityProject = null
     }
 
     val destinations = listOf(
@@ -98,6 +99,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
         showAirdropHub -> "空投大厅"
         showWalletManager -> "钱包管理"
         showGlobalSearch -> "全局搜索"
+        showTronEnergy -> "TRON 能量租赁助手"
         selectedCommunityProject != null -> "项目微社区"
         else -> stringResource(R.string.project_detail)
     }
@@ -106,11 +108,11 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
         modifier = Modifier.fillMaxSize().background(AppColors.Background),
         containerColor = AppColors.Background,
         topBar = {
-            if (showSources || showAirdropHub || showWalletManager || selectedProject != null || selectedCommunityProject != null) {
+            if (showSources || showAirdropHub || showWalletManager || showTronEnergy || selectedProject != null || selectedCommunityProject != null) {
                 TopAppBar(
                     title = { Text(secondaryTitle, color = AppColors.TextPrimary) },
                     navigationIcon = {
-                        IconButton(onClick = { showSources = false; showAirdropHub = false; showWalletManager = false; showGlobalSearch = false; selectedProject = null; selectedCommunityProject = null }) {
+                        IconButton(onClick = { showSources = false; showAirdropHub = false; showWalletManager = false; showGlobalSearch = false; showTronEnergy = false; selectedProject = null; selectedCommunityProject = null }) {
                             Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AppColors.TextPrimary)
                         }
                     },
@@ -119,7 +121,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
             }
         },
         bottomBar = {
-            if (!showSources && !showAirdropHub && !showWalletManager && !showGlobalSearch && selectedProject == null && selectedCommunityProject == null) {
+            if (!showSources && !showAirdropHub && !showWalletManager && !showGlobalSearch && !showTronEnergy && selectedProject == null && selectedCommunityProject == null) {
                 Box(Modifier.fillMaxWidth().height(80.dp)) {
                     Box(Modifier.fillMaxSize().blur(12.dp).background(AppColors.Navigation))
                     NavigationBar(modifier = Modifier.fillMaxSize(), containerColor = Color.Transparent, tonalElevation = 0.dp) {
@@ -142,6 +144,17 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
             when {
                 showSources -> SourcesScreen(Modifier.fillMaxSize())
                 showAirdropHub -> AirdropHubScreen(Modifier.fillMaxSize())
+                showTronEnergy -> TronEnergyAssistantScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onBack = { showTronEnergy = false },
+                    onOpenBrowser = { address ->
+                        showTronEnergy = false
+                        context.startActivity(Intent(context, BrowserActivity::class.java)
+                            .putExtra(BrowserActivity.EXTRA_URL, "https://feee.io/")
+                            .putExtra(BrowserActivity.EXTRA_TITLE, "TRON 能量租赁")
+                            .putExtra(BrowserActivity.EXTRA_QUICK_COPY_ADDRESS, address))
+                    }
+                )
                 showGlobalSearch -> GlobalSearchScreen(
                     modifier = Modifier.fillMaxSize(),
                     onCancel = { showGlobalSearch = false },
@@ -188,6 +201,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                     onOpenGlobalSearch = { showGlobalSearch = true },
                     onOpenProjects = { tab = 1 },
                     onOpenAirdropHub = { showAirdropHub = true },
+                    onOpenTronEnergy = { showTronEnergy = true },
                     isGuest = isGuest, onRequireAuth = onRequireAuth
                 )
                 tab == 2 -> CommunitySquareScreen(

@@ -27,7 +27,16 @@ import androidx.compose.material.rememberModalBottomSheetState
 import com.google.accompanist.navigation.material.BottomSheetNavigator
 import com.reown.appkit.ui.appKitGraph
 import com.reown.appkit.ui.openAppKit
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -80,7 +89,7 @@ class BrowserActivity : ComponentActivity() {
         window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         setContent {
             AirdropHunterTheme {
-                BrowserScreen(site.ifBlank { Uri.parse(url).host.orEmpty() }, url, wallets, selectedId) { finish() }
+                BrowserScreen(site.ifBlank { Uri.parse(url).host.orEmpty() }, url, wallets, selectedId, intent.getStringExtra(EXTRA_QUICK_COPY_ADDRESS).orEmpty()) { finish() }
             }
         }
     }
@@ -115,6 +124,7 @@ class BrowserActivity : ComponentActivity() {
         const val EXTRA_TITLE = "com.airdrophunter.app.extra.BROWSER_TITLE"
         const val EXTRA_WALLETS_JSON = "com.airdrophunter.app.extra.BROWSER_WALLETS_JSON"
         const val EXTRA_SELECTED_WALLET_ID = "com.airdrophunter.app.extra.BROWSER_SELECTED_WALLET_ID"
+        const val EXTRA_QUICK_COPY_ADDRESS = "com.airdrophunter.app.extra.BROWSER_QUICK_COPY_ADDRESS"
     }
 }
 
@@ -125,6 +135,7 @@ private fun BrowserScreen(
     url: String,
     wallets: List<BrowserWallet>,
     selectedWalletId: String,
+    quickCopyAddress: String,
     onExit: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -135,6 +146,8 @@ private fun BrowserScreen(
     var showWalletPicker by remember { mutableStateOf(false) }
     var pendingSslHandler by remember { mutableStateOf<SslErrorHandler?>(null) }
     var pendingSslMessage by remember { mutableStateOf<String?>(null) }
+    var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
+    val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
 
     DisposableEffect(browser) {
@@ -163,7 +176,7 @@ private fun BrowserScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background)
                 )
                 Surface(Modifier.fillMaxWidth(), color = Color(0xFF9F2525)) {
-                    Text("⚠️ 安全提醒：本 App 不保存您的私钥。交易签名将在外部钱包 App 中完成，请仔细核对。",
+                    Text("⚠️ 安全提醒：本 App 不保存私钥。交易签名将在外部钱包 App 中完成，请仔细核对。",
                         Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
                         color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 }
@@ -171,6 +184,7 @@ private fun BrowserScreen(
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).navigationBarsPadding().background(Color.White)) {
+            Box(Modifier.weight(1f).fillMaxWidth().background(Color.White)) {
             AndroidView(
                 factory = { ctx ->
                     WebView(ctx).apply {
@@ -197,10 +211,12 @@ private fun BrowserScreen(
                                 return !target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
+                                pageState = BrowserPageState.Loading
                                 Log.d("AirdropBrowser", "Page started: $pageUrl")
                             }
 
                             override fun onPageFinished(view: WebView?, pageUrl: String?) {
+                                pageState = BrowserPageState.Success
                                 Log.d("AirdropBrowser", "Page finished: $pageUrl")
                             }
 
@@ -211,7 +227,20 @@ private fun BrowserScreen(
                             ) {
                                 super.onReceivedError(view, request, error)
                                 if (request?.isForMainFrame == true) {
+                                    pageState = BrowserPageState.Error
                                     Log.e("AirdropBrowser", "Main-frame load error: ${error?.errorCode} ${error?.description}")
+                                }
+                            }
+
+                            override fun onReceivedHttpError(
+                                view: WebView?,
+                                request: WebResourceRequest?,
+                                errorResponse: android.webkit.WebResourceResponse?
+                            ) {
+                                super.onReceivedHttpError(view, request, errorResponse)
+                                if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 200) >= 400) {
+                                    pageState = BrowserPageState.Error
+                                    Log.e("AirdropBrowser", "Main-frame HTTP error: ${errorResponse?.statusCode}")
                                 }
                             }
 
@@ -226,14 +255,18 @@ private fun BrowserScreen(
                         loadUrl(url)
                     }
                 },
-                modifier = Modifier.weight(1f).fillMaxWidth().background(Color.White),
+                modifier = Modifier.fillMaxSize().background(Color.White).alpha(webAlpha),
                 update = { view -> if (browser !== view) browser = view }
             )
+            if (pageState != BrowserPageState.Success) {
+                BrowserPageOverlay(pageState, onExit, { pageState = BrowserPageState.Loading; browser?.reload() })
+            }
+            }
             BrowserAccountingToolbar(
-                walletAddress = selectedWallet?.address ?: "MOCK-WALLET-LOCAL",
+                walletAddress = quickCopyAddress.ifBlank { selectedWallet?.address ?: "MOCK-WALLET-LOCAL" },
                 onCopyAddress = {
-                    val address = selectedWallet?.address
-                    if (address.isNullOrBlank()) Toast.makeText(context, "当前没有可复制的钱包地址", Toast.LENGTH_SHORT).show()
+                    val address = quickCopyAddress.ifBlank { selectedWallet?.address.orEmpty() }
+                    if (address.isBlank()) Toast.makeText(context, "当前没有可复制的钱包地址", Toast.LENGTH_SHORT).show()
                     else {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", address))
@@ -289,6 +322,35 @@ private fun BrowserScreen(
                     }
                     TextButton(onClick = { showWalletPicker = false }, modifier = Modifier.align(Alignment.End)) { Text("关闭") }
                 }
+            }
+        }
+    }
+}
+
+
+private enum class BrowserPageState { Loading, Success, Error }
+
+@Composable
+private fun BrowserPageOverlay(state: BrowserPageState, onBack: () -> Unit, onRetry: () -> Unit) {
+    val infinite = rememberInfiniteTransition(label = "loading-pulse")
+    val pulse by infinite.animateFloat(0.92f, 1.08f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse")
+    Box(Modifier.fillMaxSize().background(Color(0xFFF8F9FA)), contentAlignment = Alignment.Center) {
+        if (state == BrowserPageState.Loading) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                Box(Modifier.size(76.dp).scale(pulse).background(Color(0xFFE8F3F1), CircleShape), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(42.dp), color = AppColors.Primary, strokeWidth = 3.dp)
+                    Text("⚡", style = MaterialTheme.typography.titleLarge)
+                }
+                Text("正在连接网页，请稍候...", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text("正在为你安全加载页面", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            }
+        } else {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("☁️", style = MaterialTheme.typography.displaySmall)
+                Text("网页暂时无法打开", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("加载失败，请检查网络后重试。", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("重新加载") }
+                TextButton(onClick = onBack) { Text("返回") }
             }
         }
     }
