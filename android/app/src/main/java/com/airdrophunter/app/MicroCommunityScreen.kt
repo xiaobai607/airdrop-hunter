@@ -48,6 +48,12 @@ fun MicroCommunityScreen(
     var saved by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
+    val projectRecords = pnl.filter { it.projectOfficialId == projectOfficialId }
+    val displayGasTotal = 1000.0 + projectRecords.sumOf { it.totalGasCostUsd }
+    val displayRewardTotal = 2000.0 + projectRecords.sumOf { it.totalRewardUsd }
+    val combinedTotal = (displayGasTotal + displayRewardTotal).coerceAtLeast(1.0)
+    val rewardWeight = (displayRewardTotal / combinedTotal).toFloat().coerceIn(0.01f, 0.99f)
+    val gasWeight = 1f - rewardWeight
     val periods = listOf(
         RatingPeriod("近 1 天", 4.9, 12, 96),
         RatingPeriod("近 3 天", 4.5, 45, 91),
@@ -78,20 +84,23 @@ fun MicroCommunityScreen(
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("全网盈亏大盘", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Row(Modifier.fillMaxWidth().height(30.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Box(Modifier.weight(2f).fillMaxHeight().background(Color(0xFF31C48D), RoundedCornerShape(topStart = 9.dp, bottomStart = 9.dp)))
-                        Box(Modifier.weight(1f).fillMaxHeight().background(Color(0xFFEF6262), RoundedCornerShape(topEnd = 9.dp, bottomEnd = 9.dp)))
+                        Box(Modifier.weight(rewardWeight).fillMaxHeight().background(Color(0xFF31C48D), RoundedCornerShape(topStart = 9.dp, bottomStart = 9.dp)))
+                        Box(Modifier.weight(gasWeight).fillMaxHeight().background(Color(0xFFEF6262), RoundedCornerShape(topEnd = 9.dp, bottomEnd = 9.dp)))
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column {
                             Text("全网总收益", color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
-                            Text("$2,000", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                            Text(String.format(java.util.Locale.US, "$%,.2f", displayRewardTotal), color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text("全网总花费", color = Color(0xFFFFB0B0), style = MaterialTheme.typography.labelSmall)
-                            Text("$1,000", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                            Text(String.format(java.util.Locale.US, "$%,.2f", displayGasTotal), color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
                         }
                     }
-                    Text("Mock 社区统计 · 收益 66% / Gas 33%", color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        "Mock 全网样本 + 本地已确认账单 · 收益 ${(rewardWeight * 100).toInt()}% / Gas ${(gasWeight * 100).toInt()}%",
+                        color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface)) {
