@@ -17,6 +17,16 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.google.accompanist.navigation.material.ExperimentalMaterialNavigationApi
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.ModalBottomSheetValue
+import androidx.compose.material.rememberModalBottomSheetState
+import com.google.accompanist.navigation.material.BottomSheetNavigator
+import com.reown.appkit.ui.appKitGraph
+import com.reown.appkit.ui.openAppKit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +60,7 @@ private data class BrowserWallet(
 class BrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleWalletDeepLink(intent)
         ApiClient.initialize(applicationContext)
         val receivedUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
         Log.d(TAG, "BrowserActivity received URL: $receivedUrl")
@@ -72,6 +83,24 @@ class BrowserActivity : ComponentActivity() {
             AirdropHunterTheme {
                 BrowserScreen(site.ifBlank { Uri.parse(url).host.orEmpty() }, url, wallets, selectedId) { finish() }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleWalletDeepLink(intent)
+    }
+
+    private fun handleWalletDeepLink(intent: android.content.Intent?) {
+        val incoming = intent?.dataString ?: return
+        if (incoming.startsWith("airdrophunter://request", ignoreCase = true) ||
+            incoming.contains("wc_ev", ignoreCase = true)) {
+            runCatching {
+                com.reown.appkit.client.AppKit.handleDeepLink(incoming) { error ->
+                    Log.e(TAG, "WalletConnect deep link error", error.throwable)
+                }
+            }.onFailure { Log.e(TAG, "Unable to dispatch WalletConnect deep link", it) }
         }
     }
 
@@ -108,7 +137,7 @@ class BrowserActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class)
 @Composable
 private fun BrowserScreen(
     title: String,
@@ -131,6 +160,11 @@ private fun BrowserScreen(
         onDispose { browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() } }
     }
 
+    val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
+    val bottomSheetNavigator = remember(bottomSheetState) { BottomSheetNavigator(bottomSheetState) }
+    val walletNavController = rememberNavController(bottomSheetNavigator)
+
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.White,
@@ -140,6 +174,7 @@ private fun BrowserScreen(
                     title = { Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1) },
                     navigationIcon = { IconButton(onClick = onExit) { Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary) } },
                     actions = {
+                        TextButton(onClick = { walletNavController.openAppKit() }) { Text("连接外部钱包", color = AppColors.Primary) }
                         if (selectedWallet != null) TextButton(onClick = { showWalletPicker = true }) {
                             Text("钱包 · ${selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }}", color = AppColors.Primary, maxLines = 1)
                         }
@@ -147,7 +182,7 @@ private fun BrowserScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background)
                 )
                 Surface(Modifier.fillMaxWidth(), color = Color(0xFF9F2525)) {
-                    Text("安全提醒：请核对当前网站域名；本 App 不会连接或签署钱包交易",
+                    Text("⚠️ 安全提醒：本 App 不保存您的私钥。交易签名将在外部钱包 App 中完成，请仔细核对。",
                         Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
                         color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 }
@@ -252,6 +287,12 @@ private fun BrowserScreen(
                 }) { Text("取消并返回") }
             }
         )
+    }
+
+    NavHost(walletNavController, startDestination = "browser_wallet_host") {
+        composable("browser_wallet_host") { }
+        appKitGraph(walletNavController)
+    }
     }
 
     if (showWalletPicker) {

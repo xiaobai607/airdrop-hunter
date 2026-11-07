@@ -18,6 +18,7 @@ android {
         targetSdk = 35
         versionCode = 10
         versionName = "0.10.0"
+        buildConfigField("String", "REOWN_PROJECT_ID", "\"110ea7e938d97b015f5de7b326e20dd9\"")
         buildConfigField(
             "String",
             "API_BASE_URL",
@@ -34,6 +35,11 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.navigation:navigation-compose:2.8.0")
+    implementation("com.google.accompanist:accompanist-navigation-material:0.36.0")
+    implementation(platform("com.reown:android-bom:1.3.3"))
+    implementation("com.reown:android-core")
+    implementation("com.reown:appkit")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
