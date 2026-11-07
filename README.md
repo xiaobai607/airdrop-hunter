@@ -2,8 +2,6 @@
 
 Airdrop discovery and personal campaign management for Android.
 
-> First-stage bootstrap. This repository is a development skeleton, not a production-ready wallet or trading application.
-
 ## Product scope (v1)
 
 - Discover and organize airdrop projects and campaigns.
@@ -18,10 +16,10 @@ Community/chat features are intentionally out of scope for v1.
 ## Repository layout
 
 - `android/`: Kotlin + Jetpack Compose Android app.
-- `backend/`: FastAPI service and provider connector interfaces.
+- `backend/`: FastAPI service, SQLAlchemy models, and Alembic migrations.
 - `database/`: PostgreSQL schema and migration notes.
 - `docs/`: development and security notes.
-- `.github/workflows/`: CI build.
+- `.github/workflows/`: Android build and backend test workflow.
 
 ## Quick start
 
@@ -33,29 +31,31 @@ Requires JDK 17 and Android SDK. From `android/`:
 gradle :app:assembleDebug
 ```
 
-The GitHub Actions workflow builds the debug APK on pushes and pull requests.
+GitHub Actions builds the debug APK and runs Android unit tests on pushes and pull requests.
 
 ### Backend
 
-Requires Python 3.11+:
+Requires Python 3.11+ and PostgreSQL:
 
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Health endpoint: `GET /health`.
+The API also applies pending Alembic revisions during startup. Health endpoint: `GET /health`.
 
 ## Configuration and secrets
 
-Do not commit API keys, wallet seed phrases, private keys, access tokens, or production credentials. Provider credentials belong in backend environment variables or GitHub Actions secrets. The Android APK must not contain server/provider secrets.
+Set `DATABASE_URL` to a PostgreSQL connection URL. Production deployments must provide it explicitly. Do not commit API keys, wallet seed phrases, private keys, access tokens, or production credentials. Provider credentials belong in backend environment variables or GitHub Actions secrets. The Android APK must not contain server/provider secrets.
 
 ## Current limitations
 
-- No live provider integrations are enabled yet.
+- Live provider integrations are limited; each provider must be enabled and verified separately.
 - No wallet signing, custody, transaction execution, or automated on-chain actions.
-- Authentication, user isolation, production database wiring, and push notifications are not implemented in this bootstrap.
+- Local guest data is not yet backed by a conflict-aware cloud migration/synchronization workflow.
+- Push notifications and production operations (backups, alerting, retention, and incident response) still require implementation and verification.
 - Provider integrations must be checked for API access, quotas, terms, and commercial-use permissions before activation.

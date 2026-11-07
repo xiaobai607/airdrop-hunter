@@ -1,34 +1,27 @@
-# Database migrations
+# Database
 
-PostgreSQL is the primary database. Schema changes are managed with Alembic.
+PostgreSQL is the planned primary database. The first bootstrap intentionally
+does not connect to a database yet.
 
-## Current baseline
+Initial domain model to implement in migrations:
 
-- Revision: `0001_bootstrap`.
-- The first revision creates missing tables from the current SQLAlchemy metadata.
-- It also applies the idempotent compatibility upgrades previously executed at
-  FastAPI startup, so an existing Render database can be adopted without
-  dropping user data.
-- The baseline is intentionally non-destructive and has no downgrade operation.
+- users and user_preferences
+- projects and campaigns (one project may have multiple campaigns)
+- project_sources and source_sync_runs
+- chains, wallets, wallet_groups, wallet_campaigns
+- tasks, task_steps, task_progress
+- points_snapshots
+- transactions, expenses, claims, realized_income
+- notifications and risk_findings
+- audit_logs
 
-## Running migrations
-
-From `backend/`:
-
-```bash
-alembic current
-alembic upgrade head
-```
-
-The API runs `alembic upgrade head` during application startup, before serving
-requests. The command executes in a worker thread so it does not block FastAPI's
-event loop. Future schema changes must be added as new numbered revisions;
-do not edit an already deployed revision.
-
-## Data invariants
+Important invariants:
 
 - Store public wallet addresses only; never store seed phrases or private keys.
 - Keep estimated rewards separate from user-confirmed realized results.
 - Record source, fetched_at, and verification status for imported data.
 - Make transaction ingestion idempotent using chain + transaction hash.
 - Enforce user-level data isolation before exposing account-specific endpoints.
+
+Alembic migrations and SQLAlchemy models will be added after the API/domain
+contracts are reviewed.
