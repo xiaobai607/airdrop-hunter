@@ -187,7 +187,7 @@ fun HomeScreen(
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         Text(state.marketError ?: "请检查网络连接后重试。",
                             color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { vm.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
+                        TextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
                             Text("点击重试", color = AppColors.Primary)
                         }
                     }
