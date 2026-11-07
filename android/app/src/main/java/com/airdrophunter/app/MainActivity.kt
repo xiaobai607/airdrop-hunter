@@ -25,7 +25,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.TokenStore
@@ -38,8 +37,6 @@ import org.json.JSONObject
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        TokenStore.initialize(applicationContext)
-        ApiClient.initialize(applicationContext)
         window.statusBarColor = android.graphics.Color.rgb(248, 249, 250)
         window.navigationBarColor = android.graphics.Color.rgb(248, 249, 250)
         @Suppress("DEPRECATION")

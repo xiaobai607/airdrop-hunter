@@ -2,6 +2,7 @@ package com.airdrophunter.app
 
 import android.app.Application
 import android.util.Log
+import com.airdrophunter.app.data.ApiClient
 import com.reown.android.Core
 import com.reown.android.CoreClient
 import com.reown.appkit.client.AppKit
@@ -11,6 +12,11 @@ import com.reown.appkit.presets.AppKitChainsPresets
 class AirdropHunterApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+
+        // Application is the composition root for process-wide app dependencies.
+        // Initialize local auth/cache storage before any Activity or ViewModel can use it.
+        ApiClient.initialize(this)
+
         val metadata = Core.Model.AppMetaData(
             name = "Airdrop Hunter",
             description = "Connect to external wallets for dApp interactions",
