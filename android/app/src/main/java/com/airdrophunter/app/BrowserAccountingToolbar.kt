@@ -108,15 +108,46 @@ fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
         }
     }
 
-    fun createMockBill() {
-        val bill = PendingBillEntity(UUID.randomUUID().toString(), "mock-" + UUID.randomUUID(),
-            walletAddress, 2.50, "Swap", System.currentTimeMillis())
+    fun fetchRealGasBill() {
+        if (fetchingGas) return
+        if (walletAddress.isBlank()) {
+            Toast.makeText(context, "请先选择钱包地址", Toast.LENGTH_SHORT).show()
+            return
+        }
+        fetchingGas = true
         scope.launch {
-            CacheStore.addPendingBill(bill)
-            activeBill = bill
-            gas = "2.50"
-            reward = "0"
-            showConfirm = true
+            val result = runCatching {
+                RealGasTrackerRepository().fetchLatestGasCost(walletAddress)
+            }.getOrNull()
+            fetchingGas = false
+            if (result == null || result.txHash.isBlank() ||
+                !result.gasCostUsd.isFinite() || result.gasCostUsd < 0.0
+            ) {
+                Toast.makeText(context, "抓取失败", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            val bill = PendingBillEntity(
+                UUID.randomUUID().toString(),
+                result.txHash,
+                walletAddress,
+                result.gasCostUsd,
+                result.interactionMethod,
+                System.currentTimeMillis()
+            )
+            runCatching { CacheStore.addPendingBill(bill) }
+                .onSuccess {
+                    activeBill = bill
+                    gas = String.format(java.util.Locale.US, "%.2f", result.gasCostUsd)
+                    reward = "0"
+                    if (selectedProjectLocalId.isBlank()) {
+                        selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
+                    }
+                    showConfirm = true
+                }
+                .onFailure {
+                    Toast.makeText(context, "抓取失败", Toast.LENGTH_SHORT).show()
+                }
         }
     }
 
@@ -132,7 +163,7 @@ fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ToolbarCircleIcon(Icons.Default.FlashOn, "记账抓取", Color(0xFFEAF7F1), Color(0xFF16845B), ::createMockBill)
+            ToolbarCircleIcon(Icons.Default.FlashOn, if (fetchingGas) "正在抓取" else "一键抓取", Color(0xFFEAF7F1), Color(0xFF16845B), ::fetchRealGasBill)
             Spacer(Modifier.width(22.dp))
             ToolbarCircleIcon(Icons.Default.ContentCopy, "复制地址", Color(0xFFEDF3FF), Color(0xFF356BC5), { showCopyCard = true })
             Spacer(Modifier.width(22.dp))
