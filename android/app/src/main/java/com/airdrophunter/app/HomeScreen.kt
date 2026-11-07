@@ -63,10 +63,14 @@ fun HomeScreen(
     onOpenTronEnergy: () -> Unit = {},
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
-    vm: HomeViewModel = viewModel()
+    vm: HomeViewModel? = null
 ) {
-    val state by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val homeViewModel: HomeViewModel = vm ?: viewModel(
+        factory = HomeViewModelFactory(application.appContainer)
+    )
+    val state by homeViewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var showNotifications by remember { mutableStateOf(false) }
     var showNavOverlay by remember { mutableStateOf(false) }
@@ -76,7 +80,7 @@ fun HomeScreen(
 
     LaunchedEffect(isGuest) {
         sites = withContext(Dispatchers.IO) { AirdropSiteStore.load() }
-        vm.load(isGuest)
+        homeViewModel.load(isGuest)
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -161,7 +165,7 @@ fun HomeScreen(
                     Text("全部行情 / 自主搜索", style = MaterialTheme.typography.labelSmall, maxLines = 1)
                 }
                 Text(if (state.isRefreshing) "更新中" else "刷新",
-                    modifier = Modifier.clickable { vm.refresh(isGuest) }.padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
+                    modifier = Modifier.clickable { homeViewModel.refresh(isGuest) }.padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
                     color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
             }
             Card(

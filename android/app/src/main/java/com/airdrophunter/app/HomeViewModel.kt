@@ -1,6 +1,7 @@
 package com.airdrophunter.app
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.airdrophunter.app.data.OkxMarketRepository
 import com.airdrophunter.app.data.OkxTicker
@@ -19,8 +20,9 @@ data class HomeUiState(
     val marketError: String? = null
 )
 
-class HomeViewModel : ViewModel() {
-    private val repository = OkxMarketRepository()
+class HomeViewModel(
+    private val repository: OkxMarketRepository
+) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
@@ -61,5 +63,17 @@ class HomeViewModel : ViewModel() {
                 )
             }
         }
+    }
+}
+
+class HomeViewModelFactory(
+    private val appContainer: AppContainer
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
+            return HomeViewModel(appContainer.okxMarketRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
