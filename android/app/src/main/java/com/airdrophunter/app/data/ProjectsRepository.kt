@@ -130,7 +130,7 @@ class ProjectsRepository(
     }
 
     suspend fun readCachedTasks(projectId: String, guest: Boolean): List<TaskDto> =
-        decodeList(local.read("tasks:$projectId", guest), tasksType).sortedBy { it.step_order }
+        decodeList<TaskDto>(local.read("tasks:$projectId", guest), tasksType).sortedBy { it.step_order }
 
     suspend fun refreshTasks(projectId: String): List<TaskDto> {
         val tasks = remote.getTasks(projectId).sortedBy { it.step_order }
