@@ -37,6 +37,7 @@ fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var activeBill by remember { mutableStateOf<PendingBillEntity?>(null) }
     var showPanel by remember { mutableStateOf(false) }
+    var showCopyCard by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
     var showProjectPicker by remember { mutableStateOf(false) }
     var showCreateProject by remember { mutableStateOf(false) }
@@ -81,7 +82,7 @@ fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
         ) {
             ToolbarCircleIcon(Icons.Default.FlashOn, "记账抓取", Color(0xFFEAF7F1), Color(0xFF16845B), ::createMockBill)
             Spacer(Modifier.width(22.dp))
-            ToolbarCircleIcon(Icons.Default.ContentCopy, "复制地址", Color(0xFFEDF3FF), Color(0xFF356BC5), onCopyAddress)
+            ToolbarCircleIcon(Icons.Default.ContentCopy, "复制地址", Color(0xFFEDF3FF), Color(0xFF356BC5), { showCopyCard = true })
             Spacer(Modifier.width(22.dp))
             ToolbarCircleIcon(Icons.Default.ReceiptLong, "待确认账单", Color(0xFFFFF3E7), Color(0xFFB86A18), { showPanel = true })
             Spacer(Modifier.width(22.dp))
@@ -89,6 +90,27 @@ fun BrowserAccountingToolbar(walletAddress: String, onCopyAddress: () -> Unit) {
                 newProjectName = ""
                 showCreateProject = true
             })
+        }
+    }
+
+    if (showCopyCard) {
+        Dialog(onDismissRequest = { showCopyCard = false }) {
+            Surface(Modifier.fillMaxWidth(), color = Color.White,
+                shape = RoundedCornerShape(22.dp), shadowElevation = 14.dp) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                    Text("复制钱包地址", color = AppColors.TextPrimary,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(walletAddress.ifBlank { "当前没有可用的钱包地址" },
+                        color = AppColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                    Button(
+                        onClick = { onCopyAddress(); showCopyCard = false },
+                        enabled = walletAddress.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(13.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                    ) { Text("复制到剪贴板") }
+                }
+            }
         }
     }
 
