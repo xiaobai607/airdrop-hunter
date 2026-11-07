@@ -10,6 +10,8 @@ import com.reown.appkit.client.Modal
 import com.reown.appkit.presets.AppKitChainsPresets
 
 class AirdropHunterApplication : Application() {
+    val appContainer: AppContainer by lazy { AppContainer() }
+
     override fun onCreate() {
         super.onCreate()
 
