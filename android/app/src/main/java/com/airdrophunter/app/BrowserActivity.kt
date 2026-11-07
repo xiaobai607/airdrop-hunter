@@ -181,11 +181,11 @@ private fun BrowserScreen(
                                 return !target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
-                                Log.d(TAG, "Page started: $pageUrl")
+                                Log.d("AirdropBrowser", "Page started: $pageUrl")
                             }
 
                             override fun onPageFinished(view: WebView?, pageUrl: String?) {
-                                Log.d(TAG, "Page finished: $pageUrl")
+                                Log.d("AirdropBrowser", "Page finished: $pageUrl")
                             }
 
                             override fun onReceivedError(
