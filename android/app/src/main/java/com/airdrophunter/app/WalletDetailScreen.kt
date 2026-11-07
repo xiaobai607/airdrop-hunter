@@ -61,7 +61,7 @@ import java.text.DecimalFormat
 
 private val assetChartColors = listOf(
     Color(0xFF16A085), Color(0xFF3977D5), Color(0xFFF0A33A),
-    Color(0xFF8B65C7), Color(0xFFDB6B78)
+    Color(0xFF8B65C7), Color(0xFFDB6B78), Color(0xFF9CA3AF)
 )
 
 @Composable
