@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -68,12 +69,21 @@ async def get_current_user(
         raise unauthorized
     try:
         user_id: UUID = decode_access_token(credentials.credentials)
-    except Exception:
+    except (InvalidTokenError, ValueError, TypeError):
         raise unauthorized
     user = await db.scalar(select(User).where(User.id == user_id))
     if user is None:
         raise unauthorized
     return user
+
+
+async def get_optional_current_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User | None:
+    if credentials is None:
+        return None
+    return await get_current_user(credentials, db)
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
@@ -113,7 +123,10 @@ async def register(
 
 
 @router.post("/login", response_model=AuthResponse)
+@limiter.limit("20/hour")
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     payload: AuthRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AuthResponse:

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,6 +13,11 @@ class Airdrop(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    # NULL keeps pre-existing public catalogue entries readable and immutable.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE", name="fk_airdrops_user_id_users"),
+        nullable=True, index=True
     )
     name: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")

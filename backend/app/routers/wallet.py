@@ -2,11 +2,11 @@ import re
 import httpx
 from decimal import Decimal
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.routers.auth import get_current_user
+from app.routers.auth import get_current_user, limiter
 from app.database import get_db
 from app.models import User, Wallet
 
@@ -83,7 +83,8 @@ async def delete_wallet(wallet_id: UUID, db: AsyncSession = Depends(get_db), use
     return None
 
 @router.get("/check")
-async def check_wallet(address: str = Query(min_length=21, max_length=120)):
+@limiter.limit("10/minute")
+async def check_wallet(request: Request, address: str = Query(min_length=21, max_length=120)):
     value = address.strip()
     chain = identify_chain(value)
     if chain is None: return {"valid": False, "message": "地址格式错误或不存在"}

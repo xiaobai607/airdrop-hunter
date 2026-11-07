@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal, get_db
+from app.routers.auth import limiter
 from app.models import AirdropProject
 from app.services.airdrop_hub_sync import get_sync_status
 from app.services.airdrop_sync import sync_airdrops
@@ -57,9 +58,11 @@ async def airdrop_hub_sync_status() -> dict[str, Any]:
     return get_sync_status()
 
 @router.post("/refresh")
-async def refresh_airdrop_hub() -> dict[str, Any]:
+@limiter.limit("1/minute")
+async def refresh_airdrop_hub(request: Request) -> dict[str, Any]:
     return await _sync_now()
 
 @sync_router.post("/sync")
-async def sync_airdrop_catalog() -> dict[str, Any]:
+@limiter.limit("1/minute")
+async def sync_airdrop_catalog(request: Request) -> dict[str, Any]:
     return await _sync_now()

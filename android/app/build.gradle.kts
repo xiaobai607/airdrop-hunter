@@ -4,6 +4,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.kapt")
 }
+val configuredApiBaseUrl = providers.environmentVariable("API_BASE_URL")
+    .orElse("https://airdrop-hunter-z6qn.onrender.com/")
+    .get()
+    .let { if (it.endsWith("/")) it else "$it/" }
+
 android {
     namespace = "com.airdrophunter.app"
     compileSdk = 35
@@ -13,7 +18,11 @@ android {
         targetSdk = 35
         versionCode = 10
         versionName = "0.10.0"
-        buildConfigField("String", "API_BASE_URL", "\"https://airdrop-hunter-z6qn.onrender.com/\"")
+        buildConfigField(
+            "String",
+            "API_BASE_URL",
+            "\"${configuredApiBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

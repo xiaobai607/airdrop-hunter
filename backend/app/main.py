@@ -40,6 +40,7 @@ async def migrate_existing_schema() -> None:
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_username ON users (username)",
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_uid ON users (uid)",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id UUID",
+        "ALTER TABLE airdrops ADD COLUMN IF NOT EXISTS user_id UUID",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS official_url VARCHAR(1000) NOT NULL DEFAULT ''",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS claim_url VARCHAR(1000) NOT NULL DEFAULT ''",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS twitter_url VARCHAR(1000) NOT NULL DEFAULT ''",
@@ -77,8 +78,15 @@ async def migrate_existing_schema() -> None:
                 ALTER TABLE projects ADD CONSTRAINT fk_projects_user_id_users
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
               END IF;
+              IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_airdrops_user_id_users') THEN
+                ALTER TABLE airdrops ADD CONSTRAINT fk_airdrops_user_id_users
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+              END IF;
             END $$;
         """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_airdrops_user_id ON airdrops(user_id)"
+        ))
 
 
 @asynccontextmanager
@@ -98,6 +106,17 @@ app = FastAPI(
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.exception_handler(RequestValidationError)

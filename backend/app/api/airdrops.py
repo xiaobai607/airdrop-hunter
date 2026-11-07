@@ -3,12 +3,14 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy import or_, select
+from urllib.parse import urlparse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Airdrop
+from app.models import Airdrop, User
+from app.routers.auth import get_current_user, get_optional_current_user
 
 
 router = APIRouter(prefix="/api/airdrops", tags=["airdrops"])
@@ -32,6 +34,22 @@ class AirdropWrite(BaseModel):
     verification_status: VerificationStatus = "unverified"
     starts_at: datetime | None = None
     ends_at: datetime | None = None
+
+    @field_validator("official_url", "source_url")
+    @classmethod
+    def validate_https_links(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            return ""
+        parsed = urlparse(value)
+        if (
+            parsed.scheme.lower() != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            raise ValueError("项目链接必须是有效的 HTTPS 地址")
+        return value
 
 
 class AirdropResponse(BaseModel):
@@ -86,8 +104,15 @@ async def list_airdrops(
     chain: str | None = Query(default=None, max_length=80),
     q: str | None = Query(default=None, max_length=160),
     db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_optional_current_user),
 ) -> list[AirdropResponse]:
     statement = select(Airdrop)
+    if user is None:
+        statement = statement.where(Airdrop.user_id.is_(None))
+    else:
+        statement = statement.where(
+            or_(Airdrop.user_id.is_(None), Airdrop.user_id == user.id)
+        )
     if status_filter:
         statement = statement.where(Airdrop.status == status_filter)
     if chain:
@@ -103,13 +128,14 @@ async def list_airdrops(
 async def create_airdrop(
     payload: AirdropWrite,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ) -> AirdropResponse:
     name = payload.name.strip()
     if not name:
         raise HTTPException(status_code=422, detail="项目名称不能为空")
     if payload.starts_at and payload.ends_at and payload.ends_at < payload.starts_at:
         raise HTTPException(status_code=422, detail="结束时间不能早于开始时间")
-    item = Airdrop(**payload.model_dump(exclude={"name"}), name=name)
+    item = Airdrop(**payload.model_dump(exclude={"name"}), name=name, user_id=user.id)
     db.add(item)
     await db.commit()
     await db.refresh(item)
@@ -121,8 +147,11 @@ async def update_airdrop(
     airdrop_id: UUID,
     payload: AirdropWrite,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ) -> AirdropResponse:
-    item = await db.get(Airdrop, airdrop_id)
+    item = await db.scalar(
+        select(Airdrop).where(Airdrop.id == airdrop_id, Airdrop.user_id == user.id)
+    )
     if item is None:
         raise HTTPException(status_code=404, detail="空投项目不存在")
     name = payload.name.strip()
@@ -141,8 +170,11 @@ async def update_airdrop(
 async def delete_airdrop(
     airdrop_id: UUID,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ) -> Response:
-    item = await db.get(Airdrop, airdrop_id)
+    item = await db.scalar(
+        select(Airdrop).where(Airdrop.id == airdrop_id, Airdrop.user_id == user.id)
+    )
     if item is None:
         raise HTTPException(status_code=404, detail="空投项目不存在")
     await db.delete(item)
