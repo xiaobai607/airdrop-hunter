@@ -7,6 +7,16 @@ import org.junit.Test
 
 class FeatureRepositoryTest {
     @Test
+    fun authRepositorySelectsRegisterOrLoginOperation() = runBlocking {
+        val remote = FakeAuthRemote()
+        val repository = AuthRepository(remote)
+        repository.authenticate(AuthRequest("tester", "password123"), register = true)
+        repository.authenticate(AuthRequest("tester", "password123"), register = false)
+        assertEquals(1, remote.registerCalls)
+        assertEquals(1, remote.loginCalls)
+    }
+
+    @Test
     fun profileRepositoryLoadsProfileAndStatsTogether() = runBlocking {
         val remote = FakeProfileRemote()
         val snapshot = ProfileRepository(remote).load()
@@ -90,5 +100,19 @@ private class FakeAirdropsRemote : AirdropsRemoteDataSource {
     override suspend fun createAirdrop(request: AirdropWriteRequest): AirdropDto {
         created = true
         return item
+    }
+}
+
+private class FakeAuthRemote : AuthRemoteDataSource {
+    var registerCalls = 0
+    var loginCalls = 0
+    private val response = AuthResponse("token", "bearer", "user-1", "tester", "123456")
+    override suspend fun register(request: AuthRequest): AuthResponse {
+        registerCalls++
+        return response
+    }
+    override suspend fun login(request: AuthRequest): AuthResponse {
+        loginCalls++
+        return response
     }
 }

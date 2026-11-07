@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.AuthRepository
 import com.airdrophunter.app.data.AuthRequest
 import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.ui.theme.AppColors
@@ -33,6 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 fun AuthScreen(onGuestMode: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val application = context.applicationContext as AirdropHunterApplication
+    val authRepository = remember(application) { application.appContainer.authRepository }
     val requestInFlight = remember { AtomicBoolean(false) }
     var register by remember { mutableStateOf(false) }
     var username by remember { mutableStateOf("") }
@@ -107,8 +109,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                                 try {
                                     val request = AuthRequest(username, password)
                                     val response = withContext(Dispatchers.IO) {
-                                        if (register) ApiClient.service.register(request)
-                                        else ApiClient.service.login(request)
+                                        authRepository.authenticate(request, register)
                                     }
                                     TokenStore.saveToken(context, response.accessToken)
                                 } catch (e: Exception) {

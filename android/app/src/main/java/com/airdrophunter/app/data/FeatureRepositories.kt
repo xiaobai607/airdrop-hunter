@@ -87,3 +87,22 @@ class AirdropsRepository(
         return remote.getAirdrops()
     }
 }
+
+interface AuthRemoteDataSource {
+    suspend fun register(request: AuthRequest): AuthResponse
+    suspend fun login(request: AuthRequest): AuthResponse
+}
+
+class RetrofitAuthRemoteDataSource(
+    private val api: ApiService
+) : AuthRemoteDataSource {
+    override suspend fun register(request: AuthRequest): AuthResponse = api.register(request)
+    override suspend fun login(request: AuthRequest): AuthResponse = api.login(request)
+}
+
+class AuthRepository(
+    private val remote: AuthRemoteDataSource
+) {
+    suspend fun authenticate(request: AuthRequest, register: Boolean): AuthResponse =
+        if (register) remote.register(request) else remote.login(request)
+}
