@@ -33,11 +33,11 @@ import com.airdrophunter.app.data.AirdropWriteRequest
 @Composable
 fun AirdropDiscoveryScreen(
     modifier: Modifier = Modifier,
-    viewModel: AirdropsViewModel? = null
+    vm: AirdropsViewModel? = null
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
-    val airdropsViewModel: AirdropsViewModel = viewModel ?: viewModel(
+    val airdropsViewModel: AirdropsViewModel = vm ?: viewModel(
         factory = AirdropsViewModelFactory(application.appContainer.airdropsRepository)
     )
     val state by airdropsViewModel.uiState.collectAsState()
@@ -56,7 +56,7 @@ fun AirdropDiscoveryScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { viewModel.loadAirdrops() }, enabled = !state.isLoading) {
+            Button(onClick = { airdropsViewModel.loadAirdrops() }, enabled = !state.isLoading) {
                 Text("刷新")
             }
             Button(onClick = { showAddDialog = true }, enabled = !state.isSaving) {

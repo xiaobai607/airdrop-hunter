@@ -114,7 +114,7 @@ fun AirdropHubScreen(
                             color = AppColors.TextSecondary,
                             style = MaterialTheme.typography.labelMedium
                         )
-                        TextButton(onClick = vm::refresh, enabled = !state.isRefreshing) {
+                        TextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
                             Text(if (state.isRefreshing) "正在刷新…" else "刷新数据", color = AppColors.Primary)
                         }
                     }
