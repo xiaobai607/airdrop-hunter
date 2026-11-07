@@ -10,7 +10,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AirdropHunter"
         android:usesCleartextTraffic="false">
-        <activity android:name=".BrowserActivity" android:exported="true" android:launchMode="singleTask">
+        <activity android:name=".BrowserActivity" android:exported="false" />
+        <activity android:name=".WalletConnectRedirectActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

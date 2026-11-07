@@ -60,7 +60,6 @@ private data class BrowserWallet(
 class BrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        handleWalletDeepLink(intent)
         ApiClient.initialize(applicationContext)
         val receivedUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
         Log.d(TAG, "BrowserActivity received URL: $receivedUrl")
@@ -83,24 +82,6 @@ class BrowserActivity : ComponentActivity() {
             AirdropHunterTheme {
                 BrowserScreen(site.ifBlank { Uri.parse(url).host.orEmpty() }, url, wallets, selectedId) { finish() }
             }
-        }
-    }
-
-    override fun onNewIntent(intent: android.content.Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        handleWalletDeepLink(intent)
-    }
-
-    private fun handleWalletDeepLink(intent: android.content.Intent?) {
-        val incoming = intent?.dataString ?: return
-        if (incoming.startsWith("airdrophunter://request", ignoreCase = true) ||
-            incoming.contains("wc_ev", ignoreCase = true)) {
-            runCatching {
-                com.reown.appkit.client.AppKit.handleDeepLink(incoming) { error ->
-                    Log.e(TAG, "WalletConnect deep link error", error.throwable)
-                }
-            }.onFailure { Log.e(TAG, "Unable to dispatch WalletConnect deep link", it) }
         }
     }
 
