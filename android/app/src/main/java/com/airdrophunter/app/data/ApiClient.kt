@@ -24,6 +24,8 @@ object ApiClient {
             }
             .connectTimeout(70, TimeUnit.SECONDS)
             .readTimeout(70, TimeUnit.SECONDS)
+            .writeTimeout(70, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
             .build()
     }
 

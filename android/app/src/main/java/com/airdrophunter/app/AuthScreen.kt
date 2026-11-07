@@ -26,16 +26,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import retrofit2.HttpException
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
 fun AuthScreen(onGuestMode: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val requestInFlight = remember { AtomicBoolean(false) }
     var register by remember { mutableStateOf(false) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+
+    val validUsername = username.matches(Regex("^[A-Za-z0-9]{4,20}$"))
+    val validPassword = password.length in 8..30
 
     Surface(
         Modifier.fillMaxSize().background(
@@ -68,9 +74,13 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                         onValueChange = { username = it; error = null },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("账号") },
-                        placeholder = { Text("例如 xiaobai001") },
+                        placeholder = { Text("4-20位英文字母或数字") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                        isError = username.isNotEmpty() && !validUsername,
+                        supportingText = {
+                            if (username.isNotEmpty() && !validUsername) Text("账号只能由4到20位英文字母和数字组成")
+                        },
                         colors = authColors()
                     )
                     OutlinedTextField(
@@ -81,17 +91,21 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        supportingText = { if (register) Text("密码至少 8 位") },
+                        isError = password.isNotEmpty() && !validPassword,
+                        supportingText = {
+                            Text(if (password.isNotEmpty() && !validPassword) "密码长度必须为8到30位" else "密码长度为8到30位")
+                        },
                         colors = authColors()
                     )
                     error?.let { Text(it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
                     Button(
                         onClick = {
+                            if (!requestInFlight.compareAndSet(false, true)) return@Button
                             error = null
                             loading = true
                             scope.launch {
                                 try {
-                                    val request = AuthRequest(username.trim(), password)
+                                    val request = AuthRequest(username, password)
                                     val response = withContext(Dispatchers.IO) {
                                         if (register) ApiClient.service.register(request)
                                         else ApiClient.service.login(request)
@@ -105,32 +119,38 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                                                     .optString("detail")
                                             } catch (_: Exception) { "" }
                                             when {
-                                                detail == "该账号已被占用" -> detail
-                                                detail.isNotBlank() -> detail
+                                                e.code() == 429 -> "操作过于频繁，请稍后再试"
+                                                e.code() == 400 && (detail.contains("已存在") || detail.contains("已被占用")) ->
+                                                    "该账号已存在，请直接点击下方返回登录"
+                                                e.code() == 400 && detail.isNotBlank() -> detail
                                                 e.code() == 401 -> "账号或密码错误"
                                                 else -> "请求失败，请检查网络后重试"
                                             }
                                         }
+                                        is IOException -> "服务器正在唤醒，请稍后重试"
                                         else -> "网络连接失败，请稍后重试"
                                     }
                                 } finally {
                                     loading = false
+                                    requestInFlight.set(false)
                                 }
                             }
                         },
-                        enabled = !loading && username.trim().length >= 3 &&
-                            username.matches(Regex("^[A-Za-z0-9_]+$")) && password.length >= 8,
+                        enabled = !loading && !requestInFlight.get() && validUsername && validPassword,
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = AppColors.Primary, contentColor = AppColors.Background
                         )
                     ) {
-                        Text(if (loading) "请稍候…" else if (register) "注册并登录" else "登录",
+                        Text(if (loading) "请稍候..." else if (register) "注册并登录" else "登录",
                             fontWeight = FontWeight.Bold)
                     }
-                    TextButton(onClick = { register = !register; error = null },
-                        modifier = Modifier.fillMaxWidth()) {
+                    TextButton(
+                        onClick = { if (!loading && !requestInFlight.get()) { register = !register; error = null } },
+                        enabled = !loading && !requestInFlight.get(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(if (register) "已有账号？返回登录" else "没有账号？立即注册",
                             color = AppColors.Primary)
                     }
@@ -140,6 +160,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                 Spacer(Modifier.height(18.dp))
                 OutlinedButton(
                     onClick = onGuestMode,
+                    enabled = !loading && !requestInFlight.get(),
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, AppColors.Primary),

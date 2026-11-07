@@ -2,60 +2,62 @@ package com.airdrophunter.app
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.airdrophunter.app.data.ApiClient
-import com.airdrophunter.app.data.CacheStore
-import com.airdrophunter.app.data.MarketResponse
-import com.airdrophunter.app.data.UserStatsDto
-import com.google.gson.Gson
-import kotlinx.coroutines.Dispatchers
+import com.airdrophunter.app.data.OkxMarketRepository
+import com.airdrophunter.app.data.OkxTicker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.net.UnknownHostException
+import java.net.SocketTimeoutException
 
 data class HomeUiState(
-    val market: MarketResponse? = null,
-    val stats: UserStatsDto? = null,
+    val market: List<OkxTicker> = emptyList(),
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
-    val hasError: Boolean = false
+    val hasError: Boolean = false,
+    val marketError: String? = null
 )
 
 class HomeViewModel : ViewModel() {
+    private val repository = OkxMarketRepository()
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     fun load(isGuest: Boolean = false) {
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                CacheStore.read("market")?.let {
-                    runCatching { Gson().fromJson(it, MarketResponse::class.java) }.getOrNull()
-                }?.let { _uiState.value = _uiState.value.copy(market = it, isLoading = false) }
-            }
-            refresh(isGuest)
-        }
+        refresh(isGuest)
     }
 
-    fun refresh(isGuest: Boolean = false) {
+    fun refresh(isGuest: Boolean = true) {
+        if (_uiState.value.isRefreshing) return
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
-                isLoading = _uiState.value.market == null,
+                isLoading = true,
                 isRefreshing = true,
-                hasError = false
+                hasError = false,
+                marketError = null
             )
+
             try {
-                val market = ApiClient.service.getMarketPrices()
-                val stats = if (isGuest) UserStatsDto() else ApiClient.service.getUserStats()
-                _uiState.value = _uiState.value.copy(
-                    market = market, stats = stats, isLoading = false,
-                    isRefreshing = false, hasError = false
+                val tickers = repository.fetchSpotTickers()
+                _uiState.value = HomeUiState(
+                    market = tickers,
+                    isLoading = false,
+                    isRefreshing = false
                 )
-                withContext(Dispatchers.IO) { CacheStore.write("market", Gson().toJson(market)) }
-            } catch (_: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    stats = if (isGuest) UserStatsDto() else _uiState.value.stats,
-                    isLoading = false, isRefreshing = false, hasError = true
+            } catch (error: Exception) {
+                val message = when (error) {
+                    is UnknownHostException -> "网络连接失败，请检查网络或 VPN 后重试。"
+                    is SocketTimeoutException -> "行情请求超时，请稍后点击重试。"
+                    else -> error.message ?: "行情服务暂时不可用，请稍后重试。"
+                }
+                _uiState.value = HomeUiState(
+                    market = emptyList(),
+                    isLoading = false,
+                    isRefreshing = false,
+                    hasError = true,
+                    marketError = message
                 )
             }
         }

@@ -13,3 +13,7 @@ data class ProjectDto(
     val gas_cost: Double = 0.0,
     val actual_income: Double = 0.0
 )
+
+
+/** Stable local aggregation key: official URL when available, otherwise the saved project ID. */
+fun ProjectDto.officialIdentifier(): String = id

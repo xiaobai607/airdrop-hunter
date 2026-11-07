@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -26,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
@@ -38,24 +40,29 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         TokenStore.initialize(applicationContext)
         ApiClient.initialize(applicationContext)
-        val startupToken = TokenStore.readTokenBlocking()
         window.statusBarColor = android.graphics.Color.rgb(248, 249, 250)
         window.navigationBarColor = android.graphics.Color.rgb(248, 249, 250)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         setContent {
             AirdropHunterTheme {
-                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = startupToken)
-                var guestMode by rememberSaveable { mutableStateOf(false) }
-                when {
-                    !token.isNullOrBlank() -> AirdropHunterApp(false, {}, {
-                        lifecycleScope.launch { TokenStore.clearToken(applicationContext) }
-                    })
-                    guestMode -> AirdropHunterApp(true, {
-                        Toast.makeText(applicationContext, "请先登录以同步您的云端数据", Toast.LENGTH_LONG).show()
-                        guestMode = false
-                    }, { guestMode = false })
-                    else -> AuthScreen(onGuestMode = { guestMode = true })
+                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = null)
+                var showAuth by rememberSaveable { mutableStateOf(false) }
+                LaunchedEffect(token) { if (!token.isNullOrBlank()) showAuth = false }
+                LaunchedEffect(token) {
+                    if (!token.isNullOrBlank()) {
+                        com.airdrophunter.app.data.LocalDataSyncManager.prepareMockSync(applicationContext)
+                    }
+                }
+                if (showAuth && token.isNullOrBlank()) {
+                    AuthScreen(onGuestMode = { showAuth = false })
+                } else {
+                    AirdropHunterApp(
+                        isGuest = token.isNullOrBlank(),
+                        onRequireAuth = { showAuth = true },
+                        onLogout = { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } },
+                        onOpenAuth = { showAuth = true }
+                    )
                 }
             }
         }
@@ -66,27 +73,32 @@ private data class Destination(val label: Int, val icon: ImageVector)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogout: () -> Unit) {
+private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogout: () -> Unit, onOpenAuth: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var showSources by rememberSaveable { mutableStateOf(false) }
     var showAirdropHub by rememberSaveable { mutableStateOf(false) }
     var showWalletManager by rememberSaveable { mutableStateOf(false) }
+    var showGlobalSearch by rememberSaveable { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
+    var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
 
-    BackHandler(showSources || showAirdropHub || showWalletManager || selectedProject != null) {
-        showSources = false; showAirdropHub = false; showWalletManager = false; selectedProject = null
+    BackHandler(showSources || showAirdropHub || showWalletManager || showGlobalSearch || selectedProject != null || selectedCommunityProject != null) {
+        showSources = false; showAirdropHub = false; showWalletManager = false; showGlobalSearch = false; selectedProject = null; selectedCommunityProject = null
     }
 
     val destinations = listOf(
         Destination(R.string.tab_home, Icons.Default.Home),
         Destination(R.string.tab_projects, Icons.Default.GridView),
+        Destination(R.string.tab_community, Icons.Default.Public),
         Destination(R.string.tab_profile, Icons.Default.Person)
     )
     val secondaryTitle = when {
         showSources -> stringResource(R.string.sources_title)
         showAirdropHub -> "空投大厅"
         showWalletManager -> "钱包管理"
+        showGlobalSearch -> "全局搜索"
+        selectedCommunityProject != null -> "项目微社区"
         else -> stringResource(R.string.project_detail)
     }
 
@@ -94,11 +106,11 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
         modifier = Modifier.fillMaxSize().background(AppColors.Background),
         containerColor = AppColors.Background,
         topBar = {
-            if (showSources || showAirdropHub || showWalletManager || selectedProject != null) {
+            if (showSources || showAirdropHub || showWalletManager || selectedProject != null || selectedCommunityProject != null) {
                 TopAppBar(
                     title = { Text(secondaryTitle, color = AppColors.TextPrimary) },
                     navigationIcon = {
-                        IconButton(onClick = { showSources = false; showAirdropHub = false; showWalletManager = false; selectedProject = null }) {
+                        IconButton(onClick = { showSources = false; showAirdropHub = false; showWalletManager = false; showGlobalSearch = false; selectedProject = null; selectedCommunityProject = null }) {
                             Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AppColors.TextPrimary)
                         }
                     },
@@ -107,7 +119,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
             }
         },
         bottomBar = {
-            if (!showSources && !showAirdropHub && !showWalletManager && selectedProject == null) {
+            if (!showSources && !showAirdropHub && !showWalletManager && !showGlobalSearch && selectedProject == null && selectedCommunityProject == null) {
                 Box(Modifier.fillMaxWidth().height(80.dp)) {
                     Box(Modifier.fillMaxSize().blur(12.dp).background(AppColors.Navigation))
                     NavigationBar(modifier = Modifier.fillMaxSize(), containerColor = Color.Transparent, tonalElevation = 0.dp) {
@@ -130,8 +142,21 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
             when {
                 showSources -> SourcesScreen(Modifier.fillMaxSize())
                 showAirdropHub -> AirdropHubScreen(Modifier.fillMaxSize())
+                showGlobalSearch -> GlobalSearchScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onCancel = { showGlobalSearch = false },
+                    onSearch = { url ->
+                        showGlobalSearch = false
+                        context.startActivity(
+                            Intent(context, BrowserActivity::class.java)
+                                .putExtra(BrowserActivity.EXTRA_URL, url)
+                                .putExtra(BrowserActivity.EXTRA_TITLE, "OKLink 全链搜索")
+                        )
+                    }
+                )
                 showWalletManager -> WalletManagerScreen(
                     modifier = Modifier.fillMaxSize(),
+                    isGuest = isGuest,
                     onOpenBrowser = { url, selectedWallet, wallets, title ->
                         val walletJson = JSONArray().apply {
                             wallets.forEach { wallet ->
@@ -150,18 +175,31 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                             .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, selectedWallet.id))
                     }
                 )
-                selectedProject != null -> ProjectDetailScreen(selectedProject!!, Modifier.fillMaxSize())
+                selectedCommunityProject != null -> MicroCommunityScreen(
+                    projectOfficialId = selectedCommunityProject!!.officialIdentifier(),
+                    projectName = selectedCommunityProject!!.name,
+                    modifier = Modifier.fillMaxSize()
+                )
+                selectedProject != null -> ProjectDetailScreen(selectedProject!!, Modifier.fillMaxSize(), isGuest)
                 tab == 0 -> HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     onOpenSources = { showSources = true },
-                    onOpenWallet = { if (isGuest) onRequireAuth() else showWalletManager = true },
+                    onOpenWallet = { showWalletManager = true },
+                    onOpenGlobalSearch = { showGlobalSearch = true },
                     onOpenProjects = { tab = 1 },
                     onOpenAirdropHub = { showAirdropHub = true },
                     isGuest = isGuest, onRequireAuth = onRequireAuth
                 )
-                tab == 1 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth)
+                tab == 2 -> CommunitySquareScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onProjectSelected = { id, name, description ->
+                        selectedCommunityProject = ProjectDto(id, name, description, "tracking")
+                    }
+                )
+                tab == 1 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth,
+                    onOpenCommunity = { selectedCommunityProject = it })
                 else -> ProfileScreen(Modifier.fillMaxSize(), onLogout, isGuest, onRequireAuth,
-                    onManageWallets = { if (isGuest) onRequireAuth() else showWalletManager = true })
+                    onManageWallets = { showWalletManager = true })
             }
         }
     }

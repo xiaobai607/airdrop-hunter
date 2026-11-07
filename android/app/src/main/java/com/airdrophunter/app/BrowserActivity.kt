@@ -16,23 +16,23 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
+import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import org.json.JSONArray
@@ -48,6 +48,7 @@ private data class BrowserWallet(
 class BrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ApiClient.initialize(applicationContext)
         val url = intent.getStringExtra(EXTRA_URL).orEmpty()
         val site = intent.getStringExtra(EXTRA_TITLE).orEmpty()
         if (!validHttps(url)) { finish(); return }
@@ -56,6 +57,8 @@ class BrowserActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = AndroidColor.rgb(248, 249, 250)
         window.navigationBarColor = AndroidColor.rgb(248, 249, 250)
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         setContent {
             AirdropHunterTheme {
                 BrowserScreen(site.ifBlank { Uri.parse(url).host.orEmpty() }, url, wallets, selectedId) { finish() }
@@ -74,13 +77,8 @@ class BrowserActivity : ComponentActivity() {
             val item = array.optJSONObject(index) ?: return@mapNotNull null
             val address = item.optString("address")
             if (address.isBlank()) return@mapNotNull null
-            BrowserWallet(
-                id = item.optString("id"),
-                chain = item.optString("chain"),
-                networkIcon = item.optString("network_icon"),
-                walletName = item.optString("wallet_name"),
-                address = address
-            )
+            BrowserWallet(item.optString("id"), item.optString("chain"),
+                item.optString("network_icon"), item.optString("wallet_name"), address)
         }
     } catch (_: Exception) { emptyList() }
 
@@ -106,14 +104,11 @@ private fun BrowserScreen(
     var selectedWallet by remember(wallets, selectedWalletId) {
         mutableStateOf(wallets.firstOrNull { it.id == selectedWalletId } ?: wallets.firstOrNull())
     }
-    BackHandler {
-        val web = browser
-        if (web != null && web.canGoBack()) web.goBack() else onExit()
-    }
+    var showWalletPicker by remember { mutableStateOf(false) }
+    BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
+
     DisposableEffect(browser) {
-        onDispose {
-            browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() }
-        }
+        onDispose { browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() } }
     }
 
     Scaffold(
@@ -123,154 +118,84 @@ private fun BrowserScreen(
             Column {
                 TopAppBar(
                     title = { Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1) },
-                    navigationIcon = {
-                        IconButton(onClick = onExit) {
-                            Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary)
+                    navigationIcon = { IconButton(onClick = onExit) { Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary) } },
+                    actions = {
+                        if (selectedWallet != null) TextButton(onClick = { showWalletPicker = true }) {
+                            Text("钱包 · ${selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }}", color = AppColors.Primary, maxLines = 1)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = AppColors.Background,
-                        titleContentColor = AppColors.TextPrimary
-                    )
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background)
                 )
-                Surface(Modifier.fillMaxWidth(), color = Color(0xFF7F1D1D)) {
-                    Box(Modifier.fillMaxWidth().height(42.dp).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-                        Text(
-                            "请确认当前网站为项目官方页面；App 不会连接或签署钱包交易。",
-                            color = Color(0xFFFFE4E6),
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                    }
+                Surface(Modifier.fillMaxWidth(), color = Color(0xFF9F2525)) {
+                    Text("安全提醒：请核对当前网站域名；本 App 不会连接或签署钱包交易",
+                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
+                        color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 }
-            }
-        },
-        bottomBar = {
-            if (selectedWallet != null) {
-                WalletAddressAssistBar(
-                    wallets = wallets,
-                    selectedWallet = selectedWallet!!,
-                    onSelect = { selectedWallet = it },
-                    onCopy = {
-                        // One-way clipboard write only. Never read clipboard contents or observe clipboard changes.
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", selectedWallet!!.address))
-                        Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding()
-                )
             }
         }
     ) { padding ->
-        AndroidView(
-            factory = { ctx ->
-                WebView(ctx).apply {
-                    browser = this
-                    setBackgroundColor(AndroidColor.rgb(248, 249, 250))
-                    settings.apply {
-                        // JavaScript remains available for normal website functionality.
-                        // No app-injected JavaScript, DOM access, or form autofill is performed.
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        allowFileAccess = false
-                        allowContentAccess = false
-                        javaScriptCanOpenWindowsAutomatically = false
-                        setSupportMultipleWindows(false)
-                        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                        safeBrowsingEnabled = true
-                    }
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
-                    webViewClient = object : WebViewClient() {
-                        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                            val target = request?.url ?: return true
-                            return !target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null
+        Column(Modifier.fillMaxSize().padding(padding).navigationBarsPadding()) {
+            AndroidView(
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        browser = this
+                        setBackgroundColor(AndroidColor.WHITE)
+                        settings.apply {
+                            javaScriptEnabled = true
+                            domStorageEnabled = true
+                            userAgentString = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+                            allowFileAccess = false
+                            allowContentAccess = false
+                            javaScriptCanOpenWindowsAutomatically = false
+                            setSupportMultipleWindows(false)
+                            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                            safeBrowsingEnabled = true
                         }
-                        override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
-                            handler?.cancel()
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+                        webViewClient = object : WebViewClient() {
+                            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                val target = request?.url ?: return true
+                                return !target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null
+                            }
+                            override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
+                                handler?.cancel()
+                            }
                         }
+                        loadUrl(url)
                     }
-                    loadUrl(url)
+                },
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                update = { view -> if (browser !== view) browser = view }
+            )
+            BrowserAccountingToolbar(
+                walletAddress = selectedWallet?.address ?: "MOCK-WALLET-LOCAL",
+                onCopyAddress = {
+                    val address = selectedWallet?.address
+                    if (address.isNullOrBlank()) Toast.makeText(context, "当前没有可复制的钱包地址", Toast.LENGTH_SHORT).show()
+                    else {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", address))
+                        Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
+                    }
                 }
-            },
-            modifier = Modifier.fillMaxSize().padding(padding),
-            update = { view -> if (browser !== view) browser = view }
-        )
+            )
+        }
     }
-}
 
-@Composable
-private fun WalletAddressAssistBar(
-    wallets: List<BrowserWallet>,
-    selectedWallet: BrowserWallet,
-    onSelect: (BrowserWallet) -> Unit,
-    onCopy: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Surface(
-        modifier = modifier,
-        color = AppColors.Surface,
-        border = BorderStroke(1.dp, AppColors.Border),
-        shadowElevation = 10.dp,
-        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            ChainIcon(selectedWallet.chain, selectedWallet.networkIcon, Modifier.size(42.dp))
-            Box(Modifier.weight(1f)) {
-                Row(
-                    Modifier.fillMaxWidth().clickable(enabled = wallets.size > 1) { expanded = true },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "${selectedWallet.chain}  ${selectedWallet.walletName}",
-                            color = AppColors.TextPrimary,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            shortBrowserAddress(selectedWallet.address),
-                            color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1
-                        )
-                    }
-                }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+    if (showWalletPicker) {
+        Dialog(onDismissRequest = { showWalletPicker = false }) {
+            Surface(shape = RoundedCornerShape(22.dp), color = Color.White) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("选择钱包", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    if (wallets.isEmpty()) Text("尚未保存钱包地址", color = AppColors.TextSecondary)
                     wallets.forEach { wallet ->
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text("${wallet.chain}  ${wallet.walletName}", fontWeight = FontWeight.SemiBold)
-                                    Text(shortBrowserAddress(wallet.address), style = MaterialTheme.typography.bodySmall)
-                                }
-                            },
-                            onClick = { onSelect(wallet); expanded = false }
-                        )
+                        TextButton(onClick = { selectedWallet = wallet; showWalletPicker = false }, modifier = Modifier.fillMaxWidth()) {
+                            Text("${wallet.walletName.ifBlank { wallet.chain }}  ·  ${shortAddress(wallet.address)}")
+                        }
                     }
+                    TextButton(onClick = { showWalletPicker = false }, modifier = Modifier.align(Alignment.End)) { Text("关闭") }
                 }
-            }
-            Button(
-                onClick = onCopy,
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 11.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(5.dp))
-                Text("复制地址", maxLines = 1)
             }
         }
     }
 }
-
-private fun shortBrowserAddress(address: String): String =
-    if (address.length > 13) address.take(6) + "…" + address.takeLast(5) else address

@@ -15,42 +15,105 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
-data class ProjectsUiState(val isLoading: Boolean = true, val isSaving: Boolean = false, val projects: List<ProjectDto> = emptyList(), val error: String? = null, val message: String? = null)
+data class ProjectsUiState(
+    val isLoading: Boolean = true,
+    val isSaving: Boolean = false,
+    val projects: List<ProjectDto> = emptyList(),
+    val error: String? = null,
+    val message: String? = null
+)
 
 class ProjectsViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ProjectsUiState())
     val uiState: StateFlow<ProjectsUiState> = _uiState.asStateFlow()
+    private val gson = Gson()
+    private val projectListType = object : TypeToken<List<ProjectDto>>() {}.type
 
-    fun loadProjects() {
+    private suspend fun mergePnlProjects(base: List<ProjectDto>): List<ProjectDto> {
+        val extras = withContext(Dispatchers.IO) {
+            CacheStore.readLocal("pnl_projects")?.let {
+                runCatching { gson.fromJson<List<ProjectDto>>(it, projectListType) }.getOrNull()
+            }.orEmpty()
+        }
+        return (base + extras).distinctBy { it.id }
+    }
+
+    fun loadProjects(isGuest: Boolean = false) {
         viewModelScope.launch {
-            // Show cached content before making any network request.
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            if (isGuest) {
+                val local = withContext(Dispatchers.IO) {
+                    CacheStore.readLocal("projects")?.let { runCatching { gson.fromJson<List<ProjectDto>>(it, projectListType) }.getOrNull() }
+                }.orEmpty()
+                _uiState.value = _uiState.value.copy(isLoading = false, projects = mergePnlProjects(local), error = null)
+                return@launch
+            }
             withContext(Dispatchers.IO) {
                 CacheStore.read("projects")?.let { json ->
-                    runCatching { Gson().fromJson<List<ProjectDto>>(json, object : TypeToken<List<ProjectDto>>() {}.type) }.getOrNull()
+                    runCatching { gson.fromJson<List<ProjectDto>>(json, projectListType) }.getOrNull()
                 }?.let { cached -> _uiState.value = _uiState.value.copy(isLoading = false, projects = cached) }
             }
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
                 val projects = ApiClient.service.getProjects()
-                _uiState.value = _uiState.value.copy(isLoading = false, projects = projects, error = null)
-                withContext(Dispatchers.IO) { CacheStore.write("projects", Gson().toJson(projects)) }
+                val merged = mergePnlProjects(projects)
+                _uiState.value = _uiState.value.copy(isLoading = false, projects = merged, error = null)
+                withContext(Dispatchers.IO) { CacheStore.write("projects", gson.toJson(projects)) }
             } catch (error: CancellationException) { throw error }
-            catch (error: Exception) { _uiState.value = _uiState.value.copy(isLoading = false, error = error.message ?: "Network error") }
+            catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = error.message ?: "Network error")
+            }
         }
     }
 
-    fun createProject(request: ProjectWriteRequest) = mutateProjects("Project added") { ApiClient.service.createProject(request) }
-    fun updateProject(project: ProjectDto, request: ProjectWriteRequest) = mutateProjects("Project updated") { ApiClient.service.updateProject(project.id, request) }
+    fun createProject(request: ProjectWriteRequest, isGuest: Boolean = false) {
+        if (isGuest) {
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(isSaving = true, error = null, message = null)
+                val project = ProjectDto(
+                    id = UUID.randomUUID().toString(),
+                    name = request.name,
+                    description = request.description,
+                    status = request.status,
+                    official_url = request.official_url,
+                    claim_url = request.claim_url
+                )
+                val projects = _uiState.value.projects + project
+                withContext(Dispatchers.IO) { CacheStore.writeLocal("projects", gson.toJson(projects)) }
+                _uiState.value = _uiState.value.copy(isSaving = false, projects = projects, message = "已保存在本地")
+            }
+        } else {
+            mutateProjects("Project added") { ApiClient.service.createProject(request) }
+        }
+    }
 
-    fun deleteProject(project: ProjectDto) {
+    fun updateProject(project: ProjectDto, request: ProjectWriteRequest, isGuest: Boolean = false) {
+        if (isGuest) {
+            viewModelScope.launch {
+                val updated = project.copy(
+                    name = request.name, description = request.description, status = request.status,
+                    official_url = request.official_url, claim_url = request.claim_url
+                )
+                val projects = _uiState.value.projects.map { if (it.id == project.id) updated else it }
+                withContext(Dispatchers.IO) { CacheStore.writeLocal("projects", gson.toJson(projects)) }
+                _uiState.value = _uiState.value.copy(projects = projects, message = "已保存在本地")
+            }
+        } else mutateProjects("Project updated") { ApiClient.service.updateProject(project.id, request) }
+    }
+
+    fun deleteProject(project: ProjectDto, isGuest: Boolean = false) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, error = null, message = null)
             try {
-                ApiClient.service.deleteProject(project.id)
                 val projects = _uiState.value.projects.filterNot { it.id == project.id }
-                _uiState.value = _uiState.value.copy(isSaving = false, projects = projects, message = "Project deleted")
-                withContext(Dispatchers.IO) { CacheStore.write("projects", Gson().toJson(projects)) }
+                if (isGuest) {
+                    withContext(Dispatchers.IO) { CacheStore.writeLocal("projects", gson.toJson(projects)) }
+                } else {
+                    ApiClient.service.deleteProject(project.id)
+                    withContext(Dispatchers.IO) { CacheStore.write("projects", gson.toJson(projects)) }
+                }
+                _uiState.value = _uiState.value.copy(isSaving = false, projects = projects, message = if (isGuest) "已从本地删除" else "Project deleted")
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { _uiState.value = _uiState.value.copy(isSaving = false, error = error.message ?: "Delete failed") }
         }
@@ -63,7 +126,7 @@ class ProjectsViewModel : ViewModel() {
                 request()
                 val projects = ApiClient.service.getProjects()
                 _uiState.value = _uiState.value.copy(isSaving = false, projects = projects, error = null, message = successMessage)
-                withContext(Dispatchers.IO) { CacheStore.write("projects", Gson().toJson(projects)) }
+                withContext(Dispatchers.IO) { CacheStore.write("projects", gson.toJson(projects)) }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { _uiState.value = _uiState.value.copy(isSaving = false, error = error.message ?: "Save failed") }
         }

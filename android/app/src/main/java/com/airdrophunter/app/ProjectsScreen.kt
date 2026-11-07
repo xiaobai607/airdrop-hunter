@@ -1,15 +1,18 @@
 package com.airdrophunter.app
 
 import android.widget.Toast
+import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,9 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.officialIdentifier
+import com.airdrophunter.app.data.CacheStore
+import androidx.compose.runtime.collectAsState
 import com.airdrophunter.app.ui.theme.AppColors
 import java.util.Locale
 
@@ -29,9 +36,12 @@ fun ProjectsScreen(
     onProjectSelected: (ProjectDto) -> Unit,
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
+    onOpenCommunity: (ProjectDto) -> Unit = {},
     vm: ProjectsViewModel = viewModel()
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val pnlRecords by CacheStore.observePnlRecords().collectAsState(initial = emptyList())
+    val allRatings by CacheStore.observeAllProjectRatings().collectAsState(initial = emptyList())
     val context = LocalContext.current
     var selectedFilter by remember { mutableStateOf("全部") }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -40,9 +50,7 @@ fun ProjectsScreen(
     var newProjectOfficialUrl by remember { mutableStateOf("") }
     var newProjectClaimUrl by remember { mutableStateOf("") }
 
-    LaunchedEffect(isGuest) {
-        if (!isGuest) vm.loadProjects()
-    }
+    LaunchedEffect(isGuest) { vm.loadProjects(isGuest) }
 
     val filterOptions = listOf("全部" to state.projects.size) +
         listOf(
@@ -93,11 +101,6 @@ fun ProjectsScreen(
         }
 
         when {
-            isGuest -> EmptyProjects(
-                modifier = Modifier.weight(1f),
-                title = "登录后管理你的项目",
-                subtitle = "游客模式不会加载或展示虚构项目。"
-            )
             state.isLoading && state.projects.isEmpty() -> Box(
                 Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center
             ) { CircularProgressIndicator(color = AppColors.Primary) }
@@ -109,7 +112,7 @@ fun ProjectsScreen(
             filtered.isEmpty() -> EmptyProjects(
                 modifier = Modifier.weight(1f),
                 title = "还没有添加项目",
-                subtitle = "添加项目后，这里会显示你的真实项目与任务进度。"
+                subtitle = if (isGuest) "添加的项目只保存在这台设备上。" else "添加项目后，这里会显示你的项目与任务进度。"
             )
             else -> LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -117,43 +120,66 @@ fun ProjectsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filtered, key = { it.id }) { project ->
+                    val pnl = pnlRecords.firstOrNull { it.projectOfficialId == project.officialIdentifier() }
+                    val gasTotal = pnl?.totalGasCostUsd ?: 0.0
+                    val rewardTotal = pnl?.totalRewardUsd ?: 0.0
+                    val netProfit = pnl?.netProfitUsd ?: 0.0
+                    val projectRatings = allRatings.filter { it.projectOfficialId == project.officialIdentifier() }
+                    val communityAverage = if (projectRatings.isEmpty()) 4.9 else projectRatings.map { it.score }.average()
+                    val positiveRate = if (projectRatings.isEmpty()) 96 else projectRatings.count { it.score >= 4 } * 100 / projectRatings.size
+                    val communityLabel = when {
+                        positiveRate >= 95 -> "好评如潮"
+                        positiveRate >= 85 -> "特别好评"
+                        positiveRate >= 75 -> "多半好评"
+                        else -> "褒贬不一"
+                    }
                     Card(
-                        onClick = { onProjectSelected(project) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(project) },
+                        shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                         border = BorderStroke(1.dp, AppColors.Border),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary,
-                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                val label = when (project.status) {
-                                    "tracking" -> "进行中"
-                                    "completed" -> "已完成"
-                                    else -> "待开始"
+                        Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary,
+                                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                                    val statusLabel = when (project.status) { "tracking" -> "进行中"; "completed" -> "已完成"; else -> "待开始" }
+                                    Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
+                                        Text(statusLabel, Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                            color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                                    }
                                 }
-                                Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
-                                    Text(label, Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                        color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                                Text(String.format(Locale.US, "累计消耗 $%.2f  ·  累计收益 $%.2f", gasTotal, rewardTotal),
+                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Text(String.format(Locale.US, "真实净盈亏  %s$%.2f",
+                                    if (netProfit >= 0) "+" else "-", kotlin.math.abs(netProfit)),
+                                    color = if (netProfit >= 0) AppColors.Success else AppColors.Danger,
+                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                                Text("去交互  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable {
+                                        if (project.official_url.startsWith("https://")) {
+                                            context.startActivity(Intent(context, BrowserActivity::class.java)
+                                                .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
+                                                .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
+                                        } else onProjectSelected(project)
+                                    })
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Surface(onClick = { onOpenCommunity(project) }, shape = RoundedCornerShape(999.dp),
+                                    color = Color(0xFFFFF4E5), border = BorderStroke(1.dp, Color(0xFFFFD9A8))) {
+                                    Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text("微社区", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
+                                        Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12),
+                                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                    }
                                 }
-                            }
-                            if (project.description.isNotBlank()) {
-                                Text(project.description, color = AppColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodySmall, maxLines = 2)
-                            }
-                            project.deadline?.takeIf { it.isNotBlank() }?.let {
-                                Text("截止时间：$it", color = AppColors.TextHelper,
-                                    style = MaterialTheme.typography.labelSmall)
-                            }
-                            if (project.expected_income > 0 || project.actual_income > 0) {
-                                Text(
-                                    String.format(Locale.US, "实际收益 $%.2f · 预期 $%.2f",
-                                        project.actual_income, project.expected_income),
-                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
-                                )
+                                Text(communityLabel, color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -175,7 +201,7 @@ fun ProjectsScreen(
                 OutlinedTextField(newProjectClaimUrl, { newProjectClaimUrl = it }, label = { Text("官方资格查询 HTTPS 链接（可选）") }, singleLine = true)
                 Text("资格查询链接请填写项目方官方页面，不要填写来历不明的第三方链接。",
                     color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                state.error?.let { Text("服务器繁忙或提交信息无效", color = AppColors.Danger) }
+                state.error?.let { Text(it, color = AppColors.Danger) }
             }
         },
         confirmButton = {
@@ -187,7 +213,7 @@ fun ProjectsScreen(
                         status = "tracking",
                         official_url = newProjectOfficialUrl.trim(),
                         claim_url = newProjectClaimUrl.trim()
-                    ))
+                    ), isGuest)
                     showAddDialog = false
                     newProjectName = ""; newProjectDescription = ""; newProjectOfficialUrl = ""; newProjectClaimUrl = ""
                 }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("保存项目") }
@@ -197,7 +223,7 @@ fun ProjectsScreen(
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
         FloatingActionButton(
-            onClick = { if (isGuest) onRequireAuth() else showAddDialog = true },
+            onClick = { showAddDialog = true },
             modifier = Modifier.padding(end = 20.dp, bottom = 20.dp).size(58.dp),
             shape = RoundedCornerShape(50),
             containerColor = AppColors.Primary,

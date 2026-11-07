@@ -11,8 +11,8 @@ android {
         applicationId = "com.airdrophunter.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.8.0"
+        versionCode = 10
+        versionName = "0.10.0"
         buildConfigField("String", "API_BASE_URL", "\"https://airdrop-hunter-z6qn.onrender.com/\"")
     }
     buildFeatures { compose = true; buildConfig = true }
