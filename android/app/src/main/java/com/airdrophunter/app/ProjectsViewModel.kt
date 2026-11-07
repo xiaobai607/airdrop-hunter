@@ -1,8 +1,9 @@
 package com.airdrophunter.app
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.ApiService
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.ProjectWriteRequest
@@ -25,7 +26,7 @@ data class ProjectsUiState(
     val message: String? = null
 )
 
-class ProjectsViewModel : ViewModel() {
+class ProjectsViewModel(private val apiService: ApiService) : ViewModel() {
     private val _uiState = MutableStateFlow(ProjectsUiState())
     val uiState: StateFlow<ProjectsUiState> = _uiState.asStateFlow()
     private val gson = Gson()
@@ -56,7 +57,7 @@ class ProjectsViewModel : ViewModel() {
                 }?.let { cached -> _uiState.value = _uiState.value.copy(isLoading = false, projects = cached) }
             }
             try {
-                val projects = ApiClient.service.getProjects()
+                val projects = apiService.getProjects()
                 val merged = mergePnlProjects(projects)
                 _uiState.value = _uiState.value.copy(isLoading = false, projects = merged, error = null)
                 withContext(Dispatchers.IO) { CacheStore.write("projects", gson.toJson(projects)) }
@@ -84,7 +85,7 @@ class ProjectsViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(isSaving = false, projects = projects, message = "已保存在本地")
             }
         } else {
-            mutateProjects("Project added") { ApiClient.service.createProject(request) }
+            mutateProjects("Project added") { apiService.createProject(request) }
         }
     }
 
@@ -99,7 +100,7 @@ class ProjectsViewModel : ViewModel() {
                 withContext(Dispatchers.IO) { CacheStore.writeLocal("projects", gson.toJson(projects)) }
                 _uiState.value = _uiState.value.copy(projects = projects, message = "已保存在本地")
             }
-        } else mutateProjects("Project updated") { ApiClient.service.updateProject(project.id, request) }
+        } else mutateProjects("Project updated") { apiService.updateProject(project.id, request) }
     }
 
     fun deleteProject(project: ProjectDto, isGuest: Boolean = false) {
@@ -110,7 +111,7 @@ class ProjectsViewModel : ViewModel() {
                 if (isGuest) {
                     withContext(Dispatchers.IO) { CacheStore.writeLocal("projects", gson.toJson(projects)) }
                 } else {
-                    ApiClient.service.deleteProject(project.id)
+                    apiService.deleteProject(project.id)
                     withContext(Dispatchers.IO) { CacheStore.write("projects", gson.toJson(projects)) }
                 }
                 _uiState.value = _uiState.value.copy(isSaving = false, projects = projects, message = if (isGuest) "已从本地删除" else "Project deleted")
@@ -124,11 +125,23 @@ class ProjectsViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isSaving = true, error = null, message = null)
             try {
                 request()
-                val projects = ApiClient.service.getProjects()
+                val projects = apiService.getProjects()
                 _uiState.value = _uiState.value.copy(isSaving = false, projects = projects, error = null, message = successMessage)
                 withContext(Dispatchers.IO) { CacheStore.write("projects", gson.toJson(projects)) }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { _uiState.value = _uiState.value.copy(isSaving = false, error = error.message ?: "Save failed") }
         }
+    }
+}
+
+class ProjectsViewModelFactory(
+    private val apiService: com.airdrophunter.app.data.ApiService
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ProjectsViewModel::class.java)) {
+            return ProjectsViewModel(apiService) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
