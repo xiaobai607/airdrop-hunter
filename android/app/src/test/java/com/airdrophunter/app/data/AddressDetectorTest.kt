@@ -6,6 +6,7 @@ import org.junit.Test
 class AddressDetectorTest {
     @Test fun detectsBitcoinLegacyAndBech32Addresses() {
         assertEquals(DetectedNetwork.BITCOIN, AddressDetector.detect("1BoatSLRHtKNngkdXEeobR76b53LETtpyT"))
+        assertEquals(DetectedNetwork.BITCOIN, AddressDetector.detect("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"))
         assertEquals(DetectedNetwork.BITCOIN, AddressDetector.detect("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"))
     }
 

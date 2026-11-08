@@ -107,6 +107,7 @@ private fun detectEcosystem(address: String): String? =
         DetectedNetwork.EVM -> WalletEcosystem.EVM
         DetectedNetwork.TRON -> WalletEcosystem.TRON
         DetectedNetwork.SOL -> WalletEcosystem.SOL
+        DetectedNetwork.BITCOIN -> WalletEcosystem.BITCOIN
         else -> null
     }
 
@@ -347,8 +348,9 @@ fun WalletManagerScreen(
                         when (ecosystem) {
                             WalletEcosystem.TRON -> "TRON：第一版支持真实余额查询"
                             WalletEcosystem.EVM -> "EVM：余额查询接入中"
-                            WalletEcosystem.SOL -> "Solana：余额查询接入中"
-                            else -> "支持 EVM、TRON 和 Solana 公开地址"
+                            WalletEcosystem.SOL -> "Solana：支持 SOL 与 SPL 代币余额及可用行情估值"
+                            WalletEcosystem.BITCOIN -> "Bitcoin：支持 Legacy、SegWit 地址及 BTC 余额估值"
+                            else -> "支持 EVM、TRON、Solana 和 Bitcoin 公开地址"
                         },
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall

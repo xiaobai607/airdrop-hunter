@@ -2,6 +2,8 @@ package com.airdrophunter.app
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -40,6 +42,7 @@ private fun chainLogoUrl(network: String): String? {
         "arb", "arbitrum", "arbitrum one" -> "arbitrum"
         "tron", "trx", "trc20" -> "tron"
         "sol", "solana" -> "solana"
+        "btc", "bitcoin" -> "bitcoin"
         else -> return null
     }
     return "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/$slug/info/logo.png"
@@ -51,11 +54,13 @@ fun DynamicChainIcon(network: String, modifier: Modifier = Modifier) {
     val loader = remember(context) { DynamicChainImageLoader.get(context) }
     val url = remember(network) { chainLogoUrl(network) }
     val palette = listOf(Color(0xFF2878D0), Color(0xFF6B5DD3), Color(0xFF168A83), Color(0xFFB66A2C), Color(0xFF327A65), Color(0xFF596579))
-    val fallbackColor = remember(network) { palette.random() }
+    val fallbackColor = remember(network) { palette[(network.lowercase().hashCode() and Int.MAX_VALUE) % palette.size] }
     val initial = remember(network) { network.trim().firstOrNull()?.uppercase() ?: "?" }
     if (url != null) {
         SubcomposeAsyncImage(model = ImageRequest.Builder(context).data(url).crossfade(true).build(),
-            imageLoader = loader, contentDescription = network, modifier = modifier) {
+            imageLoader = loader, contentDescription = network,
+            modifier = modifier.clip(CircleShape).background(Color.White, CircleShape),
+            contentScale = ContentScale.Fit) {
             if (painter.state is AsyncImagePainter.State.Error) ChainIconFallback(initial, fallbackColor, modifier)
             else SubcomposeAsyncImageContent()
         }
@@ -81,7 +86,8 @@ fun ChainIcon(chain: String, networkIcon: String = "", modifier: Modifier = Modi
         key.contains("ethereum") || key.contains("erc20") || key == "evm" || symbol == "E" -> R.drawable.ic_chain_ethereum
         else -> 0
     }
-    if (iconRes != 0) Image(painter = painterResource(iconRes), contentDescription = chain, modifier = modifier)
+    if (iconRes != 0) Image(painter = painterResource(iconRes), contentDescription = chain,
+        modifier = modifier.clip(CircleShape).background(Color.White, CircleShape), contentScale = ContentScale.Fit)
     else {
         val palette = listOf(Color(0xFF2878D0), Color(0xFF6B5DD3), Color(0xFF168A83), Color(0xFFB66A2C), Color(0xFF327A65), Color(0xFF596579))
         val color = remember(key) { palette.random() }
