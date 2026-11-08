@@ -22,7 +22,7 @@ import java.time.Instant
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
 
 @Entity(tableName = "pending_bills")
-data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest")
+data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest", @ColumnInfo(defaultValue = "'unknown'") val network: String = "unknown")
 
 @Entity(
     tableName = "pnl_records",
@@ -116,7 +116,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class], version = 7, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class], version = 8, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -157,13 +157,85 @@ object CacheStore {
             db.execSQL("ALTER TABLE pending_bills ADD COLUMN chain TEXT NOT NULL DEFAULT 'unknown'")
         }
     }
+
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Main already has chain + accountScope columns from earlier migrations.
+            // Add the network key independently so chain metadata is not overwritten.
+            db.execSQL("ALTER TABLE pending_bills ADD COLUMN network TEXT NOT NULL DEFAULT 'unknown'")
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS user_projects (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    accountScope TEXT NOT NULL DEFAULT 'guest',
+                    projectLocalId TEXT NOT NULL,
+                    projectOfficialId TEXT,
+                    projectName TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    totalGasCostUsd REAL NOT NULL,
+                    totalActualRewardUsd REAL NOT NULL,
+                    netProfitUsd REAL NOT NULL,
+                    interactionCount INTEGER NOT NULL,
+                    lastInteractionAt INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+            """.trimIndent())
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_user_projects_accountScope_projectLocalId ON user_projects(accountScope, projectLocalId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_user_projects_projectOfficialId ON user_projects(projectOfficialId)")
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS user_interactions (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    accountScope TEXT NOT NULL DEFAULT 'guest',
+                    projectLocalId TEXT NOT NULL,
+                    projectOfficialId TEXT,
+                    projectName TEXT NOT NULL,
+                    txHash TEXT NOT NULL,
+                    walletAddress TEXT NOT NULL,
+                    network TEXT NOT NULL,
+                    gasCostUsd REAL NOT NULL,
+                    actualRewardUsd REAL NOT NULL,
+                    interactionMethod TEXT NOT NULL,
+                    timestamp INTEGER NOT NULL
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_user_interactions_accountScope_projectLocalId_timestamp ON user_interactions(accountScope, projectLocalId, timestamp)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_user_interactions_projectOfficialId ON user_interactions(projectOfficialId)")
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS community_sync_outbox (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    accountScope TEXT NOT NULL DEFAULT 'guest',
+                    projectOfficialId TEXT NOT NULL,
+                    gasCostUsd REAL NOT NULL,
+                    actualRewardUsd REAL NOT NULL,
+                    interactionCount INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    attemptCount INTEGER NOT NULL DEFAULT 0,
+                    lastAttemptAt INTEGER,
+                    lastError TEXT
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_community_sync_outbox_accountScope_createdAt ON community_sync_outbox(accountScope, createdAt)")
+            // Migrate existing personal project totals, but do not fabricate interaction history.
+            db.execSQL("""
+                INSERT OR IGNORE INTO user_projects (
+                    id, accountScope, projectLocalId, projectOfficialId, projectName, status,
+                    totalGasCostUsd, totalActualRewardUsd, netProfitUsd, interactionCount,
+                    lastInteractionAt, createdAt, updatedAt
+                )
+                SELECT id, accountScope, projectLocalId, projectOfficialId, projectCustomName, 'tracking',
+                    totalGasCostUsd, totalRewardUsd, netProfitUsd, 0, 0, 0, 0
+                FROM pnl_records
+            """.trimIndent())
+        }
+    }
+
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
         }
     }
     private fun accountScopeFromToken(token: String?): String {
