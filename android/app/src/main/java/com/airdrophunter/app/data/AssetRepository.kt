@@ -21,29 +21,17 @@ enum class DetectedNetwork(val label: String) {
 object AddressDetector {
     private val evm = Regex("^0x[a-fA-F0-9]{40}$")
     private val tron = Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$")
-    private val bitcoinBech32 = Regex("^bc1[ac-hj-np-z02-9]{11,71}$", RegexOption.IGNORE_CASE)
     private val base58 = Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
-    private fun isValidBitcoinBase58(value: String): Boolean {
-        if (value.length !in 26..35 || value.any { it !in "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz" }) return false
-        val alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-        var number = BigInteger.ZERO
-        value.forEach { char -> number = number.multiply(BigInteger.valueOf(58)).add(BigInteger.valueOf(alphabet.indexOf(char).toLong())) }
-        val decoded = number.toByteArray().let { bytes -> if (bytes.firstOrNull() == 0.toByte()) bytes.dropWhile { it == 0.toByte() }.toByteArray() else bytes }
-        val leadingZeros = value.takeWhile { it == '1' }.length
-        val payload = ByteArray(leadingZeros) + decoded
-        if (payload.size != 25 || (payload[0].toInt() and 0xff) !in setOf(0, 5)) return false
-        val digest = MessageDigest.getInstance("SHA-256")
-        val checksum = digest.digest(digest.digest(payload.copyOfRange(0, 21))).copyOfRange(0, 4)
-        return checksum.contentEquals(payload.copyOfRange(21, 25))
-    }
+    private fun isValidBitcoinBase58(value: String): Boolean = BitcoinAddressValidator.isValid(value)
+
 
     fun detect(address: String): DetectedNetwork {
         val value = address.trim()
         return when {
             evm.matches(value) -> DetectedNetwork.EVM
             tron.matches(value) -> DetectedNetwork.TRON
-            bitcoinBech32.matches(value) || isValidBitcoinBase58(value) -> DetectedNetwork.BITCOIN
+            isValidBitcoinBase58(value) -> DetectedNetwork.BITCOIN
             base58.matches(value) -> DetectedNetwork.SOL
             else -> DetectedNetwork.UNKNOWN
         }
@@ -68,7 +56,9 @@ data class UnifiedAssetData(
     val nativeSymbol: String,
     val nativeBalance: BigDecimal,
     val tokenList: List<UnifiedToken>,
-    val lastUpdatedEpochSeconds: Long? = null
+    val lastUpdatedEpochSeconds: Long? = null,
+    val valuationComplete: Boolean = true,
+    val unpricedTokenCount: Int = 0
 )
 
 interface AssetRepository {
@@ -121,9 +111,28 @@ class DefaultAssetRepository(
             }
             DetectedNetwork.EVM -> runCatching { fetchEvmAssets(normalized) }
             DetectedNetwork.SOL -> runCatching { fetchSolanaAssets(normalized) }
-            DetectedNetwork.BITCOIN -> Result.failure(IllegalArgumentException("已识别为 Bitcoin 地址，当前版本暂未接入 BTC 资产查询。"))
+            DetectedNetwork.BITCOIN -> runCatching { fetchBitcoinAssets(normalized) }
             DetectedNetwork.UNKNOWN -> Result.failure(IllegalArgumentException("地址格式无法识别，请检查后重试。"))
         }
+    }
+
+    private val marketRepository = WalletMarketDataRepository()
+
+    private fun fetchBitcoinAssets(address: String): UnifiedAssetData {
+        val balance = marketRepository.fetchBitcoinBalance(address)
+        val price = marketRepository.fetchUsdPrice("BTC-USDT")
+        val value = price?.multiply(balance)
+        return UnifiedAssetData(
+            address = address,
+            ecosystemName = "Bitcoin",
+            totalUsd = value,
+            nativeAssetName = "Bitcoin",
+            nativeSymbol = "BTC",
+            nativeBalance = balance,
+            tokenList = listOf(UnifiedToken("native-btc", "Bitcoin", "BTC", balance, value, price)),
+            valuationComplete = value != null || balance.signum() == 0,
+            unpricedTokenCount = if (value == null && balance.signum() > 0) 1 else 0
+        )
     }
 
     private fun fetchEvmAssets(address: String): UnifiedAssetData {
@@ -141,7 +150,9 @@ class DefaultAssetRepository(
             nativeAssetName = "Ethereum",
             nativeSymbol = "ETH",
             nativeBalance = balance,
-            tokenList = listOf(UnifiedToken("native-eth", "Ethereum", "ETH", balance))
+            tokenList = listOf(UnifiedToken("native-eth", "Ethereum", "ETH", balance)),
+            valuationComplete = false,
+            unpricedTokenCount = if (balance.signum() > 0) 1 else 0
         )
     }
 
@@ -163,32 +174,47 @@ class DefaultAssetRepository(
                 .put(JSONObject().put("encoding", "jsonParsed").put("commitment", "confirmed"))
         )
         val values = tokenResponse.optJSONObject("result")?.optJSONArray("value") ?: JSONArray()
-        val tokens = mutableListOf(
-            UnifiedToken("native-sol", "Solana", "SOL", solBalance)
-        )
+        data class Holding(val mint: String, val quantity: BigDecimal)
+        val holdings = mutableListOf<Holding>()
         for (i in 0 until values.length()) {
-            val account = values.optJSONObject(i)?.optJSONObject("account")
-            val info = account?.optJSONObject("data")?.optJSONObject("parsed")
-                ?.optJSONObject("info") ?: continue
+            val info = values.optJSONObject(i)?.optJSONObject("account")
+                ?.optJSONObject("data")?.optJSONObject("parsed")?.optJSONObject("info") ?: continue
             val mint = info.optString("mint")
             val amount = info.optJSONObject("tokenAmount") ?: continue
-            val quantity = amount.optString("uiAmountString").toBigDecimalOrNull() ?: continue
-            if (quantity.signum() <= 0) continue
+            val quantity = amount.optString("uiAmountString").toBigDecimalOrNull()
+                ?: amount.optDouble("uiAmount").takeIf { it.isFinite() }?.toBigDecimal()
+                ?: continue
+            if (quantity.signum() > 0 && mint.isNotBlank()) holdings += Holding(mint, quantity)
+        }
+        val markets = marketRepository.fetchSolanaTokenMarkets(holdings.map { it.mint })
+        val solPrice = marketRepository.fetchUsdPrice("SOL-USDT")
+        val solValue = solPrice?.multiply(solBalance)
+        val tokens = mutableListOf(UnifiedToken("native-sol", "Solana", "SOL", solBalance, solValue, solPrice))
+        holdings.forEach { holding ->
+            val market = markets[holding.mint]
+            val price = market?.priceUsd
             tokens += UnifiedToken(
-                id = mint,
-                name = "SPL Token",
-                symbol = mint.take(5) + "…",
-                quantity = quantity
+                id = holding.mint,
+                name = market?.name ?: "SPL Token",
+                symbol = market?.symbol ?: holding.mint.take(5) + "…",
+                quantity = holding.quantity,
+                usdValue = price?.multiply(holding.quantity),
+                priceUsd = price,
+                logoUrl = market?.logoUrl
             )
         }
+        val unpriced = tokens.count { it.quantity.signum() > 0 && it.usdValue == null }
+        val knownValue = tokens.mapNotNull { it.usdValue }.fold(BigDecimal.ZERO, BigDecimal::add)
         return UnifiedAssetData(
             address = address,
             ecosystemName = "Solana",
-            totalUsd = null,
+            totalUsd = if (tokens.any { it.usdValue != null }) knownValue else null,
             nativeAssetName = "Solana",
             nativeSymbol = "SOL",
             nativeBalance = solBalance,
-            tokenList = tokens
+            tokenList = tokens,
+            valuationComplete = unpriced == 0,
+            unpricedTokenCount = unpriced
         )
     }
 
