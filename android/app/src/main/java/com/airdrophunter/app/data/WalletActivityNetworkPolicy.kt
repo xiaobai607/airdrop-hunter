@@ -3,7 +3,7 @@ package com.airdrophunter.app.data
 internal object WalletActivityNetworkPolicy {
     private val supportedNetworks = setOf(
         "ethereum", "bsc", "polygon", "arbitrum", "optimism", "base",
-        "avalanche", "tron", "bitcoin"
+        "avalanche", "tron", "bitcoin", "solana"
     )
     fun isSupported(network: String): Boolean = network.trim().lowercase() in supportedNetworks
 }
