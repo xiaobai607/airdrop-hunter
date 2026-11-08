@@ -58,7 +58,7 @@ class AssetRepositoryTest {
         val assets = buildEvmAssetData("0x0000000000000000000000000000000000000001", balances)
 
         assertEquals(7, assets.tokenList.size)
-        assertEquals("EVM · 7/7 网络可用", assets.ecosystemName)
+        assertEquals("EVM 原生币 · 7/7 网络可用（ERC-20 未读取）", assets.ecosystemName)
         assertEquals("ETH", assets.nativeSymbol)
         assertEquals(BigDecimal("1.25"), assets.nativeBalance)
         assertEquals(
@@ -76,7 +76,7 @@ class AssetRepositoryTest {
             "0x0000000000000000000000000000000000000001",
             mapOf("ethereum" to BigDecimal("0.5"), "base" to BigDecimal("2"))
         )
-        assertEquals("EVM · 2/7 网络可用", assets.ecosystemName)
+        assertEquals("EVM 原生币 · 2/7 网络可用（ERC-20 未读取）", assets.ecosystemName)
         assertEquals(2, assets.tokenList.size)
         assertTrue(assets.tokenList.none { it.id == "native-bsc" })
     }

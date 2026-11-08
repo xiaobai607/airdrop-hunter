@@ -107,7 +107,7 @@ internal fun buildEvmAssetData(
     }
     return UnifiedAssetData(
         address = address,
-        ecosystemName = "EVM · ${ordered.size}/${EVM_ASSET_NETWORKS.size} 网络可用",
+        ecosystemName = "EVM 原生币 · ${ordered.size}/${EVM_ASSET_NETWORKS.size} 网络可用（ERC-20 未读取）",
         totalUsd = null,
         nativeAssetName = primary.first.name,
         nativeSymbol = primary.first.symbol,
