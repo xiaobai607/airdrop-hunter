@@ -7,6 +7,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Keep only the newest PR build active; avoid wasting runners on superseded commits.
+concurrency:
+  group: airdrop-hunter-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
