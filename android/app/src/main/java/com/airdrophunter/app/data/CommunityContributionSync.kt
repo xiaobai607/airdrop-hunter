@@ -16,6 +16,20 @@ import retrofit2.HttpException
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+/**
+ * Simulated browser bills must never enter the public aggregate. Keep this gate
+ * conservative until a real transaction receipt and measured gas source exists.
+ */
+internal fun isEligibleForPublicContribution(bill: PendingBillEntity): Boolean =
+    bill.txHash.isNotBlank() &&
+        !bill.txHash.startsWith("MOCK-", ignoreCase = true) &&
+        bill.walletAddress.isNotBlank() &&
+        !bill.walletAddress.startsWith("MOCK-", ignoreCase = true) &&
+        bill.network.isNotBlank() &&
+        !bill.network.equals("unknown", ignoreCase = true) &&
+        !bill.interactionMethod.contains("模拟", ignoreCase = true) &&
+        !bill.interactionMethod.contains("mock", ignoreCase = true)
+
 class CommunityContributionSyncWorker(
     appContext: Context,
     params: WorkerParameters

@@ -242,7 +242,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class], version = 8, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class], version = 9, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -287,7 +287,7 @@ object CacheStore {
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build()
         }
     }
     private fun accountScopeFromToken(token: String?): String {
@@ -449,7 +449,9 @@ object CacheStore {
                     timestamp = recordedAt
                 )
             )
-            canonicalOfficialId?.takeIf { scope.startsWith("user:") }?.let { officialId ->
+            canonicalOfficialId?.takeIf {
+                scope.startsWith("user:") && isEligibleForPublicContribution(bill)
+            }?.let { officialId ->
                 db.communitySyncOutboxDao().insert(
                     CommunitySyncOutboxEntity(
                         id = java.util.UUID.randomUUID().toString(),
@@ -583,6 +585,14 @@ object CacheStore {
     private val MIGRATION_7_8 = object : Migration(7, 8) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE pending_bills ADD COLUMN network TEXT NOT NULL DEFAULT 'unknown'")
+        }
+    }
+
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Previous builds queued simulated browser bills as if they were real.
+            // Purge only the unsent outbox; keep the user's private ledger intact.
+            db.execSQL("DELETE FROM community_sync_outbox")
         }
     }
 
