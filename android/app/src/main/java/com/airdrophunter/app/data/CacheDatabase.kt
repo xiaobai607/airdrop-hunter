@@ -241,7 +241,7 @@ object CacheStore {
                 client_record_id = bill.id,
                 project_id = projectLocalId,
                 project_name = projectCustomName,
-                chain = "unknown",
+                chain = bill.chain.ifBlank { "unknown" },
                 wallet_address = bill.walletAddress,
                 tx_hash = bill.txHash,
                 interaction_method = bill.interactionMethod,
