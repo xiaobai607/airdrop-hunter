@@ -35,7 +35,7 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert first.json()["total_interactions"] == 1
         assert first.json()["data_quality"] == "user_confirmed"
 
-        # Retrying the same outbox event must not increase totals a second time.
+        # Retrying the exact same event is safe and must not increase totals.
         second = client.post(
             "/api/community/projects/linea/contributions",
             headers=headers,
@@ -45,6 +45,15 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert second.json()["total_gas_cost_usd"] == 2.5
         assert second.json()["total_actual_reward_usd"] == 12.0
         assert second.json()["total_interactions"] == 1
+
+        # Reusing the event ID with changed financial data must be rejected.
+        conflicting_payload = {**payload, "actual_reward_usd": "1200.00"}
+        conflict = client.post(
+            "/api/community/projects/linea/contributions",
+            headers=headers,
+            json=conflicting_payload,
+        )
+        assert conflict.status_code == 409
 
         public = client.get("/api/community/projects/linea/stats")
         assert public.status_code == 200
