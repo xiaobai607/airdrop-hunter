@@ -19,19 +19,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.UserInteractionEntity
 import com.airdrophunter.app.ui.theme.AppColors
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 @Composable
-fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGuest: Boolean = false,
-    vm: ProjectDetailViewModel? = null) {
+fun ProjectDetailScreen(
+    project: ProjectDto,
+    modifier: Modifier = Modifier,
+    isGuest: Boolean = false,
+    vm: ProjectDetailViewModel? = null,
+    onOpenCommunity: ((ProjectDto) -> Unit)? = null
+) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
     val projectDetailViewModel: ProjectDetailViewModel = vm ?: viewModel(
         factory = ProjectDetailViewModelFactory(application.appContainer.projectsRepository)
     )
     val state by projectDetailViewModel.uiState.collectAsStateWithLifecycle()
+    val userProject by CacheStore.observeUserProject(project.id).collectAsStateWithLifecycle(initialValue = null)
+    val interactions by CacheStore.observeUserInteractions(project.id).collectAsStateWithLifecycle(initialValue = emptyList())
     val twitterTitle = stringResource(R.string.twitter)
     var taskName by remember(project.id) { mutableStateOf("") }
     val completed = state.tasks.count { it.is_completed }
@@ -57,23 +68,36 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ProjectMetric(Modifier.weight(1f), "预期奖励", project.expected_income)
-                        ProjectMetric(Modifier.weight(1f), "Gas 费用", project.gas_cost)
-                        ProjectMetric(Modifier.weight(1f), "实际收益", project.actual_income)
+                        ProjectMetric(Modifier.weight(1f), "个人 Gas", userProject?.totalGasCostUsd ?: 0.0)
+                        ProjectMetric(Modifier.weight(1f), "实际收益", userProject?.totalActualRewardUsd ?: 0.0)
+                        ProjectMetric(Modifier.weight(1f), "净利润", userProject?.netProfitUsd ?: 0.0)
                     }
+                    Text(
+                        if (userProject == null) "尚未加入个人项目库或暂无已确认流水"
+                        else "个人已确认交互 ${userProject?.interactionCount ?: 0} 次",
+                        color = AppColors.TextHelper,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                     project.deadline?.let { Text("${stringResource(R.string.deadline)}: $it",
                         color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall) }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (project.official_url.startsWith("https://")) OutlinedButton(onClick = {
+                    if (project.official_url.startsWith("https://")) Button(
+                        onClick = {
                             context.startActivity(Intent(context, BrowserActivity::class.java)
                                 .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
                                 .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
-                        }) { Text(stringResource(R.string.official_website)) }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                    ) { Text("继续交互（去官网）") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (project.twitter_url.startsWith("https://")) OutlinedButton(onClick = {
                             context.startActivity(Intent(context, BrowserActivity::class.java)
                                 .putExtra(BrowserActivity.EXTRA_URL, project.twitter_url)
                                 .putExtra(BrowserActivity.EXTRA_TITLE, twitterTitle))
                         }) { Text(stringResource(R.string.twitter)) }
+                        if (project.communityOfficialId != null && onOpenCommunity != null) OutlinedButton(
+                            onClick = { onOpenCommunity(project) }
+                        ) { Text("查看全网大盘数据") }
                     }
                 }
             }
@@ -115,7 +139,20 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 CircularProgressIndicator(color = AppColors.Primary)
             }
         }
-        items(state.tasks.sortedBy { it.step_order }, key = { it.id }) { task ->
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("个人交互流水", color = AppColors.TextPrimary,
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (interactions.isEmpty()) {
+                    Text("完成交互并手动确认记账后，真实 Gas 和收益会显示在这里。",
+                        color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        items(interactions, key = { "interaction:${it.id}" }) { interaction ->
+            InteractionLedgerRow(interaction)
+        }
+        items(state.tasks.sortedBy { it.step_order }, key = { "task:${it.id}" }) { task ->
             Card(colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                 border = BorderStroke(1.dp, AppColors.Border), shape = RoundedCornerShape(15.dp),
                 elevation = CardDefaults.cardElevation(0.dp)) {
@@ -134,6 +171,37 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         Text("删除", color = AppColors.Danger)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
+    val time = remember(interaction.timestamp) {
+        SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(interaction.timestamp))
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(time, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text(interaction.network, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Gas $%.2f".format(Locale.US, interaction.gasCostUsd),
+                    color = AppColors.Danger, style = MaterialTheme.typography.bodySmall)
+                Text("实际收益 +$%.2f".format(Locale.US, interaction.actualRewardUsd),
+                    color = AppColors.Success, style = MaterialTheme.typography.bodySmall)
+            }
+            if (interaction.txHash.isNotBlank()) {
+                Text("交易：${interaction.txHash.take(10)}…",
+                    color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
         }
     }

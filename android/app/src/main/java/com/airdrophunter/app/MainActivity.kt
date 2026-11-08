@@ -202,7 +202,12 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                     projectName = selectedCommunityProject!!.name,
                     modifier = Modifier.fillMaxSize()
                 )
-                selectedProject != null -> ProjectDetailScreen(selectedProject!!, Modifier.fillMaxSize(), isGuest)
+                selectedProject != null -> ProjectDetailScreen(
+                    selectedProject!!,
+                    Modifier.fillMaxSize(),
+                    isGuest,
+                    onOpenCommunity = { selectedCommunityProject = it }
+                )
                 tab == 0 -> HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     onOpenSources = { activeOverlay = AppOverlay.SOURCES },
