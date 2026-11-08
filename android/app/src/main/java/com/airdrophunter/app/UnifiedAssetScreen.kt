@@ -301,7 +301,7 @@ private fun WalletTransactionRow(transaction: WalletTransactionDto, onRecord: ((
                 Text(usd?.let { "约 $" + it } ?: "USD 估值暂无", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
             Text(
-                if (transaction.fee_paid_by_wallet) "手续费由此钱包支付" else "手续费由交易对方支付",
+                if (transaction.fee_paid_by_wallet) "手续费由此钱包支付" else "此钱包未支付手续费",
                 color = AppColors.TextHelper,
                 style = MaterialTheme.typography.labelSmall
             )
@@ -310,7 +310,7 @@ private fun WalletTransactionRow(transaction: WalletTransactionDto, onRecord: ((
                 color = AppColors.TextHelper,
                 style = MaterialTheme.typography.labelSmall
             )
-            if (onRecord != null && transaction.fee_paid_by_wallet && transaction.gas_cost_usd != null) {
+            if (onRecord != null && transaction.fee_paid_by_wallet) {
                 OutlinedButton(
                     onClick = onRecord,
                     modifier = Modifier.align(Alignment.End),
