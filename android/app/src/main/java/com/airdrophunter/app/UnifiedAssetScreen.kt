@@ -145,7 +145,7 @@ fun UnifiedAssetContent(
                         transactions.isEmpty() -> item {
                             Text("该地址暂未查询到交易记录", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 10.dp))
                         }
-                        else -> items(transactions, key = { ${it.chain}:${it.hash} }) { transaction ->
+                        else -> items(transactions, key = { "${it.chain}:${it.hash}" }) { transaction ->
                             WalletTransactionRow(transaction)
                         }
                     }
