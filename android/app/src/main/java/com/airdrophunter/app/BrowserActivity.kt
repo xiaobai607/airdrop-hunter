@@ -161,6 +161,7 @@ private fun BrowserScreen(
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var loadAttempt by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
+    val latestPageUrl = rememberUpdatedState(currentPageUrl)
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
     var approvedExternalEntry by remember(url) { mutableStateOf(false) }
     var approvedOrigin by remember(url) { mutableStateOf(DappProviderBridge.origin(Uri.parse(url))) }
@@ -169,7 +170,13 @@ private fun BrowserScreen(
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
 
     DisposableEffect(browser) {
-        onDispose { bridgeReplyProxies.clear(); browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() } }
+        onDispose {
+            runCatching { DappProviderBridge.origin(Uri.parse(latestPageUrl.value)) }
+                .getOrNull()
+                ?.let(DappRpcCoordinator::cancelOrigin)
+            bridgeReplyProxies.clear()
+            browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() }
+        }
     }
     LaunchedEffect(approvedExternalEntry, browser) {
         if (approvedExternalEntry) browser?.loadUrl(url)
