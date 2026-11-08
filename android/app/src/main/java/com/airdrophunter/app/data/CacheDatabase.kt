@@ -430,7 +430,7 @@ object CacheStore {
         if (projectLocalId.isBlank() || !gas.isFinite() || !reward.isFinite() || gas < 0.0 || reward < 0.0) return@withContext false
         val db = database ?: return@withContext false
         val scope = currentAccountScope()
-        db.withTransaction {
+        val confirmed = db.withTransaction {
             val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
             // A transaction can be associated with only one project per account,
             // chain, and wallet. Check again at confirmation time so duplicate
@@ -503,6 +503,8 @@ object CacheStore {
             db.pendingBillDao().delete(id, scope)
             true
         }
+        if (confirmed) appContext?.let { CommunityContributionSyncScheduler.enqueue(it) }
+        confirmed
     }
     suspend fun recordWalletTransaction(
         projectLocalId: String,
@@ -538,7 +540,7 @@ object CacheStore {
             accountScope = scope,
             network = normalizedNetwork
         )
-        db.withTransaction {
+        val recorded = db.withTransaction {
             val alreadyPending = db.pendingBillDao().hasTransaction(scope, normalizedNetwork, normalizedWallet, normalizedHash)
             val alreadyRecorded = db.userInteractionDao().hasTransaction(scope, normalizedNetwork, normalizedWallet, normalizedHash)
             if (alreadyPending || alreadyRecorded) return@withTransaction false
@@ -603,6 +605,10 @@ object CacheStore {
             }
             true
         }
+        if (recorded && projectOfficialId != null && isEligibleForPublicContribution(bill)) {
+            appContext?.let { CommunityContributionSyncScheduler.enqueue(it) }
+        }
+        recorded
     }
 
     private val MIGRATION_4_5 = object : Migration(4, 5) {
