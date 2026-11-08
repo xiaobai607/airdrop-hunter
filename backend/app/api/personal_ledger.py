@@ -56,13 +56,20 @@ async def list_personal_ledger(
     project_id: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=200, ge=1, le=500),
     before: datetime | None = None,
+    offset: int = Query(default=0, ge=0, le=1000000),
 ):
     statement = select(PersonalLedgerEntry).where(PersonalLedgerEntry.user_id == user.id)
     if project_id is not None:
         statement = statement.where(PersonalLedgerEntry.project_id == project_id)
     if before is not None:
         statement = statement.where(PersonalLedgerEntry.occurred_at < before)
-    rows = await db.scalars(statement.order_by(PersonalLedgerEntry.occurred_at.desc()).limit(limit))
+    # Stable secondary ordering plus offset pagination prevents rows sharing the
+    # same timestamp from disappearing between pages.
+    rows = await db.scalars(
+        statement.order_by(PersonalLedgerEntry.occurred_at.desc(), PersonalLedgerEntry.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
     return [serialize(row) for row in rows]
 
 @router.put("/{client_record_id}", response_model=PersonalLedgerResponse)
