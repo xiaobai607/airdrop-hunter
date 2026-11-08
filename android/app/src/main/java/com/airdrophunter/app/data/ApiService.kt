@@ -8,6 +8,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Header
 
 interface ApiService {
     @POST("api/auth/register") suspend fun register(@Body request: AuthRequest): AuthResponse
@@ -43,4 +44,12 @@ interface ApiService {
     @GET("api/personal-ledger") suspend fun getPersonalLedger(@Query("project_id") projectId: String? = null, @Query("limit") limit: Int = 500, @Query("offset") offset: Int = 0): List<PersonalLedgerEntryDto>
     @PUT("api/personal-ledger/{clientRecordId}") suspend fun upsertPersonalLedger(@Path("clientRecordId") clientRecordId: String, @Body request: PersonalLedgerWriteRequest): PersonalLedgerEntryDto
     @DELETE("api/personal-ledger/{clientRecordId}") suspend fun deletePersonalLedger(@Path("clientRecordId") clientRecordId: String)
+    @POST("api/community/projects/{projectOfficialId}/contributions")
+    suspend fun addCommunityContribution(
+        @Path("projectOfficialId") projectOfficialId: String,
+        @Body request: CommunityContributionRequest,
+        @Header("Authorization") authorizationHeader: String? = null
+    ): CommunityProjectStatsDto
+    @GET("api/community/projects/{projectOfficialId}/stats")
+    suspend fun getCommunityProjectStats(@Path("projectOfficialId") projectOfficialId: String): CommunityProjectStatsDto
 }
