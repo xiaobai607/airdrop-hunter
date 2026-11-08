@@ -486,11 +486,11 @@ object CacheStore {
                 )
             )
             canonicalOfficialId?.takeIf {
-                scope.startsWith("user:") && isEligibleForPublicContribution(bill)
+                scope != "invalid-session" && isEligibleForPublicContribution(bill)
             }?.let { officialId ->
                 db.communitySyncOutboxDao().insert(
                     CommunitySyncOutboxEntity(
-                        id = java.util.UUID.randomUUID().toString(),
+                        id = bill.id,
                         accountScope = scope,
                         projectOfficialId = officialId,
                         gasCostUsd = gas,
@@ -748,19 +748,10 @@ object CacheStore {
             val token = TokenStore.readTokenBlocking()
             val scope = accountScopeFromToken(token)
             if (scope == "invalid-session") return@withContext null
-            // Guest/test-mode records stay local. Only a verified account can
-            // contribute to the public project totals.
-            if (scope == "guest") {
-                return@withContext CommunitySyncBatch(
-                    accountScope = scope,
-                    authorizationHeader = "",
-                    entries = emptyList()
-                )
-            }
             val entries = database?.communitySyncOutboxDao()?.getPending(scope, limit).orEmpty()
             CommunitySyncBatch(
                 accountScope = scope,
-                authorizationHeader = token?.takeIf { it.isNotBlank() }?.let { "Bearer $it" }.orEmpty(),
+                authorizationHeader = token?.takeIf { it.isNotBlank() }?.let { "Bearer $it" },
                 entries = entries
             )
         }
