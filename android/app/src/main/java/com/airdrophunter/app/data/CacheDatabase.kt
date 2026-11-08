@@ -449,7 +449,7 @@ object CacheStore {
                     timestamp = recordedAt
                 )
             )
-            canonicalOfficialId?.let { officialId ->
+            canonicalOfficialId?.takeIf { scope.startsWith("user:") }?.let { officialId ->
                 db.communitySyncOutboxDao().insert(
                     CommunitySyncOutboxEntity(
                         id = java.util.UUID.randomUUID().toString(),
@@ -593,6 +593,15 @@ object CacheStore {
             val token = TokenStore.readTokenBlocking()
             val scope = accountScopeFromToken(token)
             if (scope == "invalid-session") return@withContext null
+            // Guest/test-mode records stay local. Only a verified account can
+            // contribute to the public project totals.
+            if (scope == "guest") {
+                return@withContext CommunitySyncBatch(
+                    accountScope = scope,
+                    authorizationHeader = "",
+                    entries = emptyList()
+                )
+            }
             val entries = database?.communitySyncOutboxDao()?.getPending(scope, limit).orEmpty()
             CommunitySyncBatch(
                 accountScope = scope,

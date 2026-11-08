@@ -60,7 +60,7 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert public.json()["contribution_count"] == 1
 
 
-def test_guest_can_contribute_without_exposing_wallet_identity():
+def test_guest_cannot_contribute_to_public_stats():
     with TestClient(app) as client:
         payload = {
             "event_id": str(uuid4()),
@@ -69,6 +69,7 @@ def test_guest_can_contribute_without_exposing_wallet_identity():
             "interaction_count": 1,
         }
         response = client.post("/api/community/projects/scroll/contributions", json=payload)
-        assert response.status_code == 200
-        assert response.json()["total_gas_cost_usd"] == 0.75
-        assert response.json()["total_actual_reward_usd"] == 3.25
+        assert response.status_code == 401
+        public = client.get("/api/community/projects/scroll/stats")
+        assert public.status_code == 200
+        assert public.json()["contribution_count"] == 0
