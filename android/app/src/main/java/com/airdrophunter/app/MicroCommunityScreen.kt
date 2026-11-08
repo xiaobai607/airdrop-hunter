@@ -130,6 +130,7 @@ fun MicroCommunityScreen(
                     }
                     Text(
                         when {
+                            useDemoStats -> "测试样本：$displayContributionCount 笔演示贡献 · 不进入全网统计"
                             statsLoading -> "正在加载全网统计…"
                             statsFailed -> "全网统计暂时不可用，请稍后重试"
                             displayContributionCount == 0L -> "暂无用户确认贡献，统计从真实入账开始累计"
