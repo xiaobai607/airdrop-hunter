@@ -59,7 +59,7 @@ class AppContainer {
     }
 
     val accountingRepository: AccountingRepository by lazy {
-        AccountingRepository(CacheStoreAccountingLocalDataSource())
+        AccountingRepository(CacheStoreAccountingLocalDataSource(), apiService)
     }
 
     val okxMarketRepository: OkxMarketRepository by lazy {
