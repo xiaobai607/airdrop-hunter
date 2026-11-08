@@ -17,6 +17,15 @@ class FakeClient:
     async def __aenter__(self): return self
     async def __aexit__(self, *args): pass
     async def get(self, url, params=None, headers=None):
+        if url.startswith(activity.BLOCKSTREAM + "/address/") and url.endswith("/txs"):
+            address = url.split("/")[5]
+            return FakeResponse([{
+                "txid": "e" * 64,
+                "fee": 1000,
+                "status": {"confirmed": True, "block_time": 1700000000},
+                "vin": [{"prevout": {"scriptpubkey_address": address}}],
+                "vout": [{"scriptpubkey_address": "1BoatSLRHtKNngkdXEeobR76b53LETtpyT"}],
+            }])
         if url == activity.ETHERSCAN_V2:
             return FakeResponse({"status": "1", "result": [{
                 "hash": "0x" + "a" * 64, "gasUsed": "21000", "gasPrice": "1000000000",
@@ -37,6 +46,7 @@ class FakeClient:
                 "pol-polygon-ecosystem-token": "0.5",
                 "avax-avalanche": "20",
                 "trx-tron": "0.1",
+                "btc-bitcoin": "50000",
             }
             ticker = url.rsplit("/", 1)[-1]
             return FakeResponse({"quotes": {"USD": {"price": prices[ticker]}}})
@@ -182,3 +192,57 @@ def test_evm_batch_reads_each_supported_network_with_its_chain_id_and_native_tok
     assert by_chain["base"]["fee_type"] == "evm_l2_execution_fee_wei"
     assert by_chain["ethereum"]["fee_paid_by_wallet"] is True
     assert by_chain["bsc"]["gas_cost_native"] == "0.000021"
+
+
+
+def test_public_bitcoin_activity_uses_real_satoshi_fee_and_requires_full_address_attribution(monkeypatch):
+    monkeypatch.setattr(activity.httpx, "AsyncClient", FakeClient)
+    address = "1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
+    with TestClient(app) as client:
+        response = client.get(f"/api/wallet-activity/bitcoin/{address}/transactions")
+    assert response.status_code == 200
+    tx = response.json()[0]
+    assert tx["chain"] == "bitcoin"
+    assert tx["native_symbol"] == "BTC"
+    assert tx["total_fee_base_unit"] == "1000"
+    assert tx["fee_type"] == "bitcoin_fee_sat"
+    assert tx["gas_cost_native"] == "0.00001"
+    assert tx["gas_cost_usd"] == "0.5"
+    assert tx["fee_paid_by_wallet"] is True
+    assert tx["status"] == "success"
+
+
+def test_bitcoin_mixed_address_inputs_are_not_assigned_the_full_transaction_fee(monkeypatch):
+    class MixedInputClient(FakeClient):
+        async def get(self, url, params=None, headers=None):
+            response = await super().get(url, params=params, headers=headers)
+            if url.startswith(activity.BLOCKSTREAM + "/address/") and url.endswith("/txs"):
+                row = response.data[0]
+                row["vin"].append({
+                    "prevout": {"scriptpubkey_address": "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy"}
+                })
+            return response
+
+    monkeypatch.setattr(activity.httpx, "AsyncClient", MixedInputClient)
+    address = "1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
+    with TestClient(app) as client:
+        response = client.get(f"/api/wallet-activity/bitcoin/{address}/transactions")
+    assert response.status_code == 200
+    assert response.json()[0]["fee_paid_by_wallet"] is False
+
+
+def test_bitcoin_unconfirmed_transaction_is_pending_and_not_recordable(monkeypatch):
+    class PendingClient(FakeClient):
+        async def get(self, url, params=None, headers=None):
+            response = await super().get(url, params=params, headers=headers)
+            if url.startswith(activity.BLOCKSTREAM + "/address/") and url.endswith("/txs"):
+                response.data[0]["status"] = {"confirmed": False}
+            return response
+
+    monkeypatch.setattr(activity.httpx, "AsyncClient", PendingClient)
+    address = "1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
+    with TestClient(app) as client:
+        response = client.get(f"/api/wallet-activity/bitcoin/{address}/transactions")
+    assert response.status_code == 200
+    assert response.json()[0]["status"] == "pending"
+    assert response.json()[0]["timestamp"] == 0

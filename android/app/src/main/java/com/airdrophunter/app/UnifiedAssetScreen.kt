@@ -292,8 +292,9 @@ private fun quantity(value: java.math.BigDecimal) = DecimalFormat("#,##0.#######
 
 @Composable
 private fun WalletTransactionRow(transaction: WalletTransactionDto, onRecord: (() -> Unit)? = null) {
-    val date = remember(transaction.timestamp) {
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(transaction.timestamp * 1000L))
+    val date = remember(transaction.timestamp, transaction.status) {
+        if (transaction.status == "pending") "等待链上确认"
+        else SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(transaction.timestamp * 1000L))
     }
     val fee = transaction.gas_cost_native.toBigDecimalOrNull()?.stripTrailingZeros()?.toPlainString()
         ?: transaction.gas_cost_native
@@ -312,7 +313,7 @@ private fun WalletTransactionRow(transaction: WalletTransactionDto, onRecord: ((
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    if (transaction.status == "success") "成功" else "失败",
+                    when (transaction.status) { "success" -> "成功"; "pending" -> "待确认"; else -> "失败" },
                     color = if (transaction.status == "success") AppColors.Primary else AppColors.Danger,
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -338,7 +339,7 @@ private fun WalletTransactionRow(transaction: WalletTransactionDto, onRecord: ((
                 color = AppColors.TextHelper,
                 style = MaterialTheme.typography.labelSmall
             )
-            if (onRecord != null && transaction.fee_paid_by_wallet) {
+            if (onRecord != null && transaction.fee_paid_by_wallet && transaction.status == "success") {
                 OutlinedButton(
                     onClick = onRecord,
                     modifier = Modifier.align(Alignment.End),

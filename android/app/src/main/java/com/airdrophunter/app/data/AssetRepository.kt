@@ -105,7 +105,7 @@ class DefaultAssetRepository(
             }
             DetectedNetwork.EVM -> runCatching { fetchEvmAssets(normalized) }
             DetectedNetwork.SOL -> runCatching { fetchSolanaAssets(normalized) }
-            DetectedNetwork.BITCOIN -> Result.failure(UnsupportedOperationException("已识别为 Bitcoin 地址；Bitcoin 资产查询模块尚未接入。"))
+            DetectedNetwork.BITCOIN -> runCatching { fetchBitcoinAssets(normalized) }
             DetectedNetwork.UNKNOWN -> Result.failure(IllegalArgumentException("地址格式无法识别，请检查后重试。"))
         }
     }
@@ -126,6 +126,33 @@ class DefaultAssetRepository(
             nativeSymbol = "ETH",
             nativeBalance = balance,
             tokenList = listOf(UnifiedToken("native-eth", "Ethereum", "ETH", balance))
+        )
+    }
+
+    private fun fetchBitcoinAssets(address: String): UnifiedAssetData {
+        val request = Request.Builder()
+            .url("https://blockstream.info/api/address/$address")
+            .get()
+            .build()
+        val payload = httpClient.newCall(request).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw IOException("Bitcoin 数据服务请求失败（HTTP ${response.code}）。")
+            JSONObject(body)
+        }
+        val confirmed = payload.optJSONObject("chain_stats") ?: JSONObject()
+        val mempool = payload.optJSONObject("mempool_stats") ?: JSONObject()
+        val satoshis =
+            confirmed.optLong("funded_txo_sum") - confirmed.optLong("spent_txo_sum") +
+            mempool.optLong("funded_txo_sum") - mempool.optLong("spent_txo_sum")
+        val balance = BigDecimal.valueOf(satoshis).movePointLeft(8)
+        return UnifiedAssetData(
+            address = address,
+            ecosystemName = "Bitcoin",
+            totalUsd = null,
+            nativeAssetName = "Bitcoin",
+            nativeSymbol = "BTC",
+            nativeBalance = balance,
+            tokenList = listOf(UnifiedToken("native-btc", "Bitcoin", "BTC", balance))
         )
     }
 

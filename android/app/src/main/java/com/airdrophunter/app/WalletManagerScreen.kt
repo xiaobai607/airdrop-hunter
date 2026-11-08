@@ -349,7 +349,7 @@ fun WalletManagerScreen(
                             WalletEcosystem.TRON -> "TRON：第一版支持真实余额查询"
                             WalletEcosystem.EVM -> "EVM：余额查询接入中"
                             WalletEcosystem.SOL -> "Solana：余额查询接入中"
-                            WalletEcosystem.BITCOIN -> "Bitcoin：地址已识别，资产查询接入中"
+                            WalletEcosystem.BITCOIN -> "Bitcoin：真实余额与交易查询已接入"
                             else -> "支持 EVM、TRON、Solana 和 Bitcoin 公开地址"
                         },
                         color = AppColors.TextSecondary,

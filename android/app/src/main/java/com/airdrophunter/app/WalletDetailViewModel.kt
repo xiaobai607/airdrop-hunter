@@ -59,6 +59,7 @@ class WalletDetailViewModel(
         val activityChain = when (ecosystem) {
             WalletEcosystem.EVM -> "evm"
             WalletEcosystem.TRON -> "tron"
+            WalletEcosystem.BITCOIN -> "bitcoin"
             else -> null
         }
         if (_uiState.value.address == normalized && currentActivityChain == activityChain && requestJob?.isActive == true) return

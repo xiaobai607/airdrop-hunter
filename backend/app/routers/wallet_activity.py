@@ -10,10 +10,13 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from app.routers.auth import limiter
+from app.routers.wallet import identify_chain
 
 router = APIRouter(prefix="/api/wallet-activity", tags=["wallet activity"])
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 TRONGRID = "https://api.trongrid.io"
+BLOCKSTREAM = "https://blockstream.info/api"
+SATOSHIS_PER_BTC = Decimal("100000000")
 COINPAPRIKA_BASE = "https://api.coinpaprika.com/v1/tickers/"
 COINPAPRIKA_ETH = COINPAPRIKA_BASE + "eth-ethereum"
 COINPAPRIKA_TRX = COINPAPRIKA_BASE + "trx-tron"
@@ -188,6 +191,90 @@ async def tron_transactions(client: httpx.AsyncClient, address: str, limit: int)
     return rows
 
 
+async def bitcoin_transactions(client: httpx.AsyncClient, address: str, limit: int):
+    response = await client.get(f"{BLOCKSTREAM}/address/{address}/txs")
+    response.raise_for_status()
+    first_page = response.json()
+    if not isinstance(first_page, list):
+        raise HTTPException(502, "Bitcoin 交易服务返回无效数据")
+
+    mempool_rows = [row for row in first_page if not (row.get("status") or {}).get("confirmed")]
+    confirmed_rows = [row for row in first_page if (row.get("status") or {}).get("confirmed")]
+    while len(confirmed_rows) < limit and len(confirmed_rows) >= 25:
+        last_seen = str(confirmed_rows[-1].get("txid") or "")
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", last_seen):
+            break
+        page_response = await client.get(
+            f"{BLOCKSTREAM}/address/{address}/txs/chain/{last_seen}"
+        )
+        page_response.raise_for_status()
+        page = page_response.json()
+        if not isinstance(page, list) or not page:
+            break
+        confirmed_rows.extend(
+            row for row in page if (row.get("status") or {}).get("confirmed")
+        )
+        if len(page) < 25:
+            break
+    return mempool_rows[:50] + confirmed_rows[:limit]
+
+
+def build_bitcoin_transactions(rows, address: str, price: Decimal | None):
+    results = []
+    for row in rows:
+        try:
+            tx_hash = str(row["txid"])
+            fee_sats = int(row.get("fee") or 0)
+            status_data = row.get("status") or {}
+            confirmed = bool(status_data.get("confirmed"))
+            timestamp = int(status_data.get("block_time") or 0)
+            if (
+                not re.fullmatch(r"[0-9a-fA-F]{64}", tx_hash)
+                or fee_sats < 0
+                or (confirmed and timestamp <= 0)
+            ):
+                continue
+            inputs = row.get("vin") or []
+            input_addresses = [
+                str((item.get("prevout") or {}).get("scriptpubkey_address") or "")
+                for item in inputs if isinstance(item, dict)
+            ]
+            # Attribute the whole transaction fee only when every input belongs
+            # to this exact address; mixed-address inputs remain unassigned.
+            fee_paid_by_wallet = bool(input_addresses) and all(
+                value == address for value in input_addresses
+            )
+            outputs = row.get("vout") or []
+            first_input = next((value for value in input_addresses if value), "")
+            first_output = next((
+                str(item.get("scriptpubkey_address") or "")
+                for item in outputs if isinstance(item, dict) and item.get("scriptpubkey_address")
+            ), "")
+            native_cost = Decimal(fee_sats) / SATOSHIS_PER_BTC
+            results.append(WalletTransaction(
+                chain="bitcoin", hash=tx_hash, timestamp=timestamp,
+                from_address=first_input, to_address=first_output,
+                method_id=None, gas_used=None, gas_price_base_unit=None,
+                total_fee_base_unit=str(fee_sats), fee_type="bitcoin_fee_sat",
+                gas_cost_native=decimal_text(native_cost), native_symbol="BTC",
+                native_price_usd=decimal_text(price) if price is not None else None,
+                gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
+                fee_paid_by_wallet=fee_paid_by_wallet,
+                status="success" if confirmed else "pending",
+            ))
+        except (KeyError, TypeError, ValueError, InvalidOperation):
+            continue
+    results.sort(key=lambda tx: (tx.status == "pending", tx.timestamp), reverse=True)
+    deduped, seen = [], set()
+    for tx in results:
+        key = tx.hash.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(tx)
+    return deduped
+
+
 @router.get("/evm/{address}/transactions", response_model=WalletActivityBatchResponse)
 @limiter.limit("12/minute")
 async def list_multi_evm_transactions(
@@ -249,22 +336,29 @@ async def list_multi_evm_transactions(
 @limiter.limit("12/minute")
 async def list_wallet_transactions(
     request: Request,
-    chain: Literal["ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche", "tron"],
+    chain: Literal["ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche", "tron", "bitcoin"],
     address: str,
     limit: int = Query(default=50, ge=1, le=100),
 ):
     if chain == "tron":
         if not re.fullmatch(r"T[1-9A-HJ-NP-Za-km-z]{33}", address):
             raise HTTPException(422, "无效的 TRON 地址")
+    elif chain == "bitcoin":
+        if identify_chain(address) != "Bitcoin":
+            raise HTTPException(422, "无效的 Bitcoin 地址")
     elif not re.fullmatch(r"0x[a-fA-F0-9]{40}", address):
         raise HTTPException(422, "无效的 EVM 地址")
 
     api_key = (os.getenv("ETHERSCAN_API_KEY") or "").strip()
-    if chain != "tron" and not api_key:
+    if chain not in {"tron", "bitcoin"} and not api_key:
         raise HTTPException(503, "EVM 交易服务尚未配置")
     timeout = httpx.Timeout(25.0, connect=8.0)
     try:
         async with httpx.AsyncClient(timeout=timeout, headers={"User-Agent": "AirdropHunter/1.0"}) as client:
+            if chain == "bitcoin":
+                rows = await bitcoin_transactions(client, address, limit)
+                price = await fetch_price(client, "btc-bitcoin")
+                return build_bitcoin_transactions(rows, address, price)
             if chain != "tron":
                 rows = await evm_transactions(client, address, limit, api_key, chain)
                 price = await fetch_price(client, EVM_NETWORKS[chain]["price_id"])
