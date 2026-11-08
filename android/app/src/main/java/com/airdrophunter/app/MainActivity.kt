@@ -81,7 +81,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
     var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
 
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
-    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.WALLET_MANAGER, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
+    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.WALLET_MANAGER, AppOverlay.GLOBAL_SEARCH, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
 
     BackHandler(hasSecondaryDestination) {
         activeOverlay = AppOverlay.NONE
