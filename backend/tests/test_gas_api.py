@@ -122,7 +122,7 @@ def test_ethereum_inbound_transaction_does_not_attribute_sender_fee_to_recipient
 
 
 
-def test_tron_transaction_info_forwards_api_key_and_checks_all_contract_owners(monkeypatch):
+def test_tron_transaction_info_does_not_assign_shared_multi_owner_fee(monkeypatch):
     class MultiContractClient(FakeClient):
         async def get(self, url, params=None, headers=None):
             response = await super().get(url, params=params, headers=headers)
@@ -144,7 +144,7 @@ def test_tron_transaction_info_forwards_api_key_and_checks_all_contract_owners(m
     with TestClient(app) as client:
         response = client.get(f"/api/wallet-activity/tron/{address}/transactions")
     assert response.status_code == 200
-    assert response.json()[0]["fee_paid_by_wallet"] is True
+    assert response.json()[0]["fee_paid_by_wallet"] is False
     assert MultiContractClient.seen_post_headers
     assert MultiContractClient.seen_post_headers[0]["TRON-PRO-API-KEY"] == "tron-test-key"
 

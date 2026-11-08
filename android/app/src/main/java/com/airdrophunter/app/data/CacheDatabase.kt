@@ -407,6 +407,13 @@ object CacheStore {
         val scope = currentAccountScope()
         db.withTransaction {
             val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
+            // A transaction can be associated with only one project per account,
+            // chain, and wallet. Check again at confirmation time so duplicate
+            // pending bills cannot inflate project totals.
+            if (db.userInteractionDao().hasTransaction(
+                    scope, bill.network, bill.walletAddress, bill.txHash
+                )
+            ) return@withTransaction false
             // Official IDs come from the shared project directory and must not be
             // restricted to a compile-time list: newly discovered community projects
             // need to contribute to the same public ledger without an APK update.

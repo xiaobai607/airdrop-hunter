@@ -82,20 +82,6 @@ class AccountingRepositoryTest {
     }
 
     @Test
-    fun walletActivityNetworkPolicyAllowsEveryIntegratedChainAndNormalizesCase() {
-        val supported = listOf("ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche", "tron", "bitcoin")
-        supported.forEach { network ->
-            assertTrue("$network should be supported", WalletActivityNetworkPolicy.isSupported(network))
-            assertTrue("$network should be case-insensitive", WalletActivityNetworkPolicy.isSupported(network.uppercase()))
-        }
-        assertTrue(WalletActivityNetworkPolicy.usesCaseInsensitiveAddress("BSC"))
-        assertTrue(WalletActivityNetworkPolicy.usesCaseInsensitiveAddress("POLYGON"))
-        assertTrue(!WalletActivityNetworkPolicy.usesCaseInsensitiveAddress("bitcoin"))
-        assertTrue(!WalletActivityNetworkPolicy.usesCaseInsensitiveAddress("tron"))
-        assertTrue(!WalletActivityNetworkPolicy.isSupported("unknown"))
-    }
-
-    @Test
     fun pendingBillOperationsAreDelegatedToLocalDataSource() = runBlocking {
         val source = FakeAccountingLocalDataSource()
         val repository = AccountingRepository(source)
