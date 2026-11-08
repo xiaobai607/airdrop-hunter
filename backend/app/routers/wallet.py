@@ -1,4 +1,5 @@
 import re
+import hashlib
 import httpx
 from decimal import Decimal
 from uuid import UUID
@@ -26,11 +27,27 @@ class WalletWrite(BaseModel):
     chain: str = Field(min_length=1, max_length=24)
     address: str = Field(min_length=21, max_length=120)
 
+def _is_valid_bitcoin_base58(value: str) -> bool:
+    alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    if not 26 <= len(value) <= 35 or any(char not in alphabet for char in value):
+        return False
+    number = 0
+    for char in value:
+        number = number * 58 + alphabet.index(char)
+    decoded = number.to_bytes((number.bit_length() + 7) // 8, "big") if number else b""
+    leading_zeros = len(value) - len(value.lstrip("1"))
+    payload = (b"\\x00" * leading_zeros) + decoded
+    if len(payload) != 25 or payload[0] not in (0x00, 0x05):
+        return False
+    checksum = hashlib.sha256(hashlib.sha256(payload[:21]).digest()).digest()[:4]
+    return checksum == payload[21:]
+
+
 def identify_chain(address: str) -> str | None:
     value = address.strip()
     if re.fullmatch(r"0x[a-fA-F0-9]{40}", value): return "EVM"
     if re.fullmatch(r"T[1-9A-HJ-NP-Za-km-z]{33}", value): return "TRON"
-    if re.fullmatch(r"bc1[ac-hj-np-z02-9]{11,71}", value, re.IGNORECASE) or re.fullmatch(r"[13][1-9A-HJ-NP-Za-km-z]{25,34}", value): return "Bitcoin"
+    if re.fullmatch(r"bc1[ac-hj-np-z02-9]{11,71}", value, re.IGNORECASE) or _is_valid_bitcoin_base58(value): return "Bitcoin"
     if re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]{32,44}", value): return "SOL"
     return None
 
