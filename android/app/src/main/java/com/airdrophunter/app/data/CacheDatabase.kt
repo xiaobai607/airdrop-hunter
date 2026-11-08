@@ -763,7 +763,9 @@ object CacheStore {
                 if (guestEntries.isNotEmpty()) {
                     batches += CommunitySyncBatch(
                         accountScope = "guest",
-                        authorizationHeader = null,
+                        // Empty is intentional: ApiClient's interceptor interprets
+                        // it as an explicit instruction to remove any signed-in token.
+                        authorizationHeader = "",
                         entries = guestEntries
                     )
                 }
