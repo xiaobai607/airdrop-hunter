@@ -121,10 +121,10 @@ fun ProjectsScreen(
         }
 
         when {
-            state.isLoading && state.projects.isEmpty() -> Box(
+            state.isLoading && visibleProjects.isEmpty() -> Box(
                 Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center
             ) { CircularProgressIndicator(color = AppColors.Primary) }
-            state.error != null && state.projects.isEmpty() -> EmptyProjects(
+            state.error != null && visibleProjects.isEmpty() -> EmptyProjects(
                 modifier = Modifier.weight(1f),
                 title = "暂时无法加载项目",
                 subtitle = "服务器繁忙，请稍后重试。"
