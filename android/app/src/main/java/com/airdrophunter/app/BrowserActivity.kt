@@ -150,6 +150,7 @@ private fun BrowserScreen(
     }
     var showWalletPicker by remember { mutableStateOf(false) }
     var pendingDappConnection by remember { mutableStateOf<PendingDappConnection?>(null) }
+    var pendingWalletAction by remember { mutableStateOf<PendingDappWalletAction?>(null) }
     var waitingDappWalletApproval by remember { mutableStateOf(false) }
     val authorizedDappOrigins = remember { mutableStateMapOf<String, Boolean>() }
     val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsState()
@@ -295,17 +296,32 @@ private fun BrowserScreen(
                                             val chainReference = connectedDappAccounts.firstOrNull()?.chainId
                                                 ?: runCatching { AppKit.getSelectedChain()?.chainReference }.getOrNull()
                                                 ?: "1"
-                                            val decimalChainId = chainReference.removePrefix("0x").toLongOrNull(10) ?: 1L
+                                            val chainNumber = if (chainReference.startsWith("0x", true)) {
+                                                chainReference.removePrefix("0x").toLongOrNull(16)
+                                            } else chainReference.toLongOrNull()
+                                            val decimalChainId = chainNumber ?: 1L
                                             val result = if (request.method == "eth_chainId") {
                                                 "0x" + decimalChainId.toString(16)
                                             } else decimalChainId.toString()
                                             DappProviderBridge.success(replyProxy, request.id, result)
                                         }
+                                        "personal_sign", "eth_signTypedData_v4", "eth_sendTransaction" -> {
+                                            if (authorizedDappOrigins[origin] != true) {
+                                                DappProviderBridge.error(replyProxy, request.id, 4100, "Connect this website to the wallet first")
+                                            } else if (pendingWalletAction != null) {
+                                                DappProviderBridge.error(replyProxy, request.id, -32002, "Another wallet confirmation is pending")
+                                            } else {
+                                                pendingWalletAction = PendingDappWalletAction(request, origin, replyProxy)
+                                            }
+                                        }
+                                        "eth_sign" -> DappProviderBridge.error(
+                                            replyProxy, request.id, 4200, "eth_sign is disabled; use a safer typed-data signing method"
+                                        )
+                                        "wallet_switchEthereumChain" -> DappProviderBridge.error(
+                                            replyProxy, request.id, 4200, "Switch networks in the connected wallet, then reconnect this site"
+                                        )
                                         else -> DappProviderBridge.error(
-                                            replyProxy,
-                                            request.id,
-                                            4200,
-                                            "Unsupported wallet method: ${request.method}"
+                                            replyProxy, request.id, 4200, "Unsupported wallet method: ${request.method}"
                                         )
                                     }
                                 }
@@ -363,11 +379,18 @@ private fun BrowserScreen(
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
                                 pageUrl?.let {
                                     currentPageUrl = it
+                                    val currentOrigin = runCatching { DappProviderBridge.origin(Uri.parse(it)) }.getOrNull()
                                     val pending = pendingDappConnection
-                                    if (pending != null && runCatching { DappProviderBridge.origin(Uri.parse(it)) }.getOrNull() != pending.origin) {
+                                    if (pending != null && currentOrigin != pending.origin) {
                                         DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "The page changed before wallet access was approved")
                                         pendingDappConnection = null
                                         waitingDappWalletApproval = false
+                                    }
+                                    val action = pendingWalletAction
+                                    if (action != null && currentOrigin != action.origin) {
+                                        DappProviderBridge.error(action.replyProxy, action.request.id, 4001, "The page changed before wallet approval")
+                                        pendingWalletAction = null
+                                        DappRpcCoordinator.cancelOrigin(action.origin)
                                     }
                                 }
                                 pageState = BrowserPageState.Loading
@@ -508,6 +531,39 @@ private fun BrowserScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingNavigationUrl = null }) { Text("留在当前网站") }
+            }
+        )
+    }
+
+    pendingWalletAction?.let { pending ->
+        val host = runCatching { Uri.parse(pending.origin).host.orEmpty() }.getOrDefault("unknown site")
+        val paramsText = pending.request.params.toString()
+        AlertDialog(
+            onDismissRequest = {
+                DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet request")
+                pendingWalletAction = null
+            },
+            title = { Text("确认钱包操作", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("来源网站：$host", color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
+                    Text("操作类型：${pending.request.method}", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    Text("请求参数：$paramsText", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text("确认后将交由外部钱包再次核对并完成最终签名/交易确认。请勿确认不认识的网站或不理解的请求。", color = Color(0xFFB42318))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingWalletAction = null
+                    DappRpcCoordinator.send(pending.origin, pending.request.id, pending.request.method,
+                        pending.request.params.toString(), pending.replyProxy)
+                }) { Text("交由外部钱包确认", color = AppColors.Primary) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet request")
+                    pendingWalletAction = null
+                }) { Text("拒绝") }
             }
         )
     }
