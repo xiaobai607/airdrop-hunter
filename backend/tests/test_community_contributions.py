@@ -60,7 +60,7 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert public.json()["contribution_count"] == 1
 
 
-def test_guest_cannot_contribute_to_public_stats():
+def test_guest_can_contribute_to_public_stats_idempotently():
     with TestClient(app) as client:
         payload = {
             "event_id": str(uuid4()),
@@ -69,7 +69,20 @@ def test_guest_cannot_contribute_to_public_stats():
             "interaction_count": 1,
         }
         response = client.post("/api/community/projects/scroll/contributions", json=payload)
-        assert response.status_code == 401
+        assert response.status_code == 200
+        assert response.json()["total_gas_cost_usd"] == 0.75
+        assert response.json()["total_actual_reward_usd"] == 3.25
+        assert response.json()["total_interactions"] == 1
+        assert response.json()["contribution_count"] == 1
+
+        # Anonymous retries use the same event ID and must not double count.
+        retry = client.post("/api/community/projects/scroll/contributions", json=payload)
+        assert retry.status_code == 200
+        assert retry.json()["total_gas_cost_usd"] == 0.75
+        assert retry.json()["total_actual_reward_usd"] == 3.25
+        assert retry.json()["total_interactions"] == 1
+        assert retry.json()["contribution_count"] == 1
+
         public = client.get("/api/community/projects/scroll/stats")
         assert public.status_code == 200
-        assert public.json()["contribution_count"] == 0
+        assert public.json()["contribution_count"] == 1
