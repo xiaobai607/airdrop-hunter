@@ -52,7 +52,6 @@ async def owned_project(project_id: UUID, user: User, db: AsyncSession) -> Proje
     if p is None: raise HTTPException(404, "项目不存在")
     return p
 
-@router.get("/user/projects", response_model=list[ProjectResponse], include_in_schema=False)
 @router.get("/projects", response_model=list[ProjectResponse])
 async def list_projects(db: Annotated[AsyncSession, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
     rows = await db.scalars(select(Project).where(Project.user_id == user.id).order_by(Project.created_at.desc()))
