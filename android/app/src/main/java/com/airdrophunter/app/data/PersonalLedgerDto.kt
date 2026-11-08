@@ -28,7 +28,7 @@ data class PersonalLedgerEntryDto(
     val tx_hash: String,
     val interaction_method: String,
     val expected_gas_cost_usd: Double,
-    val expected_reward_usd: Double,
+    val expected_reward_usd: Double?,
     val actual_gas_cost_usd: Double,
     val actual_reward_usd: Double,
     val occurred_at: String,
