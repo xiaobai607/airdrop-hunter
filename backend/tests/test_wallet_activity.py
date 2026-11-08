@@ -109,3 +109,41 @@ def test_failed_evm_transaction_retains_fee_but_is_not_successful():
     assert len(transactions) == 1
     assert transactions[0].status == "failed"
     assert transactions[0].total_fee_base_unit == "42000000000000"
+
+def test_solana_fee_is_attributed_to_first_account_key_fee_payer():
+    signature = "a" * 64
+    transactions = build_solana_transactions(
+        [{
+            "hash": signature,
+            "timestamp": 1_700_000_000,
+            "from_address": WALLET,
+            "to_address": "solana-recipient",
+            "total_fee_base_unit": "5000",
+            "status": "success",
+        }],
+        WALLET,
+        Decimal("100"),
+        50,
+    )
+    assert len(transactions) == 1
+    assert transactions[0].fee_paid_by_wallet is True
+    assert transactions[0].fee_type == "solana_fee_lamports"
+    assert transactions[0].gas_cost_native == "0.000005"
+
+
+def test_solana_fee_is_not_attributed_when_another_address_is_fee_payer():
+    transactions = build_solana_transactions(
+        [{
+            "hash": "b" * 64,
+            "timestamp": 1_700_000_000,
+            "from_address": "another-wallet",
+            "to_address": WALLET,
+            "total_fee_base_unit": "5000",
+            "status": "success",
+        }],
+        WALLET,
+        Decimal("100"),
+        50,
+    )
+    assert len(transactions) == 1
+    assert transactions[0].fee_paid_by_wallet is False
