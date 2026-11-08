@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,7 +47,6 @@ fun ProjectsScreen(
     val state by projectsViewModel.uiState.collectAsStateWithLifecycle()
     val pnlRecords by CacheStore.observePnlRecords().collectAsState(initial = emptyList())
     val savedProjects by CacheStore.observeUserProjects().collectAsState(initial = emptyList())
-    val allRatings by CacheStore.observeAllProjectRatings().collectAsState(initial = emptyList())
     var selectedFilter by remember { mutableStateOf("全部") }
     var showAddDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
@@ -143,15 +141,6 @@ fun ProjectsScreen(
                     val gasTotal = pnl?.totalGasCostUsd ?: 0.0
                     val rewardTotal = pnl?.totalRewardUsd ?: 0.0
                     val netProfit = pnl?.netProfitUsd ?: 0.0
-                    val projectRatings = allRatings.filter { it.projectOfficialId == project.communityOfficialId }
-                    val communityAverage = if (projectRatings.isEmpty()) 4.9 else projectRatings.map { it.score }.average()
-                    val positiveRate = if (projectRatings.isEmpty()) 96 else projectRatings.count { it.score >= 4 } * 100 / projectRatings.size
-                    val communityLabel = when {
-                        positiveRate >= 95 -> "好评如潮"
-                        positiveRate >= 85 -> "特别好评"
-                        positiveRate >= 75 -> "多半好评"
-                        else -> "褒贬不一"
-                    }
                     Card(
                         modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(project) },
                         shape = RoundedCornerShape(18.dp),
@@ -193,15 +182,19 @@ fun ProjectsScreen(
                                     else Toast.makeText(context, "这是纯本地项目，尚未关联社区标准项目", Toast.LENGTH_SHORT).show()
                                 }, shape = RoundedCornerShape(999.dp),
                                     color = Color(0xFFFFF4E5), border = BorderStroke(1.dp, Color(0xFFFFD9A8))) {
-                                    Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(if (project.communityOfficialId != null) "微社区" else "本地项目", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
-                                        Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12),
-                                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                    }
+                                    Text(
+                                        if (project.communityOfficialId != null) "微社区" else "本地项目",
+                                        Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+                                        color = Color(0xFF9A5B12),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
-                                Text(communityLabel, color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    if (project.communityOfficialId != null) "查看全网统计" else "未关联社区",
+                                    color = AppColors.TextHelper,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
                             }
                         }
                     }
