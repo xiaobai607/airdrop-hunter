@@ -1,10 +1,11 @@
 package com.airdrophunter.app
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.airdrophunter.app.data.ApiClient
-import com.airdrophunter.app.data.AirdropHubDto
+import com.airdrophunter.app.data.AirdropHubRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,15 +15,18 @@ data class AirdropHubUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val selectedChain: String = "全部",
-    val projects: List<AirdropHubDto> = emptyList(),
+    val projects: List<com.airdrophunter.app.data.AirdropHubDto> = emptyList(),
     val error: String? = null,
     val sourceError: String? = null
 )
 
-class AirdropHubViewModel : ViewModel() {
+class AirdropHubViewModel(
+    private val repository: AirdropHubRepository
+) : ViewModel() {
     val chains = listOf("全部", "Ethereum", "Solana", "BSC", "Arbitrum", "Base", "Linea", "Polygon", "Optimism", "Sui")
     private val _uiState = MutableStateFlow(AirdropHubUiState(isLoading = true))
     val uiState: StateFlow<AirdropHubUiState> = _uiState.asStateFlow()
+    private var loadJob: Job? = null
 
     init { load() }
 
@@ -33,21 +37,17 @@ class AirdropHubViewModel : ViewModel() {
     }
 
     fun load() {
+        loadJob?.cancel()
         val chain = _uiState.value.selectedChain
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        loadJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, isRefreshing = false, error = null)
             try {
-                var projects = ApiClient.service.getAirdropHub(if (chain == "全部") null else chain)
-                val syncStatus = runCatching { ApiClient.service.getAirdropHubStatus() }.getOrNull()
-                if (projects.isEmpty() && syncStatus?.last_attempt_at == null) {
-                    ApiClient.service.syncAirdrops()
-                    projects = ApiClient.service.getAirdropHub(if (chain == "全部") null else chain)
-                }
+                val snapshot = repository.load(chain.takeUnless { it == "全部" })
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    projects = projects,
-                    error = if (projects.isEmpty()) "数据库中暂无项目。可点击刷新同步公开数据源。" else null,
-                    sourceError = syncStatus?.error
+                    projects = snapshot.projects,
+                    error = if (snapshot.projects.isEmpty()) "数据库中暂无项目。可点击刷新同步公开数据源。" else null,
+                    sourceError = snapshot.sourceError
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -58,12 +58,12 @@ class AirdropHubViewModel : ViewModel() {
     }
 
     fun refresh() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isRefreshing = true, isLoading = false, error = null)
             try {
-                ApiClient.service.syncAirdrops()
                 val chain = _uiState.value.selectedChain
-                val projects = ApiClient.service.getAirdropHub(if (chain == "全部") null else chain)
+                val projects = repository.refresh(chain.takeUnless { it == "全部" })
                 _uiState.value = _uiState.value.copy(
                     isRefreshing = false, isLoading = false, projects = projects,
                     error = if (projects.isEmpty()) "同步已执行，但数据库中暂时没有可展示的项目。" else null,
@@ -75,5 +75,17 @@ class AirdropHubViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(isRefreshing = false, error = "服务器繁忙，请稍后重试。")
             }
         }
+    }
+}
+
+class AirdropHubViewModelFactory(
+    private val repository: AirdropHubRepository
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(AirdropHubViewModel::class.java)) {
+            return AirdropHubViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }

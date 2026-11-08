@@ -29,8 +29,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.UUID
@@ -45,7 +43,8 @@ fun BrowserAccountingToolbar(
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
     val gasTrackerRepository = remember(application) { application.appContainer.gasTrackerRepository }
-    val pending by CacheStore.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
+    val accountingRepository = remember(application) { application.appContainer.accountingRepository }
+    val pending by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var activeBill by remember { mutableStateOf<PendingBillEntity?>(null) }
     var showConfirm by remember { mutableStateOf(false) }
@@ -57,16 +56,8 @@ fun BrowserAccountingToolbar(
     var saving by remember { mutableStateOf(false) }
     var fetchingGas by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        val type = object : TypeToken<List<ProjectDto>>() {}.type
-        val sources = listOfNotNull(
-            CacheStore.readLocal("projects"),
-            CacheStore.read("projects"),
-            CacheStore.readLocal("pnl_projects")
-        )
-        projects = sources.flatMap { raw ->
-            runCatching { Gson().fromJson<List<ProjectDto>>(raw, type) }.getOrNull().orEmpty()
-        }.distinctBy { it.id }
+    LaunchedEffect(accountingRepository) {
+        projects = accountingRepository.loadProjects()
         selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
     }
 
@@ -74,14 +65,7 @@ fun BrowserAccountingToolbar(
         projects = (projects.filterNot { it.id == project.id } + project)
         selectedProjectLocalId = project.id
         scope.launch {
-            val type = object : TypeToken<List<ProjectDto>>() {}.type
-            val existing = CacheStore.readLocal("pnl_projects")?.let { raw ->
-                runCatching { Gson().fromJson<List<ProjectDto>>(raw, type) }.getOrNull()
-            }.orEmpty()
-            CacheStore.writeLocal(
-                "pnl_projects",
-                Gson().toJson((existing.filterNot { it.id == project.id } + project))
-            )
+            accountingRepository.saveLocalProject(project)
         }
     }
 
@@ -133,7 +117,7 @@ fun BrowserAccountingToolbar(
                     interactionMethod = result.interactionMethod,
                     timestamp = System.currentTimeMillis()
                 )
-                CacheStore.addPendingBill(bill)
+                accountingRepository.addPendingBill(bill)
                 activeBill = bill
                 gas = String.format(Locale.US, "%.2f", result.gasCostUsd)
                 reward = "0.00"
@@ -309,7 +293,7 @@ fun BrowserAccountingToolbar(
                             saving = true
                             scope.launch {
                                 val ok = runCatching {
-                                    CacheStore.confirmPendingBill(
+                                    accountingRepository.confirmPendingBill(
                                         bill.id,
                                         project.id,
                                         project.communityOfficialId,

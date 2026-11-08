@@ -11,6 +11,16 @@ import com.airdrophunter.app.data.RetrofitWalletRemoteDataSource
 import com.airdrophunter.app.data.CacheStoreWalletLocalDataSource
 import com.airdrophunter.app.data.DefaultAssetRepository
 import com.airdrophunter.app.data.AssetRepository
+import com.airdrophunter.app.data.ProfileRepository
+import com.airdrophunter.app.data.AuthRepository
+import com.airdrophunter.app.data.RetrofitAuthRemoteDataSource
+import com.airdrophunter.app.data.RetrofitProfileRemoteDataSource
+import com.airdrophunter.app.data.AirdropHubRepository
+import com.airdrophunter.app.data.RetrofitAirdropHubRemoteDataSource
+import com.airdrophunter.app.data.AirdropsRepository
+import com.airdrophunter.app.data.AccountingRepository
+import com.airdrophunter.app.data.CacheStoreAccountingLocalDataSource
+import com.airdrophunter.app.data.RetrofitAirdropsRemoteDataSource
 
 /**
  * Lightweight process-level composition root. Feature dependencies are singletons
@@ -32,7 +42,27 @@ class AppContainer {
 
     val assetRepository: AssetRepository by lazy { DefaultAssetRepository() }
 
+    val authRepository: AuthRepository by lazy {
+        AuthRepository(RetrofitAuthRemoteDataSource(apiService))
+    }
+
+    val profileRepository: ProfileRepository by lazy {
+        ProfileRepository(RetrofitProfileRemoteDataSource(apiService))
+    }
+
+    val airdropHubRepository: AirdropHubRepository by lazy {
+        AirdropHubRepository(RetrofitAirdropHubRemoteDataSource(apiService))
+    }
+
+    val airdropsRepository: AirdropsRepository by lazy {
+        AirdropsRepository(RetrofitAirdropsRemoteDataSource(apiService))
+    }
+
     val gasTrackerRepository: RealGasTrackerRepository by lazy { RealGasTrackerRepository(apiService) }
+
+    val accountingRepository: AccountingRepository by lazy {
+        AccountingRepository(CacheStoreAccountingLocalDataSource())
+    }
 
     val okxMarketRepository: OkxMarketRepository by lazy {
         OkxMarketRepository()

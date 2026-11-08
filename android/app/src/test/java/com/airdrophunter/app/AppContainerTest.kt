@@ -5,8 +5,9 @@ import org.junit.Test
 
 class AppContainerTest {
     @Test
-    fun marketRepositoryIsSharedWithinContainer() {
+    fun localRepositoriesAreSharedWithinContainer() {
         val container = AppContainer()
         assertSame(container.okxMarketRepository, container.okxMarketRepository)
+        assertSame(container.accountingRepository, container.accountingRepository)
     }
 }

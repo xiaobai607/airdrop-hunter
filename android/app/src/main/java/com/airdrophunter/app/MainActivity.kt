@@ -68,21 +68,24 @@ class MainActivity : ComponentActivity() {
 
 private data class Destination(val label: Int, val icon: ImageVector)
 
+private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, WALLET_MANAGER, GLOBAL_SEARCH, TRON_ENERGY }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogout: () -> Unit, onOpenAuth: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    var showSources by rememberSaveable { mutableStateOf(false) }
-    var showAirdropHub by rememberSaveable { mutableStateOf(false) }
-    var showWalletManager by rememberSaveable { mutableStateOf(false) }
-    var showGlobalSearch by rememberSaveable { mutableStateOf(false) }
-    var showTronEnergy by rememberSaveable { mutableStateOf(false) }
+    var activeOverlay by rememberSaveable { mutableStateOf(AppOverlay.NONE) }
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
     var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
 
-    BackHandler(showSources || showAirdropHub || showWalletManager || showGlobalSearch || showTronEnergy || selectedProject != null || selectedCommunityProject != null) {
-        showSources = false; showAirdropHub = false; showWalletManager = false; showGlobalSearch = false; showTronEnergy = false; selectedProject = null; selectedCommunityProject = null
+    val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
+    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.WALLET_MANAGER, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
+
+    BackHandler(hasSecondaryDestination) {
+        activeOverlay = AppOverlay.NONE
+        selectedProject = null
+        selectedCommunityProject = null
     }
 
     val destinations = listOf(
@@ -92,11 +95,11 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
         Destination(R.string.tab_profile, Icons.Default.Person)
     )
     val secondaryTitle = when {
-        showSources -> stringResource(R.string.sources_title)
-        showAirdropHub -> "空投大厅"
-        showWalletManager -> "钱包管理"
-        showGlobalSearch -> "全局搜索"
-        showTronEnergy -> "TRON 能量租赁助手"
+        activeOverlay == AppOverlay.SOURCES -> stringResource(R.string.sources_title)
+        activeOverlay == AppOverlay.AIRDROP_HUB -> "空投大厅"
+        activeOverlay == AppOverlay.WALLET_MANAGER -> "钱包管理"
+        activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
+        activeOverlay == AppOverlay.TRON_ENERGY -> "TRON 能量租赁助手"
         selectedCommunityProject != null -> "项目微社区"
         else -> stringResource(R.string.project_detail)
     }
@@ -105,11 +108,15 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
         modifier = Modifier.fillMaxSize().background(AppColors.Background),
         containerColor = AppColors.Background,
         topBar = {
-            if (showSources || showAirdropHub || showWalletManager || showTronEnergy || selectedProject != null || selectedCommunityProject != null) {
+            if (showTopBar) {
                 TopAppBar(
                     title = { Text(secondaryTitle, color = AppColors.TextPrimary) },
                     navigationIcon = {
-                        IconButton(onClick = { showSources = false; showAirdropHub = false; showWalletManager = false; showGlobalSearch = false; showTronEnergy = false; selectedProject = null; selectedCommunityProject = null }) {
+                        IconButton(onClick = {
+                            activeOverlay = AppOverlay.NONE
+                            selectedProject = null
+                            selectedCommunityProject = null
+                        }) {
                             Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AppColors.TextPrimary)
                         }
                     },
@@ -118,7 +125,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
             }
         },
         bottomBar = {
-            if (!showSources && !showAirdropHub && !showWalletManager && !showGlobalSearch && !showTronEnergy && selectedProject == null && selectedCommunityProject == null) {
+            if (!hasSecondaryDestination) {
                 Box(Modifier.fillMaxWidth().height(80.dp)) {
                     Box(Modifier.fillMaxSize().blur(12.dp).background(AppColors.Navigation))
                     NavigationBar(modifier = Modifier.fillMaxSize(), containerColor = Color.Transparent, tonalElevation = 0.dp) {
@@ -139,24 +146,24 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
     ) { padding ->
         Box(Modifier.fillMaxSize().background(AppColors.Background).padding(padding)) {
             when {
-                showSources -> SourcesScreen(Modifier.fillMaxSize())
-                showAirdropHub -> AirdropHubScreen(Modifier.fillMaxSize())
-                showTronEnergy -> TronEnergyAssistantScreen(
+                activeOverlay == AppOverlay.SOURCES -> SourcesScreen(Modifier.fillMaxSize())
+                activeOverlay == AppOverlay.AIRDROP_HUB -> AirdropHubScreen(Modifier.fillMaxSize())
+                activeOverlay == AppOverlay.TRON_ENERGY -> TronEnergyAssistantScreen(
                     modifier = Modifier.fillMaxSize(),
-                    onBack = { showTronEnergy = false },
+                    onBack = { activeOverlay = AppOverlay.NONE },
                     onOpenBrowser = { address ->
-                        showTronEnergy = false
+                        activeOverlay = AppOverlay.NONE
                         context.startActivity(Intent(context, BrowserActivity::class.java)
                             .putExtra(BrowserActivity.EXTRA_URL, "https://feee.io/")
                             .putExtra(BrowserActivity.EXTRA_TITLE, "TRON 能量租赁")
                             .putExtra(BrowserActivity.EXTRA_QUICK_COPY_ADDRESS, address))
                     }
                 )
-                showGlobalSearch -> GlobalSearchScreen(
+                activeOverlay == AppOverlay.GLOBAL_SEARCH -> GlobalSearchScreen(
                     modifier = Modifier.fillMaxSize(),
-                    onCancel = { showGlobalSearch = false },
+                    onCancel = { activeOverlay = AppOverlay.NONE },
                     onSearch = { url ->
-                        showGlobalSearch = false
+                        activeOverlay = AppOverlay.NONE
                         context.startActivity(
                             Intent(context, BrowserActivity::class.java)
                                 .putExtra(BrowserActivity.EXTRA_URL, url)
@@ -164,7 +171,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                         )
                     }
                 )
-                showWalletManager -> WalletManagerScreen(
+                activeOverlay == AppOverlay.WALLET_MANAGER -> WalletManagerScreen(
                     modifier = Modifier.fillMaxSize(),
                     isGuest = isGuest,
                     onOpenBrowser = { url, selectedWallet, wallets, title ->
@@ -193,12 +200,12 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                 selectedProject != null -> ProjectDetailScreen(selectedProject!!, Modifier.fillMaxSize(), isGuest)
                 tab == 0 -> HomeScreen(
                     modifier = Modifier.fillMaxSize(),
-                    onOpenSources = { showSources = true },
-                    onOpenWallet = { showWalletManager = true },
-                    onOpenGlobalSearch = { showGlobalSearch = true },
+                    onOpenSources = { activeOverlay = AppOverlay.SOURCES },
+                    onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
+                    onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
                     onOpenProjects = { tab = 1 },
-                    onOpenAirdropHub = { showAirdropHub = true },
-                    onOpenTronEnergy = { showTronEnergy = true },
+                    onOpenAirdropHub = { activeOverlay = AppOverlay.AIRDROP_HUB },
+                    onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
                     isGuest = isGuest, onRequireAuth = onRequireAuth
                 )
                 tab == 2 -> CommunitySquareScreen(
@@ -210,7 +217,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                 tab == 1 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth,
                     onOpenCommunity = { selectedCommunityProject = it })
                 else -> ProfileScreen(Modifier.fillMaxSize(), onLogout, isGuest, onRequireAuth,
-                    onManageWallets = { showWalletManager = true })
+                    onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER })
             }
         }
     }

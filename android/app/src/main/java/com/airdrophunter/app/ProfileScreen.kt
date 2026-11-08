@@ -32,12 +32,16 @@ fun ProfileScreen(
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
     onManageWallets: () -> Unit = {},
-    vm: ProfileViewModel = viewModel()
+    vm: ProfileViewModel? = null
 ) {
-    val state by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val profileViewModel: ProfileViewModel = vm ?: viewModel(
+        factory = ProfileViewModelFactory(application.appContainer.profileRepository)
+    )
+    val state by profileViewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(isGuest) { vm.load(isGuest) }
+    LaunchedEffect(isGuest) { profileViewModel.load(isGuest) }
     val stats = if (isGuest) com.airdrophunter.app.data.UserStatsDto() else state.stats
 
     Column(
