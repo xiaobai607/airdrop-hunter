@@ -346,6 +346,7 @@ private fun BrowserScreen(
             }
             BrowserAccountingToolbar(
                 walletAddress = quickCopyAddress.ifBlank { selectedWallet?.address.orEmpty() },
+                network = selectedWallet?.chain.orEmpty().ifBlank { "unknown" },
                 onCopyAddress = {
                     val address = quickCopyAddress.ifBlank { selectedWallet?.address.orEmpty() }
                     if (address.isBlank()) Toast.makeText(context, "当前没有可复制的钱包地址", Toast.LENGTH_SHORT).show()
