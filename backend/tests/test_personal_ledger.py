@@ -1,0 +1,64 @@
+from datetime import datetime, timezone
+from uuid import uuid4
+from fastapi.testclient import TestClient
+from app.main import app
+
+def auth(client):
+    username = f"ledger{uuid4().hex[:12]}"
+    response = client.post("/api/auth/register", json={"username": username, "password": "strong-password-123"})
+    assert response.status_code == 201
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+def ledger_payload(record_id="local-record-1", **overrides):
+    payload = {
+        "client_record_id": record_id,
+        "project_id": "linea",
+        "project_name": "Linea",
+        "chain": "EVM",
+        "wallet_address": "0x" + "a" * 40,
+        "tx_hash": "0x" + "b" * 64,
+        "interaction_method": "swap",
+        "expected_gas_cost_usd": "1.25",
+        "expected_reward_usd": "8.00",
+        "actual_gas_cost_usd": "1.30",
+        "actual_reward_usd": "7.50",
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "extra": {"source": "manual-confirmation"},
+    }
+    payload.update(overrides)
+    return payload
+
+def test_personal_ledger_requires_login_and_is_account_scoped():
+    with TestClient(app) as client:
+        assert client.get("/api/personal-ledger").status_code == 401
+        alice, bob = auth(client), auth(client)
+        saved = client.put("/api/personal-ledger/local-record-1", headers=alice, json=ledger_payload())
+        assert saved.status_code == 200
+        row = saved.json()
+        assert row["wallet_address"] == "0x" + "a" * 40
+        assert row["actual_gas_cost_usd"] == "1.30000000"
+        assert row["expected_reward_usd"] == "8.00000000"
+        assert len(client.get("/api/personal-ledger", headers=alice).json()) == 1
+        assert client.get("/api/personal-ledger", headers=bob).json() == []
+        assert client.delete("/api/personal-ledger/local-record-1", headers=bob).status_code == 404
+        assert client.delete("/api/personal-ledger/local-record-1", headers=alice).status_code == 204
+        assert client.get("/api/personal-ledger", headers=alice).json() == []
+
+def test_personal_ledger_upsert_is_idempotent_per_account_record_id():
+    with TestClient(app) as client:
+        headers = auth(client)
+        first = client.put("/api/personal-ledger/same-id", headers=headers, json=ledger_payload("same-id"))
+        updated = client.put("/api/personal-ledger/same-id", headers=headers, json=ledger_payload(
+            "same-id", actual_reward_usd="12.75"
+        ))
+        assert first.status_code == updated.status_code == 200
+        assert first.json()["id"] == updated.json()["id"]
+        assert updated.json()["actual_reward_usd"] == "12.75000000"
+        assert len(client.get("/api/personal-ledger", headers=headers).json()) == 1
+
+def test_personal_ledger_rejects_naive_timestamp_and_mismatched_record_id():
+    with TestClient(app) as client:
+        headers = auth(client)
+        naive = ledger_payload(occurred_at="2026-11-08T12:00:00")
+        assert client.put("/api/personal-ledger/local-record-1", headers=headers, json=naive).status_code == 422
+        assert client.put("/api/personal-ledger/different-id", headers=headers, json=ledger_payload()).status_code == 422
