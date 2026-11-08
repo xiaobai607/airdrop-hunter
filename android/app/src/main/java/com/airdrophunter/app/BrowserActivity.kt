@@ -378,8 +378,13 @@ private fun BrowserScreen(
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
                                 pageUrl?.let {
-                                    currentPageUrl = it
+                                    val previousOrigin = runCatching { DappProviderBridge.origin(Uri.parse(currentPageUrl)) }.getOrNull()
                                     val currentOrigin = runCatching { DappProviderBridge.origin(Uri.parse(it)) }.getOrNull()
+                                    if (previousOrigin != null && currentOrigin != previousOrigin) {
+                                        authorizedDappOrigins.clear()
+                                        DappRpcCoordinator.cancelOrigin(previousOrigin)
+                                    }
+                                    currentPageUrl = it
                                     val pending = pendingDappConnection
                                     if (pending != null && currentOrigin != pending.origin) {
                                         DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "The page changed before wallet access was approved")
