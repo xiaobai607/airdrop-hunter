@@ -23,7 +23,7 @@ class PersonalLedgerWrite(BaseModel):
     tx_hash: str = Field(default="", max_length=180)
     interaction_method: str = Field(default="", max_length=120)
     expected_gas_cost_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
-    expected_reward_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
+    expected_reward_usd: Decimal | None = Field(default=None, ge=0, le=MAX_AMOUNT)
     actual_gas_cost_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
     actual_reward_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
     occurred_at: datetime
