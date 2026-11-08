@@ -24,7 +24,7 @@ class PersonalLedgerEntry(Base):
     tx_hash: Mapped[str] = mapped_column(String(180), nullable=False, default="")
     interaction_method: Mapped[str] = mapped_column(String(120), nullable=False, default="")
     expected_gas_cost_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)
-    expected_reward_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)
+    expected_reward_usd: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True, default=None)
     actual_gas_cost_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)
     actual_reward_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
