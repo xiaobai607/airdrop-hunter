@@ -36,7 +36,7 @@ def _is_valid_bitcoin_base58(value: str) -> bool:
         number = number * 58 + alphabet.index(char)
     decoded = number.to_bytes((number.bit_length() + 7) // 8, "big") if number else b""
     leading_zeros = len(value) - len(value.lstrip("1"))
-    payload = (b"\\x00" * leading_zeros) + decoded
+    payload = (b"\x00" * leading_zeros) + decoded
     if len(payload) != 25 or payload[0] not in (0x00, 0x05):
         return False
     checksum = hashlib.sha256(hashlib.sha256(payload[:21]).digest()).digest()[:4]
