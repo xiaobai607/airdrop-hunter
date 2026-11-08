@@ -62,3 +62,25 @@ def test_personal_ledger_rejects_naive_timestamp_and_mismatched_record_id():
         naive = ledger_payload(occurred_at="2026-11-08T12:00:00")
         assert client.put("/api/personal-ledger/local-record-1", headers=headers, json=naive).status_code == 422
         assert client.put("/api/personal-ledger/different-id", headers=headers, json=ledger_payload()).status_code == 422
+
+
+def test_personal_ledger_offset_pagination_keeps_equal_timestamp_rows():
+    with TestClient(app) as client:
+        headers = auth(client)
+        timestamp = datetime(2026, 11, 8, 12, 0, tzinfo=timezone.utc).isoformat()
+        for record_id in ("same-time-a", "same-time-b", "same-time-c"):
+            saved = client.put(
+                f"/api/personal-ledger/{record_id}",
+                headers=headers,
+                json=ledger_payload(record_id, occurred_at=timestamp),
+            )
+            assert saved.status_code == 200
+
+        first_page = client.get("/api/personal-ledger?limit=2&offset=0", headers=headers)
+        second_page = client.get("/api/personal-ledger?limit=2&offset=2", headers=headers)
+        assert first_page.status_code == second_page.status_code == 200
+        returned_ids = {
+            row["client_record_id"]
+            for row in first_page.json() + second_page.json()
+        }
+        assert returned_ids == {"same-time-a", "same-time-b", "same-time-c"}
