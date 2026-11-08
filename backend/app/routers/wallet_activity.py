@@ -483,7 +483,7 @@ async def list_wallet_transactions(
         raise HTTPException(422, "无效的 EVM 地址")
 
     api_key = (os.getenv("ETHERSCAN_API_KEY") or "").strip()
-    if chain not in {"tron", "bitcoin"} and not api_key:
+    if chain in EVM_NETWORKS and not api_key:
         raise HTTPException(503, "EVM 交易服务尚未配置")
     timeout = httpx.Timeout(25.0, connect=8.0)
     try:
