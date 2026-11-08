@@ -88,7 +88,13 @@ def _is_valid_bitcoin_bech32(value: str) -> bool:
             decoded.append((accumulator >> bits) & 0xFF)
     if bits >= 5 or ((accumulator << (8 - bits)) & 0xFF):
         return False
-    return 2 <= len(decoded) <= 40 and (version != 0 or len(decoded) in (20, 32))
+    if not 2 <= len(decoded) <= 40:
+        return False
+    if version == 0:
+        return len(decoded) in (20, 32)
+    if version == 1:
+        return len(decoded) == 32
+    return True
 
 
 def identify_chain(address: str) -> str | None:

@@ -74,3 +74,16 @@ def test_address_classifier_distinguishes_bitcoin_base58_from_solana():
     assert identify_chain("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh") == "Bitcoin"
     assert identify_chain("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5") is None
     assert identify_chain("11111111111111111111111111111111") == "SOL"
+
+
+def test_address_classifier_supports_all_four_bitcoin_mainnet_formats():
+    from app.routers.wallet import identify_chain
+
+    addresses = [
+        "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",  # Legacy P2PKH
+        "3EmUH8Uh9EXE7axgyAeBsCc2vdUdKkDqWK",  # P2SH (commonly Nested SegWit)
+        "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",  # Native SegWit v0
+        "bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297",  # Taproot v1
+    ]
+    assert all(identify_chain(address) == "Bitcoin" for address in addresses)
+    assert identify_chain("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5") is None

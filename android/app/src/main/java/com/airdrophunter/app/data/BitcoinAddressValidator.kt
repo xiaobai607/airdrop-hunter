@@ -7,6 +7,8 @@ import java.security.MessageDigest
  * Mainnet Bitcoin address validation: Base58Check plus SegWit Bech32/Bech32m.
  * This validates the address encoding and witness program, not ownership.
  */
+enum class BitcoinAddressFormat { LEGACY, P2SH_NESTED_OR_SCRIPT, NATIVE_SEGWIT, TAPROOT }
+
 object BitcoinAddressValidator {
     private const val BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
     private const val BECH32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
@@ -15,6 +17,21 @@ object BitcoinAddressValidator {
 
     fun isValid(value: String): Boolean =
         isValidBase58(value) || isValidSegwit(value)
+
+    /**
+     * P2SH addresses (3...) cannot be proven to be nested SegWit from the
+     * address string alone; they may also encode another script type.
+     */
+    fun classify(value: String): BitcoinAddressFormat? {
+        if (!isValid(value)) return null
+        return when {
+            value.startsWith("1") -> BitcoinAddressFormat.LEGACY
+            value.startsWith("3") -> BitcoinAddressFormat.P2SH_NESTED_OR_SCRIPT
+            value.startsWith("bc1q", ignoreCase = true) -> BitcoinAddressFormat.NATIVE_SEGWIT
+            value.startsWith("bc1p", ignoreCase = true) -> BitcoinAddressFormat.TAPROOT
+            else -> null
+        }
+    }
 
     private fun isValidBase58(value: String): Boolean {
         if (value.length !in 26..35 || value.any { it !in BASE58 }) return false
@@ -65,7 +82,11 @@ object BitcoinAddressValidator {
         }
         if (bits >= 5 || ((accumulator shl (8 - bits)) and 0xff) != 0) return false
         if (decoded.size !in 2..40) return false
-        return version != 0 || decoded.size == 20 || decoded.size == 32
+        return when (version) {
+            0 -> decoded.size == 20 || decoded.size == 32
+            1 -> decoded.size == 32 // BIP341 Taproot witness program
+            else -> true
+        }
     }
 
     private fun hrpExpand(hrp: String): List<Int> =
