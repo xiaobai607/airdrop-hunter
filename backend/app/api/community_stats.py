@@ -66,12 +66,16 @@ async def add_community_contribution(
         existing = await db.scalar(
             select(CommunityContribution).where(CommunityContribution.id == payload.event_id)
         )
-        if (
-            existing is None
-            or existing.user_id != (user.id if user is not None else None)
-            or existing.project_official_id != project_official_id
-        ):
-            raise HTTPException(status_code=409, detail="统计流水编号冲突")
+        same_contribution = (
+            existing is not None
+            and existing.user_id == (user.id if user is not None else None)
+            and existing.project_official_id == project_official_id
+            and existing.gas_cost_usd == payload.gas_cost_usd
+            and existing.actual_reward_usd == payload.actual_reward_usd
+            and existing.interaction_count == payload.interaction_count
+        )
+        if not same_contribution:
+            raise HTTPException(status_code=409, detail="统计流水编号冲突：同一编号不能对应不同的项目或金额")
     else:
         aggregate_insert = pg_insert(CommunityProjectStats).values(
             project_official_id=project_official_id,
