@@ -19,6 +19,7 @@ data class WalletTransactionDto(
     val native_symbol: String,
     val native_price_usd: String? = null,
     val gas_cost_usd: String? = null,
+    val fee_paid_by_wallet: Boolean,
     val status: String,
     val project_official_id: String? = null,
     val attribution: String = "unassigned"

@@ -1,5 +1,6 @@
 import os
 import re
+import hashlib
 from decimal import Decimal, InvalidOperation
 from typing import Literal
 
@@ -21,6 +22,27 @@ def decimal_text(value: Decimal) -> str:
     return format(value.normalize(), "f") if value else "0"
 
 
+def tron_address_to_hex(address: str) -> str | None:
+    alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    number = 0
+    try:
+        for character in address:
+            number = number * 58 + alphabet.index(character)
+    except ValueError:
+        return None
+    decoded = number.to_bytes((number.bit_length() + 7) // 8, "big") if number else b""
+    decoded = b"\\x00" * (len(address) - len(address.lstrip("1"))) + decoded
+    if len(decoded) != 25:
+        return None
+    payload, checksum = decoded[:-4], decoded[-4:]
+    if payload[0] != 0x41:
+        return None
+    expected = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
+    if checksum != expected:
+        return None
+    return payload.hex()
+
+
 class WalletTransaction(BaseModel):
     chain: str
     hash: str
@@ -40,6 +62,7 @@ class WalletTransaction(BaseModel):
     native_symbol: str
     native_price_usd: str | None = None
     gas_cost_usd: str | None = None
+    fee_paid_by_wallet: bool
     status: str
     project_official_id: None = None
     attribution: str = "unassigned"
@@ -133,6 +156,7 @@ async def list_wallet_transactions(
                             gas_cost_native=decimal_text(native_cost), native_symbol="ETH",
                             native_price_usd=decimal_text(price) if price is not None else None,
                             gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
+                            fee_paid_by_wallet=str(row.get("from") or "").lower() == address.lower(),
                             status="success" if str(row.get("isError", "0")) == "0" else "failed",
                         ))
                     except (KeyError, TypeError, ValueError, InvalidOperation):
@@ -160,6 +184,13 @@ async def list_wallet_transactions(
                         native_cost = Decimal(fee_sun) / SUN_PER_TRX
                         raw_contracts = (row.get("raw_data") or {}).get("contract") or []
                         value = (((raw_contracts[0] if raw_contracts else {}).get("parameter") or {}).get("value") or {})
+                        fee_owner = str(value.get("owner_address") or "")
+                        wallet_hex = tron_address_to_hex(address)
+                        fee_paid_by_wallet = (
+                            fee_owner.lower() == address.lower()
+                            if fee_owner.startswith("T")
+                            else wallet_hex is not None and fee_owner.lower() == wallet_hex.lower()
+                        )
                         results.append(WalletTransaction(
                             chain="tron", hash=tx_hash, timestamp=timestamp,
                             from_address=str(value.get("owner_address") or address),
@@ -171,6 +202,7 @@ async def list_wallet_transactions(
                             gas_cost_native=decimal_text(native_cost), native_symbol="TRX",
                             native_price_usd=decimal_text(price) if price is not None else None,
                             gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
+                            fee_paid_by_wallet=fee_paid_by_wallet,
                             status="success" if receipt.get("result", "SUCCESS") == "SUCCESS" else "failed",
                         ))
                     except (httpx.HTTPError, KeyError, TypeError, ValueError, InvalidOperation):

@@ -22,10 +22,12 @@ class FakeClient:
                 "timeStamp": "1700000000", "from": "0x" + "b" * 40, "to": "0x" + "c" * 40,
                 "methodId": "0x12345678", "isError": "0"
             }]})
-        if url == activity.TRONGRID + "/v1/accounts/" + "T" + "A" * 33 + "/transactions":
+        if url.startswith(activity.TRONGRID + "/v1/accounts/") and url.endswith("/transactions"):
+            address = url.split("/")[-2]
+            owner_hex = activity.tron_address_to_hex(address)
             return FakeResponse({"data": [{
                 "txID": "d" * 64, "block_timestamp": 1700000000000,
-                "raw_data": {"contract": [{"parameter": {"value": {"owner_address": "41" + "e" * 40, "to_address": "41" + "f" * 40}}}]}
+                "raw_data": {"contract": [{"parameter": {"value": {"owner_address": owner_hex, "to_address": "41" + "f" * 40}}}]}
             }]})
         if url == activity.COINPAPRIKA_ETH:
             return FakeResponse({"quotes": {"USD": {"price": "2000"}}})
@@ -47,13 +49,14 @@ def test_public_ethereum_activity_does_not_require_login(monkeypatch):
     assert tx["gas_cost_native"] == "0.000021"
     assert tx["gas_cost_usd"] == "0.042"
     assert tx["fee_type"] == "evm_gas_fee_wei"
+    assert tx["fee_paid_by_wallet"] is True
     assert tx["total_fee_base_unit"] == "21000000000000"
     assert tx["attribution"] == "unassigned"
 
 
 def test_public_tron_activity_does_not_require_login(monkeypatch):
     monkeypatch.setattr(activity.httpx, "AsyncClient", FakeClient)
-    address = "T" + "A" * 33
+    address = "TUoHaVjx7n5xz8LwPRDckgFrDWhMhuSuJM"
     with TestClient(app) as client:
         response = client.get(f"/api/wallet-activity/tron/{address}/transactions")
     assert response.status_code == 200
@@ -66,6 +69,7 @@ def test_public_tron_activity_does_not_require_login(monkeypatch):
     assert tx["fee_type"] == "tron_total_fee_sun"
     assert tx["total_fee_base_unit"] == "2800000"
     assert tx["energy_used"] == "10000"
+    assert tx["fee_paid_by_wallet"] is True
     assert tx["attribution"] == "unassigned"
 
 
@@ -77,3 +81,21 @@ def test_public_activity_rejects_wrong_address_type(chain, address):
     with TestClient(app) as client:
         response = client.get(f"/api/wallet-activity/{chain}/{address}/transactions")
     assert response.status_code == 422
+
+
+def test_ethereum_inbound_transaction_does_not_attribute_sender_fee_to_recipient(monkeypatch):
+    class IncomingClient(FakeClient):
+        async def get(self, url, params=None, headers=None):
+            response = await super().get(url, params=params, headers=headers)
+            if url == activity.ETHERSCAN_V2:
+                response.data["result"][0]["from"] = "0x" + "c" * 40
+            return response
+
+    monkeypatch.setenv("ETHERSCAN_API_KEY", "test")
+    monkeypatch.setattr(activity.httpx, "AsyncClient", IncomingClient)
+    address = "0x" + "b" * 40
+    with TestClient(app) as client:
+        response = client.get(f"/api/wallet-activity/ethereum/{address}/transactions")
+    assert response.status_code == 200
+    tx = response.json()[0]
+    assert tx["fee_paid_by_wallet"] is False
