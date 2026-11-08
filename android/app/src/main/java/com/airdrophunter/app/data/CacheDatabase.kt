@@ -305,6 +305,66 @@ object CacheStore {
     fun observePnlRecords(): Flow<List<PnlRecordEntity>> = observeAccountScope().flatMapLatest { scope ->
         database?.pnlRecordDao()?.observeAll(scope) ?: flowOf(emptyList())
     }
+
+    fun observeUserProjects(): Flow<List<UserProjectEntity>> = observeAccountScope().flatMapLatest { scope ->
+        database?.userProjectDao()?.observeAll(scope) ?: flowOf(emptyList())
+    }
+
+    suspend fun readUserProjects(): List<UserProjectEntity> = withContext(Dispatchers.IO) {
+        database?.userProjectDao()?.getAll(currentAccountScope()).orEmpty()
+    }
+
+    suspend fun joinCommunityProject(projectOfficialId: String, projectName: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val officialId = projectOfficialId.trim()
+            val name = projectName.trim()
+            if (officialId.isEmpty() || officialId.length > 120 || name.isEmpty()) return@withContext false
+            val db = database ?: return@withContext false
+            val scope = currentAccountScope()
+            if (scope == "invalid-session") return@withContext false
+            val localId = "community:$officialId"
+            db.withTransaction {
+                val existing = db.userProjectDao().findByLocalId(localId, scope)
+                val now = System.currentTimeMillis()
+                val project = existing?.copy(
+                    projectOfficialId = officialId,
+                    projectName = name,
+                    status = existing.status.ifBlank { "tracking" },
+                    updatedAt = now
+                ) ?: UserProjectEntity(
+                    id = java.util.UUID.randomUUID().toString(),
+                    accountScope = scope,
+                    projectLocalId = localId,
+                    projectOfficialId = officialId,
+                    projectName = name,
+                    status = "tracking",
+                    totalGasCostUsd = 0.0,
+                    totalActualRewardUsd = 0.0,
+                    netProfitUsd = 0.0,
+                    interactionCount = 0,
+                    lastInteractionAt = 0L,
+                    createdAt = now,
+                    updatedAt = now
+                )
+                db.userProjectDao().upsert(project)
+            }
+            true
+        }
+
+    fun observeUserProject(projectLocalId: String): Flow<UserProjectEntity?> =
+        observeAccountScope().flatMapLatest { scope ->
+            database?.userProjectDao()?.observeByLocalId(projectLocalId, scope) ?: flowOf(null)
+        }
+
+    fun observeUserInteractions(projectLocalId: String): Flow<List<UserInteractionEntity>> =
+        observeAccountScope().flatMapLatest { scope ->
+            database?.userInteractionDao()?.observeByProject(projectLocalId, scope) ?: flowOf(emptyList())
+        }
+
+    fun observeCommunitySyncOutbox(): Flow<List<CommunitySyncOutboxEntity>> =
+        observeAccountScope().flatMapLatest { scope ->
+            database?.communitySyncOutboxDao()?.observeAll(scope) ?: flowOf(emptyList())
+        }
     fun observeProjectRatings(projectOfficialId: String): Flow<List<ProjectRatingEntity>> =
         observeAccountScope().flatMapLatest { scope ->
             database?.projectRatingDao()?.observeByProject(projectOfficialId, scope) ?: flowOf(emptyList())
