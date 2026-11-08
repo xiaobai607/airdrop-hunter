@@ -9,7 +9,7 @@ from app.database import Base
 class Wallet(Base):
     __tablename__ = "wallets"
     __table_args__ = (
-        UniqueConstraint("user_id", "address", name="uq_wallets_user_address"),
+        UniqueConstraint("user_id", "address", "chain", name="uq_wallets_user_address_chain"),
         Index("ix_wallets_user_synced", "user_id", "last_synced_at"),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

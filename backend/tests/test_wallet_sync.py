@@ -87,3 +87,15 @@ def test_address_classifier_supports_all_four_bitcoin_mainnet_formats():
     ]
     assert all(identify_chain(address) == "Bitcoin" for address in addresses)
     assert identify_chain("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5") is None
+
+    
+def test_same_evm_address_can_be_saved_on_multiple_networks():
+    with TestClient(app) as client:
+        headers = auth(client)
+        address = "0x" + "d" * 40
+        first = client.post("/api/wallets", headers=headers, json={"wallet_name": "ETH", "chain": "Ethereum", "address": address})
+        second = client.post("/api/wallets", headers=headers, json={"wallet_name": "Base", "chain": "Base", "address": address})
+        assert first.status_code == 201 and second.status_code == 201
+        assert first.json()["id"] != second.json()["id"]
+        assert first.json()["chain"] == "Ethereum"
+        assert second.json()["chain"] == "Base"

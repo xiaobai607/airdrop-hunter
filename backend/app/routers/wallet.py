@@ -20,6 +20,9 @@ NETWORKS = {
     "TRON": ("TRC20", "T"), "Tron": ("TRC20", "T"), "TRC20": ("TRC20", "T"),
     "SOL": ("Solana", "S"), "Solana": ("Solana", "S"),
     "Bitcoin": ("Bitcoin", "B"),
+    "BNB Chain": ("BNB Chain", "B"), "Polygon": ("Polygon", "P"),
+    "Arbitrum": ("Arbitrum", "A"), "Optimism": ("Optimism", "O"),
+    "Base": ("Base", "B"), "Avalanche": ("Avalanche", "A"),
 }
 
 class WalletWrite(BaseModel):
@@ -108,9 +111,11 @@ def identify_chain(address: str) -> str | None:
 def _serialize(w: Wallet) -> dict:
     detected = identify_chain(w.address or w.public_key)
     canonical = detected or w.chain
-    return {"id": str(w.id), "wallet_name": w.wallet_name, "chain": canonical,
+    persisted_chain = w.chain if detected == "EVM" and w.chain in {"Ethereum", "BNB Chain", "Polygon", "Arbitrum", "Optimism", "Base", "Avalanche"} else canonical
+    ecosystem = "EVM" if detected == "EVM" else canonical
+    return {"id": str(w.id), "wallet_name": w.wallet_name, "chain": persisted_chain,
         "network_icon": {"EVM": "E", "TRON": "T", "SOL": "S", "Bitcoin": "B"}.get(canonical, w.network_icon),
-        "ecosystem": canonical, "address": w.address or w.public_key,
+        "ecosystem": ecosystem, "address": w.address or w.public_key,
         "public_key": w.address or w.public_key, "daily_gas_usd": float(w.daily_gas_usd or 0),
         "recent_airdrop_income_usd": float(w.recent_airdrop_income_usd or 0),
         "last_synced_at": w.last_synced_at}
@@ -128,11 +133,11 @@ async def add_wallet(payload: WalletWrite, db: AsyncSession = Depends(get_db), u
     chain = payload.chain.strip()
     if chain not in NETWORKS: raise HTTPException(422, "暂不支持该生态")
     detected = identify_chain(payload.address)
-    expected = {"Ethereum": "EVM", "ERC20": "EVM", "Tron": "TRON", "TRC20": "TRON", "Solana": "SOL"}.get(chain, chain)
-    if detected != expected: raise HTTPException(422, "钱包地址格式与所选生态不匹配")
+    expected = {"Ethereum": "EVM", "ERC20": "EVM", "BNB Chain": "EVM", "Polygon": "EVM", "Arbitrum": "EVM", "Optimism": "EVM", "Base": "EVM", "Avalanche": "EVM", "Tron": "TRON", "TRC20": "TRON", "Solana": "SOL"}.get(chain, chain)
+    if detected != expected: raise HTTPException(422, "钱包地址格式与所选网络不匹配")
     address = payload.address.strip()
-    existing = await db.scalar(select(Wallet).where(Wallet.user_id == user.id, Wallet.address == address))
     db_chain, icon = NETWORKS[chain]
+    existing = await db.scalar(select(Wallet).where(Wallet.user_id == user.id, Wallet.address == address, Wallet.chain == db_chain))
     if existing:
         existing.wallet_name = payload.wallet_name.strip() or "Wallet"
         existing.chain = db_chain
