@@ -23,6 +23,34 @@ class AccountingRepositoryTest {
     }
 
     @Test
+    fun loadProjectsPrefersJoinedRoomProjectForSameCommunityId() = runBlocking {
+        val source = FakeAccountingLocalDataSource()
+        source.local["projects"] = Gson().toJson(
+            listOf(project("server-linea", "Linea from server").copy(communityOfficialId = "linea"))
+        )
+        source.userProjects += UserProjectEntity(
+            id = "user-linea",
+            projectLocalId = "community:linea",
+            projectOfficialId = "linea",
+            projectName = "Linea",
+            status = "tracking",
+            totalGasCostUsd = 0.0,
+            totalActualRewardUsd = 0.0,
+            netProfitUsd = 0.0,
+            interactionCount = 0,
+            lastInteractionAt = 0L,
+            createdAt = 1L,
+            updatedAt = 1L
+        )
+
+        val result = AccountingRepository(source).loadProjects()
+
+        assertEquals(1, result.size)
+        assertEquals("community:linea", result.single().id)
+        assertEquals("linea", result.single().communityOfficialId)
+    }
+
+    @Test
     fun saveLocalProjectReplacesMatchingLocalIdWithoutDeletingOthers() = runBlocking {
         val source = FakeAccountingLocalDataSource()
         source.local["pnl_projects"] = Gson().toJson(listOf(project("one", "Old"), project("two", "Keep")))
@@ -52,11 +80,13 @@ class AccountingRepositoryTest {
 private class FakeAccountingLocalDataSource : AccountingLocalDataSource {
     val local = mutableMapOf<String, String>()
     val cache = mutableMapOf<String, String>()
+    val userProjects = mutableListOf<UserProjectEntity>()
     var addedBill: PendingBillEntity? = null
     var deletedBillId: String? = null
     override fun observePendingBills(): Flow<List<PendingBillEntity>> = flowOf(emptyList())
     override suspend fun readLocal(key: String): String? = local[key]
     override suspend fun read(key: String): String? = cache[key]
+    override suspend fun readUserProjects(): List<UserProjectEntity> = userProjects
     override suspend fun writeLocal(key: String, payload: String) { local[key] = payload }
     override suspend fun addPendingBill(bill: PendingBillEntity) { addedBill = bill }
     override suspend fun deletePendingBill(id: String) { deletedBillId = id }
