@@ -168,7 +168,15 @@ async def list_wallet_transactions(
                         timestamp = int(row["block_timestamp"]) // 1000
                         if len(tx_hash) != 64 or not re.fullmatch(r"[0-9a-fA-F]{64}", tx_hash):
                             continue
-                        info_response = await client.post(f"{TRONGRID}/wallet/gettransactioninfobyid", json={"value": tx_hash})
+                        tron_headers = {}
+                        tron_key = (os.getenv("TRONGRID_API_KEY") or "").strip()
+                        if tron_key:
+                            tron_headers["TRON-PRO-API-KEY"] = tron_key
+                        info_response = await client.post(
+                            f"{TRONGRID}/wallet/gettransactioninfobyid",
+                            json={"value": tx_hash},
+                            headers=tron_headers,
+                        )
                         info_response.raise_for_status()
                         info = info_response.json()
                         if not info or info.get("id", "").lower() != tx_hash.lower():
@@ -184,12 +192,21 @@ async def list_wallet_transactions(
                         native_cost = Decimal(fee_sun) / SUN_PER_TRX
                         raw_contracts = (row.get("raw_data") or {}).get("contract") or []
                         value = (((raw_contracts[0] if raw_contracts else {}).get("parameter") or {}).get("value") or {})
-                        fee_owner = str(value.get("owner_address") or "")
                         wallet_hex = tron_address_to_hex(address)
-                        fee_paid_by_wallet = (
-                            fee_owner.lower() == address.lower()
-                            if fee_owner.startswith("T")
-                            else wallet_hex is not None and fee_owner.lower() == wallet_hex.lower()
+                        wallet_hex_lower = wallet_hex.lower() if wallet_hex else None
+
+                        def contract_owner_matches(contract):
+                            contract_value = ((contract.get("parameter") or {}).get("value") or {})
+                            owner = str(contract_value.get("owner_address") or "")
+                            if not owner or wallet_hex_lower is None:
+                                return False
+                            owner_hex = tron_address_to_hex(owner) if owner.startswith("T") else owner
+                            return owner_hex is not None and owner_hex.lower() == wallet_hex_lower
+
+                        fee_paid_by_wallet = any(
+                            contract_owner_matches(contract)
+                            for contract in raw_contracts
+                            if isinstance(contract, dict)
                         )
                         results.append(WalletTransaction(
                             chain="tron", hash=tx_hash, timestamp=timestamp,

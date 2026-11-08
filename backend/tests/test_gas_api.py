@@ -12,6 +12,7 @@ class FakeResponse:
 
 
 class FakeClient:
+    seen_post_headers = []
     def __init__(self, *args, **kwargs): pass
     async def __aenter__(self): return self
     async def __aexit__(self, *args): pass
@@ -34,8 +35,9 @@ class FakeClient:
         if url == activity.COINPAPRIKA_TRX:
             return FakeResponse({"quotes": {"USD": {"price": "0.1"}}})
         raise AssertionError(url)
-    async def post(self, url, json=None):
+    async def post(self, url, json=None, headers=None):
         assert url == activity.TRONGRID + "/wallet/gettransactioninfobyid"
+        self.seen_post_headers.append(headers or {})
         return FakeResponse({"id": json["value"], "fee": 2800000, "receipt": {"energy_usage_total": 10000, "energy_fee": 2000000, "result": "SUCCESS"}})
 
 
@@ -99,3 +101,31 @@ def test_ethereum_inbound_transaction_does_not_attribute_sender_fee_to_recipient
     assert response.status_code == 200
     tx = response.json()[0]
     assert tx["fee_paid_by_wallet"] is False
+
+
+
+def test_tron_transaction_info_forwards_api_key_and_checks_all_contract_owners(monkeypatch):
+    class MultiContractClient(FakeClient):
+        async def get(self, url, params=None, headers=None):
+            response = await super().get(url, params=params, headers=headers)
+            if url.startswith(activity.TRONGRID + "/v1/accounts/") and url.endswith("/transactions"):
+                row = response.data["data"][0]
+                owner_hex = activity.tron_address_to_hex("TUoHaVjx7n5xz8LwPRDckgFrDWhMhuSuJM")
+                row["raw_data"]["contract"].insert(0, {
+                    "parameter": {"value": {"owner_address": "41" + "0" * 40}}
+                })
+                row["raw_data"]["contract"].append({
+                    "parameter": {"value": {"owner_address": owner_hex}}
+                })
+            return response
+
+    monkeypatch.setenv("TRONGRID_API_KEY", "tron-test-key")
+    monkeypatch.setattr(activity.httpx, "AsyncClient", MultiContractClient)
+    MultiContractClient.seen_post_headers.clear()
+    address = "TUoHaVjx7n5xz8LwPRDckgFrDWhMhuSuJM"
+    with TestClient(app) as client:
+        response = client.get(f"/api/wallet-activity/tron/{address}/transactions")
+    assert response.status_code == 200
+    assert response.json()[0]["fee_paid_by_wallet"] is True
+    assert MultiContractClient.seen_post_headers
+    assert MultiContractClient.seen_post_headers[0]["TRON-PRO-API-KEY"] == "tron-test-key"
