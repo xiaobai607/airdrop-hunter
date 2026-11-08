@@ -587,11 +587,11 @@ object CacheStore {
                 )
             )
             officialId?.takeIf {
-                scope.startsWith("user:") && isEligibleForPublicContribution(bill)
+                scope != "invalid-session" && isEligibleForPublicContribution(bill)
             }?.let { id ->
                 db.communitySyncOutboxDao().insert(
                     CommunitySyncOutboxEntity(
-                        id = java.util.UUID.randomUUID().toString(),
+                        id = bill.id,
                         accountScope = scope,
                         projectOfficialId = id,
                         gasCostUsd = gasCostUsd,
