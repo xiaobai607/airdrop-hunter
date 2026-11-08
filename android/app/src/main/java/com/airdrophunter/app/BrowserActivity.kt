@@ -293,17 +293,28 @@ private fun BrowserScreen(
                                             DappProviderBridge.success(replyProxy, request.id, JSONArray(addresses))
                                         }
                                         "eth_chainId", "net_version" -> {
-                                            val chainReference = connectedDappAccounts.firstOrNull()?.chainId
+                                            val rawChainReference = connectedDappAccounts.firstOrNull()?.chainId
                                                 ?: runCatching { AppKit.getSelectedChain()?.chainReference }.getOrNull()
-                                                ?: "1"
-                                            val chainNumber = if (chainReference.startsWith("0x", true)) {
-                                                chainReference.removePrefix("0x").toLongOrNull(16)
-                                            } else chainReference.toLongOrNull()
-                                            val decimalChainId = chainNumber ?: 1L
-                                            val result = if (request.method == "eth_chainId") {
-                                                "0x" + decimalChainId.toString(16)
-                                            } else decimalChainId.toString()
-                                            DappProviderBridge.success(replyProxy, request.id, result)
+                                            val chainReference = rawChainReference
+                                                ?.removePrefix("eip155:")
+                                                ?.trim()
+                                            val chainNumber = when {
+                                                chainReference.isNullOrBlank() -> null
+                                                chainReference.startsWith("0x", ignoreCase = true) ->
+                                                    chainReference.substring(2).toLongOrNull(16)
+                                                else -> chainReference.toLongOrNull()
+                                            }
+                                            if (chainNumber == null || chainNumber <= 0L) {
+                                                DappProviderBridge.error(
+                                                    replyProxy, request.id, -32000,
+                                                    "The active EVM chain is unavailable; connect a wallet or select a supported network"
+                                                )
+                                            } else {
+                                                val result = if (request.method == "eth_chainId") {
+                                                    "0x" + chainNumber.toString(16)
+                                                } else chainNumber.toString()
+                                                DappProviderBridge.success(replyProxy, request.id, result)
+                                            }
                                         }
                                         "personal_sign", "eth_signTypedData_v4", "eth_sendTransaction" -> {
                                             if (authorizedDappOrigins[origin] != true) {

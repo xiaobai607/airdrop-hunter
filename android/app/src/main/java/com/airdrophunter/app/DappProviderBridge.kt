@@ -22,7 +22,7 @@ internal object DappProviderBridge {
   var pending = new Map();
   var listeners = new Map();
   var nextId = 1;
-  var state = { accounts: [], chainId: null };
+  var state = { accounts: [], chainId: null, connected: false };
   var bridge = window.ahWalletBridge;
 
   function emit(eventName, value) {
@@ -52,14 +52,14 @@ internal object DappProviderBridge {
       if (task.method === "eth_requestAccounts" || task.method === "eth_accounts") {
         state.accounts = message.result || [];
       }
-      if (task.method === "eth_chainId") state.chainId = message.result;
+      if (task.method === "eth_chainId") { state.chainId = message.result; state.connected = true; }
       task.resolve(message.result);
     }
   };
 
   var provider = {
     isMetaMask: false,
-    isConnected: function () { return true; },
+    isConnected: function () { return state.connected; },
     request: function (args) {
       if (!args || typeof args.method !== "string" || !args.method) {
         return Promise.reject({ code: -32600, message: "Invalid request" });
