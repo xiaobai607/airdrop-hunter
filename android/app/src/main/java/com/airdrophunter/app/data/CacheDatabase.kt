@@ -245,7 +245,11 @@ object CacheStore {
                 actual_gas_cost_usd = gas,
                 actual_reward_usd = reward,
                 occurred_at = Instant.ofEpochMilli(bill.timestamp).toString(),
-                extra = mapOf("project_official_id" to (canonicalOfficialId ?: ""))
+                extra = mapOf(
+                    "project_official_id" to (canonicalOfficialId ?: ""),
+                    // Demo transactions remain available for local UI testing but are never synced.
+                    "is_demo" to bill.txHash.startsWith("MOCK-").toString()
+                )
             )
             val updatedLedger = (existingLedger.filterNot { it.client_record_id == bill.id } + ledgerEntry)
             db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(updatedLedger), System.currentTimeMillis()))
