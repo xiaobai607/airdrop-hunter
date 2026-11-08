@@ -85,7 +85,7 @@ internal fun parseEvmNativeBalance(hexBalance: String): BigDecimal {
         throw IOException("EVM RPC 返回了无效的余额格式。")
     }
     if (wei.signum() < 0) throw IOException("EVM RPC 返回了负数余额。")
-    return BigDecimal(wei).movePointLeft(18)
+    return BigDecimal(wei).movePointLeft(18).stripTrailingZeros()
 }
 
 internal fun buildEvmAssetData(
