@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.webkit.CookieManager
-import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -147,8 +146,6 @@ private fun BrowserScreen(
         mutableStateOf(wallets.firstOrNull { it.id == selectedWalletId } ?: wallets.firstOrNull())
     }
     var showWalletPicker by remember { mutableStateOf(false) }
-    var pendingSslHandler by remember { mutableStateOf<SslErrorHandler?>(null) }
-    var pendingSslMessage by remember { mutableStateOf<String?>(null) }
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var loadAttempt by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
@@ -177,8 +174,7 @@ private fun BrowserScreen(
                 } else if (loadAttempt >= 1) {
                     pageState = BrowserPageState.Error
                 }
-            }
-        }
+            }        }
     }
 
     val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
@@ -306,12 +302,10 @@ private fun BrowserScreen(
                                 }
                             }
 
-                            override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
-                                if (handler == null) return
-                                pendingSslHandler?.cancel()
-                                pendingSslHandler = handler
-                                pendingSslMessage = "网站证书验证失败（${error?.primaryError ?: "未知错误"}）。继续访问可能导致账号、密码或钱包信息泄露。仅在确认网址可信且不输入敏感信息时继续。"
-                                Log.w("AirdropBrowser", "SSL certificate error: $error")
+                            override fun onReceivedSslError(view: WebView?, handler: android.webkit.SslErrorHandler?, error: android.net.http.SslError?) {
+                                // Never allow a WebView page to bypass TLS certificate validation.
+                                handler?.cancel()
+                                Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed: $error")
                             }
                         }
                     }
@@ -357,8 +351,7 @@ private fun BrowserScreen(
                     if (address.isBlank()) Toast.makeText(context, "当前没有可复制的钱包地址", Toast.LENGTH_SHORT).show()
                     else {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", address))
-                        Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", address))                        Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally).navigationBarsPadding().padding(bottom = 8.dp)
@@ -410,32 +403,6 @@ private fun BrowserScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingNavigationUrl = null }) { Text("留在当前网站") }
-            }
-        )
-    }
-
-    if (pendingSslMessage != null) {
-        AlertDialog(
-            onDismissRequest = {
-                pendingSslHandler?.cancel()
-                pendingSslHandler = null
-                pendingSslMessage = null
-            },
-            title = { Text("网站证书不安全", color = AppColors.TextPrimary) },
-            text = { Text(pendingSslMessage.orEmpty(), color = AppColors.TextSecondary) },
-            confirmButton = {
-                TextButton(onClick = {
-                    pendingSslHandler?.proceed()
-                    pendingSslHandler = null
-                    pendingSslMessage = null
-                }) { Text("仍然继续（不安全）", color = Color(0xFFB42318)) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    pendingSslHandler?.cancel()
-                    pendingSslHandler = null
-                    pendingSslMessage = null
-                }) { Text("取消并返回") }
             }
         )
     }
