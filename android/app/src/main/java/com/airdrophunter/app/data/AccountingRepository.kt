@@ -126,7 +126,15 @@ class AccountingRepository(
             check(reachedEnd) { "个人账本超过当前单次恢复上限，已保留本地数据" }
 
             val cloudRecordIds = cloudEntries.mapTo(mutableSetOf()) { it.client_record_id }
-            localEntries.filterNot { it.client_record_id in cloudRecordIds }.forEach { entry ->
+            // Simulated toolbar bills are retained on this device for testing, but
+            // must never be uploaded to the account's real personal ledger.
+            val demoLocalEntries = localEntries.filter {
+                it.extra["is_demo"] == "true" || it.tx_hash.startsWith("MOCK-")
+            }.filterNot { it.client_record_id in cloudRecordIds }
+            val syncableLocalEntries = localEntries.filterNot {
+                it.extra["is_demo"] == "true" || it.tx_hash.startsWith("MOCK-")
+            }
+            syncableLocalEntries.filterNot { it.client_record_id in cloudRecordIds }.forEach { entry ->
                 cloudEntries += remote.upsertPersonalLedger(entry.client_record_id, entry)
             }
 
@@ -149,7 +157,10 @@ class AccountingRepository(
             }
             // Cloud entries are authoritative; this also recovers rows created on
             // another device and prevents stale local values from winning a merge.
-            local.writeLocal(localKey, gson.toJson(restored))
+            local.writeLocal(
+                localKey,
+                gson.toJson(restored + demoLocalEntries)
+            )
             true
         }.getOrDefault(false)
     }
