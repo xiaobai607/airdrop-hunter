@@ -244,10 +244,13 @@ def build_bitcoin_transactions(rows, address: str, price: Decimal | None, limit:
                 str((item.get("prevout") or {}).get("scriptpubkey_address") or "")
                 for item in inputs if isinstance(item, dict)
             ]
-            # Attribute the whole transaction fee only when every input belongs
-            # to this exact address; mixed-address inputs remain unassigned.
-            fee_paid_by_wallet = bool(input_addresses) and all(
-                value == address for value in input_addresses
+            # Every input must have a known prevout address before the whole fee
+            # can be attributed. Missing prevout metadata is not evidence that
+            # the omitted input belongs to this wallet.
+            fee_paid_by_wallet = (
+                bool(inputs)
+                and len(input_addresses) == len(inputs)
+                and all(value and value == address for value in input_addresses)
             )
             shared_input_fee = address in input_addresses and not fee_paid_by_wallet
             outputs = row.get("vout") or []
