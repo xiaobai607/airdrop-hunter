@@ -145,16 +145,6 @@ fun WalletManagerScreen(
     val walletSheetNavigator = remember(walletSheetState) { BottomSheetNavigator(walletSheetState) }
     val walletNavController = rememberNavController(walletSheetNavigator)
 
-    LaunchedEffect(connectedAccounts, state.wallets) {
-        val unsaved = connectedAccounts.firstOrNull { connected ->
-            state.wallets.none { it.address.equals(connected.address, ignoreCase = true) }
-        }
-        if (unsaved != null && pendingConnectedAccount == null) {
-            pendingConnectedAccount = unsaved
-            connectedWalletName = unsaved.walletLabel
-        }
-    }
-
     LaunchedEffect(isGuest) {
         walletViewModel.load(isGuest)
     }
@@ -204,26 +194,6 @@ fun WalletManagerScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Text("添加钱包")
-            }
-        }
-
-        if (connectedAccounts.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("WalletConnect 已连接", color = AppColors.Primary, fontWeight = FontWeight.SemiBold)
-                    Text("已读取外部钱包公开地址；连接不代表允许交易", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                }
-                TextButton(onClick = {
-                    AppKit.disconnect(
-                        onSuccess = { WalletConnectSessionDelegate.clearSession() },
-                        onError = { error ->
-                            android.widget.Toast.makeText(context, "断开连接失败", android.widget.Toast.LENGTH_LONG).show()
-                        }
-                    )
-                }) { Text("断开连接", color = AppColors.Danger) }
             }
         }
 
@@ -346,15 +316,6 @@ fun WalletManagerScreen(
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    OutlinedButton(
-                        onClick = {
-                            showAddDialog = false
-                            walletNavController.openAppKit()
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("连接外部钱包（WalletConnect）")
-                    }
                     OutlinedTextField(
                         value = address,
                         onValueChange = { address = it },

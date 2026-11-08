@@ -53,6 +53,7 @@ fun UnifiedAssetContent(
                     )
                     Text(
                         when {
+                            assets.isDemoData -> "演示数据 · 非链上真实余额"
                             assets.totalUsd == null -> "${assets.ecosystemName} · 未获取价格数据"
                             assets.valuationComplete -> "USD · ${assets.ecosystemName} 实时行情"
                             else -> "USD · 部分资产未获取到可靠报价（${assets.unpricedTokenCount} 项）"
@@ -187,7 +188,16 @@ private fun UnifiedTokenRow(token: UnifiedToken, onClick: () -> Unit = {}) {
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(quantity(token.quantity), color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text(token.usdValue?.let { "$ " + money(it) } ?: "估值暂无", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                Text(token.usdValue?.let { "$ " + money(it) } ?: "估值暂无", color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(token.priceUsd?.let { "$ " + money(it) } ?: "价格暂无", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    token.change24hPct?.let { change ->
+                        Spacer(Modifier.width(6.dp))
+                        Text((if (change.signum() >= 0) "+" else "") + DecimalFormat("0.00").format(change) + "%",
+                            color = if (change.signum() >= 0) Color(0xFF16834A) else Color(0xFFC34455),
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                }
             }
         }
     }
