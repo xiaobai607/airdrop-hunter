@@ -241,7 +241,7 @@ object CacheStore {
                 tx_hash = bill.txHash,
                 interaction_method = bill.interactionMethod,
                 expected_gas_cost_usd = bill.gasCostUsd,
-                expected_reward_usd = 0.0,
+                // No reliable reward estimate exists at confirmation time; keep it unknown.\n                expected_reward_usd = null,
                 actual_gas_cost_usd = gas,
                 actual_reward_usd = reward,
                 occurred_at = Instant.ofEpochMilli(bill.timestamp).toString(),
