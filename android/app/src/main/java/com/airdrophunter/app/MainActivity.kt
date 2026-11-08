@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
 
 private data class Destination(val label: Int, val icon: ImageVector)
 
-private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, WALLET_MANAGER, GLOBAL_SEARCH, TRON_ENERGY }
+private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,11 +76,12 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
     val context = androidx.compose.ui.platform.LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var activeOverlay by rememberSaveable { mutableStateOf(AppOverlay.NONE) }
+    var selectedMarketSymbol by rememberSaveable { mutableStateOf("BTC") }
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
     var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
 
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
-    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.WALLET_MANAGER, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
+    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
 
     BackHandler(hasSecondaryDestination) {
         activeOverlay = AppOverlay.NONE
@@ -99,6 +100,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
         activeOverlay == AppOverlay.AIRDROP_HUB -> "空投大厅"
         activeOverlay == AppOverlay.WALLET_MANAGER -> "钱包管理"
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
+        activeOverlay == AppOverlay.MARKET_DETAIL -> "$selectedMarketSymbol 行情"
         activeOverlay == AppOverlay.TRON_ENERGY -> "TRON 能量租赁助手"
         selectedCommunityProject != null -> "项目微社区"
         else -> stringResource(R.string.project_detail)
@@ -169,7 +171,15 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                                 .putExtra(BrowserActivity.EXTRA_URL, url)
                                 .putExtra(BrowserActivity.EXTRA_TITLE, "OKLink 全链搜索")
                         )
+                    },
+                    onCoinSelected = { symbol ->
+                        selectedMarketSymbol = symbol
+                        activeOverlay = AppOverlay.MARKET_DETAIL
                     }
+                )
+                activeOverlay == AppOverlay.MARKET_DETAIL -> CoinMarketDetailScreen(
+                    symbol = selectedMarketSymbol,
+                    modifier = Modifier.fillMaxSize()
                 )
                 activeOverlay == AppOverlay.WALLET_MANAGER -> WalletManagerScreen(
                     modifier = Modifier.fillMaxSize(),

@@ -31,6 +31,10 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.data.OkxMarketRepository
+import com.airdrophunter.app.data.OkxTicker
+import java.text.NumberFormat
+import java.util.Locale
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -43,25 +47,33 @@ private val SEARCH_HISTORY_KEY = stringPreferencesKey("recent_queries")
 private data class HotSearchItem(
     val symbol: String,
     val name: String,
-    val price: String,
-    val change: String,
-    val positive: Boolean,
     val iconText: String
 )
 
 private val hotSearchItems = listOf(
-    HotSearchItem("BTC", "Bitcoin", "$67,420", "+2.36%", true, "₿"),
-    HotSearchItem("ETH", "Ethereum", "$3,520", "+1.18%", true, "Ξ"),
-    HotSearchItem("SOL", "Solana", "$168.40", "-0.82%", false, "◎")
+    HotSearchItem("BTC", "Bitcoin", "₿"),
+    HotSearchItem("ETH", "Ethereum", "Ξ"),
+    HotSearchItem("SOL", "Solana", "◎")
 )
 
 @Composable
 fun GlobalSearchScreen(
     modifier: Modifier = Modifier,
     onCancel: () -> Unit,
-    onSearch: (String) -> Unit
+    onSearch: (String) -> Unit,
+    onCoinSelected: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val marketRepository = remember(application) { application.appContainer.okxMarketRepository }
+    var marketTickers by remember { mutableStateOf<List<OkxTicker>>(emptyList()) }
+    var marketLoadFailed by remember { mutableStateOf(false) }
+    LaunchedEffect(marketRepository) {
+        runCatching { marketRepository.fetchSpotTickers() }
+            .onSuccess { marketTickers = it; marketLoadFailed = false }
+            .onFailure { marketLoadFailed = true }
+    }
+    val tickerBySymbol = remember(marketTickers) { marketTickers.associateBy { it.symbol } }
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
@@ -183,20 +195,14 @@ fun GlobalSearchScreen(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("热门搜索", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Text("示例行情", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                Text(if (marketTickers.isEmpty()) "实时行情" else "实时行情 · OKX", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
             hotSearchItems.forEach { item ->
                 Row(
                     Modifier.fillMaxWidth()
                         .clip(RoundedCornerShape(15.dp))
                         .background(AppColors.Surface)
-                        .clickable {
-                            query = item.symbol
-                            scope.launch {
-                                focusRequester.requestFocus()
-                                keyboard?.show()
-                            }
-                        }
+                        .clickable { onCoinSelected(item.symbol) }
                         .padding(horizontal = 14.dp, vertical = 13.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -212,9 +218,21 @@ fun GlobalSearchScreen(
                         Text(item.name, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     }
                     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(item.price, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                        Text(item.change, color = if (item.positive) AppColors.Success else AppColors.Danger,
-                            style = MaterialTheme.typography.labelSmall)
+                        val ticker = tickerBySymbol[item.symbol]
+                        val priceText = ticker?.let {
+                            "$ " + NumberFormat.getNumberInstance(Locale.US).apply {
+                                minimumFractionDigits = 2
+                                maximumFractionDigits = 8
+                            }.format(it.lastPrice)
+                        } ?: if (marketLoadFailed) "暂不可用" else "加载中…"
+                        Text(priceText, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                        if (ticker != null) {
+                            val changeText = String.format(Locale.US, "%+.2f%%", ticker.change24hPercent)
+                            Text(changeText, color = if (ticker.change24hPercent >= 0) AppColors.Success else AppColors.Danger,
+                                style = MaterialTheme.typography.labelSmall)
+                        } else {
+                            Text("点击查看详情", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }
