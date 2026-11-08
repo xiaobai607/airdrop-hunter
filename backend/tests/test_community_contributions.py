@@ -16,7 +16,7 @@ def _headers(client, prefix: str):
 
 def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
     with TestClient(app) as client:
-        headers = _headers(client, "contributor")
+        headers = _headers(client, "contrib")
         event_id = str(uuid4())
         payload = {
             "event_id": event_id,
