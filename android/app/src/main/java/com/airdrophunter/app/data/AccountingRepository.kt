@@ -67,6 +67,7 @@ class AccountingRepository(
                 name = saved.projectName,
                 description = "",
                 status = saved.status,
+                official_url = CommunityProjectCatalog.findByOfficialId(saved.projectOfficialId)?.officialUrl.orEmpty(),
                 communityOfficialId = saved.projectOfficialId
             )
         }

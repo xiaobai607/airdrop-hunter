@@ -23,20 +23,24 @@ data class CommunityStandardProject(
     val officialId: String,
     val name: String,
     val description: String,
-    val aliases: List<String> = emptyList()
+    val aliases: List<String> = emptyList(),
+    val officialUrl: String = ""
 )
 
 /** Small, explicit allow-list: fuzzy matching can suggest a link but never links automatically. */
 object CommunityProjectCatalog {
     val projects = listOf(
-        CommunityStandardProject("linea", "Linea", "Consensys zkEVM", listOf("linea network")),
-        CommunityStandardProject("scroll", "Scroll", "zkEVM"),
-        CommunityStandardProject("zksync", "zkSync", "ZK Rollup", listOf("zk sync")),
-        CommunityStandardProject("starknet", "Starknet", "Validity Rollup", listOf("stark net")),
-        CommunityStandardProject("base", "Base", "Ethereum L2"),
-        CommunityStandardProject("arbitrum", "Arbitrum", "Ethereum L2"),
-        CommunityStandardProject("optimism", "Optimism", "Superchain")
+        CommunityStandardProject("linea", "Linea", "Consensys zkEVM", listOf("linea network"), "https://linea.build/"),
+        CommunityStandardProject("scroll", "Scroll", "zkEVM", officialUrl = "https://scroll.io/"),
+        CommunityStandardProject("zksync", "zkSync", "ZK Rollup", listOf("zk sync"), "https://www.zksync.io/"),
+        CommunityStandardProject("starknet", "Starknet", "Validity Rollup", listOf("stark net"), "https://www.starknet.io/"),
+        CommunityStandardProject("base", "Base", "Ethereum L2", officialUrl = "https://www.base.org/"),
+        CommunityStandardProject("arbitrum", "Arbitrum", "Ethereum L2", officialUrl = "https://arbitrum.io/"),
+        CommunityStandardProject("optimism", "Optimism", "Superchain", officialUrl = "https://optimism.io/")
     )
+
+    fun findByOfficialId(officialId: String?): CommunityStandardProject? =
+        officialId?.let { id -> projects.firstOrNull { it.officialId == id } }
 
     fun findMatch(input: String): CommunityStandardProject? {
         val query = normalize(input)
