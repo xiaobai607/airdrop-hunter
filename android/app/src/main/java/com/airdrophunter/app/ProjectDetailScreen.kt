@@ -1,6 +1,8 @@
 package com.airdrophunter.app
 
 import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.WalletDto
+import kotlinx.coroutines.launch
 import com.airdrophunter.app.ui.theme.AppColors
 import java.util.Locale
 
@@ -34,10 +39,27 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     val state by projectDetailViewModel.uiState.collectAsStateWithLifecycle()
     val twitterTitle = stringResource(R.string.twitter)
     var taskName by remember(project.id) { mutableStateOf("") }
+    var claimWallets by remember { mutableStateOf<List<WalletDto>>(emptyList()) }
+    var showClaimWalletPicker by remember { mutableStateOf(false) }
+    var isLoadingClaimWallets by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val completed = state.tasks.count { it.is_completed }
     val progress = if (state.tasks.isEmpty()) 0f else completed.toFloat() / state.tasks.size
 
     LaunchedEffect(project.id, isGuest) { projectDetailViewModel.load(project.id, isGuest) }
+    LaunchedEffect(state.claimUrl) {
+        val claimUrl = state.claimUrl ?: return@LaunchedEffect
+        val parsed = runCatching { Uri.parse(claimUrl) }.getOrNull()
+        if (parsed?.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrBlank()) {
+            context.startActivity(Intent(context, BrowserActivity::class.java)
+                .putExtra(BrowserActivity.EXTRA_URL, claimUrl)
+                .putExtra(BrowserActivity.EXTRA_TITLE, "\u0024{project.name} · 资格领取"))
+        } else Toast.makeText(context, "领取链接无效，已阻止打开", Toast.LENGTH_LONG).show()
+        projectDetailViewModel.consumeClaimUrl()
+    }
+    LaunchedEffect(state.claimError) {
+        state.claimError?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
 
     LazyColumn(
         modifier.fillMaxSize().background(AppColors.Background),
@@ -64,6 +86,22 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     project.deadline?.let { Text("${stringResource(R.string.deadline)}: $it",
                         color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall) }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (project.claim_url.startsWith("https://", ignoreCase = true)) {
+                            Button(enabled = !isLoadingClaimWallets && !state.isClaimLoading, onClick = {
+                                scope.launch {
+                                    isLoadingClaimWallets = true
+                                    try {
+                                        claimWallets = application.appContainer.walletRepository.load(isGuest)
+                                        if (claimWallets.isEmpty()) Toast.makeText(context, "请先在钱包管理中添加公开地址", Toast.LENGTH_LONG).show()
+                                        else showClaimWalletPicker = true
+                                    } catch (error: Exception) {
+                                        Toast.makeText(context, error.message ?: "读取钱包失败", Toast.LENGTH_LONG).show()
+                                    } finally { isLoadingClaimWallets = false }
+                                }
+                            }, shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
+                                Text(if (isLoadingClaimWallets || state.isClaimLoading) "准备中…" else "选择钱包并领取")
+                            }
+                        }
                         if (project.official_url.startsWith("https://")) OutlinedButton(onClick = {
                             context.startActivity(Intent(context, BrowserActivity::class.java)
                                 .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
@@ -137,6 +175,43 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
             }
         }
     }
+    if (showClaimWalletPicker) {
+        AlertDialog(
+            onDismissRequest = { showClaimWalletPicker = false },
+            containerColor = AppColors.Surface,
+            title = { Text("选择领取钱包") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("将使用所选钱包的公开地址打开项目资格页面，不会自动签名或发送交易。",
+                        color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    claimWallets.forEach { wallet ->
+                        OutlinedButton(modifier = Modifier.fillMaxWidth(), enabled = !state.isClaimLoading, onClick = {
+                            showClaimWalletPicker = false
+                            if (isGuest) {
+                                val parsed = runCatching { Uri.parse(project.claim_url) }.getOrNull()
+                                if (parsed?.scheme.equals("https", true) && !parsed?.host.isNullOrBlank()) {
+                                    val url = parsed!!.buildUpon()
+                                        .appendQueryParameter("address", wallet.address.ifBlank { wallet.public_key })
+                                        .build().toString()
+                                    context.startActivity(Intent(context, BrowserActivity::class.java)
+                                        .putExtra(BrowserActivity.EXTRA_URL, url)
+                                        .putExtra(BrowserActivity.EXTRA_TITLE, "\u0024{project.name} · 资格领取"))
+                                } else Toast.makeText(context, "领取链接无效", Toast.LENGTH_LONG).show()
+                            } else projectDetailViewModel.requestClaimUrl(project.id, wallet.id)
+                        }) {
+                            Column(Modifier.fillMaxWidth()) {
+                                Text(wallet.wallet_name.ifBlank { "钱包" }, color = AppColors.TextPrimary)
+                                Text("\u0024{wallet.ecosystem} · \u0024{wallet.address.take(8)}…\u0024{wallet.address.takeLast(5)}",
+                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showClaimWalletPicker = false }) { Text("取消") } }
+        )
+    }
+
 }
 
 @Composable
