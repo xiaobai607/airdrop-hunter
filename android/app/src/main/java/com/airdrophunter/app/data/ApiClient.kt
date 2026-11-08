@@ -17,9 +17,17 @@ object ApiClient {
         OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val original = chain.request()
+                val explicitAuthorization = original.header("Authorization")
                 val token = TokenStore.readTokenBlocking()
-                val request = if (token.isNullOrBlank()) original else original.newBuilder()
-                    .header("Authorization", "Bearer $token").build()
+                val request = when {
+                    // An explicitly supplied header (including blank for guest sync)
+                    // is authoritative; do not replace a snapshotted account token.
+                    explicitAuthorization != null && explicitAuthorization.isBlank() ->
+                        original.newBuilder().removeHeader("Authorization").build()
+                    explicitAuthorization != null -> original
+                    token.isNullOrBlank() -> original
+                    else -> original.newBuilder().header("Authorization", "Bearer $token").build()
+                }
                 chain.proceed(request)
             }
             .connectTimeout(70, TimeUnit.SECONDS)

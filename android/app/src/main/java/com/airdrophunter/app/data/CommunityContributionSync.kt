@@ -22,8 +22,8 @@ class CommunityContributionSyncWorker(
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         ApiClient.initialize(applicationContext)
-        val entries = CacheStore.getPendingCommunitySyncs()
-        for (entry in entries) {
+        val batch = CacheStore.getPendingCommunitySyncBatch() ?: return@withContext Result.retry()
+        for (entry in batch.entries) {
             try {
                 ApiClient.service.addCommunityContribution(
                     entry.projectOfficialId,
@@ -32,17 +32,18 @@ class CommunityContributionSyncWorker(
                         gas_cost_usd = entry.gasCostUsd,
                         actual_reward_usd = entry.actualRewardUsd,
                         interaction_count = entry.interactionCount
-                    )
+                    ),
+                    batch.authorizationHeader
                 )
-                CacheStore.completeCommunitySync(entry.id)
+                CacheStore.completeCommunitySync(entry.id, batch.accountScope)
             } catch (error: HttpException) {
-                CacheStore.markCommunitySyncAttempt(entry.id, "HTTP ${error.code()}")
+                CacheStore.markCommunitySyncAttempt(entry.id, batch.accountScope, "HTTP ${error.code()}")
                 return@withContext Result.retry()
             } catch (error: IOException) {
-                CacheStore.markCommunitySyncAttempt(entry.id, error.message ?: "Network unavailable")
+                CacheStore.markCommunitySyncAttempt(entry.id, batch.accountScope, error.message ?: "Network unavailable")
                 return@withContext Result.retry()
             } catch (error: Exception) {
-                CacheStore.markCommunitySyncAttempt(entry.id, error.message ?: "Unknown sync error")
+                CacheStore.markCommunitySyncAttempt(entry.id, batch.accountScope, error.message ?: "Unknown sync error")
                 return@withContext Result.retry()
             }
         }

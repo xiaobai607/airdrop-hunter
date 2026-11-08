@@ -3,6 +3,7 @@ package com.airdrophunter.app.data
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -23,7 +24,8 @@ interface ApiService {
     @POST("api/community/projects/{projectOfficialId}/contributions")
     suspend fun addCommunityContribution(
         @Path("projectOfficialId") projectOfficialId: String,
-        @Body request: CommunityContributionRequest
+        @Body request: CommunityContributionRequest,
+        @Header("Authorization") authorizationHeader: String
     ): CommunityProjectStatsDto
     @GET("api/community/projects/{projectOfficialId}/stats")
     suspend fun getCommunityProjectStats(

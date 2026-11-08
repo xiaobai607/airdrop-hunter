@@ -102,6 +102,12 @@ data class CommunitySyncOutboxEntity(
     val lastError: String? = null
 )
 
+data class CommunitySyncBatch(
+    val accountScope: String,
+    val authorizationHeader: String,
+    val entries: List<CommunitySyncOutboxEntity>
+)
+
 @Entity(
     tableName = "project_ratings",
     indices = [Index(value = ["accountScope", "projectOfficialId", "walletAddress"], unique = true)]
@@ -203,14 +209,14 @@ interface CommunitySyncOutboxDao {
     @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope ORDER BY createdAt ASC")
     fun observeAll(accountScope: String): Flow<List<CommunitySyncOutboxEntity>>
 
-    @Query("SELECT * FROM community_sync_outbox ORDER BY createdAt ASC LIMIT :limit")
-    suspend fun getPending(limit: Int): List<CommunitySyncOutboxEntity>
+    @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope ORDER BY createdAt ASC LIMIT :limit")
+    suspend fun getPending(accountScope: String, limit: Int): List<CommunitySyncOutboxEntity>
 
-    @Query("DELETE FROM community_sync_outbox WHERE id = :id")
-    suspend fun deleteById(id: String)
+    @Query("DELETE FROM community_sync_outbox WHERE id = :id AND accountScope = :accountScope")
+    suspend fun deleteById(id: String, accountScope: String)
 
-    @Query("UPDATE community_sync_outbox SET attemptCount = attemptCount + 1, lastAttemptAt = :attemptAt, lastError = :error WHERE id = :id")
-    suspend fun markAttemptById(id: String, attemptAt: Long, error: String?)
+    @Query("UPDATE community_sync_outbox SET attemptCount = attemptCount + 1, lastAttemptAt = :attemptAt, lastError = :error WHERE id = :id AND accountScope = :accountScope")
+    suspend fun markAttemptById(id: String, accountScope: String, attemptAt: Long, error: String?)
 }
 
 @Dao
@@ -532,17 +538,27 @@ object CacheStore {
         }
     }
 
-    suspend fun getPendingCommunitySyncs(limit: Int = 50): List<CommunitySyncOutboxEntity> =
+    suspend fun getPendingCommunitySyncBatch(limit: Int = 50): CommunitySyncBatch? =
         withContext(Dispatchers.IO) {
-            database?.communitySyncOutboxDao()?.getPending(limit).orEmpty()
+            // Snapshot the account and its bearer token together. A later account
+            // switch must never cause another user's queued contributions to be sent.
+            val token = TokenStore.readTokenBlocking()
+            val scope = accountScopeFromToken(token)
+            if (scope == "invalid-session") return@withContext null
+            val entries = database?.communitySyncOutboxDao()?.getPending(scope, limit).orEmpty()
+            CommunitySyncBatch(
+                accountScope = scope,
+                authorizationHeader = token?.takeIf { it.isNotBlank() }?.let { "Bearer $it" }.orEmpty(),
+                entries = entries
+            )
         }
 
-    suspend fun completeCommunitySync(id: String) = withContext(Dispatchers.IO) {
-        database?.communitySyncOutboxDao()?.deleteById(id)
+    suspend fun completeCommunitySync(id: String, accountScope: String) = withContext(Dispatchers.IO) {
+        database?.communitySyncOutboxDao()?.deleteById(id, accountScope)
     }
 
-    suspend fun markCommunitySyncAttempt(id: String, error: String?) = withContext(Dispatchers.IO) {
-        database?.communitySyncOutboxDao()?.markAttemptById(id, System.currentTimeMillis(), error)
+    suspend fun markCommunitySyncAttempt(id: String, accountScope: String, error: String?) = withContext(Dispatchers.IO) {
+        database?.communitySyncOutboxDao()?.markAttemptById(id, accountScope, System.currentTimeMillis(), error)
     }
 
     private fun scopedKey(key: String): String {
