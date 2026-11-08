@@ -46,11 +46,6 @@ class MainActivity : ComponentActivity() {
                 val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = null)
                 var showAuth by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(token) { if (!token.isNullOrBlank()) showAuth = false }
-                LaunchedEffect(token) {
-                    if (!token.isNullOrBlank()) {
-                        com.airdrophunter.app.data.LocalDataSyncManager.prepareMockSync(applicationContext)
-                    }
-                }
                 if (showAuth && token.isNullOrBlank()) {
                     AuthScreen(onGuestMode = { showAuth = false })
                 } else {
