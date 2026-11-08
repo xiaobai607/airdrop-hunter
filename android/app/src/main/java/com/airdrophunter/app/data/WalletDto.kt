@@ -20,12 +20,15 @@ object WalletEcosystem {
     const val EVM = "EVM"
     const val TRON = "TRON"
     const val SOL = "SOL"
+    const val BITCOIN = "Bitcoin"
 
     fun fromAddress(address: String, legacyChain: String = ""): String {
         val value = address.trim()
         return when {
             Regex("^0x[a-fA-F0-9]{40}$").matches(value) -> EVM
             Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$").matches(value) -> TRON
+            Regex("^bc1[ac-hj-np-z02-9]{11,71}$", RegexOption.IGNORE_CASE).matches(value) ||
+                Regex("^[13][1-9A-HJ-NP-Za-km-z]{25,34}$").matches(value) -> BITCOIN
             Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$").matches(value) -> SOL
             legacyChain.equals("Ethereum", true) || legacyChain.equals("ERC20", true) ||
                 legacyChain.equals(EVM, true) -> EVM
@@ -40,6 +43,7 @@ object WalletEcosystem {
         EVM -> "EVM 生态通用"
         TRON -> "TRON 生态"
         SOL -> "Solana 生态"
+        BITCOIN -> "Bitcoin 网络"
         else -> "其他网络"
     }
 }
