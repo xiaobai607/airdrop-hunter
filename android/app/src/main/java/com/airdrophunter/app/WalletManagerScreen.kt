@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -128,6 +130,18 @@ fun WalletManagerScreen(
     var walletName by remember { mutableStateOf("") }
     var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
     val ecosystem = remember(address) { detectEcosystem(address.trim()) }
+    var networkFilter by remember { mutableStateOf("全部") }
+    val filterOptions = listOf("全部", "EVM", "TRON", "Solana", "Bitcoin")
+    val targetEcosystem = when (networkFilter) {
+        "EVM" -> WalletEcosystem.EVM
+        "TRON" -> WalletEcosystem.TRON
+        "Solana" -> WalletEcosystem.SOL
+        "Bitcoin" -> WalletEcosystem.BITCOIN
+        else -> null
+    }
+    val filteredWallets = remember(state.wallets, targetEcosystem) {
+        state.wallets.filter { targetEcosystem == null || it.ecosystem == targetEcosystem }
+    }
     val connectedAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
     var pendingConnectedAccount by remember { mutableStateOf<WalletConnectAccount?>(null) }
     var connectedWalletName by remember { mutableStateOf("") }
@@ -196,7 +210,7 @@ fun WalletManagerScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
-                Text("添加钱包")
+                Text("添加地址")
             }
         }
 
@@ -217,6 +231,31 @@ fun WalletManagerScreen(
                         }
                     )
                 }) { Text("断开连接", color = AppColors.Danger) }
+            }
+        }
+
+
+        if (state.wallets.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                border = BorderStroke(1.dp, AppColors.Border)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("空投地址库", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                            Text("仅管理公开地址，不保存助记词或私钥", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        }
+                        Text("${state.wallets.size} 个地址", color = AppColors.Primary, fontWeight = FontWeight.Bold)
+                    }
+                    Text(
+                        "EVM 地址可跨 Ethereum、BNB Chain、Polygon、Arbitrum、Optimism、Base 等网络使用；TRON、Solana 和 Bitcoin 地址分别管理。",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         }
 
@@ -248,7 +287,7 @@ fun WalletManagerScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        "添加公开地址后，即可查询对应网络的真实资产",
+                        "添加空投交互地址后，可查看支持网络的资产与交易记录",
                         color = AppColors.TextSecondary
                     )
                 }
@@ -256,31 +295,66 @@ fun WalletManagerScreen(
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(state.wallets, key = { it.id }) { wallet ->
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            filterOptions.forEach { option ->
+                                val count = when (option) {
+                                    "EVM" -> state.wallets.count { it.ecosystem == WalletEcosystem.EVM }
+                                    "TRON" -> state.wallets.count { it.ecosystem == WalletEcosystem.TRON }
+                                    "Solana" -> state.wallets.count { it.ecosystem == WalletEcosystem.SOL }
+                                    "Bitcoin" -> state.wallets.count { it.ecosystem == WalletEcosystem.BITCOIN }
+                                    else -> state.wallets.size
+                                }
+                                FilterChip(
+                                    selected = networkFilter == option,
+                                    onClick = { networkFilter = option },
+                                    label = { Text("$option  $count") }
+                                )
+                            }
+                        }
+                    }
+                    if (filteredWallets.isEmpty()) {
+                        item {
+                            Text(
+                                "这个网络还没有添加地址。点击右上角「添加地址」即可录入。",
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                                color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                    items(filteredWallets, key = { it.id }) { wallet ->
                         Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedWallet = wallet },
+                            modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                             border = BorderStroke(1.dp, AppColors.Border)
                         ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 DynamicChainIcon(wallet.ecosystem, Modifier.size(42.dp))
                                 Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
+                                Column(
+                                    Modifier.weight(1f).clickable { selectedWallet = wallet },
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
                                     Text(
-                                        wallet.wallet_name.ifBlank { "钱包" },
+                                        wallet.wallet_name.ifBlank { "未命名地址" },
                                         color = AppColors.TextPrimary,
                                         fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        WalletEcosystem.label(wallet.ecosystem),
+                                        color = AppColors.Primary,
+                                        style = MaterialTheme.typography.labelSmall
                                     )
                                     Text(
                                         shortAddress(wallet.address),
@@ -288,20 +362,26 @@ fun WalletManagerScreen(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        WalletEcosystem.label(wallet.ecosystem),
+                                        "查看余额与链上交易",
                                         color = AppColors.TextHelper,
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 }
-                                IconButton(
-                                    onClick = { walletViewModel.delete(wallet, isGuest) },
-                                    enabled = !state.isSaving
-                                ) {
-                                    Icon(
-                                        Icons.Default.DeleteOutline,
-                                        contentDescription = "删除钱包",
-                                        tint = AppColors.Danger
-                                    )
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    TextButton(
+                                        onClick = {
+                                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("钱包地址", wallet.address))
+                                            android.widget.Toast.makeText(context, "地址已复制", android.widget.Toast.LENGTH_SHORT).show()
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                    ) { Text("复制") }
+                                    IconButton(
+                                        onClick = { walletViewModel.delete(wallet, isGuest) },
+                                        enabled = !state.isSaving
+                                    ) {
+                                        Icon(Icons.Default.DeleteOutline, contentDescription = "删除地址", tint = AppColors.Danger)
+                                    }
                                 }
                             }
                         }
@@ -315,23 +395,14 @@ fun WalletManagerScreen(
         AlertDialog(
             onDismissRequest = { if (!state.isSaving) showAddDialog = false },
             containerColor = AppColors.Surface,
-            title = { Text("添加公开钱包地址") },
+            title = { Text("添加公开地址") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "推荐使用外部钱包安全连接。Airdrop Hunter 只读取钱包公开地址，不会获取私钥或助记词。",
+                        "粘贴要用于空投交互的公开地址，系统会自动识别网络。你也可以稍后连接外部钱包；两种方式互不依赖。",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    OutlinedButton(
-                        onClick = {
-                            showAddDialog = false
-                            walletNavController.openAppKit()
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("连接外部钱包（WalletConnect）")
-                    }
                     OutlinedTextField(
                         value = address,
                         onValueChange = { address = it },
@@ -347,8 +418,8 @@ fun WalletManagerScreen(
                     Text(
                         when (ecosystem) {
                             WalletEcosystem.TRON -> "TRON：第一版支持真实余额查询"
-                            WalletEcosystem.EVM -> "EVM：余额查询接入中"
-                            WalletEcosystem.SOL -> "Solana：余额查询接入中"
+                            WalletEcosystem.EVM -> "EVM：已接入 Ethereum 原生余额及多链交易查询"
+                            WalletEcosystem.SOL -> "Solana：已接入 SOL 与 SPL / Token-2022 余额查询"
                             WalletEcosystem.BITCOIN -> "Bitcoin：真实余额与交易查询已接入"
                             else -> "支持 EVM、TRON、Solana 和 Bitcoin 公开地址"
                         },
@@ -360,6 +431,15 @@ fun WalletManagerScreen(
                         color = AppColors.TextHelper,
                         style = MaterialTheme.typography.bodySmall
                     )
+                    TextButton(
+                        onClick = {
+                            showAddDialog = false
+                            walletNavController.openAppKit()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("可选：连接外部钱包读取地址")
+                    }
                 }
             },
             confirmButton = {
