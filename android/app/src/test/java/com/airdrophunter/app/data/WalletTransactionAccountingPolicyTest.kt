@@ -37,6 +37,16 @@ class WalletTransactionAccountingPolicyTest {
     }
 
     @Test
+    fun solanaFeeIsPrefilledOnlyForTheFeePayer() {
+        assertEquals("0.0005", WalletTransactionAccountingPolicy.suggestedGasCostUsd(
+            tx("solana", "solana_fee_lamports", true, "0.0005")
+        ))
+        assertEquals("", WalletTransactionAccountingPolicy.suggestedGasCostUsd(
+            tx("solana", "solana_fee_lamports", false, "0.0005")
+        ))
+    }
+
+    @Test
     fun incompleteLayerTwoExecutionFeeIsNotPrefilled() {
         assertEquals("", WalletTransactionAccountingPolicy.suggestedGasCostUsd(tx("base", "evm_l2_execution_fee_wei", true, "0.01")))
     }
