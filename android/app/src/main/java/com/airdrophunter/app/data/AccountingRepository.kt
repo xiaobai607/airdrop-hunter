@@ -104,10 +104,9 @@ class AccountingRepository(
             runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }.getOrNull()
         }.orEmpty()
         return runCatching {
-            localEntries.forEach { entry ->
-                remote.upsertPersonalLedger(entry.client_record_id, entry)
-            }
-
+            // Pull the account's canonical cloud copy before uploading. Ledger rows are
+            // append-only after confirmation; never let an older device cache overwrite
+            // a record that has already reached the account cloud from another device.
             val cloudEntries = mutableListOf<PersonalLedgerEntryDto>()
             var before: String? = null
             var pageCount = 0
@@ -121,7 +120,12 @@ class AccountingRepository(
                 pageCount++
             }
 
-            val restored = cloudEntries.map { entry ->
+            val cloudRecordIds = cloudEntries.mapTo(mutableSetOf()) { it.client_record_id }
+            localEntries.filterNot { it.client_record_id in cloudRecordIds }.forEach { entry ->
+                cloudEntries += remote.upsertPersonalLedger(entry.client_record_id, entry)
+            }
+
+            val restored = cloudEntries.distinctBy { it.client_record_id }.map { entry ->
                 PersonalLedgerWriteRequest(
                     client_record_id = entry.client_record_id,
                     project_id = entry.project_id,
@@ -138,8 +142,9 @@ class AccountingRepository(
                     extra = entry.extra
                 )
             }
-            val merged = (localEntries + restored).distinctBy { it.client_record_id }
-            local.writeLocal(localKey, gson.toJson(merged))
+            // Cloud entries are authoritative; this also recovers rows created on
+            // another device and prevents stale local values from winning a merge.
+            local.writeLocal(localKey, gson.toJson(restored))
             true
         }.getOrDefault(false)
     }
