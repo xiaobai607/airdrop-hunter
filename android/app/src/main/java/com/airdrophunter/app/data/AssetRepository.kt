@@ -33,7 +33,7 @@ object AddressDetector {
         val decoded = number.toByteArray().let { bytes -> if (bytes.firstOrNull() == 0.toByte()) bytes.dropWhile { it == 0.toByte() }.toByteArray() else bytes }
         val leadingZeros = value.takeWhile { it == '1' }.length
         val payload = ByteArray(leadingZeros) + decoded
-        if (payload.size != 25 || payload[0].toInt() and 0xff !in setOf(0, 5)) return false
+        if (payload.size != 25 || (payload[0].toInt() and 0xff) !in setOf(0, 5)) return false
         val digest = MessageDigest.getInstance("SHA-256")
         val checksum = digest.digest(digest.digest(payload.copyOfRange(0, 21))).copyOfRange(0, 4)
         return checksum.contentEquals(payload.copyOfRange(21, 25))
