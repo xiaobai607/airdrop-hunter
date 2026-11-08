@@ -40,7 +40,7 @@ class PersonalLedgerResponse(BaseModel):
     tx_hash: str
     interaction_method: str
     expected_gas_cost_usd: Decimal
-    expected_reward_usd: Decimal
+    expected_reward_usd: Decimal | None
     actual_gas_cost_usd: Decimal
     actual_reward_usd: Decimal
     occurred_at: datetime
