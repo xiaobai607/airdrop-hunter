@@ -25,7 +25,7 @@ interface ApiService {
     suspend fun addCommunityContribution(
         @Path("projectOfficialId") projectOfficialId: String,
         @Body request: CommunityContributionRequest,
-        @Header("Authorization") authorizationHeader: String
+        @Header("Authorization") authorizationHeader: String? = null
     ): CommunityProjectStatsDto
     @GET("api/community/projects/{projectOfficialId}/stats")
     suspend fun getCommunityProjectStats(
