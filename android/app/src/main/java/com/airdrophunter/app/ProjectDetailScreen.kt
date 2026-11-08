@@ -55,10 +55,11 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     var showClaimWalletPicker by remember { mutableStateOf(false) }
     var isLoadingClaimWallets by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val projectUsesLocalTasks = isGuest || project.id.startsWith("community:")
     val completed = state.tasks.count { it.is_completed }
     val progress = if (state.tasks.isEmpty()) 0f else completed.toFloat() / state.tasks.size
 
-    LaunchedEffect(project.id, isGuest) { projectDetailViewModel.load(project.id, isGuest) }
+    LaunchedEffect(project.id, projectUsesLocalTasks) { projectDetailViewModel.load(project.id, projectUsesLocalTasks) }
     LaunchedEffect(state.claimUrl) {
         val claimUrl = state.claimUrl ?: return@LaunchedEffect
         val parsed = runCatching { Uri.parse(claimUrl) }.getOrNull()
@@ -218,7 +219,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         modifier = Modifier.fillMaxWidth(), placeholder = { Text("添加一个待办任务…") },
                         singleLine = true, shape = RoundedCornerShape(13.dp))
                     Button(enabled = taskName.isNotBlank() && !state.isBusy,
-                        onClick = { projectDetailViewModel.addTask(project.id, taskName.trim(), isGuest); taskName = "" },
+                        onClick = { projectDetailViewModel.addTask(project.id, taskName.trim(), projectUsesLocalTasks); taskName = "" },
                         modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(13.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
                         Text("＋ 添加任务", fontWeight = FontWeight.SemiBold)
@@ -256,11 +257,11 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             color = AppColors.Primary, fontWeight = FontWeight.Bold)
                     }
                     Checkbox(checked = task.is_completed,
-                        onCheckedChange = { checked -> projectDetailViewModel.setCompleted(project.id, task, checked, isGuest) })
+                        onCheckedChange = { checked -> projectDetailViewModel.setCompleted(project.id, task, checked, projectUsesLocalTasks) })
                     Text(task.task_name, Modifier.weight(1f),
                         color = if (task.is_completed) AppColors.TextHelper else AppColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = { projectDetailViewModel.deleteTask(project.id, task, isGuest) }) {
+                    TextButton(onClick = { projectDetailViewModel.deleteTask(project.id, task, projectUsesLocalTasks) }) {
                         Text("删除", color = AppColors.Danger)
                     }
                 }
