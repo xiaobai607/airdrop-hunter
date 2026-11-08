@@ -747,19 +747,37 @@ object CacheStore {
         }
     }
 
-    suspend fun getPendingCommunitySyncBatch(limit: Int = 50): CommunitySyncBatch? =
+    suspend fun getPendingCommunitySyncBatches(limit: Int = 50): List<CommunitySyncBatch> =
         withContext(Dispatchers.IO) {
-            // Snapshot the account and its bearer token together. A later account
-            // switch must never cause another user's queued contributions to be sent.
+            // Snapshot the signed-in account and token together. Guest contributions
+            // are public by design, so they must still upload anonymously even if
+            // the guest signs in before WorkManager runs.
             val token = TokenStore.readTokenBlocking()
-            val scope = accountScopeFromToken(token)
-            if (scope == "invalid-session") return@withContext null
-            val entries = database?.communitySyncOutboxDao()?.getPending(scope, limit).orEmpty()
-            CommunitySyncBatch(
-                accountScope = scope,
-                authorizationHeader = token?.takeIf { it.isNotBlank() }?.let { "Bearer $it" },
-                entries = entries
-            )
+            val activeScope = accountScopeFromToken(token)
+            if (activeScope == "invalid-session") return@withContext emptyList()
+            val dao = database?.communitySyncOutboxDao() ?: return@withContext emptyList()
+            val batches = mutableListOf<CommunitySyncBatch>()
+
+            if (activeScope != "guest") {
+                val guestEntries = dao.getPending("guest", limit)
+                if (guestEntries.isNotEmpty()) {
+                    batches += CommunitySyncBatch(
+                        accountScope = "guest",
+                        authorizationHeader = null,
+                        entries = guestEntries
+                    )
+                }
+            }
+
+            val activeEntries = dao.getPending(activeScope, limit)
+            if (activeEntries.isNotEmpty()) {
+                batches += CommunitySyncBatch(
+                    accountScope = activeScope,
+                    authorizationHeader = token?.takeIf { it.isNotBlank() }?.let { "Bearer $it" },
+                    entries = activeEntries
+                )
+            }
+            batches
         }
 
     suspend fun completeCommunitySync(id: String, accountScope: String) = withContext(Dispatchers.IO) {
