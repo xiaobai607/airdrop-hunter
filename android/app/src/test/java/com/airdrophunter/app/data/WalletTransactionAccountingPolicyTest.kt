@@ -25,6 +25,12 @@ class WalletTransactionAccountingPolicyTest {
     }
 
     @Test
+    fun failedButConfirmedTransactionStillPrefillsGasActuallyPaid() {
+        val failed = tx("ethereum", "evm_gas_fee_wei", true, "0.042").copy(status = "failed")
+        assertEquals("0.042", WalletTransactionAccountingPolicy.suggestedGasCostUsd(failed))
+    }
+
+    @Test
     fun unconfirmedTransactionFeeIsNeverPrefilled() {
         val pending = tx("bitcoin", "bitcoin_fee_sat", true, "0.50").copy(status = "pending")
         assertEquals("", WalletTransactionAccountingPolicy.suggestedGasCostUsd(pending))
