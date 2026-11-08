@@ -222,7 +222,7 @@ interface CommunitySyncOutboxDao {
     @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope ORDER BY createdAt ASC")
     fun observeAll(accountScope: String): Flow<List<CommunitySyncOutboxEntity>>
 
-    @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope ORDER BY createdAt ASC LIMIT :limit")
+    @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope AND (lastError IS NULL OR lastError != 'legacy_unclassified_requires_review') ORDER BY createdAt ASC LIMIT :limit")
     suspend fun getPending(accountScope: String, limit: Int): List<CommunitySyncOutboxEntity>
 
     @Query("DELETE FROM community_sync_outbox WHERE id = :id AND accountScope = :accountScope")
@@ -733,9 +733,10 @@ object CacheStore {
 
     private val MIGRATION_8_9 = object : Migration(8, 9) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Previous builds queued simulated browser bills as if they were real.
-            // Purge only the unsent outbox; keep the user's private ledger intact.
-            db.execSQL("DELETE FROM community_sync_outbox")
+            // Older outbox rows do not identify whether they came from real or
+            // simulated browser bills. Quarantine them instead of deleting user data
+            // or publishing potentially synthetic values to the public dashboard.
+            db.execSQL("UPDATE community_sync_outbox SET lastError = 'legacy_unclassified_requires_review'")
         }
     }
 
