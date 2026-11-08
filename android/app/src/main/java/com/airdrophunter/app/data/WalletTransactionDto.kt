@@ -33,6 +33,7 @@ data class WalletTransactionDto(
 object WalletTransactionAccountingPolicy {
     fun suggestedGasCostUsd(transaction: WalletTransactionDto): String =
         if (
+            transaction.status == "success" &&
             transaction.fee_paid_by_wallet &&
             transaction.fee_type != "evm_l2_execution_fee_wei"
         ) transaction.gas_cost_usd.orEmpty() else ""

@@ -25,6 +25,12 @@ class WalletTransactionAccountingPolicyTest {
     }
 
     @Test
+    fun unconfirmedTransactionFeeIsNeverPrefilled() {
+        val pending = tx("bitcoin", "bitcoin_fee_sat", true, "0.50").copy(status = "pending")
+        assertEquals("", WalletTransactionAccountingPolicy.suggestedGasCostUsd(pending))
+    }
+
+    @Test
     fun incompleteLayerTwoExecutionFeeIsNotPrefilled() {
         assertEquals("", WalletTransactionAccountingPolicy.suggestedGasCostUsd(tx("base", "evm_l2_execution_fee_wei", true, "0.01")))
     }
