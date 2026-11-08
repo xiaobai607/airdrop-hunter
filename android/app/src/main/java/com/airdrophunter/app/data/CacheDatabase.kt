@@ -14,12 +14,15 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.time.Instant
 
 @Entity(tableName = "cached_payloads")
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
 
 @Entity(tableName = "pending_bills")
-data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest")
+data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest")
 
 @Entity(
     tableName = "pnl_records",
@@ -113,7 +116,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class], version = 6, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class], version = 7, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -149,13 +152,18 @@ object CacheStore {
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pnl_records_projectOfficialId ON pnl_records(projectOfficialId)")
         }
     }
+    private val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE pending_bills ADD COLUMN chain TEXT NOT NULL DEFAULT 'unknown'")
+        }
+    }
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
         }
     }
     private fun accountScopeFromToken(token: String?): String {
@@ -223,6 +231,34 @@ object CacheStore {
             val canonicalOfficialId = projectOfficialId?.takeIf { candidate ->
                 CommunityProjectCatalog.projects.any { it.officialId == candidate }
             }
+            val ledgerKey = "${scope}:local:personal_ledger"
+            val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+            val gson = Gson()
+            val existingLedger = db.cacheDao().read(ledgerKey)?.let { raw ->
+                runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }.getOrNull()
+            }.orEmpty()
+            val ledgerEntry = PersonalLedgerWriteRequest(
+                client_record_id = bill.id,
+                project_id = projectLocalId,
+                project_name = projectCustomName,
+                chain = bill.chain.ifBlank { "unknown" },
+                wallet_address = bill.walletAddress,
+                tx_hash = bill.txHash,
+                interaction_method = bill.interactionMethod,
+                expected_gas_cost_usd = bill.gasCostUsd,
+                // No reliable reward estimate exists at confirmation time; keep it unknown.
+                expected_reward_usd = null,
+                actual_gas_cost_usd = gas,
+                actual_reward_usd = reward,
+                occurred_at = Instant.ofEpochMilli(bill.timestamp).toString(),
+                extra = mapOf(
+                    "project_official_id" to (canonicalOfficialId ?: ""),
+                    // Demo transactions remain available for local UI testing but are never synced.
+                    "is_demo" to bill.txHash.startsWith("MOCK-").toString()
+                )
+            )
+            val updatedLedger = (existingLedger.filterNot { it.client_record_id == bill.id } + ledgerEntry)
+            db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(updatedLedger), System.currentTimeMillis()))
             db.pnlRecordDao().addToProject(projectLocalId, canonicalOfficialId, projectCustomName, bill.walletAddress, gas, reward, scope)
             db.pendingBillDao().delete(id, scope)
             true

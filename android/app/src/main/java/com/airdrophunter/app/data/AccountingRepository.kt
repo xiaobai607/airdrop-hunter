@@ -44,6 +44,7 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
 
 class AccountingRepository(
     private val local: AccountingLocalDataSource,
+    private val api: ApiService? = null,
     private val gson: Gson = Gson()
 ) {
     private val projectsType = object : TypeToken<List<ProjectDto>>() {}.type
@@ -51,6 +52,7 @@ class AccountingRepository(
     fun observePendingBills(): Flow<List<PendingBillEntity>> = local.observePendingBills()
 
     suspend fun loadProjects(): List<ProjectDto> {
+        syncPersonalLedger()
         val sources = listOfNotNull(
             local.readLocal("projects"),
             local.read("projects"),
@@ -81,7 +83,87 @@ class AccountingRepository(
         projectCustomName: String,
         gas: Double,
         reward: Double
-    ): Boolean = local.confirmPendingBill(
-        id, projectLocalId, projectOfficialId, projectCustomName, gas, reward
-    )
+    ): Boolean {
+        val confirmed = local.confirmPendingBill(
+            id, projectLocalId, projectOfficialId, projectCustomName, gas, reward
+        )
+        if (confirmed) syncPersonalLedger()
+        return confirmed
+    }
+
+    /**
+     * Account records are uploaded only while authenticated. Guest records stay in
+     * the guest-local cache and never call the private account endpoint.
+     */
+    suspend fun syncPersonalLedger(): Boolean {
+        if (TokenStore.readTokenBlocking().isNullOrBlank()) return false
+        val remote = api ?: return false
+        val localKey = "personal_ledger"
+        val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+        val localEntries = local.readLocal(localKey)?.let { raw ->
+            runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }.getOrNull()
+        }.orEmpty()
+        return runCatching {
+            // Pull the account's canonical cloud copy before uploading. Ledger rows are
+            // append-only after confirmation; never let an older device cache overwrite
+            // a record that has already reached the account cloud from another device.
+            val cloudEntries = mutableListOf<PersonalLedgerEntryDto>()
+            var offset = 0
+            var pageCount = 0
+            var reachedEnd = false
+            // Read one final page at the 10,000-row boundary so an exact-cap ledger
+            // is accepted only after the API confirms there are no more rows.
+            while (pageCount <= 20) {
+                val page = remote.getPersonalLedger(limit = 500, offset = offset)
+                cloudEntries += page
+                if (page.size < 500) {
+                    reachedEnd = true
+                    break
+                }
+                offset += page.size
+                pageCount++
+            }
+            // Never replace a device cache with a silently truncated cloud copy.
+            // A larger ledger can be handled by increasing the explicit safety cap.
+            check(reachedEnd) { "个人账本超过当前单次恢复上限，已保留本地数据" }
+
+            val cloudRecordIds = cloudEntries.mapTo(mutableSetOf()) { it.client_record_id }
+            // Simulated toolbar bills are retained on this device for testing, but
+            // must never be uploaded to the account's real personal ledger.
+            val demoLocalEntries = localEntries.filter {
+                it.extra["is_demo"] == "true" || it.tx_hash.startsWith("MOCK-")
+            }.filterNot { it.client_record_id in cloudRecordIds }
+            val syncableLocalEntries = localEntries.filterNot {
+                it.extra["is_demo"] == "true" || it.tx_hash.startsWith("MOCK-")
+            }
+            syncableLocalEntries.filterNot { it.client_record_id in cloudRecordIds }.forEach { entry ->
+                cloudEntries += remote.upsertPersonalLedger(entry.client_record_id, entry)
+            }
+
+            val restored = cloudEntries.distinctBy { it.client_record_id }.map { entry ->
+                PersonalLedgerWriteRequest(
+                    client_record_id = entry.client_record_id,
+                    project_id = entry.project_id,
+                    project_name = entry.project_name,
+                    chain = entry.chain,
+                    wallet_address = entry.wallet_address,
+                    tx_hash = entry.tx_hash,
+                    interaction_method = entry.interaction_method,
+                    expected_gas_cost_usd = entry.expected_gas_cost_usd,
+                    expected_reward_usd = entry.expected_reward_usd,
+                    actual_gas_cost_usd = entry.actual_gas_cost_usd,
+                    actual_reward_usd = entry.actual_reward_usd,
+                    occurred_at = entry.occurred_at,
+                    extra = entry.extra
+                )
+            }
+            // Cloud entries are authoritative; this also recovers rows created on
+            // another device and prevents stale local values from winning a merge.
+            local.writeLocal(
+                localKey,
+                gson.toJson(restored + demoLocalEntries)
+            )
+            true
+        }.getOrDefault(false)
+    }
 }

@@ -41,6 +41,7 @@ import java.util.UUID
 @Composable
 fun BrowserAccountingToolbar(
     walletAddress: String,
+    chainName: String,
     onCopyAddress: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -111,7 +112,8 @@ fun BrowserAccountingToolbar(
                     walletAddress = walletAddress.ifBlank { "MOCK-WALLET-LOCAL" },
                     gasCostUsd = mockGasSamples[pending.size % mockGasSamples.size],
                     interactionMethod = "模拟合约交互",
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    chain = chainName.ifBlank { "unknown" }
                 )
                 accountingRepository.addPendingBill(bill)
                 openBill(bill)
