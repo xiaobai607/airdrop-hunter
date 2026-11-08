@@ -65,24 +65,6 @@ fun UnifiedAssetContent(
                     Icon(Icons.Default.Refresh, "刷新资产", tint = AppColors.Primary)
                 }
             }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-                Surface(color = AppColors.Surface, shape = RoundedCornerShape(12.dp)) {
-                    Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
-                        Text("主币余额", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                        Text(
-                            "${quantity(assets.nativeBalance)} ${assets.nativeSymbol}",
-                            color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-                Spacer(Modifier.width(8.dp))
-                Surface(color = AppColors.Surface, shape = RoundedCornerShape(12.dp)) {
-                    Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
-                        Text("网络", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                        Text(assets.ecosystemName, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
         }
 
         when {
@@ -100,12 +82,6 @@ fun UnifiedAssetContent(
             }
             assets != null -> {
                 if (isLoading) LinearProgressIndicator(Modifier.fillMaxWidth(), color = AppColors.Primary)
-                AssetDistributionChart(assets.tokenList)
-                Text(
-                    "币种资产",
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
-                    color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
-                )
                 if (assets.tokenList.isEmpty()) {
                     Text("当前地址没有检测到有余额的代币", Modifier.padding(24.dp), color = AppColors.TextSecondary)
                 } else {
@@ -184,11 +160,10 @@ private fun UnifiedTokenRow(token: UnifiedToken, onClick: () -> Unit = {}) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(token.symbol, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text(token.name, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                Text(quantity(token.quantity), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(quantity(token.quantity), color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text(token.usdValue?.let { "$ " + money(it) } ?: "估值暂无", color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall)
+                Text(token.usdValue?.let { "$ " + money(it) } ?: "估值暂无", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(token.priceUsd?.let { "$ " + money(it) } ?: "价格暂无", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                     token.change24hPct?.let { change ->

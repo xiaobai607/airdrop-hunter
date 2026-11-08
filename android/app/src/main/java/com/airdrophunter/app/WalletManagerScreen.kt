@@ -265,7 +265,7 @@ fun WalletManagerScreen(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        WalletEcosystem.label(wallet.ecosystem),
+                                        wallet.chain,
                                         color = AppColors.TextHelper,
                                         style = MaterialTheme.typography.labelSmall
                                     )
