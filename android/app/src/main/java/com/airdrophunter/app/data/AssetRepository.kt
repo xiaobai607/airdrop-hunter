@@ -55,6 +55,37 @@ data class UnifiedAssetData(
     val lastUpdatedEpochSeconds: Long? = null
 )
 
+internal data class SolanaTokenBalance(
+    val mint: String,
+    val rawAmount: String,
+    val decimals: Int,
+    val tokenProgramName: String
+)
+
+internal fun mergeSolanaTokenBalances(accounts: List<SolanaTokenBalance>): List<UnifiedToken> {
+    val totals = linkedMapOf<String, Pair<BigDecimal, String>>()
+    for (account in accounts) {
+        if (account.mint.isBlank() || account.decimals !in 0..30) continue
+        val raw = account.rawAmount.toBigIntegerOrNull() ?: continue
+        if (raw.signum() <= 0) continue
+        val quantity = BigDecimal(raw).movePointLeft(account.decimals)
+        val existing = totals[account.mint]
+        totals[account.mint] = if (existing == null) {
+            quantity to account.tokenProgramName
+        } else {
+            (existing.first + quantity) to existing.second
+        }
+    }
+    return totals.map { (mint, data) ->
+        UnifiedToken(
+            id = mint,
+            name = data.second,
+            symbol = mint.take(5) + "…",
+            quantity = data.first
+        )
+    }
+}
+
 interface AssetRepository {
     suspend fun fetchAssets(address: String): Result<UnifiedAssetData>
 }
@@ -166,32 +197,41 @@ class DefaultAssetRepository(
             ?: throw IOException("Solana RPC 未返回 SOL 余额。")
         val solBalance = BigDecimal.valueOf(lamports).movePointLeft(9)
 
-        val tokenResponse = rpc(
-            "https://api.mainnet-beta.solana.com",
-            "getTokenAccountsByOwner",
-            JSONArray().put(address)
-                .put(JSONObject().put("programId", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
-                .put(JSONObject().put("encoding", "jsonParsed").put("commitment", "confirmed"))
+        val tokenProgramIds = listOf(
+            "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" to "SPL Token",
+            "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb" to "SPL Token-2022"
         )
-        val values = tokenResponse.optJSONObject("result")?.optJSONArray("value") ?: JSONArray()
+        val tokenBalances = mutableListOf<SolanaTokenBalance>()
+        for ((programId, programName) in tokenProgramIds) {
+            val tokenResponse = rpc(
+                "https://api.mainnet-beta.solana.com",
+                "getTokenAccountsByOwner",
+                JSONArray().put(address)
+                    .put(JSONObject().put("programId", programId))
+                    .put(JSONObject().put("encoding", "jsonParsed").put("commitment", "confirmed"))
+            )
+            val values = tokenResponse.optJSONObject("result")?.optJSONArray("value")
+                ?: throw IOException("$programName 账户列表响应无效。")
+            for (i in 0 until values.length()) {
+                val account = values.optJSONObject(i)?.optJSONObject("account")
+                val info = account?.optJSONObject("data")?.optJSONObject("parsed")
+                    ?.optJSONObject("info") ?: continue
+                val mint = info.optString("mint").takeIf { it.isNotBlank() } ?: continue
+                val amount = info.optJSONObject("tokenAmount") ?: continue
+                val rawAmount = amount.optString("amount")
+                val decimals = amount.optInt("decimals", -1)
+                tokenBalances += SolanaTokenBalance(
+                    mint = mint,
+                    rawAmount = rawAmount,
+                    decimals = decimals,
+                    tokenProgramName = programName
+                )
+            }
+        }
         val tokens = mutableListOf(
             UnifiedToken("native-sol", "Solana", "SOL", solBalance)
         )
-        for (i in 0 until values.length()) {
-            val account = values.optJSONObject(i)?.optJSONObject("account")
-            val info = account?.optJSONObject("data")?.optJSONObject("parsed")
-                ?.optJSONObject("info") ?: continue
-            val mint = info.optString("mint")
-            val amount = info.optJSONObject("tokenAmount") ?: continue
-            val quantity = amount.optString("uiAmountString").toBigDecimalOrNull() ?: continue
-            if (quantity.signum() <= 0) continue
-            tokens += UnifiedToken(
-                id = mint,
-                name = "SPL Token",
-                symbol = mint.take(5) + "…",
-                quantity = quantity
-            )
-        }
+        tokens += mergeSolanaTokenBalances(tokenBalances)
         return UnifiedAssetData(
             address = address,
             ecosystemName = "Solana",
