@@ -88,4 +88,36 @@ class ProjectsRepositoryTest {
             assertFalse(local.account.containsKey("tasks:p1"))
         }
     }
+
+    @Test fun taskFromAnotherProjectCannotBeCompletedOrDeletedInGuestCache() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            val projectOneTask = TaskDto("task-p1", "p1", "p1 task", false, 1)
+            val projectTwoTask = TaskDto("task-p2", "p2", "p2 task", false, 1)
+            local.write("tasks:p1", com.google.gson.Gson().toJson(listOf(projectOneTask)), true)
+
+            val completionError = runCatching {
+                repository.setTaskCompleted("p1", projectTwoTask, true, true, listOf(projectOneTask))
+            }.exceptionOrNull()
+            val deletionError = runCatching {
+                repository.deleteTask("p1", projectTwoTask, true, listOf(projectOneTask))
+            }.exceptionOrNull()
+
+            assertTrue(completionError is IllegalArgumentException)
+            assertTrue(deletionError is IllegalArgumentException)
+            assertEquals(listOf("task-p1"), repository.readCachedTasks("p1", true).map { it.id })
+            assertFalse(local.guest.containsKey("tasks:p2"))
+        }
+    }
+
+    @Test fun blankTaskNamesAreRejectedBeforePersistence() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            val error = runCatching { repository.addTask("p1", "   ", true, emptyList()) }.exceptionOrNull()
+            assertTrue(error is IllegalArgumentException)
+            assertFalse(local.guest.containsKey("tasks:p1"))
+        }
+    }
 }
