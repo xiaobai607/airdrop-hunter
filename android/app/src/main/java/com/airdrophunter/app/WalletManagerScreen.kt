@@ -10,6 +10,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.rememberModalBottomSheetState
@@ -129,6 +132,8 @@ fun WalletManagerScreen(
     var selectedEvmNetwork by remember { mutableStateOf("Ethereum") }
     var evmNetworkMenuExpanded by remember { mutableStateOf(false) }
     var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
+    var walletToDelete by remember { mutableStateOf<WalletDto?>(null) }
+    val clipboard = LocalClipboardManager.current
     val ecosystem = remember(address) { detectEcosystem(address.trim()) }
     val connectedAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
     var pendingConnectedAccount by remember { mutableStateOf<WalletConnectAccount?>(null) }
@@ -155,7 +160,7 @@ fun WalletManagerScreen(
     }
 
     selectedWallet?.let { wallet ->
-        WalletDetailScreen(wallet, onBack = { selectedWallet = null })
+        WalletDetailScreen(wallet, onBack = { selectedWallet = null }, onOpenBrowser = onOpenBrowser, wallets = state.wallets)
         return
     }
 
@@ -295,8 +300,11 @@ fun WalletManagerScreen(
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 }
+                                IconButton(onClick = { clipboard.setText(AnnotatedString(wallet.address)) }) {
+                                    Icon(Icons.Default.ContentCopy, contentDescription = "复制地址", tint = AppColors.Primary)
+                                }
                                 IconButton(
-                                    onClick = { walletViewModel.delete(wallet, isGuest) },
+                                    onClick = { walletToDelete = wallet },
                                     enabled = !state.isSaving
                                 ) {
                                     Icon(
@@ -311,6 +319,19 @@ fun WalletManagerScreen(
                 }
             }
         }
+    }
+
+    walletToDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { walletToDelete = null },
+            containerColor = AppColors.Surface,
+            title = { Text("确认删除钱包？") },
+            text = { Text("将从钱包列表中删除“${target.wallet_name}”。此操作不会影响链上资产或区块链地址。", color = AppColors.TextSecondary) },
+            confirmButton = {
+                TextButton(enabled = !state.isSaving, onClick = { walletViewModel.delete(target, isGuest); walletToDelete = null }) { Text("确认删除", color = AppColors.Danger) }
+            },
+            dismissButton = { TextButton(onClick = { walletToDelete = null }) { Text("取消") } }
+        )
     }
 
     if (showAddDialog) {

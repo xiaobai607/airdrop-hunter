@@ -2,6 +2,7 @@ package com.airdrophunter.app
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,6 +36,7 @@ fun UnifiedAssetContent(
     isLoading: Boolean,
     errorMessage: String?,
     onRefresh: (() -> Unit)? = null,
+    onTokenClick: ((UnifiedToken) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
@@ -112,7 +114,7 @@ fun UnifiedAssetContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(assets.tokenList, key = { it.id.ifBlank { it.symbol + it.name } }) { token ->
-                            UnifiedTokenRow(token)
+                            UnifiedTokenRow(token, onClick = { onTokenClick?.invoke(token) })
                         }
                     }
                 }
@@ -164,9 +166,9 @@ private fun AssetDistributionChart(tokens: List<UnifiedToken>) {
 }
 
 @Composable
-private fun UnifiedTokenRow(token: UnifiedToken) {
+private fun UnifiedTokenRow(token: UnifiedToken, onClick: () -> Unit = {}) {
     Card(
-        Modifier.fillMaxWidth(),
+        Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.Surface)
     ) {

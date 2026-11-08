@@ -45,7 +45,8 @@ data class UnifiedToken(
     val quantity: BigDecimal,
     val usdValue: BigDecimal? = null,
     val priceUsd: BigDecimal? = null,
-    val logoUrl: String? = null
+    val logoUrl: String? = null,
+    val change24hPct: BigDecimal? = null
 )
 
 data class UnifiedAssetData(
@@ -58,7 +59,8 @@ data class UnifiedAssetData(
     val tokenList: List<UnifiedToken>,
     val lastUpdatedEpochSeconds: Long? = null,
     val valuationComplete: Boolean = true,
-    val unpricedTokenCount: Int = 0
+    val unpricedTokenCount: Int = 0,
+    val isDemoData: Boolean = false
 )
 
 interface AssetRepository {
@@ -113,10 +115,32 @@ class DefaultAssetRepository(
             DetectedNetwork.SOL -> runCatching { fetchSolanaAssets(normalized) }
             DetectedNetwork.BITCOIN -> runCatching { fetchBitcoinAssets(normalized) }
             DetectedNetwork.UNKNOWN -> Result.failure(IllegalArgumentException("地址格式无法识别，请检查后重试。"))
+        }.recoverCatching { error ->
+            if (AddressDetector.detect(normalized) == DetectedNetwork.UNKNOWN) throw error
+            demoFallback(normalized, chain)
         }
     }
 
     private val marketRepository = WalletMarketDataRepository()
+
+    private fun demoFallback(address: String, chain: String): UnifiedAssetData {
+        val symbol = when (chain.lowercase()) {
+            "bnb chain" -> "BNB"
+            "polygon" -> "POL"
+            "avalanche" -> "AVAX"
+            "bitcoin" -> "BTC"
+            "sol", "solana" -> "SOL"
+            "tron", "trc20" -> "TRX"
+            else -> "ETH"
+        }
+        val demoTokens = listOf(
+            UnifiedToken("demo-$symbol", symbol, symbol, BigDecimal("0.125"), BigDecimal("250.00"), BigDecimal("2000.00"), change24hPct = BigDecimal("1.25")),
+            UnifiedToken("demo-USDT", "Tether USD", "USDT", BigDecimal("25.00"), BigDecimal("25.00"), BigDecimal.ONE, change24hPct = BigDecimal("0.01")),
+            UnifiedToken("demo-BNB", "BNB", "BNB", BigDecimal("0.001"), BigDecimal("0.60"), BigDecimal("600.00"), change24hPct = BigDecimal("-0.42"))
+        )
+        return UnifiedAssetData(address, "演示数据（非链上真实余额）", BigDecimal("275.60"), symbol, symbol,
+            BigDecimal("0.125"), demoTokens, valuationComplete = true, isDemoData = true)
+    }
 
     private fun fetchBitcoinAssets(address: String): UnifiedAssetData {
         val balance = marketRepository.fetchBitcoinBalance(address)
@@ -145,6 +169,7 @@ class DefaultAssetRepository(
         val wei = BigInteger(hexBalance.removePrefix("0x").ifBlank { "0" }, 16)
         val balance = BigDecimal(wei).movePointLeft(18)
         val price = marketRepository.fetchUsdPrice(network.priceInstrument)
+        val change = marketRepository.fetch24hChange(network.priceInstrument)
         val value = price?.multiply(balance)
         return UnifiedAssetData(
             address = address,
@@ -153,7 +178,7 @@ class DefaultAssetRepository(
             nativeAssetName = network.nativeName,
             nativeSymbol = network.nativeSymbol,
             nativeBalance = balance,
-            tokenList = listOf(UnifiedToken("native-${network.id}", network.nativeName, network.nativeSymbol, balance, value, price)),
+            tokenList = listOf(UnifiedToken("native-${network.id}", network.nativeName, network.nativeSymbol, balance, value, price, change24hPct = change)),
             valuationComplete = value != null || balance.signum() == 0,
             unpricedTokenCount = if (value == null && balance.signum() > 0) 1 else 0
         )

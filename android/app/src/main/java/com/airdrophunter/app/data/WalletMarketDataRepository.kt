@@ -34,6 +34,15 @@ class WalletMarketDataRepository(
             ?: throw IOException("OKX 未返回有效价格。")
     }.getOrNull()
 
+    fun fetch24hChange(instrument: String): BigDecimal? = runCatching {
+        val root = getObject("https://www.okx.com/api/v5/market/ticker?instId=" + instrument)
+        val ticker = root.optJSONArray("data")?.optJSONObject(0) ?: return@runCatching null
+        val last = ticker.optString("last").toBigDecimalOrNull() ?: return@runCatching null
+        val open = ticker.optString("open24h").toBigDecimalOrNull() ?: return@runCatching null
+        if (open.signum() == 0) null else last.subtract(open)
+            .divide(open, 8, java.math.RoundingMode.HALF_UP).multiply(BigDecimal(100))
+    }.getOrNull()
+
     fun fetchBitcoinBalance(address: String): BigDecimal {
         val root = getObject("https://blockstream.info/api/address/" + address)
         val chain = root.optJSONObject("chain_stats") ?: throw IOException("Bitcoin 浏览器未返回链上统计。")
