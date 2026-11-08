@@ -85,7 +85,9 @@ def test_personal_ledger_offset_pagination_keeps_equal_timestamp_rows():
         }
         assert returned_ids == {"same-time-a", "same-time-b", "same-time-c"}
 
-\n\ndef test_personal_ledger_preserves_unknown_expected_reward_as_null():
+
+
+def test_personal_ledger_preserves_unknown_expected_reward_as_null():
     with TestClient(app) as client:
         headers = auth(client)
         payload = ledger_payload("unknown-reward")
