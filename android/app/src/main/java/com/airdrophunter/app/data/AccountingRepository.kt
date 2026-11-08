@@ -110,11 +110,15 @@ class AccountingRepository(
 
             val cloudEntries = mutableListOf<PersonalLedgerEntryDto>()
             var before: String? = null
-            repeat(20) {
+            var pageCount = 0
+            while (pageCount < 20) {
                 val page = remote.getPersonalLedger(limit = 500, before = before)
                 cloudEntries += page
-                if (page.size < 500) return@repeat
-                before = page.minOfOrNull { it.occurred_at } ?: return@repeat
+                if (page.size < 500) break
+                val nextCursor = page.minOfOrNull { it.occurred_at } ?: break
+                if (nextCursor == before) break
+                before = nextCursor
+                pageCount++
             }
 
             val restored = cloudEntries.map { entry ->
