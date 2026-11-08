@@ -27,7 +27,7 @@ def upgrade() -> None:
     op.create_table(
         "community_contributions",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("project_official_id", sa.String(length=120), nullable=False),
         sa.Column("gas_cost_usd", sa.Numeric(20, 8), nullable=False),
         sa.Column("actual_reward_usd", sa.Numeric(20, 8), nullable=False),

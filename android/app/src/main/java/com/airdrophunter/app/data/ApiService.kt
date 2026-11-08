@@ -20,6 +20,15 @@ interface ApiService {
     @POST("api/airdrops/sync") suspend fun syncAirdrops(): AirdropHubRefreshResponse
     @POST("api/airdrops/hub/refresh") suspend fun refreshAirdropHub(): AirdropHubRefreshResponse
     @POST("api/airdrops") suspend fun createAirdrop(@Body request: AirdropWriteRequest): AirdropDto
+    @POST("api/community/projects/{projectOfficialId}/contributions")
+    suspend fun addCommunityContribution(
+        @Path("projectOfficialId") projectOfficialId: String,
+        @Body request: CommunityContributionRequest
+    ): CommunityProjectStatsDto
+    @GET("api/community/projects/{projectOfficialId}/stats")
+    suspend fun getCommunityProjectStats(
+        @Path("projectOfficialId") projectOfficialId: String
+    ): CommunityProjectStatsDto
     @GET("api/projects") suspend fun getProjects(): List<ProjectDto>
     @GET("api/projects/{projectId}") suspend fun getProject(@Path("projectId") projectId: String): ProjectDto
     @POST("api/projects") suspend fun createProject(@Body request: ProjectWriteRequest): ProjectDto

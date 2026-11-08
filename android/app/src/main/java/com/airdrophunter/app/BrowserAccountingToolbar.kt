@@ -317,6 +317,7 @@ fun BrowserAccountingToolbar(
                                 }.getOrDefault(false)
                                 saving = false
                                 if (ok) {
+                                    CommunityContributionSyncScheduler.enqueue(context)
                                     showConfirm = false
                                     activeBill = null
                                     Toast.makeText(context, "已确认入账", Toast.LENGTH_SHORT).show()

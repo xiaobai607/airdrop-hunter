@@ -49,3 +49,17 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         public = client.get("/api/community/projects/linea/stats")
         assert public.status_code == 200
         assert public.json()["contribution_count"] == 1
+
+
+def test_guest_can_contribute_without_exposing_wallet_identity():
+    with TestClient(app) as client:
+        payload = {
+            "event_id": str(uuid4()),
+            "gas_cost_usd": "0.75",
+            "actual_reward_usd": "3.25",
+            "interaction_count": 1,
+        }
+        response = client.post("/api/community/projects/scroll/contributions", json=payload)
+        assert response.status_code == 200
+        assert response.json()["total_gas_cost_usd"] == 0.75
+        assert response.json()["total_actual_reward_usd"] == 3.25

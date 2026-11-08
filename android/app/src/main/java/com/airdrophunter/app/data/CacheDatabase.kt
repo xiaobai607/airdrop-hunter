@@ -203,11 +203,14 @@ interface CommunitySyncOutboxDao {
     @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope ORDER BY createdAt ASC")
     fun observeAll(accountScope: String): Flow<List<CommunitySyncOutboxEntity>>
 
-    @Query("DELETE FROM community_sync_outbox WHERE id = :id AND accountScope = :accountScope")
-    suspend fun delete(id: String, accountScope: String)
+    @Query("SELECT * FROM community_sync_outbox ORDER BY createdAt ASC LIMIT :limit")
+    suspend fun getPending(limit: Int): List<CommunitySyncOutboxEntity>
 
-    @Query("UPDATE community_sync_outbox SET attemptCount = attemptCount + 1, lastAttemptAt = :attemptAt, lastError = :error WHERE id = :id AND accountScope = :accountScope")
-    suspend fun markAttempt(id: String, accountScope: String, attemptAt: Long, error: String?)
+    @Query("DELETE FROM community_sync_outbox WHERE id = :id")
+    suspend fun deleteById(id: String)
+
+    @Query("UPDATE community_sync_outbox SET attemptCount = attemptCount + 1, lastAttemptAt = :attemptAt, lastError = :error WHERE id = :id")
+    suspend fun markAttemptById(id: String, attemptAt: Long, error: String?)
 }
 
 @Dao
@@ -392,7 +395,7 @@ object CacheStore {
             canonicalOfficialId?.let { officialId ->
                 db.communitySyncOutboxDao().insert(
                     CommunitySyncOutboxEntity(
-                        id = bill.id,
+                        id = java.util.UUID.randomUUID().toString(),
                         accountScope = scope,
                         projectOfficialId = officialId,
                         gasCostUsd = gas,
@@ -518,6 +521,19 @@ object CacheStore {
                 FROM pnl_records
             """.trimIndent())
         }
+    }
+
+    suspend fun getPendingCommunitySyncs(limit: Int = 50): List<CommunitySyncOutboxEntity> =
+        withContext(Dispatchers.IO) {
+            database?.communitySyncOutboxDao()?.getPending(limit).orEmpty()
+        }
+
+    suspend fun completeCommunitySync(id: String) = withContext(Dispatchers.IO) {
+        database?.communitySyncOutboxDao()?.deleteById(id)
+    }
+
+    suspend fun markCommunitySyncAttempt(id: String, error: String?) = withContext(Dispatchers.IO) {
+        database?.communitySyncOutboxDao()?.markAttemptById(id, System.currentTimeMillis(), error)
     }
 
     private fun scopedKey(key: String): String {

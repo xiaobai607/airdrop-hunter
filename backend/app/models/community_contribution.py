@@ -30,8 +30,8 @@ class CommunityContribution(Base):
     __tablename__ = "community_contributions"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
     project_official_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     gas_cost_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
