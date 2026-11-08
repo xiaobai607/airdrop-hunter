@@ -107,7 +107,16 @@ class AccountingRepository(
             localEntries.forEach { entry ->
                 remote.upsertPersonalLedger(entry.client_record_id, entry)
             }
-            val cloudEntries = remote.getPersonalLedger(limit = 500)
+
+            val cloudEntries = mutableListOf<PersonalLedgerEntryDto>()
+            var before: String? = null
+            repeat(20) {
+                val page = remote.getPersonalLedger(limit = 500, before = before)
+                cloudEntries += page
+                if (page.size < 500) return@repeat
+                before = page.minOfOrNull { it.occurred_at } ?: return@repeat
+            }
+
             val restored = cloudEntries.map { entry ->
                 PersonalLedgerWriteRequest(
                     client_record_id = entry.client_record_id,
@@ -125,7 +134,8 @@ class AccountingRepository(
                     extra = entry.extra
                 )
             }
-            local.writeLocal(localKey, gson.toJson(restored))
+            val merged = (localEntries + restored).distinctBy { it.client_record_id }
+            local.writeLocal(localKey, gson.toJson(merged))
             true
         }.getOrDefault(false)
     }
