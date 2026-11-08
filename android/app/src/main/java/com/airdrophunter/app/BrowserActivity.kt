@@ -152,8 +152,13 @@ private fun BrowserScreen(
     var pendingDappConnection by remember { mutableStateOf<PendingDappConnection?>(null) }
     var pendingWalletAction by remember { mutableStateOf<PendingDappWalletAction?>(null) }
     var waitingDappWalletApproval by remember { mutableStateOf(false) }
-    val authorizedDappOrigins = remember { mutableStateMapOf<String, Boolean>() }
+    val authorizedDappOrigins = remember { mutableStateMapOf<String, String>() }
     val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsState()
+    val connectedSessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsState()
+    val dappAuthorizationStamp = remember(connectedSessionGeneration, connectedDappAccounts) {
+        connectedSessionGeneration.toString() + ":" +
+            connectedDappAccounts.map { it.address.lowercase() }.sorted().joinToString(",")
+    }
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var loadAttempt by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
@@ -189,16 +194,29 @@ private fun BrowserScreen(
     val bottomSheetNavigator = remember(bottomSheetState) { BottomSheetNavigator(bottomSheetState) }
     val walletNavController = rememberNavController(bottomSheetNavigator)
 
-    LaunchedEffect(waitingDappWalletApproval, connectedDappAccounts) {
+    LaunchedEffect(waitingDappWalletApproval, connectedDappAccounts, connectedSessionGeneration) {
         if (waitingDappWalletApproval && connectedDappAccounts.isNotEmpty()) {
             val pending = pendingDappConnection
             if (pending != null) {
-                authorizedDappOrigins[pending.origin] = true
+                authorizedDappOrigins[pending.origin] = dappAuthorizationStamp
                 val addresses = JSONArray(connectedDappAccounts.map { it.address }.distinct())
                 DappProviderBridge.success(pending.replyProxy, pending.request.id, addresses)
             }
             pendingDappConnection = null
             waitingDappWalletApproval = false
+        }
+    }
+
+    LaunchedEffect(connectedSessionGeneration) {
+        DappRpcCoordinator.cancelAllForSessionChange()
+        pendingWalletAction?.let { action ->
+            DappProviderBridge.error(
+                action.replyProxy,
+                action.request.id,
+                4001,
+                "Wallet account or session changed; please request approval again"
+            )
+            pendingWalletAction = null
         }
     }
 
@@ -276,7 +294,7 @@ private fun BrowserScreen(
                                         "eth_requestAccounts" -> {
                                             if (pendingDappConnection != null) {
                                                 DappProviderBridge.error(replyProxy, request.id, -32002, "A wallet connection request is already pending")
-                                            } else if (authorizedDappOrigins[origin] == true && connectedDappAccounts.isNotEmpty()) {
+                                            } else if (authorizedDappOrigins[origin] == dappAuthorizationStamp && connectedDappAccounts.isNotEmpty()) {
                                                 DappProviderBridge.success(
                                                     replyProxy,
                                                     request.id,
@@ -287,7 +305,7 @@ private fun BrowserScreen(
                                             }
                                         }
                                         "eth_accounts" -> {
-                                            val addresses = if (authorizedDappOrigins[origin] == true) {
+                                            val addresses = if (authorizedDappOrigins[origin] == dappAuthorizationStamp) {
                                                 connectedDappAccounts.map { it.address }.distinct()
                                             } else emptyList()
                                             DappProviderBridge.success(replyProxy, request.id, JSONArray(addresses))
@@ -317,7 +335,7 @@ private fun BrowserScreen(
                                             }
                                         }
                                         "personal_sign", "eth_signTypedData_v4", "eth_sendTransaction" -> {
-                                            if (authorizedDappOrigins[origin] != true) {
+                                            if (authorizedDappOrigins[origin] != dappAuthorizationStamp) {
                                                 DappProviderBridge.error(replyProxy, request.id, 4100, "Connect this website to the wallet first")
                                             } else if (pendingWalletAction != null) {
                                                 DappProviderBridge.error(replyProxy, request.id, -32002, "Another wallet confirmation is pending")
@@ -571,8 +589,10 @@ private fun BrowserScreen(
             confirmButton = {
                 TextButton(onClick = {
                     pendingWalletAction = null
-                    DappRpcCoordinator.send(pending.origin, pending.request.id, pending.request.method,
-                        pending.request.params.toString(), pending.replyProxy)
+                    DappRpcCoordinator.send(
+                        pending.origin, pending.request.id, pending.request.method,
+                        pending.request.params.toString(), connectedSessionGeneration, pending.replyProxy
+                    )
                 }) { Text("交由外部钱包确认", color = AppColors.Primary) }
             },
             dismissButton = {
@@ -602,7 +622,7 @@ private fun BrowserScreen(
                 TextButton(onClick = {
                     val addresses = connectedDappAccounts.map { it.address }.distinct()
                     if (addresses.isNotEmpty()) {
-                        authorizedDappOrigins[pending.origin] = true
+                        authorizedDappOrigins[pending.origin] = dappAuthorizationStamp
                         DappProviderBridge.success(pending.replyProxy, pending.request.id, JSONArray(addresses))
                         pendingDappConnection = null
                     } else {

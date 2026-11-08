@@ -11,29 +11,49 @@ internal object DappRpcCoordinator {
     private data class Pending(
         val origin: String,
         val reply: androidx.webkit.JavaScriptReplyProxy,
-        val pageRequestId: Long
+        val pageRequestId: Long,
+        val sessionGeneration: Long
     )
 
     private val pendingByWalletRequest = ConcurrentHashMap<Long, Pending>()
 
-    fun send(origin: String, pageRequestId: Long, method: String, paramsJson: String,
-              reply: androidx.webkit.JavaScriptReplyProxy) {
+    fun send(
+        origin: String,
+        pageRequestId: Long,
+        method: String,
+        paramsJson: String,
+        sessionGeneration: Long,
+        reply: androidx.webkit.JavaScriptReplyProxy
+    ) {
+        if (WalletConnectSessionDelegate.sessionGeneration.value != sessionGeneration) {
+            DappProviderBridge.error(reply, pageRequestId, 4001, "Wallet session changed before the request was sent")
+            return
+        }
         try {
             AppKit.request(
                 Request(method = method, params = paramsJson),
                 onSuccess = { sent ->
                     when (sent) {
                         is SentRequestResult.WalletConnect -> {
-                            pendingByWalletRequest[sent.requestId] = Pending(origin, reply, pageRequestId)
+                            if (WalletConnectSessionDelegate.sessionGeneration.value != sessionGeneration) {
+                                DappProviderBridge.error(reply, pageRequestId, 4001, "Wallet session changed before the external wallet responded")
+                            } else {
+                                pendingByWalletRequest[sent.requestId] =
+                                    Pending(origin, reply, pageRequestId, sessionGeneration)
+                            }
                         }
                         is SentRequestResult.Coinbase -> {
-                            val result = sent.results.firstOrNull()
-                            when (result) {
-                                is com.reown.appkit.engine.coinbase.CoinbaseResult.Result ->
-                                    DappProviderBridge.success(reply, pageRequestId, parseJsonValue(result.value))
-                                is com.reown.appkit.engine.coinbase.CoinbaseResult.Error ->
-                                    DappProviderBridge.error(reply, pageRequestId, result.code.toInt(), result.message)
-                                null -> DappProviderBridge.error(reply, pageRequestId, -32603, "Wallet returned an empty response")
+                            if (WalletConnectSessionDelegate.sessionGeneration.value != sessionGeneration) {
+                                DappProviderBridge.error(reply, pageRequestId, 4001, "Wallet session changed before the external wallet responded")
+                            } else {
+                                val result = sent.results.firstOrNull()
+                                when (result) {
+                                    is com.reown.appkit.engine.coinbase.CoinbaseResult.Result ->
+                                        DappProviderBridge.success(reply, pageRequestId, parseJsonValue(result.value))
+                                    is com.reown.appkit.engine.coinbase.CoinbaseResult.Error ->
+                                        DappProviderBridge.error(reply, pageRequestId, result.code.toInt(), result.message)
+                                    null -> DappProviderBridge.error(reply, pageRequestId, -32603, "Wallet returned an empty response")
+                                }
                             }
                         }
                     }
@@ -49,6 +69,10 @@ internal object DappRpcCoordinator {
 
     fun onWalletResponse(response: Modal.Model.SessionRequestResponse) {
         val pending = pendingByWalletRequest.remove(response.result.id) ?: return
+        if (pending.sessionGeneration != WalletConnectSessionDelegate.sessionGeneration.value) {
+            DappProviderBridge.error(pending.reply, pending.pageRequestId, 4001, "Wallet session changed before the response was received")
+            return
+        }
         when (val result = response.result) {
             is Modal.Model.JsonRpcResponse.JsonRpcResult ->
                 DappProviderBridge.success(pending.reply, pending.pageRequestId, parseJsonValue(result.result))
@@ -62,6 +86,20 @@ internal object DappRpcCoordinator {
         entries.forEach { entry ->
             if (pendingByWalletRequest.remove(entry.key, entry.value)) {
                 DappProviderBridge.error(entry.value.reply, entry.value.pageRequestId, 4001, "The page navigated before the wallet responded")
+            }
+        }
+    }
+
+    fun cancelAllForSessionChange() {
+        val entries = pendingByWalletRequest.entries.toList()
+        entries.forEach { entry ->
+            if (pendingByWalletRequest.remove(entry.key, entry.value)) {
+                DappProviderBridge.error(
+                    entry.value.reply,
+                    entry.value.pageRequestId,
+                    4001,
+                    "Wallet account or session changed before the response was received"
+                )
             }
         }
     }
