@@ -44,13 +44,17 @@ fun UnifiedAssetContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("总资产估值", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text(if (assets.valuationComplete) "总资产估值" else "已估值资产", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     Text(
                         assets.totalUsd?.let { "$ " + money(it) } ?: "暂无可靠估值",
                         color = AppColors.TextPrimary, fontSize = 29.sp, fontWeight = FontWeight.Bold
                     )
                     Text(
-                        if (assets.totalUsd != null) "USD · ${assets.ecosystemName} 数据源" else "${assets.ecosystemName} · 未获取价格数据",
+                        when {
+                            assets.totalUsd == null -> "${assets.ecosystemName} · 未获取价格数据"
+                            assets.valuationComplete -> "USD · ${assets.ecosystemName} 实时行情"
+                            else -> "USD · 部分资产未获取到可靠报价（${assets.unpricedTokenCount} 项）"
+                        },
                         color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall
                     )
                 }
