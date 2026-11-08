@@ -742,9 +742,9 @@ object CacheStore {
 
     private val MIGRATION_9_10 = object : Migration(9, 10) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Remove locally queued synthetic browser bills. Keep confirmed private
-            // ledger history untouched; only unconfirmed MOCK drafts are discarded.
-            db.execSQL("DELETE FROM pending_bills WHERE txHash LIKE 'MOCK-%'")
+            // Keep MOCK drafts available for the isolated test/demo experience.
+            // Public contribution eligibility rejects them; migration must not erase
+            // user test data merely because it is synthetic.
         }
     }
 
