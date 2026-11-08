@@ -46,6 +46,7 @@ fun ProjectsScreen(
     )
     val state by projectsViewModel.uiState.collectAsStateWithLifecycle()
     val pnlRecords by CacheStore.observePnlRecords().collectAsState(initial = emptyList())
+    val savedProjects by CacheStore.observeUserProjects().collectAsState(initial = emptyList())
     val allRatings by CacheStore.observeAllProjectRatings().collectAsState(initial = emptyList())
     var selectedFilter by remember { mutableStateOf("全部") }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -56,17 +57,31 @@ fun ProjectsScreen(
 
     LaunchedEffect(isGuest) { projectsViewModel.loadProjects(isGuest) }
 
-    val filterOptions = listOf("全部" to state.projects.size) +
+    val savedProjectDtos = savedProjects.map { saved ->
+        ProjectDto(
+            id = saved.projectLocalId,
+            name = saved.projectName,
+            description = "",
+            status = saved.status,
+            official_url = CommunityProjectCatalog.findByOfficialId(saved.projectOfficialId)?.officialUrl.orEmpty(),
+            communityOfficialId = saved.projectOfficialId
+        )
+    }
+    val visibleProjects = (savedProjectDtos + state.projects).distinctBy {
+        it.communityOfficialId?.let { officialId -> "official:$officialId" } ?: "local:${it.id}"
+    }
+
+    val filterOptions = listOf("全部" to visibleProjects.size) +
         listOf(
-            "进行中" to state.projects.count { it.status == "tracking" },
-            "待开始" to state.projects.count { it.status == "upcoming" },
-            "已完成" to state.projects.count { it.status == "completed" }
+            "进行中" to visibleProjects.count { it.status == "tracking" },
+            "待开始" to visibleProjects.count { it.status == "upcoming" },
+            "已完成" to visibleProjects.count { it.status == "completed" }
         )
     val filtered = when (selectedFilter) {
-        "进行中" -> state.projects.filter { it.status == "tracking" }
-        "待开始" -> state.projects.filter { it.status == "upcoming" }
-        "已完成" -> state.projects.filter { it.status == "completed" }
-        else -> state.projects
+        "进行中" -> visibleProjects.filter { it.status == "tracking" }
+        "待开始" -> visibleProjects.filter { it.status == "upcoming" }
+        "已完成" -> visibleProjects.filter { it.status == "completed" }
+        else -> visibleProjects
     }
 
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
