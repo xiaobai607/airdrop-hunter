@@ -3,7 +3,6 @@ package com.airdrophunter.app.data
 import java.math.BigDecimal
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.json.JSONObject
 import org.junit.Test
 
 class AssetRepositoryTest {
@@ -83,10 +82,10 @@ class AssetRepositoryTest {
     }
 
     @Test fun evmBalanceParserHandlesZeroAndRejectsMalformedRpcValues() {
-        assertEquals(BigDecimal.ZERO, parseEvmNativeBalance(JSONObject("""{"result":"0x0"}""")))
-        assertEquals(BigDecimal("1"), parseEvmNativeBalance(JSONObject("""{"result":"0xde0b6b3a7640000"}""")))
+        assertEquals(BigDecimal.ZERO, parseEvmNativeBalance("0x0"))
+        assertEquals(BigDecimal("1"), parseEvmNativeBalance("0xde0b6b3a7640000"))
         assertTrue(runCatching {
-            parseEvmNativeBalance(JSONObject("""{"result":"not-hex"}"""))
+            parseEvmNativeBalance("not-hex")
         }.isFailure)
     }
 

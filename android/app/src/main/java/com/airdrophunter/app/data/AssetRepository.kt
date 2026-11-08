@@ -76,8 +76,7 @@ internal val EVM_ASSET_NETWORKS = listOf(
     EvmAssetNetwork("avalanche", "Avalanche C-Chain", "AVAX", "https://api.avax.network/ext/bc/C/rpc")
 )
 
-internal fun parseEvmNativeBalance(response: JSONObject): BigDecimal {
-    val hexBalance = response.optString("result")
+internal fun parseEvmNativeBalance(hexBalance: String): BigDecimal {
     if (!hexBalance.startsWith("0x")) throw IOException("EVM RPC 未返回有效余额。")
     val digits = hexBalance.removePrefix("0x").ifBlank { "0" }
     val wei = try {
@@ -215,7 +214,7 @@ class DefaultAssetRepository(
                             "eth_getBalance",
                             JSONArray().put(address).put("latest")
                         )
-                        parseEvmNativeBalance(response)
+                        parseEvmNativeBalance(response.optString("result"))
                     }.getOrNull()
                 }
             }.awaitAll()
