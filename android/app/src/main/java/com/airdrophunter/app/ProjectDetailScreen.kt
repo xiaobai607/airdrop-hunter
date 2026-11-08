@@ -23,10 +23,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.UserInteractionEntity
 import com.airdrophunter.app.data.WalletDto
 import kotlinx.coroutines.launch
 import com.airdrophunter.app.ui.theme.AppColors
 import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.DayOfWeek
+
+enum class LedgerPeriod(val label: String) { DAY("日"), WEEK("周"), MONTH("月") }
 
 @Composable
 fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGuest: Boolean = false,
@@ -37,6 +46,9 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         factory = ProjectDetailViewModelFactory(application.appContainer.projectsRepository)
     )
     val state by projectDetailViewModel.uiState.collectAsStateWithLifecycle()
+    val userProject by CacheStore.observeUserProject(project.id).collectAsStateWithLifecycle(initialValue = null)
+    val interactions by CacheStore.observeUserInteractions(project.id).collectAsStateWithLifecycle(initialValue = emptyList())
+    var ledgerPeriod by remember(project.id) { mutableStateOf(LedgerPeriod.MONTH) }
     val twitterTitle = stringResource(R.string.twitter)
     var taskName by remember(project.id) { mutableStateOf("") }
     var claimWallets by remember { mutableStateOf<List<WalletDto>>(emptyList()) }
@@ -116,6 +128,72 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 }
             }
         }
+
+        item {
+            val zone = remember { ZoneId.systemDefault() }
+            val today = remember { Instant.ofEpochMilli(System.currentTimeMillis()).atZone(zone).toLocalDate() }
+            val periodStart = remember(ledgerPeriod, today) {
+                when (ledgerPeriod) {
+                    LedgerPeriod.DAY -> today
+                    LedgerPeriod.WEEK -> today.with(DayOfWeek.MONDAY)
+                    LedgerPeriod.MONTH -> today.withDayOfMonth(1)
+                }
+            }
+            val periodInteractions = remember(interactions, periodStart, zone) {
+                interactions.filter { row ->
+                    Instant.ofEpochMilli(row.timestamp).atZone(zone).toLocalDate() >= periodStart
+                }
+            }
+            val periodGas = periodInteractions.sumOf { it.gasCostUsd }
+            val periodReward = periodInteractions.sumOf { it.actualRewardUsd }
+            val periodNet = periodReward - periodGas
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                border = BorderStroke(1.dp, AppColors.Border),
+                shape = RoundedCornerShape(18.dp),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("个人项目账本", Modifier.weight(1f), color = AppColors.TextPrimary,
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("${userProject?.interactionCount ?: 0} 次交互", color = AppColors.TextHelper,
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProjectMetric(Modifier.weight(1f), "累计 Gas", userProject?.totalGasCostUsd ?: 0.0)
+                        ProjectMetric(Modifier.weight(1f), "实际收益", userProject?.totalActualRewardUsd ?: 0.0)
+                        ProjectMetric(Modifier.weight(1f), "净利润", userProject?.netProfitUsd ?: 0.0)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        LedgerPeriod.values().forEach { option ->
+                            FilterChip(
+                                selected = ledgerPeriod == option,
+                                onClick = { ledgerPeriod = option },
+                                label = { Text(option.label) },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = AppColors.TealTint,
+                                    selectedLabelColor = AppColors.Primary,
+                                    labelColor = AppColors.TextSecondary
+                                )
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text("${periodInteractions.size} 笔", color = AppColors.TextHelper,
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LedgerPeriodMetric(Modifier.weight(1f), "Gas 消耗", periodGas, AppColors.Danger)
+                        LedgerPeriodMetric(Modifier.weight(1f), "实际收益", periodReward, AppColors.Success)
+                        LedgerPeriodMetric(Modifier.weight(1f), "净盈亏", periodNet,
+                            if (periodNet >= 0.0) AppColors.Success else AppColors.Danger)
+                    }
+                }
+            }
+        }
+
         item {
             Card(modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
@@ -152,6 +230,20 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
             Box(Modifier.fillMaxWidth().padding(18.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = AppColors.Primary)
             }
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("个人交互流水", color = AppColors.TextPrimary,
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (interactions.isEmpty()) {
+                    Text("完成交互并手动确认记账后，真实 Gas 和收益会显示在这里。",
+                        color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        items(interactions, key = { "interaction:${it.id}" }) { interaction ->
+            InteractionLedgerRow(interaction)
         }
         items(state.tasks.sortedBy { it.step_order }, key = { it.id }) { task ->
             Card(colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
@@ -212,6 +304,51 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         )
     }
 
+}
+
+
+@Composable
+private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
+    val time = remember(interaction.timestamp) {
+        SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(interaction.timestamp))
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+        border = BorderStroke(1.dp, AppColors.Border),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(time, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold)
+                Text(interaction.network, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Gas $%.2f".format(Locale.US, interaction.gasCostUsd),
+                    color = AppColors.Danger, style = MaterialTheme.typography.bodySmall)
+                Text("实际收益 +$%.2f".format(Locale.US, interaction.actualRewardUsd),
+                    color = AppColors.Success, style = MaterialTheme.typography.bodySmall)
+            }
+            if (interaction.txHash.isNotBlank()) {
+                Text("交易：${interaction.txHash.take(10)}…",
+                    color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double, color: Color) {
+    Column(
+        modifier.background(AppColors.Background, RoundedCornerShape(12.dp)).padding(horizontal = 9.dp, vertical = 11.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(label, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        Text(String.format(Locale.US, "$%.2f", value), color = color,
+            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
 }
 
 @Composable
