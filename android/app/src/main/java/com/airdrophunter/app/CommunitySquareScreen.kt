@@ -33,9 +33,9 @@ import java.util.Locale
 private data class CommunityProject(
     val id: String, val name: String, val chain: String, val logo: String,
     val reward: Double, val gas: Double, val contributionCount: Long,
-    val tags: List<String>
+    val tags: List<String>, val isDemo: Boolean = false
 ) {
-    val label: String get() = if (contributionCount > 0) "真实贡献" else "暂无贡献"
+    val label: String get() = if (isDemo) "测试演示" else if (contributionCount > 0) "真实贡献" else "暂无贡献"
     val rewardWeight: Float get() =
         if (reward + gas <= 0.0) 0.5f
         else (reward / (reward + gas)).toFloat().coerceIn(0.02f, 0.98f)
@@ -46,13 +46,13 @@ private enum class CommunityRanking(val title: String) {
 }
 
 private val communityProjectCatalog = listOf(
-    CommunityProject("linea", "Linea", "Consensys zkEVM", "L", 0.0, 0.0, 0, listOf("L2", "零撸", "明牌空投")),
-    CommunityProject("scroll", "Scroll", "zkEVM", "S", 0.0, 0.0, 0, listOf("L2", "需测试网", "明牌空投")),
-    CommunityProject("zksync", "zkSync", "ZK Rollup", "Z", 0.0, 0.0, 0, listOf("L2", "高Gas", "明牌空投")),
-    CommunityProject("starknet", "Starknet", "Validity Rollup", "✦", 0.0, 0.0, 0, listOf("L2", "需测试网", "高Gas")),
-    CommunityProject("base", "Base", "Ethereum L2", "B", 0.0, 0.0, 0, listOf("L2", "零撸", "高Gas")),
-    CommunityProject("arbitrum", "Arbitrum", "Ethereum L2", "A", 0.0, 0.0, 0, listOf("L2", "高Gas")),
-    CommunityProject("optimism", "Optimism", "Superchain", "O", 0.0, 0.0, 0, listOf("L2", "零撸", "明牌空投"))
+    CommunityProject("linea", "Linea", "Consensys zkEVM", "L", 184.20, 42.80, 1280, listOf("L2", "零撸", "明牌空投"), true),
+    CommunityProject("scroll", "Scroll", "zkEVM", "S", 128.60, 38.60, 964, listOf("L2", "需测试网", "明牌空投"), true),
+    CommunityProject("zksync", "zkSync", "ZK Rollup", "Z", 156.00, 62.00, 1820, listOf("L2", "高Gas", "明牌空投"), true),
+    CommunityProject("starknet", "Starknet", "Validity Rollup", "✦", 98.00, 51.00, 1450, listOf("L2", "需测试网", "高Gas"), true),
+    CommunityProject("base", "Base", "Ethereum L2", "B", 226.00, 73.00, 2200, listOf("L2", "零撸", "高Gas"), true),
+    CommunityProject("arbitrum", "Arbitrum", "Ethereum L2", "A", 142.00, 84.00, 1730, listOf("L2", "高Gas"), true),
+    CommunityProject("optimism", "Optimism", "Superchain", "O", 117.00, 49.00, 1390, listOf("L2", "零撸", "明牌空投"), true)
 )
 
 @Composable
@@ -67,6 +67,7 @@ fun CommunitySquareScreen(
     var communityStats by remember { mutableStateOf<Map<String, CommunityProjectStatsDto>>(emptyMap()) }
     var statsLoading by remember { mutableStateOf(true) }
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
+    var useDemoData by remember { mutableStateOf(BuildConfig.DEBUG) }
     var selectedTag by remember { mutableStateOf<String?>(null) }
     val allTags = listOf("L2", "零撸", "需测试网", "高Gas", "明牌空投")
 
@@ -85,12 +86,15 @@ fun CommunitySquareScreen(
     }
 
     val combinedProjects = communityProjectCatalog.map { base ->
-        val stats = communityStats[base.id]
-        base.copy(
-            reward = stats?.total_actual_reward_usd ?: 0.0,
-            gas = stats?.total_gas_cost_usd ?: 0.0,
-            contributionCount = stats?.contribution_count ?: 0L
-        )
+        if (useDemoData) base else {
+            val stats = communityStats[base.id]
+            base.copy(
+                reward = stats?.total_actual_reward_usd ?: 0.0,
+                gas = stats?.total_gas_cost_usd ?: 0.0,
+                contributionCount = stats?.contribution_count ?: 0L,
+                isDemo = false
+            )
+        }
     }
     val displayedProjects = combinedProjects.filter { selectedTag == null || selectedTag in it.tags }
         .let { filtered ->
@@ -110,9 +114,17 @@ fun CommunitySquareScreen(
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("微社区广场", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("像逛 Steam 一样发现空投项目，按收益、风险和标签探索", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                Surface(color = Color(0xFFE8F7EF), shape = RoundedCornerShape(999.dp)) {
-                    Text("全网统计仅累计用户手动确认的真实贡献", Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        color = Color(0xFF19764F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                Surface(color = if (useDemoData) Color(0xFFFFF4E5) else Color(0xFFE8F7EF), shape = RoundedCornerShape(999.dp)) {
+                    Text(
+                        if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网统计仅累计用户手动确认的真实贡献",
+                        Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        color = if (useDemoData) Color(0xFF9A5B12) else Color(0xFF19764F),
+                        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = useDemoData, onClick = { useDemoData = true }, label = { Text("测试演示") })
+                    FilterChip(selected = !useDemoData, onClick = { useDemoData = false }, label = { Text("全网真实") })
                 }
             }
         }
@@ -133,6 +145,7 @@ fun CommunitySquareScreen(
                     }
                 }
                 Text(when {
+                    useDemoData -> "按独立测试样本的收益、Gas 和参与数排列"
                     statsLoading -> "正在读取全网已确认统计…"
                     ranking == CommunityRanking.REWARD -> "按全网用户确认的实际收益排列"
                     ranking == CommunityRanking.GAS -> "按全网用户确认的 Gas 消耗排列"
@@ -180,8 +193,15 @@ fun CommunitySquareScreen(
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleSmall
                             )
-                            Surface(color = Color(0xFFEAF7EF), shape = RoundedCornerShape(999.dp)) {
-                                Text(project.label, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = Color(0xFF19764F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                            Surface(
+                                color = if (project.isDemo) Color(0xFFFFF4E5) else Color(0xFFEAF7EF),
+                                shape = RoundedCornerShape(999.dp)
+                            ) {
+                                Text(
+                                    project.label, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    color = if (project.isDemo) Color(0xFF9A5B12) else Color(0xFF19764F),
+                                    style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                     }
