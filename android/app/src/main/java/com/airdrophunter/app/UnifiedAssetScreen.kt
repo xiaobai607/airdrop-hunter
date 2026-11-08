@@ -264,7 +264,7 @@ private fun WalletTransactionRow(transaction: WalletTransactionDto) {
                 if (transaction.fee_paid_by_wallet) "手续费由此钱包支付" else "手续费由交易对方支付",
                 color = AppColors.TextHelper,
                 style = MaterialTheme.typography.labelSmall
-            }
+            )
             Text(
                 "${transaction.chain.uppercase()} · ${transaction.hash.take(10)}…${transaction.hash.takeLast(6)}",
                 color = AppColors.TextHelper,

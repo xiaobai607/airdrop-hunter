@@ -31,7 +31,7 @@ def tron_address_to_hex(address: str) -> str | None:
     except ValueError:
         return None
     decoded = number.to_bytes((number.bit_length() + 7) // 8, "big") if number else b""
-    decoded = b"\\x00" * (len(address) - len(address.lstrip("1"))) + decoded
+    decoded = bytes(len(address) - len(address.lstrip("1"))) + decoded
     if len(decoded) != 25:
         return None
     payload, checksum = decoded[:-4], decoded[-4:]
