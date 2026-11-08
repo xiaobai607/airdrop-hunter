@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.time.Instant
 
 @Entity(tableName = "cached_payloads")
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
@@ -223,6 +226,29 @@ object CacheStore {
             val canonicalOfficialId = projectOfficialId?.takeIf { candidate ->
                 CommunityProjectCatalog.projects.any { it.officialId == candidate }
             }
+            val ledgerKey = "${scope}:local:personal_ledger"
+            val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+            val gson = Gson()
+            val existingLedger = db.cacheDao().read(ledgerKey)?.let { raw ->
+                runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }.getOrNull()
+            }.orEmpty()
+            val ledgerEntry = PersonalLedgerWriteRequest(
+                client_record_id = bill.id,
+                project_id = projectLocalId,
+                project_name = projectCustomName,
+                chain = "unknown",
+                wallet_address = bill.walletAddress,
+                tx_hash = bill.txHash,
+                interaction_method = bill.interactionMethod,
+                expected_gas_cost_usd = bill.gasCostUsd,
+                expected_reward_usd = 0.0,
+                actual_gas_cost_usd = gas,
+                actual_reward_usd = reward,
+                occurred_at = Instant.ofEpochMilli(bill.timestamp).toString(),
+                extra = mapOf("project_official_id" to (canonicalOfficialId ?: ""))
+            )
+            val updatedLedger = (existingLedger.filterNot { it.client_record_id == bill.id } + ledgerEntry)
+            db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(updatedLedger), System.currentTimeMillis()))
             db.pnlRecordDao().addToProject(projectLocalId, canonicalOfficialId, projectCustomName, bill.walletAddress, gas, reward, scope)
             db.pendingBillDao().delete(id, scope)
             true
