@@ -446,9 +446,7 @@ object CacheStore {
         val scope = currentAccountScope()
         db.withTransaction {
             val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
-            val canonicalOfficialId = projectOfficialId?.takeIf { candidate ->
-                CommunityProjectCatalog.projects.any { it.officialId == candidate }
-            }
+            val canonicalOfficialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
             val ledgerKey = "${scope}:local:personal_ledger"
             val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
             val gson = Gson()
@@ -478,8 +476,74 @@ object CacheStore {
             val updatedLedger = (existingLedger.filterNot { it.client_record_id == bill.id } + ledgerEntry)
             db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(updatedLedger), System.currentTimeMillis()))
             db.pnlRecordDao().addToProject(projectLocalId, canonicalOfficialId, projectCustomName, bill.walletAddress, gas, reward, scope)
+            val recordedAt = bill.timestamp
+            val updatedProjects = db.userProjectDao().addAmounts(
+                projectLocalId, canonicalOfficialId, projectCustomName, gas, reward, recordedAt, scope
+            )
+            if (updatedProjects == 0) {
+                db.userProjectDao().insert(
+                    UserProjectEntity(
+                        id = java.util.UUID.randomUUID().toString(),
+                        accountScope = scope,
+                        projectLocalId = projectLocalId,
+                        projectOfficialId = canonicalOfficialId,
+                        projectName = projectCustomName,
+                        status = "tracking",
+                        totalGasCostUsd = gas,
+                        totalActualRewardUsd = reward,
+                        netProfitUsd = reward - gas,
+                        interactionCount = 1,
+                        lastInteractionAt = recordedAt,
+                        createdAt = recordedAt,
+                        updatedAt = recordedAt
+                    )
+                )
+            }
+            val effectiveNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
+                ?: when (bill.chain.trim().lowercase()) {
+                    "ethereum", "erc20", "evm" -> "ethereum"
+                    "tron", "trc20" -> "tron"
+                    "bitcoin", "btc" -> "bitcoin"
+                    "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" -> bill.chain.trim().lowercase()
+                    else -> "unknown"
+                }
+            val effectiveBill = bill.copy(network = effectiveNetwork)
+            db.userInteractionDao().insert(
+                UserInteractionEntity(
+                    id = bill.id,
+                    accountScope = scope,
+                    projectLocalId = projectLocalId,
+                    projectOfficialId = canonicalOfficialId,
+                    projectName = projectCustomName,
+                    txHash = bill.txHash,
+                    walletAddress = bill.walletAddress,
+                    network = effectiveNetwork,
+                    gasCostUsd = gas,
+                    actualRewardUsd = reward,
+                    interactionMethod = bill.interactionMethod,
+                    timestamp = recordedAt
+                )
+            )
+            canonicalOfficialId?.takeIf {
+                scope != "invalid-session" && isEligibleForPublicContribution(effectiveBill)
+            }?.let { officialId ->
+                db.communitySyncOutboxDao().insert(
+                    CommunitySyncOutboxEntity(
+                        id = bill.id,
+                        accountScope = scope,
+                        projectOfficialId = officialId,
+                        gasCostUsd = gas,
+                        actualRewardUsd = reward,
+                        interactionCount = 1,
+                        createdAt = recordedAt
+                    )
+                )
+            }
             db.pendingBillDao().delete(id, scope)
             true
+        }
+        .also { confirmed ->
+            if (confirmed) appContext?.let { CommunityContributionSyncScheduler.enqueue(it) }
         }
     }
     private val MIGRATION_4_5 = object : Migration(4, 5) {
