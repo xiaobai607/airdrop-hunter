@@ -40,6 +40,7 @@ fun MicroCommunityScreen(
     var communityStats by remember(projectOfficialId) { mutableStateOf<CommunityProjectStatsDto?>(null) }
     var statsLoading by remember(projectOfficialId) { mutableStateOf(true) }
     var statsFailed by remember(projectOfficialId) { mutableStateOf(false) }
+    var useDemoStats by remember(projectOfficialId) { mutableStateOf(BuildConfig.DEBUG) }
     var wallet by remember { mutableStateOf("") }
     var canRate by remember { mutableStateOf(false) }
     var participationChecked by remember { mutableStateOf(false) }
@@ -47,8 +48,20 @@ fun MicroCommunityScreen(
     var saved by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
-    val displayGasTotal = communityStats?.total_gas_cost_usd ?: 0.0
-    val displayRewardTotal = communityStats?.total_actual_reward_usd ?: 0.0
+    val demoStats = when (projectOfficialId.lowercase()) {
+        "linea" -> listOf(42.80, 184.20, 1280L, 4320L)
+        "scroll" -> listOf(38.60, 128.60, 964L, 3210L)
+        "zksync" -> listOf(62.00, 156.00, 1820L, 5860L)
+        "starknet" -> listOf(51.00, 98.00, 1450L, 4100L)
+        "base" -> listOf(73.00, 226.00, 2200L, 7240L)
+        "arbitrum" -> listOf(84.00, 142.00, 1730L, 5320L)
+        "optimism" -> listOf(49.00, 117.00, 1390L, 4680L)
+        else -> listOf(18.50, 64.00, 320L, 980L)
+    }
+    val displayGasTotal = if (useDemoStats) demoStats[0] as Double else communityStats?.total_gas_cost_usd ?: 0.0
+    val displayRewardTotal = if (useDemoStats) demoStats[1] as Double else communityStats?.total_actual_reward_usd ?: 0.0
+    val displayContributionCount = if (useDemoStats) demoStats[2] as Long else communityStats?.contribution_count ?: 0L
+    val displayInteractionCount = if (useDemoStats) demoStats[3] as Long else communityStats?.total_interactions ?: 0L
     val combinedTotal = (displayGasTotal + displayRewardTotal).coerceAtLeast(1.0)
     val rewardWeight = if (displayGasTotal + displayRewardTotal <= 0.0) 0.5f
         else (displayRewardTotal / combinedTotal).toFloat().coerceIn(0.01f, 0.99f)
@@ -84,7 +97,23 @@ fun MicroCommunityScreen(
             }
             Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF17251F))) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("社区大盘（全网用户确认贡献）", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (useDemoStats) "社区大盘（测试演示数据）" else "社区大盘（全网用户确认贡献）",
+                        color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
+                    )
+                    if (BuildConfig.DEBUG) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { useDemoStats = true }, contentPadding = PaddingValues(0.dp)) {
+                                Text(if (useDemoStats) "✓ 测试演示" else "测试演示", color = Color(0xFFFFD08A))
+                            }
+                            TextButton(onClick = { useDemoStats = false }, contentPadding = PaddingValues(0.dp)) {
+                                Text(if (!useDemoStats) "✓ 全网真实" else "全网真实", color = Color.White)
+                            }
+                        }
+                    }
+                    if (useDemoStats) {
+                        Text("仅用于界面和流程测试，不会上传到公共统计", color = Color(0xFFFFD08A), style = MaterialTheme.typography.labelSmall)
+                    }
                     Row(Modifier.fillMaxWidth().height(30.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                         Box(Modifier.weight(rewardWeight).fillMaxHeight().background(Color(0xFF31C48D), RoundedCornerShape(topStart = 9.dp, bottomStart = 9.dp)))
                         Box(Modifier.weight(gasWeight).fillMaxHeight().background(Color(0xFFEF6262), RoundedCornerShape(topEnd = 9.dp, bottomEnd = 9.dp)))
@@ -103,8 +132,8 @@ fun MicroCommunityScreen(
                         when {
                             statsLoading -> "正在加载全网统计…"
                             statsFailed -> "全网统计暂时不可用，请稍后重试"
-                            (communityStats?.contribution_count ?: 0L) == 0L -> "暂无用户确认贡献，统计从真实入账开始累计"
-                            else -> "已确认贡献 ${communityStats?.contribution_count ?: 0} 笔 · 交互 ${communityStats?.total_interactions ?: 0} 次"
+                            displayContributionCount == 0L -> "暂无用户确认贡献，统计从真实入账开始累计"
+                            else -> "已确认贡献 $displayContributionCount 笔 · 交互 $displayInteractionCount 次"
                         },
                         color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall
                     )
