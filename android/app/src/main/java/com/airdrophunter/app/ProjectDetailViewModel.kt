@@ -17,7 +17,10 @@ data class ProjectDetailUiState(
     val walletResult: WalletCheckResponse? = null,
     val isLoading: Boolean = true,
     val isBusy: Boolean = false,
-    val hasError: Boolean = false
+    val hasError: Boolean = false,
+    val claimUrl: String? = null,
+    val claimError: String? = null,
+    val isClaimLoading: Boolean = false
 )
 
 class ProjectDetailViewModel(private val repository: ProjectsRepository) : ViewModel() {
@@ -58,6 +61,22 @@ class ProjectDetailViewModel(private val repository: ProjectsRepository) : ViewM
             repository.deleteTask(projectId, task, isGuest, _uiState.value.tasks)
         }
     }
+
+    fun requestClaimUrl(projectId: String, walletId: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isClaimLoading = true, claimError = null, claimUrl = null)
+            try {
+                val response = repository.getClaimUrl(projectId, walletId)
+                _uiState.value = _uiState.value.copy(isClaimLoading = false, claimUrl = response.url)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(isClaimLoading = false, claimError = error.message ?: "无法生成资格领取入口")
+            }
+        }
+    }
+
+    fun consumeClaimUrl() { _uiState.value = _uiState.value.copy(claimUrl = null) }
 
     fun checkWallet(address: String) {
         viewModelScope.launch {

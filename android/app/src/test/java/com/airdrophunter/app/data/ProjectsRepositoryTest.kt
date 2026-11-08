@@ -42,10 +42,21 @@ class ProjectsRepositoryTest {
             tasks[projectId]?.removeAll { it.id == taskId }
         }
         override suspend fun checkWallet(address: String) = WalletCheckResponse(true, "ok")
+        override suspend fun getClaimUrl(projectId: String, walletId: String) =
+            ClaimUrlResponse("https://claim.example/?address=0xabc", "Project", "Wallet", "0xabc")
     }
 
     private fun project(id: String, name: String = id) =
         ProjectDto(id, name, "", "tracking")
+
+    @Test fun authenticatedClaimUrlIsRetrievedThroughOwnedWalletEndpoint() {
+        val repository = ProjectsRepository(FakeRemote(), FakeLocal())
+        kotlinx.coroutines.runBlocking {
+            val response = repository.getClaimUrl("project-1", "wallet-1")
+            assertEquals("https://claim.example/?address=0xabc", response.url)
+            assertEquals("0xabc", response.address)
+        }
+    }
 
     @Test fun guestProjectsStayLocalAndIncludePnlProjects() {
         val local = FakeLocal()
