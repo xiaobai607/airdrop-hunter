@@ -18,7 +18,7 @@ object ApiClient {
             .addInterceptor { chain ->
                 val original = chain.request()
                 val token = TokenStore.readTokenBlocking()
-                val request = if (token.isNullOrBlank()) original else original.newBuilder()
+                val request = if (original.header("Authorization") != null || token.isNullOrBlank()) original else original.newBuilder()
                     .header("Authorization", "Bearer $token").build()
                 chain.proceed(request)
             }

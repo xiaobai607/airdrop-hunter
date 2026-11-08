@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.CommunityProjectCatalog
 import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.CacheStore
 import androidx.compose.runtime.collectAsState
@@ -46,6 +47,7 @@ fun ProjectsScreen(
     )
     val state by projectsViewModel.uiState.collectAsStateWithLifecycle()
     val pnlRecords by CacheStore.observePnlRecords().collectAsState(initial = emptyList())
+    val savedProjects by CacheStore.observeUserProjects().collectAsState(initial = emptyList())
     val allRatings by CacheStore.observeAllProjectRatings().collectAsState(initial = emptyList())
     var selectedFilter by remember { mutableStateOf("全部") }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -56,17 +58,31 @@ fun ProjectsScreen(
 
     LaunchedEffect(isGuest) { projectsViewModel.loadProjects(isGuest) }
 
-    val filterOptions = listOf("全部" to state.projects.size) +
+    val savedProjectDtos = savedProjects.map { saved ->
+        ProjectDto(
+            id = saved.projectLocalId,
+            name = saved.projectName,
+            description = "",
+            status = saved.status,
+            official_url = CommunityProjectCatalog.findByOfficialId(saved.projectOfficialId)?.officialUrl.orEmpty(),
+            communityOfficialId = saved.projectOfficialId
+        )
+    }
+    val visibleProjects = (savedProjectDtos + state.projects).distinctBy {
+        it.communityOfficialId?.let { officialId -> "official:$officialId" } ?: "local:${it.id}"
+    }
+
+    val filterOptions = listOf("全部" to visibleProjects.size) +
         listOf(
-            "进行中" to state.projects.count { it.status == "tracking" },
-            "待开始" to state.projects.count { it.status == "upcoming" },
-            "已完成" to state.projects.count { it.status == "completed" }
+            "进行中" to visibleProjects.count { it.status == "tracking" },
+            "待开始" to visibleProjects.count { it.status == "upcoming" },
+            "已完成" to visibleProjects.count { it.status == "completed" }
         )
     val filtered = when (selectedFilter) {
-        "进行中" -> state.projects.filter { it.status == "tracking" }
-        "待开始" -> state.projects.filter { it.status == "upcoming" }
-        "已完成" -> state.projects.filter { it.status == "completed" }
-        else -> state.projects
+        "进行中" -> visibleProjects.filter { it.status == "tracking" }
+        "待开始" -> visibleProjects.filter { it.status == "upcoming" }
+        "已完成" -> visibleProjects.filter { it.status == "completed" }
+        else -> visibleProjects
     }
 
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
@@ -105,10 +121,10 @@ fun ProjectsScreen(
         }
 
         when {
-            state.isLoading && state.projects.isEmpty() -> Box(
+            state.isLoading && visibleProjects.isEmpty() -> Box(
                 Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center
             ) { CircularProgressIndicator(color = AppColors.Primary) }
-            state.error != null && state.projects.isEmpty() -> EmptyProjects(
+            state.error != null && visibleProjects.isEmpty() -> EmptyProjects(
                 modifier = Modifier.weight(1f),
                 title = "暂时无法加载项目",
                 subtitle = "服务器繁忙，请稍后重试。"
