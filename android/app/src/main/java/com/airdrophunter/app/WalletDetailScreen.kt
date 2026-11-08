@@ -27,10 +27,10 @@ fun WalletDetailScreen(
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
-    val walletDetailViewModel: WalletDetailViewModel = vm ?: viewModel(factory = WalletDetailViewModelFactory(application.appContainer.assetRepository))
+    val walletDetailViewModel: WalletDetailViewModel = vm ?: viewModel(factory = WalletDetailViewModelFactory(application.appContainer.assetRepository, application.appContainer.apiService))
     val state by walletDetailViewModel.uiState.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
-    LaunchedEffect(wallet.address) { walletDetailViewModel.loadWallet(wallet.address) }
+    LaunchedEffect(wallet.address, wallet.ecosystem) { walletDetailViewModel.loadWallet(wallet.address, wallet.ecosystem) }
     DisposableEffect(walletDetailViewModel) { onDispose { walletDetailViewModel.clear() } }
 
     Column(Modifier.fillMaxSize().background(AppColors.Background)) {
@@ -52,6 +52,10 @@ fun WalletDetailScreen(
             isLoading = state.isLoading,
             errorMessage = state.errorMessage,
             onRefresh = walletDetailViewModel::refresh,
+            transactions = state.transactions,
+            transactionsLoading = state.transactionsLoading,
+            transactionsError = state.transactionsError,
+            transactionSupportMessage = state.transactionSupportMessage,
             modifier = Modifier.weight(1f)
         )
     }

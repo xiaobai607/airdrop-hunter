@@ -26,6 +26,10 @@ import androidx.compose.ui.unit.sp
 import com.airdrophunter.app.data.UnifiedAssetData
 import com.airdrophunter.app.data.UnifiedToken
 import com.airdrophunter.app.data.WalletDto
+import com.airdrophunter.app.data.WalletTransactionDto
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.airdrophunter.app.ui.theme.AppColors
 import java.text.DecimalFormat
 
@@ -35,6 +39,10 @@ fun UnifiedAssetContent(
     isLoading: Boolean,
     errorMessage: String?,
     onRefresh: (() -> Unit)? = null,
+    transactions: List<WalletTransactionDto> = emptyList(),
+    transactionsLoading: Boolean = false,
+    transactionsError: String? = null,
+    transactionSupportMessage: String? = null,
     modifier: Modifier = Modifier
 ) {
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
@@ -99,16 +107,46 @@ fun UnifiedAssetContent(
                     Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
                     color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
                 )
-                if (assets.tokenList.isEmpty()) {
-                    Text("当前地址没有检测到有余额的代币", Modifier.padding(24.dp), color = AppColors.TextSecondary)
-                } else {
-                    LazyColumn(
-                        Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (assets.tokenList.isEmpty()) {
+                        item { Text("当前地址没有检测到有余额的代币", Modifier.padding(vertical = 12.dp), color = AppColors.TextSecondary) }
+                    } else {
                         items(assets.tokenList, key = { it.id.ifBlank { it.symbol + it.name } }) { token ->
                             UnifiedTokenRow(token)
+                        }
+                    }
+                    item {
+                        Text(
+                            "近期链上交易",
+                            Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 6.dp),
+                            color = AppColors.TextPrimary,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    when {
+                        transactionSupportMessage != null -> item {
+                            Text(transactionSupportMessage, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 10.dp))
+                        }
+                        transactionsLoading -> item {
+                            Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(Modifier.size(18.dp), color = AppColors.Primary, strokeWidth = 2.dp)
+                                Spacer(Modifier.width(10.dp))
+                                Text("正在读取真实链上交易…", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        transactionsError != null -> item {
+                            Text("交易记录暂时无法读取：$transactionsError", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 10.dp))
+                        }
+                        transactions.isEmpty() -> item {
+                            Text("该地址暂未查询到交易记录", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 10.dp))
+                        }
+                        else -> items(transactions, key = { ${it.chain}:${it.hash} }) { transaction ->
+                            WalletTransactionRow(transaction)
                         }
                     }
                 }
@@ -189,3 +227,44 @@ private fun UnifiedTokenRow(token: UnifiedToken) {
 
 private fun money(value: java.math.BigDecimal) = DecimalFormat("#,##0.00").format(value)
 private fun quantity(value: java.math.BigDecimal) = DecimalFormat("#,##0.########").format(value)
+
+
+@Composable
+private fun WalletTransactionRow(transaction: WalletTransactionDto) {
+    val date = remember(transaction.timestamp) {
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(transaction.timestamp * 1000L))
+    }
+    val fee = transaction.gas_cost_native.toBigDecimalOrNull()?.stripTrailingZeros()?.toPlainString()
+        ?: transaction.gas_cost_native
+    val usd = transaction.gas_cost_usd?.toBigDecimalOrNull()?.stripTrailingZeros()?.toPlainString()
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.Surface)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${fee} ${transaction.native_symbol}",
+                    Modifier.weight(1f),
+                    color = AppColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    if (transaction.status == "success") "成功" else "失败",
+                    color = if (transaction.status == "success") AppColors.Primary else AppColors.Danger,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(date, Modifier.weight(1f), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                Text(usd?.let { "约 $" + it } ?: "USD 估值暂无", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+            }
+            Text(
+                "${transaction.chain.uppercase()} · ${transaction.hash.take(10)}…${transaction.hash.takeLast(6)}",
+                color = AppColors.TextHelper,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+    }
+}

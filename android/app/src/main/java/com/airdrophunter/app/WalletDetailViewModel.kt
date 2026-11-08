@@ -5,7 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.airdrophunter.app.data.AssetRepository
 import androidx.lifecycle.ViewModelProvider
 import com.airdrophunter.app.data.UnifiedAssetData
+import com.airdrophunter.app.data.ApiService
+import com.airdrophunter.app.data.WalletEcosystem
+import com.airdrophunter.app.data.WalletTransactionDto
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,11 +21,16 @@ data class WalletDetailUiState(
     val address: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val assets: UnifiedAssetData? = null
+    val assets: UnifiedAssetData? = null,
+    val transactions: List<WalletTransactionDto> = emptyList(),
+    val transactionsLoading: Boolean = false,
+    val transactionsError: String? = null,
+    val transactionSupportMessage: String? = null
 )
 
 class WalletDetailViewModel(
-    private val repository: AssetRepository
+    private val repository: AssetRepository,
+    private val apiService: ApiService
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WalletDetailUiState())
     val uiState = _uiState.asStateFlow()
@@ -28,43 +38,87 @@ class WalletDetailViewModel(
     private var queuedRefreshJob: Job? = null
     private var refreshQueued = false
     private var lastRequestAtMillis = 0L
+    private var currentActivityChain: String? = null
 
     private companion object { const val MIN_REQUEST_INTERVAL_MILLIS = 5_000L }
 
-    fun loadWallet(address: String) {
+    fun loadWallet(address: String, ecosystem: String) {
         val normalized = address.trim()
         if (normalized.isBlank()) {
             clear()
             _uiState.value = WalletDetailUiState(errorMessage = "钱包地址为空，无法查询链上资产。")
             return
         }
-        if (_uiState.value.address == normalized && requestJob?.isActive == true) return
+        val activityChain = when (ecosystem) {
+            WalletEcosystem.EVM -> "ethereum"
+            WalletEcosystem.TRON -> "tron"
+            else -> null
+        }
+        if (_uiState.value.address == normalized && currentActivityChain == activityChain && requestJob?.isActive == true) return
+        currentActivityChain = activityChain
         queuedRefreshJob?.cancel()
         queuedRefreshJob = null
         refreshQueued = false
         requestJob?.cancel()
-        _uiState.value = WalletDetailUiState(address = normalized, isLoading = true)
-        startRequest(normalized)
+        _uiState.value = WalletDetailUiState(
+            address = normalized,
+            isLoading = true,
+            transactionsLoading = activityChain != null,
+            transactionSupportMessage = if (activityChain == null) "该网络的真实交易费用采集暂未接入" else null
+        )
+        startRequest(normalized, activityChain)
     }
 
-    private fun startRequest(address: String) {
+    private fun startRequest(address: String, activityChain: String?) {
         requestJob = viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(address = address, isLoading = true, errorMessage = null)
+            _uiState.value = _uiState.value.copy(
+                address = address,
+                isLoading = true,
+                errorMessage = null,
+                transactionsLoading = activityChain != null,
+                transactionsError = null,
+                transactionSupportMessage = if (activityChain == null) "该网络的真实交易费用采集暂未接入" else null
+            )
             lastRequestAtMillis = System.currentTimeMillis()
             try {
-                val result = repository.fetchAssets(address).getOrThrow()
-                if (_uiState.value.address != address) return@launch
-                _uiState.value = WalletDetailUiState(address = address, assets = result, isLoading = false)
+                coroutineScope {
+                    val assetsTask = async { repository.fetchAssets(address) }
+                    val activityTask = async {
+                        if (activityChain == null) {
+                            Result.success(emptyList<WalletTransactionDto>())
+                        } else {
+                            try {
+                                Result.success(apiService.getWalletTransactions(activityChain, address, 50))
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                Result.failure(error)
+                            }
+                        }
+                    }
+                    val assetsResult = assetsTask.await()
+                    val activityResult = activityTask.await()
+                    if (_uiState.value.address != address) return@coroutineScope
+                    _uiState.value = _uiState.value.copy(
+                        assets = assetsResult.getOrNull(),
+                        isLoading = false,
+                        errorMessage = assetsResult.exceptionOrNull()?.message,
+                        transactions = activityResult.getOrNull().orEmpty(),
+                        transactionsLoading = false,
+                        transactionsError = activityResult.exceptionOrNull()?.message
+                    )
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
                 if (_uiState.value.address != address) return@launch
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
+                    transactionsLoading = false,
                     errorMessage = error.message ?: "查询链上资产失败，请稍后重试。"
                 )
             } finally {
-                if (refreshQueued && _uiState.value.address == address) scheduleQueuedRefresh(address)
+                if (refreshQueued && _uiState.value.address == address) scheduleQueuedRefresh(address, activityChain)
             }
         }
     }
@@ -74,17 +128,17 @@ class WalletDetailViewModel(
         if (address.isBlank()) return
         refreshQueued = true
         if (requestJob?.isActive == true || queuedRefreshJob?.isActive == true) return
-        scheduleQueuedRefresh(address)
+        scheduleQueuedRefresh(address, currentActivityChain)
     }
 
-    private fun scheduleQueuedRefresh(address: String) {
+    private fun scheduleQueuedRefresh(address: String, activityChain: String?) {
         if (queuedRefreshJob?.isActive == true) return
         queuedRefreshJob = viewModelScope.launch {
             val wait = (MIN_REQUEST_INTERVAL_MILLIS - (System.currentTimeMillis() - lastRequestAtMillis)).coerceAtLeast(0L)
             if (wait > 0) delay(wait)
             if (refreshQueued && _uiState.value.address == address) {
                 refreshQueued = false
-                startRequest(address)
+                startRequest(address, activityChain)
             }
             queuedRefreshJob = null
         }
@@ -96,6 +150,7 @@ class WalletDetailViewModel(
         requestJob = null
         queuedRefreshJob = null
         refreshQueued = false
+        currentActivityChain = null
         _uiState.value = WalletDetailUiState()
     }
 
@@ -106,10 +161,13 @@ class WalletDetailViewModel(
     }
 }
 
-class WalletDetailViewModelFactory(private val repository: AssetRepository) : ViewModelProvider.Factory {
+class WalletDetailViewModelFactory(
+    private val repository: AssetRepository,
+    private val apiService: ApiService
+) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(WalletDetailViewModel::class.java)) return WalletDetailViewModel(repository) as T
+        if (modelClass.isAssignableFrom(WalletDetailViewModel::class.java)) return WalletDetailViewModel(repository, apiService) as T
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
