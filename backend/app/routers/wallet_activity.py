@@ -6,17 +6,19 @@ from typing import Literal
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.routers.auth import limiter
 
 router = APIRouter(prefix="/api/wallet-activity", tags=["wallet activity"])
-limiter = Limiter(key_func=get_remote_address)
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 TRONGRID = "https://api.trongrid.io"
 COINPAPRIKA_ETH = "https://api.coinpaprika.com/v1/tickers/eth-ethereum"
 COINPAPRIKA_TRX = "https://api.coinpaprika.com/v1/tickers/trx-tron"
 WEI_PER_ETH = Decimal("1000000000000000000")
 SUN_PER_TRX = Decimal("1000000")
+
+
+def decimal_text(value: Decimal) -> str:
+    return format(value.normalize(), "f") if value else "0"
 
 
 class WalletTransaction(BaseModel):
@@ -26,11 +28,17 @@ class WalletTransaction(BaseModel):
     from_address: str
     to_address: str
     method_id: str | None = None
-    gas_used: str
-    gas_price_base_unit: str
+    gas_used: str | None = None
+    gas_price_base_unit: str | None = None
+    total_fee_base_unit: str
+    fee_type: str
+    energy_used: str | None = None
+    bandwidth_used: str | None = None
+    energy_fee_base_unit: str | None = None
+    bandwidth_fee_base_unit: str | None = None
     gas_cost_native: str
     native_symbol: str
-    gas_price_usd: str | None = None
+    native_price_usd: str | None = None
     gas_cost_usd: str | None = None
     status: str
     project_official_id: None = None
@@ -114,18 +122,18 @@ async def list_wallet_transactions(
                         timestamp = int(row["timeStamp"])
                         if len(tx_hash) != 66 or not tx_hash.startswith("0x") or gas_used < 0 or gas_price < 0:
                             continue
-                        if str(row.get("isError", "0")) != "0":
-                            continue
                         native_cost = Decimal(gas_used) * Decimal(gas_price) / WEI_PER_ETH
+                        total_fee_wei = gas_used * gas_price
                         results.append(WalletTransaction(
                             chain="ethereum", hash=tx_hash, timestamp=timestamp,
                             from_address=str(row.get("from") or ""), to_address=str(row.get("to") or ""),
                             method_id=str(row.get("methodId") or "") or None,
                             gas_used=str(gas_used), gas_price_base_unit=str(gas_price),
-                            gas_cost_native=format(native_cost, "f"), native_symbol="ETH",
-                            gas_price_usd=format(price, "f") if price is not None else None,
-                            gas_cost_usd=format(native_cost * price, "f") if price is not None else None,
-                            status="success",
+                            total_fee_base_unit=str(total_fee_wei), fee_type="evm_gas_fee_wei",
+                            gas_cost_native=decimal_text(native_cost), native_symbol="ETH",
+                            native_price_usd=decimal_text(price) if price is not None else None,
+                            gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
+                            status="success" if str(row.get("isError", "0")) == "0" else "failed",
                         ))
                     except (KeyError, TypeError, ValueError, InvalidOperation):
                         continue
@@ -144,6 +152,11 @@ async def list_wallet_transactions(
                         fee_sun = int(info.get("fee") or 0)
                         if fee_sun < 0:
                             continue
+                        receipt = info.get("receipt") or {}
+                        energy_fee_sun = int(receipt.get("energy_fee") or 0)
+                        net_fee_sun = int(receipt.get("net_fee") or 0)
+                        energy_used = int(receipt.get("energy_usage_total") or 0)
+                        bandwidth_used = int(receipt.get("net_usage") or 0)
                         native_cost = Decimal(fee_sun) / SUN_PER_TRX
                         raw_contracts = (row.get("raw_data") or {}).get("contract") or []
                         value = (((raw_contracts[0] if raw_contracts else {}).get("parameter") or {}).get("value") or {})
@@ -151,12 +164,14 @@ async def list_wallet_transactions(
                             chain="tron", hash=tx_hash, timestamp=timestamp,
                             from_address=str(value.get("owner_address") or address),
                             to_address=str(value.get("to_address") or ""),
-                            method_id=None, gas_used=str(info.get("receipt", {}).get("energy_usage_total") or 0),
-                            gas_price_base_unit=str(info.get("receipt", {}).get("energy_fee") or 0),
-                            gas_cost_native=format(native_cost, "f"), native_symbol="TRX",
-                            gas_price_usd=format(price, "f") if price is not None else None,
-                            gas_cost_usd=format(native_cost * price, "f") if price is not None else None,
-                            status="success" if info.get("receipt", {}).get("result", "SUCCESS") == "SUCCESS" else "failed",
+                            method_id=None, gas_used=None, gas_price_base_unit=None,
+                            total_fee_base_unit=str(fee_sun), fee_type="tron_total_fee_sun",
+                            energy_used=str(energy_used), bandwidth_used=str(bandwidth_used),
+                            energy_fee_base_unit=str(energy_fee_sun), bandwidth_fee_base_unit=str(net_fee_sun),
+                            gas_cost_native=decimal_text(native_cost), native_symbol="TRX",
+                            native_price_usd=decimal_text(price) if price is not None else None,
+                            gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
+                            status="success" if receipt.get("result", "SUCCESS") == "SUCCESS" else "failed",
                         ))
                     except (httpx.HTTPError, KeyError, TypeError, ValueError, InvalidOperation):
                         continue

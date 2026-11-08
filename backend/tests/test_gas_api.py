@@ -46,6 +46,8 @@ def test_public_ethereum_activity_does_not_require_login(monkeypatch):
     tx = response.json()[0]
     assert tx["gas_cost_native"] == "0.000021"
     assert tx["gas_cost_usd"] == "0.042"
+    assert tx["fee_type"] == "evm_gas_fee_wei"
+    assert tx["total_fee_base_unit"] == "21000000000000"
     assert tx["attribution"] == "unassigned"
 
 
@@ -59,6 +61,11 @@ def test_public_tron_activity_does_not_require_login(monkeypatch):
     assert tx["native_symbol"] == "TRX"
     assert tx["gas_cost_native"] == "2.8"
     assert tx["gas_cost_usd"] == "0.28"
+    assert tx["gas_used"] is None
+    assert tx["gas_price_base_unit"] is None
+    assert tx["fee_type"] == "tron_total_fee_sun"
+    assert tx["total_fee_base_unit"] == "2800000"
+    assert tx["energy_used"] == "10000"
     assert tx["attribution"] == "unassigned"
 
 
