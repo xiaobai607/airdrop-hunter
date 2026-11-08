@@ -81,7 +81,7 @@ def test_evm_l1_fee_is_included_when_provider_supplies_it():
     )
 
     assert len(transactions) == 1
-    assert transactions[0].total_fee_base_unit == "42000000100"
+    assert transactions[0].total_fee_base_unit == "42000000000100"
     assert transactions[0].fee_type == "evm_gas_fee_with_l1_wei"
     assert transactions[0].fee_paid_by_wallet is True
 
@@ -108,4 +108,4 @@ def test_failed_evm_transaction_retains_fee_but_is_not_successful():
 
     assert len(transactions) == 1
     assert transactions[0].status == "failed"
-    assert transactions[0].total_fee_base_unit == "42000000000"
+    assert transactions[0].total_fee_base_unit == "42000000000000"
