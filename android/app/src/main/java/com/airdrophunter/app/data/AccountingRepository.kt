@@ -20,6 +20,17 @@ interface AccountingLocalDataSource {
         gas: Double,
         reward: Double
     ): Boolean
+    suspend fun recordWalletTransaction(
+        projectLocalId: String,
+        projectOfficialId: String?,
+        projectName: String,
+        txHash: String,
+        walletAddress: String,
+        network: String,
+        gasCostUsd: Double,
+        actualRewardUsd: Double,
+        timestamp: Long
+    ): Boolean = false
 }
 
 class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
@@ -41,6 +52,20 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
         reward: Double
     ): Boolean = CacheStore.confirmPendingBill(
         id, projectLocalId, projectOfficialId, projectCustomName, gas, reward
+    )
+    override suspend fun recordWalletTransaction(
+        projectLocalId: String,
+        projectOfficialId: String?,
+        projectName: String,
+        txHash: String,
+        walletAddress: String,
+        network: String,
+        gasCostUsd: Double,
+        actualRewardUsd: Double,
+        timestamp: Long
+    ): Boolean = CacheStore.recordWalletTransaction(
+        projectLocalId, projectOfficialId, projectName, txHash,
+        walletAddress, network, gasCostUsd, actualRewardUsd, timestamp
     )
 }
 
@@ -100,5 +125,20 @@ class AccountingRepository(
         reward: Double
     ): Boolean = local.confirmPendingBill(
         id, projectLocalId, projectOfficialId, projectCustomName, gas, reward
+    )
+
+    suspend fun recordWalletTransaction(
+        projectLocalId: String,
+        projectOfficialId: String?,
+        projectName: String,
+        txHash: String,
+        walletAddress: String,
+        network: String,
+        gasCostUsd: Double,
+        actualRewardUsd: Double,
+        timestamp: Long
+    ): Boolean = local.recordWalletTransaction(
+        projectLocalId, projectOfficialId, projectName, txHash,
+        walletAddress, network, gasCostUsd, actualRewardUsd, timestamp
     )
 }

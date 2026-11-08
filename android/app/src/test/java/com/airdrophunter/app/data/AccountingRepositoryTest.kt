@@ -63,6 +63,25 @@ class AccountingRepositoryTest {
     }
 
     @Test
+    fun onchainWalletTransactionRecordingIsDelegatedToLocalDataSource() = runBlocking {
+        val source = FakeAccountingLocalDataSource()
+        val result = AccountingRepository(source).recordWalletTransaction(
+            projectLocalId = "project-local",
+            projectOfficialId = "community-project",
+            projectName = "Project",
+            txHash = "0xabc",
+            walletAddress = "0xwallet",
+            network = "ethereum",
+            gasCostUsd = 1.25,
+            actualRewardUsd = 2.50,
+            timestamp = 123456L
+        )
+        assertTrue(result)
+        assertEquals("0xabc", source.recordedTransactionHash)
+        assertEquals("ethereum", source.recordedNetwork)
+    }
+
+    @Test
     fun pendingBillOperationsAreDelegatedToLocalDataSource() = runBlocking {
         val source = FakeAccountingLocalDataSource()
         val repository = AccountingRepository(source)
@@ -83,6 +102,8 @@ private class FakeAccountingLocalDataSource : AccountingLocalDataSource {
     val userProjects = mutableListOf<UserProjectEntity>()
     var addedBill: PendingBillEntity? = null
     var deletedBillId: String? = null
+    var recordedTransactionHash: String? = null
+    var recordedNetwork: String? = null
     override fun observePendingBills(): Flow<List<PendingBillEntity>> = flowOf(emptyList())
     override suspend fun readLocal(key: String): String? = local[key]
     override suspend fun read(key: String): String? = cache[key]
@@ -91,6 +112,11 @@ private class FakeAccountingLocalDataSource : AccountingLocalDataSource {
     override suspend fun addPendingBill(bill: PendingBillEntity) { addedBill = bill }
     override suspend fun deletePendingBill(id: String) { deletedBillId = id }
     override suspend fun confirmPendingBill(id: String, projectLocalId: String, projectOfficialId: String?, projectCustomName: String, gas: Double, reward: Double): Boolean = true
+    override suspend fun recordWalletTransaction(projectLocalId: String, projectOfficialId: String?, projectName: String, txHash: String, walletAddress: String, network: String, gasCostUsd: Double, actualRewardUsd: Double, timestamp: Long): Boolean {
+        recordedTransactionHash = txHash
+        recordedNetwork = network
+        return true
+    }
 }
 
 private fun project(id: String, name: String) = ProjectDto(

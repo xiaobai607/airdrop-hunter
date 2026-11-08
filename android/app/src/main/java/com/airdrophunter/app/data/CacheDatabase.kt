@@ -139,6 +139,8 @@ interface PendingBillDao {
     fun observeAll(accountScope: String): Flow<List<PendingBillEntity>>
     @Query("SELECT * FROM pending_bills WHERE id = :id AND accountScope = :accountScope LIMIT 1")
     suspend fun findById(id: String, accountScope: String): PendingBillEntity?
+    @Query("SELECT EXISTS(SELECT 1 FROM pending_bills WHERE accountScope = :accountScope AND network = :network AND LOWER(txHash) = LOWER(:txHash) AND ((:network = 'ethereum' AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (:network != 'ethereum' AND walletAddress = :walletAddress)))")
+    suspend fun hasTransaction(accountScope: String, network: String, walletAddress: String, txHash: String): Boolean
     @Query("DELETE FROM pending_bills WHERE id = :id AND accountScope = :accountScope")
     suspend fun delete(id: String, accountScope: String)
 }
@@ -208,6 +210,8 @@ interface UserInteractionDao {
 
     @Query("SELECT * FROM user_interactions WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope ORDER BY timestamp DESC")
     fun observeByProject(projectLocalId: String, accountScope: String): Flow<List<UserInteractionEntity>>
+    @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND network = :network AND LOWER(txHash) = LOWER(:txHash) AND ((:network = 'ethereum' AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (:network != 'ethereum' AND walletAddress = :walletAddress)))")
+    suspend fun hasTransaction(accountScope: String, network: String, walletAddress: String, txHash: String): Boolean
 }
 
 @Dao
@@ -468,6 +472,107 @@ object CacheStore {
             true
         }
     }
+    suspend fun recordWalletTransaction(
+        projectLocalId: String,
+        projectOfficialId: String?,
+        projectName: String,
+        txHash: String,
+        walletAddress: String,
+        network: String,
+        gasCostUsd: Double,
+        actualRewardUsd: Double,
+        timestamp: Long
+    ): Boolean = withContext(Dispatchers.IO) {
+        val normalizedNetwork = network.trim().lowercase()
+        val normalizedHash = txHash.trim()
+        val normalizedWallet = walletAddress.trim()
+        if (
+            projectLocalId.isBlank() || projectName.isBlank() || normalizedHash.isBlank() ||
+            normalizedWallet.isBlank() || normalizedNetwork !in setOf("ethereum", "tron") ||
+            !gasCostUsd.isFinite() || !actualRewardUsd.isFinite() ||
+            gasCostUsd < 0.0 || actualRewardUsd < 0.0 || timestamp <= 0L
+        ) return@withContext false
+
+        val db = database ?: return@withContext false
+        val scope = currentAccountScope()
+        if (scope == "invalid-session") return@withContext false
+        val bill = PendingBillEntity(
+            id = java.util.UUID.randomUUID().toString(),
+            txHash = normalizedHash,
+            walletAddress = normalizedWallet,
+            gasCostUsd = gasCostUsd,
+            interactionMethod = "onchain_import",
+            timestamp = timestamp,
+            accountScope = scope,
+            network = normalizedNetwork
+        )
+        db.withTransaction {
+            val alreadyPending = db.pendingBillDao().hasTransaction(scope, normalizedNetwork, normalizedWallet, normalizedHash)
+            val alreadyRecorded = db.userInteractionDao().hasTransaction(scope, normalizedNetwork, normalizedWallet, normalizedHash)
+            if (alreadyPending || alreadyRecorded) return@withTransaction false
+
+            val officialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
+            db.pnlRecordDao().addToProject(
+                projectLocalId, officialId, projectName, normalizedWallet,
+                gasCostUsd, actualRewardUsd, scope
+            )
+            val updatedProjects = db.userProjectDao().addAmounts(
+                projectLocalId, officialId, projectName, gasCostUsd, actualRewardUsd, timestamp, scope
+            )
+            if (updatedProjects == 0) {
+                db.userProjectDao().insert(
+                    UserProjectEntity(
+                        id = java.util.UUID.randomUUID().toString(),
+                        accountScope = scope,
+                        projectLocalId = projectLocalId,
+                        projectOfficialId = officialId,
+                        projectName = projectName,
+                        status = "tracking",
+                        totalGasCostUsd = gasCostUsd,
+                        totalActualRewardUsd = actualRewardUsd,
+                        netProfitUsd = actualRewardUsd - gasCostUsd,
+                        interactionCount = 1,
+                        lastInteractionAt = timestamp,
+                        createdAt = timestamp,
+                        updatedAt = timestamp
+                    )
+                )
+            }
+            db.userInteractionDao().insert(
+                UserInteractionEntity(
+                    id = bill.id,
+                    accountScope = scope,
+                    projectLocalId = projectLocalId,
+                    projectOfficialId = officialId,
+                    projectName = projectName,
+                    txHash = normalizedHash,
+                    walletAddress = normalizedWallet,
+                    network = normalizedNetwork,
+                    gasCostUsd = gasCostUsd,
+                    actualRewardUsd = actualRewardUsd,
+                    interactionMethod = "onchain_import",
+                    timestamp = timestamp
+                )
+            )
+            officialId?.takeIf {
+                scope.startsWith("user:") && isEligibleForPublicContribution(bill)
+            }?.let { id ->
+                db.communitySyncOutboxDao().insert(
+                    CommunitySyncOutboxEntity(
+                        id = java.util.UUID.randomUUID().toString(),
+                        accountScope = scope,
+                        projectOfficialId = id,
+                        gasCostUsd = gasCostUsd,
+                        actualRewardUsd = actualRewardUsd,
+                        interactionCount = 1,
+                        createdAt = timestamp
+                    )
+                )
+            }
+            true
+        }
+    }
+
     private val MIGRATION_4_5 = object : Migration(4, 5) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE pending_bills ADD COLUMN accountScope TEXT NOT NULL DEFAULT 'guest'")

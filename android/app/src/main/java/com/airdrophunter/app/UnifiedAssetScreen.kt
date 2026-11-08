@@ -43,6 +43,7 @@ fun UnifiedAssetContent(
     transactionsLoading: Boolean = false,
     transactionsError: String? = null,
     transactionSupportMessage: String? = null,
+    onRecordTransaction: ((WalletTransactionDto) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
@@ -146,7 +147,7 @@ fun UnifiedAssetContent(
                             Text("该地址暂未查询到交易记录", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 10.dp))
                         }
                         else -> items(transactions, key = { "${it.chain}:${it.hash}" }) { transaction ->
-                            WalletTransactionRow(transaction)
+                            WalletTransactionRow(transaction, onRecordTransaction?.let { callback -> { callback(transaction) } })
                         }
                     }
                 }
@@ -230,7 +231,7 @@ private fun quantity(value: java.math.BigDecimal) = DecimalFormat("#,##0.#######
 
 
 @Composable
-private fun WalletTransactionRow(transaction: WalletTransactionDto) {
+private fun WalletTransactionRow(transaction: WalletTransactionDto, onRecord: (() -> Unit)? = null) {
     val date = remember(transaction.timestamp) {
         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(transaction.timestamp * 1000L))
     }
@@ -270,6 +271,14 @@ private fun WalletTransactionRow(transaction: WalletTransactionDto) {
                 color = AppColors.TextHelper,
                 style = MaterialTheme.typography.labelSmall
             )
+            if (onRecord != null && transaction.fee_paid_by_wallet && transaction.gas_cost_usd != null) {
+                OutlinedButton(
+                    onClick = onRecord,
+                    modifier = Modifier.align(Alignment.End),
+                    contentPadding = PaddingValues(horizontal = 13.dp, vertical = 3.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text("记入项目", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium) }
+            }
         }
     }
 }
