@@ -18,7 +18,9 @@ import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AppColors
 import com.google.gson.Gson
@@ -44,7 +46,9 @@ fun MicroCommunityScreen(
     val context = LocalContext.current
     val ratings by CacheStore.observeProjectRatings(projectOfficialId).collectAsStateWithLifecycle(initialValue = emptyList())
     val average by CacheStore.observeProjectRatingAverage(projectOfficialId).collectAsStateWithLifecycle(initialValue = null)
-    val pnl by CacheStore.observePnlRecords().collectAsStateWithLifecycle(initialValue = emptyList())
+    var communityStats by remember(projectOfficialId) { mutableStateOf<CommunityProjectStatsDto?>(null) }
+    var statsLoading by remember(projectOfficialId) { mutableStateOf(true) }
+    var statsFailed by remember(projectOfficialId) { mutableStateOf(false) }
     var wallet by remember { mutableStateOf("MOCK-WALLET-LOCAL") }
     var canRate by remember { mutableStateOf(false) }
     var participationChecked by remember { mutableStateOf(false) }
@@ -52,11 +56,11 @@ fun MicroCommunityScreen(
     var saved by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
-    val projectRecords = pnl.filter { it.projectOfficialId == projectOfficialId }
-    val displayGasTotal = 42.80 + projectRecords.sumOf { it.totalGasCostUsd }
-    val displayRewardTotal = 184.20 + projectRecords.sumOf { it.totalRewardUsd }
+    val displayGasTotal = communityStats?.total_gas_cost_usd ?: 0.0
+    val displayRewardTotal = communityStats?.total_actual_reward_usd ?: 0.0
     val combinedTotal = (displayGasTotal + displayRewardTotal).coerceAtLeast(1.0)
-    val rewardWeight = (displayRewardTotal / combinedTotal).toFloat().coerceIn(0.01f, 0.99f)
+    val rewardWeight = if (displayGasTotal + displayRewardTotal <= 0.0) 0.5f
+        else (displayRewardTotal / combinedTotal).toFloat().coerceIn(0.01f, 0.99f)
     val gasWeight = 1f - rewardWeight
     val periods = listOf(
         RatingPeriod("近 1 天", 4.9, 12, 96),
@@ -66,6 +70,15 @@ fun MicroCommunityScreen(
     )
 
     LaunchedEffect(projectOfficialId) {
+        statsLoading = true
+        statsFailed = false
+        runCatching {
+            ApiClient.initialize(context)
+            ApiClient.service.getCommunityProjectStats(projectOfficialId)
+        }.onSuccess { communityStats = it }
+            .onFailure { statsFailed = true }
+        statsLoading = false
+
         val type = object : TypeToken<List<WalletDto>>() {}.type
         val wallets = CacheStore.readLocal("wallets")?.let {
             runCatching { Gson().fromJson<List<WalletDto>>(it, type) }.getOrNull()
@@ -87,7 +100,7 @@ fun MicroCommunityScreen(
             }
             Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF17251F))) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("社区大盘（Mock 基础样本 + 本地已确认账单）", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text("社区大盘（全网用户确认贡献）", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Row(Modifier.fillMaxWidth().height(30.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                         Box(Modifier.weight(rewardWeight).fillMaxHeight().background(Color(0xFF31C48D), RoundedCornerShape(topStart = 9.dp, bottomStart = 9.dp)))
                         Box(Modifier.weight(gasWeight).fillMaxHeight().background(Color(0xFFEF6262), RoundedCornerShape(topEnd = 9.dp, bottomEnd = 9.dp)))
@@ -103,7 +116,12 @@ fun MicroCommunityScreen(
                         }
                     }
                     Text(
-                        "当前账号本地已确认账单：收益 ${(rewardWeight * 100).toInt()}% / Gas ${(gasWeight * 100).toInt()}%",
+                        when {
+                            statsLoading -> "正在加载全网统计…"
+                            statsFailed -> "全网统计暂时不可用，请稍后重试"
+                            (communityStats?.contribution_count ?: 0L) == 0L -> "暂无用户确认贡献，统计从真实入账开始累计"
+                            else -> "已确认贡献 ${communityStats?.contribution_count ?: 0} 笔 · 交互 ${communityStats?.total_interactions ?: 0} 次"
+                        },
                         color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall
                     )
                 }
