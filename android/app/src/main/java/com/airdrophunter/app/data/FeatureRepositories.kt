@@ -1,5 +1,7 @@
 package com.airdrophunter.app.data
 
+import kotlinx.coroutines.CancellationException
+
 data class ProfileSnapshot(
     val profile: UserProfileDto,
     val stats: UserStatsDto
