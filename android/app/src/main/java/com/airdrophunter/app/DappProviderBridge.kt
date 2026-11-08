@@ -117,14 +117,17 @@ internal object DappProviderBridge {
         val json = JSONObject(raw)
         val id = json.optLong("id", -1L)
         val method = json.optString("method").trim()
-        if (id < 0L || method.isBlank()) return null
-        val rawParams = json.opt("params")
-        val params = when (rawParams) {
-            is JSONArray -> rawParams
-            null, JSONObject.NULL -> JSONArray()
-            else -> JSONArray().put(rawParams)
+        if (id < 0L || method.isBlank()) {
+            null
+        } else {
+            val rawParams = json.opt("params")
+            val params = when (rawParams) {
+                is JSONArray -> rawParams
+                null, JSONObject.NULL -> JSONArray()
+                else -> JSONArray().put(rawParams)
+            }
+            DappRpcRequest(id, method, params)
         }
-        DappRpcRequest(id, method, params)
     } catch (_: JSONException) {
         null
     }
@@ -156,3 +159,9 @@ internal object DappProviderBridge {
 
     private fun normalizedPort(uri: Uri): Int = if (uri.port >= 0) uri.port else 443
 }
+
+internal data class PendingDappConnection(
+    val request: DappRpcRequest,
+    val origin: String,
+    val replyProxy: JavaScriptReplyProxy
+)
