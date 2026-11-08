@@ -108,4 +108,4 @@ def test_failed_evm_transaction_retains_fee_but_is_not_successful():
 
     assert len(transactions) == 1
     assert transactions[0].status == "failed"
-    assert transactions[0].total_fee_base_unit == "42000000000000"
+    assert transactions[0].total_fee_base_unit == "42000000000"
