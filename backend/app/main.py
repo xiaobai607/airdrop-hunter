@@ -15,6 +15,7 @@ from app.routers.auth import router as auth_router, limiter
 from app.routers.projects import router as projects_router
 from app.routers.market import router as market_router
 from app.routers.wallet import router as wallet_router, wallets_router
+from app.routers.wallet_activity import router as wallet_activity_router
 from app.api.tasks import router as tasks_router
 from app.api.stats import router as stats_router
 from app.api.community_stats import router as community_stats_router
@@ -91,7 +92,7 @@ async def unexpected_exception_handler(request: Request, exc: Exception):
 
 
 for router in (
-    auth_router, projects_router, market_router, wallet_router, wallets_router,
+    auth_router, projects_router, market_router, wallet_router, wallets_router, wallet_activity_router,
     tasks_router, stats_router, community_stats_router, airdrops_router, airdrop_hub_router,
     airdrop_sync_router, sources_router,
 ):
