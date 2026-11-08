@@ -44,6 +44,7 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
 
 class AccountingRepository(
     private val local: AccountingLocalDataSource,
+    private val api: ApiService? = null,
     private val gson: Gson = Gson()
 ) {
     private val projectsType = object : TypeToken<List<ProjectDto>>() {}.type
@@ -51,6 +52,7 @@ class AccountingRepository(
     fun observePendingBills(): Flow<List<PendingBillEntity>> = local.observePendingBills()
 
     suspend fun loadProjects(): List<ProjectDto> {
+        syncPersonalLedger()
         val sources = listOfNotNull(
             local.readLocal("projects"),
             local.read("projects"),
@@ -81,7 +83,50 @@ class AccountingRepository(
         projectCustomName: String,
         gas: Double,
         reward: Double
-    ): Boolean = local.confirmPendingBill(
-        id, projectLocalId, projectOfficialId, projectCustomName, gas, reward
-    )
+    ): Boolean {
+        val confirmed = local.confirmPendingBill(
+            id, projectLocalId, projectOfficialId, projectCustomName, gas, reward
+        )
+        if (confirmed) syncPersonalLedger()
+        return confirmed
+    }
+
+    /**
+     * Account records are uploaded only while authenticated. Guest records stay in
+     * the guest-local cache and never call the private account endpoint.
+     */
+    suspend fun syncPersonalLedger(): Boolean {
+        if (TokenStore.readTokenBlocking().isNullOrBlank()) return false
+        val remote = api ?: return false
+        val localKey = "personal_ledger"
+        val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+        val localEntries = local.readLocal(localKey)?.let { raw ->
+            runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }.getOrNull()
+        }.orEmpty()
+        return runCatching {
+            localEntries.forEach { entry ->
+                remote.upsertPersonalLedger(entry.client_record_id, entry)
+            }
+            val cloudEntries = remote.getPersonalLedger(limit = 500)
+            val restored = cloudEntries.map { entry ->
+                PersonalLedgerWriteRequest(
+                    client_record_id = entry.client_record_id,
+                    project_id = entry.project_id,
+                    project_name = entry.project_name,
+                    chain = entry.chain,
+                    wallet_address = entry.wallet_address,
+                    tx_hash = entry.tx_hash,
+                    interaction_method = entry.interaction_method,
+                    expected_gas_cost_usd = entry.expected_gas_cost_usd,
+                    expected_reward_usd = entry.expected_reward_usd,
+                    actual_gas_cost_usd = entry.actual_gas_cost_usd,
+                    actual_reward_usd = entry.actual_reward_usd,
+                    occurred_at = entry.occurred_at,
+                    extra = entry.extra
+                )
+            }
+            local.writeLocal(localKey, gson.toJson(restored))
+            true
+        }.getOrDefault(false)
+    }
 }
