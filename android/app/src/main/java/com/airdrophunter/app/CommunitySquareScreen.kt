@@ -13,6 +13,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -58,6 +61,10 @@ fun CommunitySquareScreen(
     onProjectSelected: (String, String, String) -> Unit
 ) {
     val pnlRecords by CacheStore.observePnlRecords().collectAsStateWithLifecycle(initialValue = emptyList())
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val joinedIds by CacheStore.observeUserProjects().collectAsStateWithLifecycle(initialValue = emptyList())
+    val joinedOfficialIds = remember(joinedIds) { joinedIds.mapNotNull { it.projectOfficialId }.toSet() }
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
     var selectedTag by remember { mutableStateOf<String?>(null) }
     val allTags = listOf("L2", "零撸", "需测试网", "高Gas", "明牌空投")
@@ -173,9 +180,26 @@ fun CommunitySquareScreen(
                             }
                         }
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("${project.reviews} 位猎人评价", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${project.reviews} 位猎人评价", Modifier.weight(1f), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         Text("查看评价  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                val success = CacheStore.joinCommunityProject(project.id, project.name)
+                                Toast.makeText(
+                                    context,
+                                    if (success) "${project.name} 已加入我的项目" else "加入失败，请稍后重试",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        enabled = project.id !in joinedOfficialIds,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (project.id in joinedOfficialIds) "已加入我的项目" else "＋ 加入我的项目")
                     }
                 }
             }

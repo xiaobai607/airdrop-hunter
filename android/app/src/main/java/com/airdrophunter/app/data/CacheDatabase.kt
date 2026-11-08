@@ -174,6 +174,12 @@ interface UserProjectDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(project: UserProjectEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(project: UserProjectEntity)
+
+    @Query("SELECT * FROM user_projects WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope LIMIT 1")
+    suspend fun findByLocalId(projectLocalId: String, accountScope: String): UserProjectEntity?
+
     @Query("SELECT * FROM user_projects WHERE accountScope = :accountScope ORDER BY lastInteractionAt DESC, projectName COLLATE NOCASE")
     fun observeAll(accountScope: String): Flow<List<UserProjectEntity>>
 
@@ -304,6 +310,42 @@ object CacheStore {
     fun observeUserProjects(): Flow<List<UserProjectEntity>> = observeAccountScope().flatMapLatest { scope ->
         database?.userProjectDao()?.observeAll(scope) ?: flowOf(emptyList())
     }
+    suspend fun joinCommunityProject(projectOfficialId: String, projectName: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val officialId = projectOfficialId.trim()
+            val name = projectName.trim()
+            if (officialId.isEmpty() || officialId.length > 120 || name.isEmpty()) return@withContext false
+            val db = database ?: return@withContext false
+            val scope = currentAccountScope()
+            if (scope == "invalid-session") return@withContext false
+            val localId = "community:$officialId"
+            db.withTransaction {
+                val existing = db.userProjectDao().findByLocalId(localId, scope)
+                val now = System.currentTimeMillis()
+                val project = existing?.copy(
+                    projectOfficialId = officialId,
+                    projectName = name,
+                    status = existing.status.ifBlank { "tracking" },
+                    updatedAt = now
+                ) ?: UserProjectEntity(
+                    id = java.util.UUID.randomUUID().toString(),
+                    accountScope = scope,
+                    projectLocalId = localId,
+                    projectOfficialId = officialId,
+                    projectName = name,
+                    status = "tracking",
+                    totalGasCostUsd = 0.0,
+                    totalActualRewardUsd = 0.0,
+                    netProfitUsd = 0.0,
+                    interactionCount = 0,
+                    lastInteractionAt = 0L,
+                    createdAt = now,
+                    updatedAt = now
+                )
+                db.userProjectDao().upsert(project)
+            }
+            true
+        }
     fun observeUserProject(projectLocalId: String): Flow<UserProjectEntity?> = observeAccountScope().flatMapLatest { scope ->
         database?.userProjectDao()?.observeByLocalId(projectLocalId, scope) ?: flowOf(null)
     }
