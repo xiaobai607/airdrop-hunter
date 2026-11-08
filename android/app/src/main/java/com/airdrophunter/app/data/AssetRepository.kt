@@ -14,13 +14,15 @@ import java.math.BigInteger
 import java.util.concurrent.TimeUnit
 
 enum class DetectedNetwork(val label: String) {
-    EVM("EVM"), TRON("TRON"), SOL("Solana"), UNKNOWN("未知网络")
+    EVM("EVM"), TRON("TRON"), SOL("Solana"), BITCOIN("Bitcoin"), UNKNOWN("未知网络")
 }
 
 @Deprecated("地址搜索已统一交由 OKLink GlobalSearchScreen 处理。")
 object AddressDetector {
     private val evm = Regex("^0x[a-fA-F0-9]{40}$")
     private val tron = Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$")
+    private val bitcoinBech32 = Regex("^bc1[ac-hj-np-z02-9]{11,71}$", RegexOption.IGNORE_CASE)
+    private val bitcoinBase58 = Regex("^[13][1-9A-HJ-NP-Za-km-z]{25,34}$")
     private val base58 = Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
     fun detect(address: String): DetectedNetwork {
@@ -28,6 +30,7 @@ object AddressDetector {
         return when {
             evm.matches(value) -> DetectedNetwork.EVM
             tron.matches(value) -> DetectedNetwork.TRON
+            bitcoinBech32.matches(value) || bitcoinBase58.matches(value) -> DetectedNetwork.BITCOIN
             base58.matches(value) -> DetectedNetwork.SOL
             else -> DetectedNetwork.UNKNOWN
         }
@@ -105,6 +108,7 @@ class DefaultAssetRepository(
             }
             DetectedNetwork.EVM -> runCatching { fetchEvmAssets(normalized) }
             DetectedNetwork.SOL -> runCatching { fetchSolanaAssets(normalized) }
+            DetectedNetwork.BITCOIN -> Result.failure(IllegalArgumentException("已识别为 Bitcoin 地址，当前版本暂未接入 BTC 资产查询。"))
             DetectedNetwork.UNKNOWN -> Result.failure(IllegalArgumentException("地址格式无法识别，请检查后重试。"))
         }
     }
