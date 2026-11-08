@@ -16,7 +16,7 @@ wallets_router = APIRouter(prefix="/api/wallets", tags=["wallets"])
 
 # Legacy chain labels remain accepted for older app builds.
 NETWORKS = {
-    "EVM": ("EVM", "E"), "Ethereum": ("ERC20", "E"), "ERC20": ("ERC20", "E"),
+    "EVM": ("EVM", "E"), "Ethereum": ("Ethereum", "E"), "ERC20": ("ERC20", "E"),
     "TRON": ("TRC20", "T"), "Tron": ("TRC20", "T"), "TRC20": ("TRC20", "T"),
     "SOL": ("Solana", "S"), "Solana": ("Solana", "S"),
     "Bitcoin": ("Bitcoin", "B"),

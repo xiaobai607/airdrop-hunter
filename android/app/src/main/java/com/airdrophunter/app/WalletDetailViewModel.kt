@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 
 data class WalletDetailUiState(
     val address: String = "",
+    val chain: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val assets: UnifiedAssetData? = null
@@ -31,30 +32,31 @@ class WalletDetailViewModel(
 
     private companion object { const val MIN_REQUEST_INTERVAL_MILLIS = 5_000L }
 
-    fun loadWallet(address: String) {
+    fun loadWallet(address: String, chain: String = "") {
         val normalized = address.trim()
         if (normalized.isBlank()) {
             clear()
             _uiState.value = WalletDetailUiState(errorMessage = "钱包地址为空，无法查询链上资产。")
             return
         }
-        if (_uiState.value.address == normalized && requestJob?.isActive == true) return
+        val normalizedChain = chain.ifBlank { "EVM" }
+        if (_uiState.value.address == normalized && _uiState.value.chain == normalizedChain && requestJob?.isActive == true) return
         queuedRefreshJob?.cancel()
         queuedRefreshJob = null
         refreshQueued = false
         requestJob?.cancel()
         _uiState.value = WalletDetailUiState(address = normalized, isLoading = true)
-        startRequest(normalized)
+        startRequest(normalized, normalizedChain)
     }
 
-    private fun startRequest(address: String) {
+    private fun startRequest(address: String, chain: String = _uiState.value.chain) {
         requestJob = viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(address = address, isLoading = true, errorMessage = null)
+            _uiState.value = _uiState.value.copy(address = address, chain = chain, isLoading = true, errorMessage = null)
             lastRequestAtMillis = System.currentTimeMillis()
             try {
-                val result = repository.fetchAssets(address).getOrThrow()
+                val result = repository.fetchAssets(address, chain).getOrThrow()
                 if (_uiState.value.address != address) return@launch
-                _uiState.value = WalletDetailUiState(address = address, assets = result, isLoading = false)
+                _uiState.value = WalletDetailUiState(address = address, chain = chain, assets = result, isLoading = false)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -84,7 +86,7 @@ class WalletDetailViewModel(
             if (wait > 0) delay(wait)
             if (refreshQueued && _uiState.value.address == address) {
                 refreshQueued = false
-                startRequest(address)
+                startRequest(address, _uiState.value.chain)
             }
             queuedRefreshJob = null
         }

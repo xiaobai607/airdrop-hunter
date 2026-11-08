@@ -54,7 +54,7 @@ class WalletRepository(
             }, address = request.address
         )
         val updated = existing.filterNot {
-            if (candidate.ecosystem == WalletEcosystem.EVM) it.address.equals(request.address, true)
+            if (candidate.ecosystem == WalletEcosystem.EVM) it.address.equals(request.address, true) && it.chain.equals(request.chain, true)
             else it.address == request.address
         } + candidate
         local.write(gson.toJson(updated), true)

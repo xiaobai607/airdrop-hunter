@@ -30,7 +30,7 @@ fun WalletDetailScreen(
     val walletDetailViewModel: WalletDetailViewModel = vm ?: viewModel(factory = WalletDetailViewModelFactory(application.appContainer.assetRepository))
     val state by walletDetailViewModel.uiState.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
-    LaunchedEffect(wallet.address) { walletDetailViewModel.loadWallet(wallet.address) }
+    LaunchedEffect(wallet.address, wallet.chain) { walletDetailViewModel.loadWallet(wallet.address, wallet.chain) }
     DisposableEffect(walletDetailViewModel) { onDispose { walletDetailViewModel.clear() } }
 
     Column(Modifier.fillMaxSize().background(AppColors.Background)) {

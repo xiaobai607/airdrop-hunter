@@ -62,7 +62,7 @@ data class UnifiedAssetData(
 )
 
 interface AssetRepository {
-    suspend fun fetchAssets(address: String): Result<UnifiedAssetData>
+    suspend fun fetchAssets(address: String, chain: String = ""): Result<UnifiedAssetData>
 }
 
 object AssetRepositoryProvider {
@@ -83,7 +83,7 @@ class DefaultAssetRepository(
         .build()
 ) : AssetRepository {
 
-    override suspend fun fetchAssets(address: String): Result<UnifiedAssetData> = withContext(Dispatchers.IO) {
+    override suspend fun fetchAssets(address: String, chain: String): Result<UnifiedAssetData> = withContext(Dispatchers.IO) {
         val normalized = address.trim()
         when (AddressDetector.detect(normalized)) {
             DetectedNetwork.TRON -> runCatching {
@@ -109,7 +109,7 @@ class DefaultAssetRepository(
                     lastUpdatedEpochSeconds = tron.lastUpdatedEpochSeconds
                 )
             }
-            DetectedNetwork.EVM -> runCatching { fetchEvmAssets(normalized) }
+            DetectedNetwork.EVM -> runCatching { fetchEvmAssets(normalized, chain) }
             DetectedNetwork.SOL -> runCatching { fetchSolanaAssets(normalized) }
             DetectedNetwork.BITCOIN -> runCatching { fetchBitcoinAssets(normalized) }
             DetectedNetwork.UNKNOWN -> Result.failure(IllegalArgumentException("地址格式无法识别，请检查后重试。"))
@@ -135,25 +135,45 @@ class DefaultAssetRepository(
         )
     }
 
-    private fun fetchEvmAssets(address: String): UnifiedAssetData {
+    private fun fetchEvmAssets(address: String, selectedChain: String): UnifiedAssetData {
+        val network = EvmNetwork.from(selectedChain)
         // EVM addresses are shared across Ethereum-compatible networks. Without
         // an explicit chain selector, the gateway queries Ethereum mainnet.
-        val response = rpc("https://cloudflare-eth.com", "eth_getBalance", JSONArray().put(address).put("latest"))
+        val response = rpc(network.rpcUrl, "eth_getBalance", JSONArray().put(address).put("latest"))
         val hexBalance = response.optString("result")
         if (!hexBalance.startsWith("0x")) throw IOException("Ethereum RPC 未返回有效余额。")
         val wei = BigInteger(hexBalance.removePrefix("0x").ifBlank { "0" }, 16)
         val balance = BigDecimal(wei).movePointLeft(18)
+        val price = marketRepository.fetchUsdPrice(network.priceInstrument)
+        val value = price?.multiply(balance)
         return UnifiedAssetData(
             address = address,
-            ecosystemName = "EVM · Ethereum",
-            totalUsd = null,
-            nativeAssetName = "Ethereum",
-            nativeSymbol = "ETH",
+            ecosystemName = "EVM · ${network.label}",
+            totalUsd = value,
+            nativeAssetName = network.nativeName,
+            nativeSymbol = network.nativeSymbol,
             nativeBalance = balance,
-            tokenList = listOf(UnifiedToken("native-eth", "Ethereum", "ETH", balance)),
-            valuationComplete = false,
-            unpricedTokenCount = if (balance.signum() > 0) 1 else 0
+            tokenList = listOf(UnifiedToken("native-${network.id}", network.nativeName, network.nativeSymbol, balance, value, price)),
+            valuationComplete = value != null || balance.signum() == 0,
+            unpricedTokenCount = if (value == null && balance.signum() > 0) 1 else 0
         )
+    }
+
+    private data class EvmNetwork(
+        val id: String, val label: String, val rpcUrl: String,
+        val nativeName: String, val nativeSymbol: String, val priceInstrument: String
+    ) {
+        companion object {
+            fun from(value: String): EvmNetwork = when (value.trim().lowercase()) {
+                "bnb chain", "bnb", "bsc" -> EvmNetwork("bsc", "BNB Chain", "https://bsc-rpc.publicnode.com", "BNB", "BNB", "BNB-USDT")
+                "polygon", "polygon pos" -> EvmNetwork("polygon", "Polygon", "https://polygon-bor-rpc.publicnode.com", "POL", "POL", "POL-USDT")
+                "arbitrum", "arbitrum one" -> EvmNetwork("arbitrum", "Arbitrum", "https://arbitrum-one-rpc.publicnode.com", "Ether", "ETH", "ETH-USDT")
+                "optimism" -> EvmNetwork("optimism", "Optimism", "https://optimism-rpc.publicnode.com", "Ether", "ETH", "ETH-USDT")
+                "base" -> EvmNetwork("base", "Base", "https://base-rpc.publicnode.com", "Ether", "ETH", "ETH-USDT")
+                "avalanche", "avalanche c-chain" -> EvmNetwork("avalanche", "Avalanche", "https://avalanche-c-chain-rpc.publicnode.com", "Avalanche", "AVAX", "AVAX-USDT")
+                else -> EvmNetwork("ethereum", "Ethereum", "https://cloudflare-eth.com", "Ether", "ETH", "ETH-USDT")
+            }
+        }
     }
 
     private fun fetchSolanaAssets(address: String): UnifiedAssetData {

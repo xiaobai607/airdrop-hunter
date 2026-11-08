@@ -10,9 +10,9 @@ depends_on = None
 def upgrade() -> None:
     op.execute("ALTER TABLE wallets DROP CONSTRAINT IF EXISTS uq_wallets_user_address")
     op.execute("DROP INDEX IF EXISTS uq_wallets_user_address")
-    op.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_wallets_user_address_chain ON wallets (user_id, address, chain)")
+    op.create_unique_constraint("uq_wallets_user_address_chain", "wallets", ["user_id", "address", "chain"])
 
 
 def downgrade() -> None:
-    op.execute("DROP INDEX IF EXISTS uq_wallets_user_address_chain")
-    op.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_wallets_user_address ON wallets (user_id, address)")
+    op.drop_constraint("uq_wallets_user_address_chain", "wallets", type_="unique")
+    op.create_unique_constraint("uq_wallets_user_address", "wallets", ["user_id", "address"])

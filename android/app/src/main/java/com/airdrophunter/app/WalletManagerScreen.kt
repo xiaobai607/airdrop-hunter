@@ -126,6 +126,8 @@ fun WalletManagerScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var address by remember { mutableStateOf("") }
     var walletName by remember { mutableStateOf("") }
+    var selectedEvmNetwork by remember { mutableStateOf("Ethereum") }
+    var evmNetworkMenuExpanded by remember { mutableStateOf(false) }
     var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
     val ecosystem = remember(address) { detectEcosystem(address.trim()) }
     val connectedAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
@@ -338,6 +340,21 @@ fun WalletManagerScreen(
                         label = { Text("钱包地址") },
                         singleLine = true
                     )
+                    if (ecosystem == WalletEcosystem.EVM) {
+                        Box {
+                            OutlinedButton(onClick = { evmNetworkMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                                Text("EVM 网络：$selectedEvmNetwork")
+                            }
+                            DropdownMenu(expanded = evmNetworkMenuExpanded, onDismissRequest = { evmNetworkMenuExpanded = false }) {
+                                listOf("Ethereum", "BNB Chain", "Polygon", "Arbitrum", "Optimism", "Base", "Avalanche").forEach { network ->
+                                    DropdownMenuItem(text = { Text(network) }, onClick = {
+                                        selectedEvmNetwork = network
+                                        evmNetworkMenuExpanded = false
+                                    })
+                                }
+                            }
+                        }
+                    }
                     OutlinedTextField(
                         value = walletName,
                         onValueChange = { walletName = it },
@@ -370,7 +387,7 @@ fun WalletManagerScreen(
                         walletViewModel.add(
                             WalletWriteRequest(
                                 wallet_name = walletName.trim().ifBlank { "$detectedEcosystem Wallet" },
-                                chain = detectedEcosystem,
+                                chain = if (detectedEcosystem == WalletEcosystem.EVM) selectedEvmNetwork else detectedEcosystem,
                                 address = address.trim()
                             ),
                             isGuest
