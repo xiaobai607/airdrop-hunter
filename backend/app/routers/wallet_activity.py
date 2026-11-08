@@ -16,6 +16,7 @@ router = APIRouter(prefix="/api/wallet-activity", tags=["wallet activity"])
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 TRONGRID = "https://api.trongrid.io"
 BLOCKSTREAM = "https://blockstream.info/api"
+SOLANA_RPC = "https://api.mainnet-beta.solana.com"
 SATOSHIS_PER_BTC = Decimal("100000000")
 COINPAPRIKA_BASE = "https://api.coinpaprika.com/v1/tickers/"
 COINPAPRIKA_ETH = COINPAPRIKA_BASE + "eth-ethereum"
@@ -191,6 +192,125 @@ async def tron_transactions(client: httpx.AsyncClient, address: str, limit: int)
     return rows
 
 
+async def solana_transactions(client: httpx.AsyncClient, address: str, limit: int):
+    # The public Solana RPC has practical request limits. Keep one refresh bounded
+    # and return only confirmed signatures with a readable transaction receipt.
+    response = await client.post(
+        SOLANA_RPC,
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getSignaturesForAddress",
+            "params": [address, {"limit": min(limit, 20), "commitment": "confirmed"}],
+        },
+    )
+    response.raise_for_status()
+    payload = response.json()
+    signatures = (payload.get("result") if isinstance(payload, dict) else None)
+    if not isinstance(signatures, list):
+        raise HTTPException(502, "Solana 交易列表响应格式无效")
+
+    transactions = []
+    for item in signatures:
+        signature = str(item.get("signature") or "") if isinstance(item, dict) else ""
+        if not re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]{64,90}", signature):
+            continue
+        tx_response = await client.post(
+            SOLANA_RPC,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getTransaction",
+                "params": [
+                    signature,
+                    {
+                        "encoding": "jsonParsed",
+                        "commitment": "confirmed",
+                        "maxSupportedTransactionVersion": 0,
+                    },
+                ],
+            },
+        )
+        tx_response.raise_for_status()
+        tx_payload = tx_response.json()
+        result = tx_payload.get("result") if isinstance(tx_payload, dict) else None
+        if not isinstance(result, dict):
+            continue
+        meta = result.get("meta")
+        transaction = result.get("transaction")
+        message = transaction.get("message") if isinstance(transaction, dict) else None
+        if not isinstance(meta, dict) or not isinstance(message, dict):
+            continue
+        account_keys = message.get("accountKeys") or []
+        parsed_keys = [
+            str(value.get("pubkey") or "") if isinstance(value, dict) else str(value)
+            for value in account_keys
+        ]
+        fee_payer = parsed_keys[0] if parsed_keys else ""
+        try:
+            fee_lamports = int(meta.get("fee") or 0)
+            timestamp = int(result.get("blockTime") or item.get("blockTime") or 0)
+            if fee_lamports < 0 or timestamp <= 0:
+                continue
+        except (TypeError, ValueError):
+            continue
+        recipient = next((key for key in parsed_keys if key and key != fee_payer), "")
+        transactions.append({
+            "chain": "solana",
+            "hash": signature,
+            "timestamp": timestamp,
+            "from_address": fee_payer,
+            "to_address": recipient,
+            "total_fee_base_unit": str(fee_lamports),
+            "fee_type": "solana_fee_lamports",
+            "gas_cost_native": decimal_text(Decimal(fee_lamports) / Decimal("1000000000")),
+            "fee_paid_by_wallet": fee_payer == address,
+            "status": "success" if meta.get("err") is None else "failed",
+        })
+    return transactions
+
+
+def build_solana_transactions(rows, address: str, price: Decimal | None, limit: int):
+    results = []
+    for row in rows:
+        try:
+            tx_hash = str(row["hash"])
+            timestamp = int(row["timestamp"])
+            fee_lamports = int(row["total_fee_base_unit"])
+            native_cost = Decimal(fee_lamports) / Decimal("1000000000")
+            if (
+                not re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]{64,90}", tx_hash)
+                or timestamp <= 0
+                or fee_lamports < 0
+            ):
+                continue
+            results.append(WalletTransaction(
+                chain="solana",
+                hash=tx_hash,
+                timestamp=timestamp,
+                from_address=str(row.get("from_address") or ""),
+                to_address=str(row.get("to_address") or ""),
+                total_fee_base_unit=str(fee_lamports),
+                fee_type="solana_fee_lamports",
+                gas_cost_native=decimal_text(native_cost),
+                native_symbol="SOL",
+                native_price_usd=decimal_text(price) if price is not None else None,
+                gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
+                fee_paid_by_wallet=str(row.get("from_address") or "") == address,
+                status=str(row.get("status") or "failed"),
+            ))
+        except (KeyError, TypeError, ValueError, InvalidOperation):
+            continue
+    results.sort(key=lambda tx: tx.timestamp, reverse=True)
+    deduped, seen = [], set()
+    for tx in results:
+        if tx.hash in seen:
+            continue
+        seen.add(tx.hash)
+        deduped.append(tx)
+    return deduped[:limit]
+
+
 async def bitcoin_transactions(client: httpx.AsyncClient, address: str, limit: int):
     response = await client.get(f"{BLOCKSTREAM}/address/{address}/txs")
     response.raise_for_status()
@@ -346,7 +466,7 @@ async def list_multi_evm_transactions(
 @limiter.limit("12/minute")
 async def list_wallet_transactions(
     request: Request,
-    chain: Literal["ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche", "tron", "bitcoin"],
+    chain: Literal["ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche", "tron", "bitcoin", "solana"],
     address: str,
     limit: int = Query(default=50, ge=1, le=100),
 ):
@@ -356,6 +476,9 @@ async def list_wallet_transactions(
     elif chain == "bitcoin":
         if identify_chain(address) != "Bitcoin":
             raise HTTPException(422, "无效的 Bitcoin 地址")
+    elif chain == "solana":
+        if identify_chain(address) != "SOL":
+            raise HTTPException(422, "无效的 Solana 地址")
     elif not re.fullmatch(r"0x[a-fA-F0-9]{40}", address):
         raise HTTPException(422, "无效的 EVM 地址")
 
@@ -369,6 +492,10 @@ async def list_wallet_transactions(
                 rows = await bitcoin_transactions(client, address, limit)
                 price = await fetch_price(client, "btc-bitcoin")
                 return build_bitcoin_transactions(rows, address, price, limit)
+            if chain == "solana":
+                rows = await solana_transactions(client, address, limit)
+                price = await fetch_price(client, "sol-solana")
+                return build_solana_transactions(rows, address, price, limit)
             if chain != "tron":
                 rows = await evm_transactions(client, address, limit, api_key, chain)
                 price = await fetch_price(client, EVM_NETWORKS[chain]["price_id"])
