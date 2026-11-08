@@ -163,7 +163,7 @@ private fun BrowserScreen(
     var currentPageUrl by remember(url) { mutableStateOf(url) }
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
     var approvedExternalEntry by remember(url) { mutableStateOf(false) }
-    var approvedHost by remember(url) { mutableStateOf(Uri.parse(url).host.orEmpty().lowercase()) }
+    var approvedOrigin by remember(url) { mutableStateOf(DappProviderBridge.origin(Uri.parse(url))) }
     var pendingNavigationUrl by remember { mutableStateOf<String?>(null) }
     val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
@@ -430,8 +430,8 @@ private fun BrowserScreen(
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 val target = request?.url ?: return true
                                 if (!target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null) return true
-                                val targetHost = target.host.orEmpty().lowercase()
-                                if (targetHost != approvedHost) {
+                                val targetOrigin = runCatching { DappProviderBridge.origin(target) }.getOrNull() ?: return true
+                                if (targetOrigin != approvedOrigin) {
                                     pendingNavigationUrl = target.toString()
                                     return true
                                 }
@@ -593,7 +593,7 @@ private fun BrowserScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    approvedHost = Uri.parse(targetUrl).host.orEmpty().lowercase()
+                    approvedOrigin = DappProviderBridge.origin(Uri.parse(targetUrl))
                     pendingNavigationUrl = null
                     browser?.loadUrl(targetUrl)
                 }) { Text("确认访问", color = Color(0xFFB42318)) }
