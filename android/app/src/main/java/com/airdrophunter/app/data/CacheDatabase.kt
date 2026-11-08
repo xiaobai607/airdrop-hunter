@@ -376,12 +376,11 @@ object CacheStore {
         withContext(Dispatchers.IO) {
             val token = TokenStore.readTokenBlocking()
             val activeScope = accountScopeFromToken(token)
-            if (activeScope == "invalid-session") return@withContext emptyList()
             val dao = database?.communitySyncOutboxDao() ?: return@withContext emptyList()
             val result = mutableListOf<CommunitySyncBatch>()
             val guestEntries = dao.getPending("guest", limit)
             if (guestEntries.isNotEmpty()) result += CommunitySyncBatch("guest", "", guestEntries)
-            if (activeScope != "guest") {
+            if (activeScope != "guest" && activeScope != "invalid-session") {
                 val accountEntries = dao.getPending(activeScope, limit)
                 if (accountEntries.isNotEmpty() && !token.isNullOrBlank()) {
                     result += CommunitySyncBatch(activeScope, "Bearer $token", accountEntries)
