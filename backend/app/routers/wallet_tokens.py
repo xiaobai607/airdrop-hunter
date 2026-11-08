@@ -129,27 +129,33 @@ async def get_evm_token_portfolio(
             for chain in EVM_NETWORKS:
                 chain_holdings: list[EvmTokenHolding] = []
                 status: Literal["available", "unavailable", "truncated"] = "available"
-                for page in range(1, _MAX_PAGES + 1):
-                    rows = await _request_page(client, chain, address, api_key, page)
-                    if rows is None:
-                        status = "unavailable"
-                        chain_holdings.clear()
-                        break
-                    parsed = [
-                        holding for row in rows
-                        if isinstance(row, dict)
-                        and (holding := _parse_holding(row, chain)) is not None
-                    ]
-                    chain_holdings.extend(parsed)
-                    if len(rows) < _PAGE_SIZE:
-                        break
-                    if page == _MAX_PAGES:
-                        status = "truncated"
-                holdings.extend(chain_holdings)
                 detail = None
-                if status == "unavailable":
-                    detail = "当前 Etherscan API Key 或该网络未开放代币持仓接口"
-                elif status == "truncated":
+                try:
+                    for page in range(1, _MAX_PAGES + 1):
+                        rows = await _request_page(client, chain, address, api_key, page)
+                        if rows is None:
+                            status = "unavailable"
+                            chain_holdings.clear()
+                            detail = "当前 Etherscan API Key 或该网络未开放代币持仓接口"
+                            break
+                        parsed = [
+                            holding for row in rows
+                            if isinstance(row, dict)
+                            and (holding := _parse_holding(row, chain)) is not None
+                        ]
+                        chain_holdings.extend(parsed)
+                        if len(rows) < _PAGE_SIZE:
+                            break
+                        if page == _MAX_PAGES:
+                            status = "truncated"
+                except (httpx.HTTPError, HTTPException):
+                    # A single explorer outage or rate limit must not hide the
+                    # successfully queried networks in the same wallet response.
+                    status = "unavailable"
+                    chain_holdings.clear()
+                    detail = "该网络的 Etherscan 代币持仓服务暂时不可用"
+                holdings.extend(chain_holdings)
+                if status == "truncated":
                     detail = "代币数量超过单次读取上限，结果不完整"
                 network_results.append(
                     EvmTokenNetworkResult(chain=chain, status=status, detail=detail)
