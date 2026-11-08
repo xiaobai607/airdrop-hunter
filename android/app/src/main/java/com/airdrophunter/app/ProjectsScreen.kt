@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
+import com.airdrophunter.app.data.CommunityProjectCatalog
 import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.CacheStore
 import androidx.compose.runtime.collectAsState
