@@ -18,6 +18,7 @@ import android.webkit.PermissionRequest
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.webkit.WebViewCompat
+import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebViewFeature
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -62,6 +63,7 @@ import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import org.json.JSONArray
+import org.json.JSONObject
 
 private data class BrowserWallet(
     val id: String,
@@ -145,6 +147,7 @@ private fun BrowserScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var browser by remember { mutableStateOf<WebView?>(null) }
+    val bridgeReplyProxies = remember { mutableMapOf<String, JavaScriptReplyProxy>() }
     var selectedWallet by remember(wallets, selectedWalletId) {
         mutableStateOf(wallets.firstOrNull { it.id == selectedWalletId } ?: wallets.firstOrNull())
     }
@@ -169,7 +172,7 @@ private fun BrowserScreen(
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
 
     DisposableEffect(browser) {
-        onDispose { browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() } }
+        onDispose { bridgeReplyProxies.clear(); browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() } }
     }
     LaunchedEffect(approvedExternalEntry, browser) {
         if (approvedExternalEntry) browser?.loadUrl(url)
@@ -209,6 +212,19 @@ private fun BrowserScreen(
 
     LaunchedEffect(connectedSessionGeneration) {
         DappRpcCoordinator.cancelAllForSessionChange()
+        authorizedDappOrigins.clear()
+        val accountsChanged = JSONObject()
+            .put("type", "event")
+            .put("event", "accountsChanged")
+            .put("data", JSONArray())
+        val chainChanged = JSONObject()
+            .put("type", "event")
+            .put("event", "chainChanged")
+            .put("data", JSONObject.NULL)
+        bridgeReplyProxies.values.toList().forEach { proxy ->
+            runCatching { proxy.postMessage(accountsChanged.toString()) }
+            runCatching { proxy.postMessage(chainChanged.toString()) }
+        }
         pendingWalletAction?.let { action ->
             DappProviderBridge.error(
                 action.replyProxy,
@@ -290,6 +306,7 @@ private fun BrowserScreen(
                                     DappProviderBridge.error(replyProxy, request.id, -32000, "Wallet bridge is only available to the trusted top-level HTTPS page")
                                 } else {
                                     val origin = DappProviderBridge.origin(sourceOrigin)
+                                    bridgeReplyProxies[origin] = replyProxy
                                     when (request.method) {
                                         "eth_requestAccounts" -> {
                                             if (pendingDappConnection != null) {
@@ -407,6 +424,7 @@ private fun BrowserScreen(
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
                                 pageUrl?.let {
+                                    bridgeReplyProxies.clear()
                                     val previousOrigin = runCatching { DappProviderBridge.origin(Uri.parse(currentPageUrl)) }.getOrNull()
                                     val currentOrigin = runCatching { DappProviderBridge.origin(Uri.parse(it)) }.getOrNull()
                                     if (previousOrigin != null && currentOrigin != previousOrigin) {
