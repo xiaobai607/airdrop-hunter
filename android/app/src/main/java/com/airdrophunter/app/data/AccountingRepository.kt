@@ -108,17 +108,22 @@ class AccountingRepository(
             // append-only after confirmation; never let an older device cache overwrite
             // a record that has already reached the account cloud from another device.
             val cloudEntries = mutableListOf<PersonalLedgerEntryDto>()
-            var before: String? = null
+            var offset = 0
             var pageCount = 0
+            var reachedEnd = false
             while (pageCount < 20) {
-                val page = remote.getPersonalLedger(limit = 500, before = before)
+                val page = remote.getPersonalLedger(limit = 500, offset = offset)
                 cloudEntries += page
-                if (page.size < 500) break
-                val nextCursor = page.minOfOrNull { it.occurred_at } ?: break
-                if (nextCursor == before) break
-                before = nextCursor
+                if (page.size < 500) {
+                    reachedEnd = true
+                    break
+                }
+                offset += page.size
                 pageCount++
             }
+            // Never replace a device cache with a silently truncated cloud copy.
+            // A larger ledger can be handled by increasing the explicit safety cap.
+            check(reachedEnd) { "个人账本超过当前单次恢复上限，已保留本地数据" }
 
             val cloudRecordIds = cloudEntries.mapTo(mutableSetOf()) { it.client_record_id }
             localEntries.filterNot { it.client_record_id in cloudRecordIds }.forEach { entry ->
