@@ -38,7 +38,7 @@ def _serialize(w: Wallet) -> dict:
     detected = identify_chain(w.address or w.public_key)
     canonical = detected or w.chain
     return {"id": str(w.id), "wallet_name": w.wallet_name, "chain": canonical,
-        "network_icon": {"EVM": "E", "TRON": "T", "SOL": "S"}.get(canonical, w.network_icon),
+        "network_icon": {"EVM": "E", "TRON": "T", "SOL": "S", "Bitcoin": "B"}.get(canonical, w.network_icon),
         "ecosystem": canonical, "address": w.address or w.public_key,
         "public_key": w.address or w.public_key, "daily_gas_usd": float(w.daily_gas_usd or 0),
         "recent_airdrop_income_usd": float(w.recent_airdrop_income_usd or 0),
@@ -113,18 +113,3 @@ async def check_wallet(request: Request, address: str = Query(min_length=21, max
         raise HTTPException(503, "公链网络暂时不可用，请稍后重试") from exc
     return {"valid": bool(valid), "message": "地址已通过公链查询" if valid else "地址格式错误或不存在", "chain": chain}
 
-@router.get("", include_in_schema=False)
-async def legacy_list_wallets(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    return await _list_wallets(db, user)
-
-@router.get("/sync", include_in_schema=False)
-async def legacy_save_wallet(public_key: str = Query(min_length=21, max_length=120), db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    chain = identify_chain(public_key)
-    if chain is None: raise HTTPException(422, "公开钱包地址格式无效")
-    label, icon = NETWORKS[chain]
-    wallet = await db.scalar(select(Wallet).where(Wallet.user_id == user.id, Wallet.address == public_key))
-    if wallet is None:
-        wallet = Wallet(user_id=user.id, wallet_name="Wallet", chain=label, network_icon=icon, address=public_key, public_key=public_key)
-        db.add(wallet)
-    await db.commit(); await db.refresh(wallet)
-    return {**_serialize(wallet), "status":"saved", "notice":"仅保存公开地址，不涉及私钥。"}
