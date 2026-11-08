@@ -15,38 +15,45 @@ data class WalletConnectAccount(
 object WalletConnectSessionDelegate : AppKit.ModalDelegate {
     private val _accounts = MutableStateFlow<List<WalletConnectAccount>>(emptyList())
     val accounts = _accounts.asStateFlow()
+    private val _sessionGeneration = MutableStateFlow(0L)
+    val sessionGeneration = _sessionGeneration.asStateFlow()
+
+    private fun publishAccounts(accounts: List<WalletConnectAccount>) {
+        _accounts.value = accounts
+        _sessionGeneration.value += 1L
+    }
 
     override fun onSessionApproved(approvedSession: Modal.Model.ApprovedSession) {
-        _accounts.value = when (approvedSession) {
+        publishAccounts(when (approvedSession) {
             is Modal.Model.ApprovedSession.WalletConnectSession ->
                 parseAccounts(approvedSession.accounts, approvedSession.metaData?.name.orEmpty())
             is Modal.Model.ApprovedSession.CoinbaseSession ->
                 parseAccounts(listOf("${approvedSession.chain}:${approvedSession.address}"), "Coinbase Wallet")
-        }
+        })
     }
 
     override fun onSessionRejected(rejectedSession: Modal.Model.RejectedSession) = Unit
 
     override fun onSessionUpdate(updatedSession: Modal.Model.UpdatedSession) {
         val currentLabel = _accounts.value.firstOrNull()?.walletLabel.orEmpty()
-        _accounts.value = parseAccounts(updatedSession.namespaces.values.flatMap { it.accounts }, currentLabel)
+        publishAccounts(parseAccounts(updatedSession.namespaces.values.flatMap { it.accounts }, currentLabel))
     }
 
     override fun onSessionEvent(sessionEvent: Modal.Model.SessionEvent) = Unit
     override fun onSessionExtend(session: Modal.Model.Session) = Unit
 
     override fun onSessionDelete(deletedSession: Modal.Model.DeletedSession) {
-        _accounts.value = emptyList()
+        publishAccounts(emptyList())
     }
 
-    override fun onSessionRequestResponse(response: Modal.Model.SessionRequestResponse) = Unit
+    override fun onSessionRequestResponse(response: Modal.Model.SessionRequestResponse) { DappRpcCoordinator.onWalletResponse(response) }
     override fun onProposalExpired(proposal: Modal.Model.ExpiredProposal) = Unit
-    override fun onRequestExpired(request: Modal.Model.ExpiredRequest) = Unit
+    override fun onRequestExpired(request: Modal.Model.ExpiredRequest) { DappRpcCoordinator.onRequestExpired(request.id) }
     override fun onConnectionStateChange(state: Modal.Model.ConnectionState) = Unit
     override fun onError(error: Modal.Model.Error) = Unit
 
     fun clearSession() {
-        _accounts.value = emptyList()
+        publishAccounts(emptyList())
     }
 
     private fun parseAccounts(rawAccounts: List<String>, walletLabel: String): List<WalletConnectAccount> =

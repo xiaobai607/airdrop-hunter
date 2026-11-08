@@ -52,14 +52,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Generate Gradle Wrapper
-        working-directory: android
-        run: gradle wrapper --gradle-version 8.9
-      - name: Build debug APK with Wrapper
+      - name: Build debug APK and run unit tests
         working-directory: android
         env:
           API_BASE_URL: ${{ vars.API_BASE_URL }}
-        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug
+        run: gradle :app:testDebugUnitTest :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: airdrop-hunter-debug-apk

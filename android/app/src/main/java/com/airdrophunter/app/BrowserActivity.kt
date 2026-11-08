@@ -17,6 +17,9 @@ import android.webkit.WebChromeClient
 import android.webkit.PermissionRequest
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.webkit.WebViewCompat
+import androidx.webkit.JavaScriptReplyProxy
+import androidx.webkit.WebViewFeature
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.navigation.compose.NavHost
@@ -27,6 +30,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.rememberModalBottomSheetState
 import com.google.accompanist.navigation.material.BottomSheetNavigator
+import com.reown.appkit.client.AppKit
 import com.reown.appkit.ui.appKitGraph
 import com.reown.appkit.ui.openAppKit
 import androidx.compose.animation.core.animateFloatAsState
@@ -59,6 +63,7 @@ import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import org.json.JSONArray
+import org.json.JSONObject
 
 private data class BrowserWallet(
     val id: String,
@@ -142,21 +147,36 @@ private fun BrowserScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var browser by remember { mutableStateOf<WebView?>(null) }
+    val bridgeReplyProxies = remember { mutableMapOf<String, JavaScriptReplyProxy>() }
     var selectedWallet by remember(wallets, selectedWalletId) {
         mutableStateOf(wallets.firstOrNull { it.id == selectedWalletId } ?: wallets.firstOrNull())
     }
     var showWalletPicker by remember { mutableStateOf(false) }
+    var pendingDappConnection by remember { mutableStateOf<PendingDappConnection?>(null) }
+    var pendingWalletAction by remember { mutableStateOf<PendingDappWalletAction?>(null) }
+    var waitingDappWalletApproval by remember { mutableStateOf(false) }
+    val authorizedDappOrigins = remember { mutableStateMapOf<String, String>() }
+    val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsState()
+    val connectedSessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsState()
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var loadAttempt by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
+    val latestPageUrl = rememberUpdatedState(currentPageUrl)
+    var pageStartCount by remember(url) { mutableIntStateOf(0) }
     var approvedExternalEntry by remember(url) { mutableStateOf(false) }
-    var approvedHost by remember(url) { mutableStateOf(Uri.parse(url).host.orEmpty().lowercase()) }
+    var approvedOrigin by remember(url) { mutableStateOf(DappProviderBridge.origin(Uri.parse(url))) }
     var pendingNavigationUrl by remember { mutableStateOf<String?>(null) }
     val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
 
     DisposableEffect(browser) {
-        onDispose { browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() } }
+        onDispose {
+            runCatching { DappProviderBridge.origin(Uri.parse(latestPageUrl.value)) }
+                .getOrNull()
+                ?.let(DappRpcCoordinator::cancelOrigin)
+            bridgeReplyProxies.clear()
+            browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() }
+        }
     }
     LaunchedEffect(approvedExternalEntry, browser) {
         if (approvedExternalEntry) browser?.loadUrl(url)
@@ -180,6 +200,76 @@ private fun BrowserScreen(
     val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
     val bottomSheetNavigator = remember(bottomSheetState) { BottomSheetNavigator(bottomSheetState) }
     val walletNavController = rememberNavController(bottomSheetNavigator)
+
+    var lastObservedSessionGeneration by remember {
+        mutableStateOf(connectedSessionGeneration)
+    }
+
+    LaunchedEffect(waitingDappWalletApproval, connectedDappAccounts, connectedSessionGeneration) {
+        if (connectedSessionGeneration != lastObservedSessionGeneration) {
+            lastObservedSessionGeneration = connectedSessionGeneration
+            DappRpcCoordinator.cancelAllForSessionChange()
+
+            // A newly approved session is the expected result of this page's
+            // explicit connection prompt. Preserve that one pending origin so
+            // the approval below can grant it; all other session changes revoke
+            // previously granted site permissions.
+            val completingUserApprovedConnection =
+                waitingDappWalletApproval &&
+                    pendingDappConnection != null &&
+                    connectedDappAccounts.isNotEmpty()
+
+            if (!completingUserApprovedConnection) {
+                authorizedDappOrigins.clear()
+                val accountsChanged = JSONObject()
+                    .put("type", "event")
+                    .put("event", "accountsChanged")
+                    .put("data", JSONArray())
+                val chainChanged = JSONObject()
+                    .put("type", "event")
+                    .put("event", "chainChanged")
+                    .put("data", JSONObject.NULL)
+                bridgeReplyProxies.values.toList().forEach { proxy ->
+                    runCatching { proxy.postMessage(accountsChanged.toString()) }
+                    runCatching { proxy.postMessage(chainChanged.toString()) }
+                }
+            }
+
+            pendingWalletAction?.let { action ->
+                DappProviderBridge.error(
+                    action.replyProxy,
+                    action.request.id,
+                    4001,
+                    "Wallet account or session changed; please request approval again"
+                )
+                pendingWalletAction = null
+            }
+        }
+
+        if (waitingDappWalletApproval && connectedDappAccounts.isNotEmpty()) {
+            val pending = pendingDappConnection
+            if (pending != null) {
+                authorizedDappOrigins[pending.origin] = currentDappAuthorizationStamp()
+                val addresses = JSONArray(connectedDappAccounts.map { it.address }.distinct())
+                DappProviderBridge.success(pending.replyProxy, pending.request.id, addresses)
+            }
+            pendingDappConnection = null
+            waitingDappWalletApproval = false
+        }
+    }
+
+    LaunchedEffect(waitingDappWalletApproval) {
+        if (waitingDappWalletApproval) {
+            kotlinx.coroutines.delay(120_000)
+            if (waitingDappWalletApproval) {
+                pendingDappConnection?.let {
+                    DappProviderBridge.error(it.replyProxy, it.request.id, 4001, "Wallet connection timed out or was cancelled")
+                }
+                pendingDappConnection = null
+                waitingDappWalletApproval = false
+            }
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
     Scaffold(
@@ -222,6 +312,96 @@ private fun BrowserScreen(
                 factory = { ctx ->
                     WebView(ctx).apply {
                         browser = this
+                        val supportsSecureBridge =
+                            WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) &&
+                                WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
+                        if (supportsSecureBridge) {
+                            WebViewCompat.addWebMessageListener(
+                                this,
+                                DappProviderBridge.JS_OBJECT_NAME,
+                                DappProviderBridge.HTTPS_ORIGIN_RULES
+                            ) { sourceView, message, sourceOrigin, isMainFrame, replyProxy ->
+                                val request = DappProviderBridge.parseRequest(message.data.orEmpty())
+                                if (request == null) {
+                                    Log.w("AirdropBrowser", "Ignored malformed DApp provider message")
+                                } else if (!isMainFrame || !DappProviderBridge.isTrustedMainFrame(sourceOrigin, sourceView.url)) {
+                                    DappProviderBridge.error(replyProxy, request.id, -32000, "Wallet bridge is only available to the trusted top-level HTTPS page")
+                                } else {
+                                    val origin = DappProviderBridge.origin(sourceOrigin)
+                                    bridgeReplyProxies[origin] = replyProxy
+                                    when (request.method) {
+                                        "eth_requestAccounts" -> {
+                                            if (pendingDappConnection != null) {
+                                                DappProviderBridge.error(replyProxy, request.id, -32002, "A wallet connection request is already pending")
+                                            } else if (authorizedDappOrigins[origin] == currentDappAuthorizationStamp() && connectedDappAccounts.isNotEmpty()) {
+                                                DappProviderBridge.success(
+                                                    replyProxy,
+                                                    request.id,
+                                                    JSONArray(connectedDappAccounts.map { it.address }.distinct())
+                                                )
+                                            } else {
+                                                pendingDappConnection = PendingDappConnection(request, origin, replyProxy)
+                                            }
+                                        }
+                                        "eth_accounts" -> {
+                                            val addresses = if (authorizedDappOrigins[origin] == currentDappAuthorizationStamp()) {
+                                                connectedDappAccounts.map { it.address }.distinct()
+                                            } else emptyList()
+                                            DappProviderBridge.success(replyProxy, request.id, JSONArray(addresses))
+                                        }
+                                        "eth_chainId", "net_version" -> {
+                                            val rawChainReference = connectedDappAccounts.firstOrNull()?.chainId
+                                                ?: runCatching { AppKit.getSelectedChain()?.chainReference }.getOrNull()
+                                            val chainReference = rawChainReference
+                                                ?.removePrefix("eip155:")
+                                                ?.trim()
+                                            val chainNumber = when {
+                                                chainReference.isNullOrBlank() -> null
+                                                chainReference.startsWith("0x", ignoreCase = true) ->
+                                                    chainReference.substring(2).toLongOrNull(16)
+                                                else -> chainReference.toLongOrNull()
+                                            }
+                                            if (chainNumber == null || chainNumber <= 0L) {
+                                                DappProviderBridge.error(
+                                                    replyProxy, request.id, -32000,
+                                                    "The active EVM chain is unavailable; connect a wallet or select a supported network"
+                                                )
+                                            } else {
+                                                val result = if (request.method == "eth_chainId") {
+                                                    "0x" + chainNumber.toString(16)
+                                                } else chainNumber.toString()
+                                                DappProviderBridge.success(replyProxy, request.id, result)
+                                            }
+                                        }
+                                        "personal_sign", "eth_signTypedData_v4", "eth_sendTransaction" -> {
+                                            if (authorizedDappOrigins[origin] != currentDappAuthorizationStamp()) {
+                                                DappProviderBridge.error(replyProxy, request.id, 4100, "Connect this website to the wallet first")
+                                            } else if (pendingWalletAction != null) {
+                                                DappProviderBridge.error(replyProxy, request.id, -32002, "Another wallet confirmation is pending")
+                                            } else {
+                                                pendingWalletAction = PendingDappWalletAction(request, origin, replyProxy)
+                                            }
+                                        }
+                                        "eth_sign" -> DappProviderBridge.error(
+                                            replyProxy, request.id, 4200, "eth_sign is disabled; use a safer typed-data signing method"
+                                        )
+                                        "wallet_switchEthereumChain" -> DappProviderBridge.error(
+                                            replyProxy, request.id, 4200, "Switch networks in the connected wallet, then reconnect this site"
+                                        )
+                                        else -> DappProviderBridge.error(
+                                            replyProxy, request.id, 4200, "Unsupported wallet method: ${request.method}"
+                                        )
+                                    }
+                                }
+                            }
+                            WebViewCompat.addDocumentStartJavaScript(
+                                this,
+                                DappProviderBridge.PROVIDER_SCRIPT,
+                                DappProviderBridge.HTTPS_ORIGIN_RULES
+                            )
+                        } else {
+                            Log.e("AirdropBrowser", "Secure WebView message bridge is not supported by this WebView provider")
+                        }
                         setBackgroundColor(AndroidColor.WHITE)
                         settings.apply {
                             javaScriptEnabled = true
@@ -257,15 +437,38 @@ private fun BrowserScreen(
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 val target = request?.url ?: return true
                                 if (!target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null) return true
-                                val targetHost = target.host.orEmpty().lowercase()
-                                if (targetHost != approvedHost) {
+                                val targetOrigin = runCatching { DappProviderBridge.origin(target) }.getOrNull() ?: return true
+                                if (targetOrigin != approvedOrigin) {
                                     pendingNavigationUrl = target.toString()
                                     return true
                                 }
                                 return false
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
-                                pageUrl?.let { currentPageUrl = it }
+                                pageUrl?.let {
+                                    val isNewDocument = pageStartCount > 0
+                                    pageStartCount += 1
+                                    bridgeReplyProxies.clear()
+                                    val previousOrigin = runCatching { DappProviderBridge.origin(Uri.parse(currentPageUrl)) }.getOrNull()
+                                    val currentOrigin = runCatching { DappProviderBridge.origin(Uri.parse(it)) }.getOrNull()
+                                    if (previousOrigin != null && currentOrigin != previousOrigin) {
+                                        authorizedDappOrigins.clear()
+                                    }
+                                    if (isNewDocument) {
+                                        previousOrigin?.let { DappRpcCoordinator.cancelOrigin(it) }
+                                        pendingDappConnection?.let { pending ->
+                                            DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "The page navigated before wallet access was approved")
+                                        }
+                                        pendingDappConnection = null
+                                        waitingDappWalletApproval = false
+                                        pendingWalletAction?.let { action ->
+                                            DappProviderBridge.error(action.replyProxy, action.request.id, 4001, "The page navigated before wallet approval")
+                                            DappRpcCoordinator.cancelOrigin(action.origin)
+                                        }
+                                        pendingWalletAction = null
+                                    }
+                                    currentPageUrl = it
+                                }
                                 pageState = BrowserPageState.Loading
                                 Log.d("AirdropBrowser", "Page started: $pageUrl")
                             }
@@ -397,13 +600,84 @@ private fun BrowserScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    approvedHost = Uri.parse(targetUrl).host.orEmpty().lowercase()
+                    approvedOrigin = DappProviderBridge.origin(Uri.parse(targetUrl))
                     pendingNavigationUrl = null
                     browser?.loadUrl(targetUrl)
                 }) { Text("确认访问", color = Color(0xFFB42318)) }
             },
             dismissButton = {
                 TextButton(onClick = { pendingNavigationUrl = null }) { Text("留在当前网站") }
+            }
+        )
+    }
+
+    pendingWalletAction?.let { pending ->
+        val host = runCatching { Uri.parse(pending.origin).host.orEmpty() }.getOrDefault("unknown site")
+        val paramsText = pending.request.params.toString()
+        AlertDialog(
+            onDismissRequest = {
+                DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet request")
+                pendingWalletAction = null
+            },
+            title = { Text("确认钱包操作", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("来源网站：$host", color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
+                    Text("操作类型：${pending.request.method}", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    Text("请求参数：$paramsText", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text("确认后将交由外部钱包再次核对并完成最终签名/交易确认。请勿确认不认识的网站或不理解的请求。", color = Color(0xFFB42318))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingWalletAction = null
+                    DappRpcCoordinator.send(
+                        pending.origin, pending.request.id, pending.request.method,
+                        pending.request.params.toString(), connectedSessionGeneration, pending.replyProxy
+                    )
+                }) { Text("交由外部钱包确认", color = AppColors.Primary) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet request")
+                    pendingWalletAction = null
+                }) { Text("拒绝") }
+            }
+        )
+    }
+
+    pendingDappConnection?.takeIf { !waitingDappWalletApproval }?.let { pending ->
+        val requestedHost = runCatching { Uri.parse(pending.origin).host.orEmpty() }.getOrDefault("unknown site")
+        AlertDialog(
+            onDismissRequest = {
+                DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
+                pendingDappConnection = null
+            },
+            title = { Text("网站请求连接钱包", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("来源网站：$requestedHost", color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
+                    Text("该网站请求读取已连接钱包的公开地址。只有您确认后才会授权；本次不会签名消息、发送交易或读取助记词。", color = AppColors.TextPrimary)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val addresses = connectedDappAccounts.map { it.address }.distinct()
+                    if (addresses.isNotEmpty()) {
+                        authorizedDappOrigins[pending.origin] = currentDappAuthorizationStamp()
+                        DappProviderBridge.success(pending.replyProxy, pending.request.id, JSONArray(addresses))
+                        pendingDappConnection = null
+                    } else {
+                        waitingDappWalletApproval = true
+                        walletNavController.openAppKit()
+                    }
+                }) { Text("确认并连接", color = AppColors.Primary) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
+                    pendingDappConnection = null
+                }) { Text("拒绝") }
             }
         )
     }
@@ -490,4 +764,11 @@ private fun BrowserPageOverlay(
             }
         }
     }
+}
+private fun currentDappAuthorizationStamp(): String {
+    val generation = WalletConnectSessionDelegate.sessionGeneration.value
+    val addresses = WalletConnectSessionDelegate.accounts.value
+        .map { it.address.lowercase() }
+        .sorted()
+    return generation.toString() + ":" + addresses.joinToString(",")
 }
