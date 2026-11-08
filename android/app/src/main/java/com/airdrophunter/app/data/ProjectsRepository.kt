@@ -33,6 +33,7 @@ interface ProjectsRemoteDataSource {
     suspend fun updateTask(projectId: String, taskId: String, request: TaskUpdateRequest): TaskDto
     suspend fun deleteTask(projectId: String, taskId: String)
     suspend fun checkWallet(address: String): WalletCheckResponse
+    suspend fun getClaimUrl(projectId: String, walletId: String): ClaimUrlResponse
 }
 
 class RetrofitProjectsRemoteDataSource(private val api: ApiService) : ProjectsRemoteDataSource {
@@ -46,6 +47,7 @@ class RetrofitProjectsRemoteDataSource(private val api: ApiService) : ProjectsRe
         api.updateTask(projectId, taskId, request)
     override suspend fun deleteTask(projectId: String, taskId: String) = api.deleteTask(projectId, taskId)
     override suspend fun checkWallet(address: String) = api.checkWallet(address)
+    override suspend fun getClaimUrl(projectId: String, walletId: String) = api.getClaimUrl(projectId, walletId)
 }
 
 /**
@@ -169,6 +171,9 @@ class ProjectsRepository(
     }
 
     suspend fun checkWallet(address: String): WalletCheckResponse = remote.checkWallet(address.trim())
+
+    suspend fun getClaimUrl(projectId: String, walletId: String): ClaimUrlResponse =
+        remote.getClaimUrl(projectId, walletId)
 
     private suspend fun saveTasks(projectId: String, tasks: List<TaskDto>, guest: Boolean) {
         local.write("tasks:$projectId", gson.toJson(tasks), guest)
