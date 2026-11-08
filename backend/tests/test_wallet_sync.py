@@ -70,5 +70,7 @@ def test_address_classifier_distinguishes_bitcoin_base58_from_solana():
     from app.routers.wallet import identify_chain
 
     assert identify_chain("1BoatSLRHtKNngkdXEeobR76b53LETtpyT") == "Bitcoin"
+    assert identify_chain("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa") == "Bitcoin"
     assert identify_chain("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh") == "Bitcoin"
+    assert identify_chain("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5") is None
     assert identify_chain("11111111111111111111111111111111") == "SOL"

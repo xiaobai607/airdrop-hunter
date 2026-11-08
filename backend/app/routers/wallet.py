@@ -43,11 +43,59 @@ def _is_valid_bitcoin_base58(value: str) -> bool:
     return checksum == payload[21:]
 
 
+def _bech32_polymod(values: list[int]) -> int:
+    generators = (0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3)
+    checksum = 1
+    for value in values:
+        top = checksum >> 25
+        checksum = ((checksum & 0x1FFFFFF) << 5) ^ value
+        for index, generator in enumerate(generators):
+            if (top >> index) & 1:
+                checksum ^= generator
+    return checksum
+
+
+def _is_valid_bitcoin_bech32(value: str) -> bool:
+    charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+    if not 14 <= len(value) <= 90 or (value.lower() != value and value.upper() != value):
+        return False
+    value = value.lower()
+    separator = value.rfind("1")
+    if separator < 1 or separator + 7 >= len(value) or value[:separator] != "bc":
+        return False
+    try:
+        values = [charset.index(char) for char in value[separator + 1:]]
+    except ValueError:
+        return False
+    if len(values) < 7:
+        return False
+    hrp = value[:separator]
+    expanded = [ord(char) >> 5 for char in hrp] + [0] + [ord(char) & 31 for char in hrp]
+    checksum = _bech32_polymod(expanded + values)
+    if checksum not in (1, 0x2BC830A3):
+        return False
+    version = values[0]
+    if version > 16 or (version == 0 and checksum != 1) or (version != 0 and checksum != 0x2BC830A3):
+        return False
+    accumulator = 0
+    bits = 0
+    decoded = bytearray()
+    for item in values[1:-6]:
+        accumulator = (accumulator << 5) | item
+        bits += 5
+        while bits >= 8:
+            bits -= 8
+            decoded.append((accumulator >> bits) & 0xFF)
+    if bits >= 5 or ((accumulator << (8 - bits)) & 0xFF):
+        return False
+    return 2 <= len(decoded) <= 40 and (version != 0 or len(decoded) in (20, 32))
+
+
 def identify_chain(address: str) -> str | None:
     value = address.strip()
     if re.fullmatch(r"0x[a-fA-F0-9]{40}", value): return "EVM"
     if re.fullmatch(r"T[1-9A-HJ-NP-Za-km-z]{33}", value): return "TRON"
-    if re.fullmatch(r"bc1[ac-hj-np-z02-9]{11,71}", value, re.IGNORECASE) or _is_valid_bitcoin_base58(value): return "Bitcoin"
+    if _is_valid_bitcoin_bech32(value) or _is_valid_bitcoin_base58(value): return "Bitcoin"
     if re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]{32,44}", value): return "SOL"
     return None
 
