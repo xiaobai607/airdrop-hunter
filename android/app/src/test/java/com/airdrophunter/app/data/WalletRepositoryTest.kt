@@ -1,6 +1,5 @@
 package com.airdrophunter.app.data
 
-import com.google.gson.Gson
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,46 +15,60 @@ class WalletRepositoryTest {
             (if (guest) this.guest else account)["wallets"] = value
         }
     }
-    private class Remote : WalletRemoteDataSource {
-        val wallets = mutableListOf<WalletDto>()
-        var addCalls = 0
-        override suspend fun getWallets() = wallets.toList()
-        override suspend fun addWallet(request: WalletWriteRequest) {
-            addCalls++
-            wallets += WalletDto("remote-$addCalls", request.wallet_name, request.chain, "E", request.address)
-        }
-        override suspend fun deleteWallet(walletId: String) { wallets.removeAll { it.id == walletId } }
-    }
 
-    @Test fun guestWalletsNeverCallRemoteAndStayInGuestCache() = runBlocking {
+    @Test fun guestAddressesAreStoredLocallyWithoutRemoteSync() = runBlocking {
         val local = Local()
-        val remote = Remote()
-        val repository = WalletRepository(remote, local)
-        val result = repository.add(WalletWriteRequest("Guest", WalletEcosystem.EVM, "0x1111111111111111111111111111111111111111"), true)
+        val repository = WalletRepository(local)
+        val result = repository.add(
+            WalletWriteRequest("Guest", WalletEcosystem.EVM, "0x1111111111111111111111111111111111111111"),
+            true
+        )
         assertEquals(1, result.size)
-        assertEquals(0, remote.addCalls)
         assertTrue(local.guest.containsKey("wallets"))
         assertFalse(local.account.containsKey("wallets"))
     }
 
-    @Test fun authenticatedWalletsUseRemoteAndAccountCache() = runBlocking {
+    @Test fun signedInAddressesRemainLocalUntilCloudSyncIsImplemented() = runBlocking {
         val local = Local()
-        val remote = Remote()
-        val repository = WalletRepository(remote, local)
-        val result = repository.add(WalletWriteRequest("Main", WalletEcosystem.EVM, "0x2222222222222222222222222222222222222222"), false)
+        val repository = WalletRepository(local)
+        val result = repository.add(
+            WalletWriteRequest("Main", "Ethereum", "0x2222222222222222222222222222222222222222"),
+            false
+        )
         assertEquals(1, result.size)
-        assertEquals(1, remote.addCalls)
         assertTrue(local.account.containsKey("wallets"))
         assertFalse(local.guest.containsKey("wallets"))
     }
 
-    @Test fun guestEvmAddressIsDeduplicatedCaseInsensitively() = runBlocking {
+    @Test fun evmAddressIsDeduplicatedPerNetworkAndCaseInsensitively() = runBlocking {
         val local = Local()
-        val repository = WalletRepository(Remote(), local)
-        val first = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
-        repository.add(WalletWriteRequest("A", WalletEcosystem.EVM, first), true)
-        val result = repository.add(WalletWriteRequest("B", WalletEcosystem.EVM, first.uppercase()), true)
-        assertEquals(1, result.size)
-        assertEquals("B", result.single().wallet_name)
+        val repository = WalletRepository(local)
+        val address = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+        repository.add(WalletWriteRequest("A", "Ethereum", address), true)
+        val sameNetwork = repository.add(WalletWriteRequest("B", "Ethereum", address.uppercase()), true)
+        val otherNetwork = repository.add(WalletWriteRequest("Base", "Base", address), true)
+        assertEquals(1, sameNetwork.size)
+        assertEquals("B", sameNetwork.single().wallet_name)
+        assertEquals(2, otherNetwork.size)
+    }
+
+    @Test fun addressPurposeTagsAndProjectAssociationsSurviveLocalPersistence() = runBlocking {
+        val local = Local()
+        val repository = WalletRepository(local)
+        val request = WalletWriteRequest(
+            wallet_name = "Airdrop Main",
+            chain = "Ethereum",
+            address = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+            note = "用于主要交互",
+            purpose = WalletAddressPurpose.MAIN_INTERACTION,
+            tags = listOf("主号", "Linea"),
+            projectIds = listOf("linea", "scroll")
+        )
+        val saved = repository.add(request, true).single()
+        val reloaded = repository.load(true).single()
+        assertEquals(saved.id, reloaded.id)
+        assertEquals("用于主要交互", reloaded.note)
+        assertEquals(listOf("主号", "Linea"), reloaded.tags)
+        assertEquals(listOf("linea", "scroll"), reloaded.projectIds)
     }
 }

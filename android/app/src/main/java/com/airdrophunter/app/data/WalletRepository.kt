@@ -4,64 +4,88 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.UUID
 
-interface WalletRemoteDataSource {
-    suspend fun getWallets(): List<WalletDto>
-    suspend fun addWallet(request: WalletWriteRequest)
-    suspend fun deleteWallet(walletId: String)
-}
 interface WalletLocalDataSource {
     suspend fun read(guest: Boolean): String?
     suspend fun write(value: String, guest: Boolean)
 }
-class RetrofitWalletRemoteDataSource(private val api: ApiService) : WalletRemoteDataSource {
-    override suspend fun getWallets() = api.getWallets()
-    override suspend fun addWallet(request: WalletWriteRequest) { api.addWallet(request) }
-    override suspend fun deleteWallet(walletId: String) { api.deleteWallet(walletId) }
-}
+
 class CacheStoreWalletLocalDataSource : WalletLocalDataSource {
-    override suspend fun read(guest: Boolean) = if (guest) CacheStore.readLocal("wallets") else CacheStore.read("wallets")
+    override suspend fun read(guest: Boolean) =
+        if (guest) CacheStore.readLocal("wallets") else CacheStore.read("wallets")
+
     override suspend fun write(value: String, guest: Boolean) {
         if (guest) CacheStore.writeLocal("wallets", value) else CacheStore.write("wallets", value)
     }
 }
-/** Persists public wallet addresses only; signing material is never accessed. */
+
+/**
+ * Address management is local-first for both guest and signed-in sessions.
+ * Account/cloud synchronization is intentionally deferred; this repository never
+ * uploads addresses or signing material to the backend.
+ */
 class WalletRepository(
-    private val remote: WalletRemoteDataSource,
     private val local: WalletLocalDataSource,
     private val gson: Gson = Gson()
 ) {
     private val listType = object : TypeToken<List<WalletDto>>() {}.type
-    private fun decode(raw: String?): List<WalletDto> =
-        raw?.let { runCatching { gson.fromJson<List<WalletDto>>(it, listType) }.getOrNull() }.orEmpty()
 
-    suspend fun load(guest: Boolean): List<WalletDto> {
-        if (guest) return decode(local.read(true))
-        return remote.getWallets().also { local.write(gson.toJson(it), false) }
-    }
+    private fun decode(raw: String?): List<WalletDto> =
+        raw?.let { runCatching { gson.fromJson<List<WalletDto>>(it, listType) }.getOrNull() }
+            .orEmpty()
+            .map { wallet ->
+                wallet.copy(
+                    note = wallet.note.orEmpty(),
+                    purpose = wallet.purpose ?: WalletAddressPurpose.MAIN_INTERACTION,
+                    tags = wallet.tags.orEmpty(),
+                    projectIds = wallet.projectIds.orEmpty()
+                )
+            }
+
+    suspend fun load(guest: Boolean): List<WalletDto> = decode(local.read(guest))
+
     suspend fun add(request: WalletWriteRequest, guest: Boolean): List<WalletDto> {
-        if (!guest) {
-            remote.addWallet(request)
-            return load(false)
+        val existing = decode(local.read(guest))
+        val candidateEcosystem = WalletEcosystem.fromAddress(request.address, request.chain)
+        val match = existing.firstOrNull { saved ->
+            saved.chain.equals(request.chain, ignoreCase = true) &&
+                if (candidateEcosystem == WalletEcosystem.EVM) {
+                    saved.address.equals(request.address, ignoreCase = true)
+                } else {
+                    saved.address == request.address
+                }
         }
-        val existing = decode(local.read(true))
-        val candidate = WalletDto(
-            id = UUID.randomUUID().toString(), wallet_name = request.wallet_name,
-            chain = request.chain, network_icon = when (request.chain) {
-                WalletEcosystem.EVM -> "E"
-                WalletEcosystem.TRON -> "T"
-                WalletEcosystem.BITCOIN -> "B"
-                else -> "S"
-            }, address = request.address
-        )
-        val updated = existing.filterNot {
-            if (candidate.ecosystem == WalletEcosystem.EVM) it.address.equals(request.address, true) && it.chain.equals(request.chain, true)
-            else it.address == request.address
-        } + candidate
-        local.write(gson.toJson(updated), true)
+        val updatedRecord = if (match == null) {
+            WalletDto(
+                id = UUID.randomUUID().toString(),
+                wallet_name = request.wallet_name.trim().ifBlank { "地址" },
+                chain = request.chain,
+                network_icon = when (candidateEcosystem) {
+                    WalletEcosystem.EVM -> "E"
+                    WalletEcosystem.TRON -> "T"
+                    WalletEcosystem.BITCOIN -> "B"
+                    else -> "S"
+                },
+                address = request.address.trim(),
+                note = request.note?.trim().orEmpty(),
+                purpose = request.purpose ?: WalletAddressPurpose.MAIN_INTERACTION,
+                tags = request.tags.orEmpty().map(String::trim).filter(String::isNotEmpty).distinct(),
+                projectIds = request.projectIds.orEmpty().distinct()
+            )
+        } else {
+            match.copy(
+                wallet_name = request.wallet_name.trim().ifBlank { match.wallet_name },
+                note = request.note?.trim().orEmpty(),
+                purpose = request.purpose ?: match.purpose,
+                tags = request.tags.orEmpty().map(String::trim).filter(String::isNotEmpty).distinct(),
+                projectIds = (match.projectIds.orEmpty() + request.projectIds.orEmpty()).distinct()
+            )
+        }
+        val updated = existing.filterNot { it.id == match?.id } + updatedRecord
+        local.write(gson.toJson(updated), guest)
         return updated
     }
+
     suspend fun delete(wallet: WalletDto, guest: Boolean, current: List<WalletDto>): List<WalletDto> {
-        if (!guest) remote.deleteWallet(wallet.id)
         val updated = current.filterNot { it.id == wallet.id }
         local.write(gson.toJson(updated), guest)
         return updated
