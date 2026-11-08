@@ -27,15 +27,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 
-private data class RatingPeriod(val title: String, val score: Double, val people: Int, val positivePercent: Int)
-
-private fun steamLabel(positivePercent: Int): String = when {
-    positivePercent >= 95 -> "好评如潮"
-    positivePercent >= 85 -> "特别好评"
-    positivePercent >= 75 -> "多半好评"
-    else -> "褒贬不一"
-}
-
 @Composable
 fun MicroCommunityScreen(
     projectOfficialId: String,
@@ -49,7 +40,7 @@ fun MicroCommunityScreen(
     var communityStats by remember(projectOfficialId) { mutableStateOf<CommunityProjectStatsDto?>(null) }
     var statsLoading by remember(projectOfficialId) { mutableStateOf(true) }
     var statsFailed by remember(projectOfficialId) { mutableStateOf(false) }
-    var wallet by remember { mutableStateOf("MOCK-WALLET-LOCAL") }
+    var wallet by remember { mutableStateOf("") }
     var canRate by remember { mutableStateOf(false) }
     var participationChecked by remember { mutableStateOf(false) }
     var selectedScore by remember { mutableIntStateOf(0) }
@@ -62,13 +53,6 @@ fun MicroCommunityScreen(
     val rewardWeight = if (displayGasTotal + displayRewardTotal <= 0.0) 0.5f
         else (displayRewardTotal / combinedTotal).toFloat().coerceIn(0.01f, 0.99f)
     val gasWeight = 1f - rewardWeight
-    val periods = listOf(
-        RatingPeriod("近 1 天", 4.9, 12, 96),
-        RatingPeriod("近 3 天", 4.5, 45, 91),
-        RatingPeriod("近 1 周", 3.2, 120, 68),
-        RatingPeriod("总体评价", 3.8, 300, 79)
-    )
-
     LaunchedEffect(projectOfficialId) {
         statsLoading = true
         statsFailed = false
@@ -83,8 +67,8 @@ fun MicroCommunityScreen(
         val wallets = CacheStore.readLocal("wallets")?.let {
             runCatching { Gson().fromJson<List<WalletDto>>(it, type) }.getOrNull()
         }.orEmpty()
-        wallet = wallets.firstOrNull()?.address ?: "MOCK-WALLET-LOCAL"
-        canRate = CacheStore.hasPnlParticipation(projectOfficialId)
+        wallet = wallets.firstOrNull()?.address.orEmpty()
+        canRate = wallet.isNotBlank() && CacheStore.hasPnlParticipation(projectOfficialId)
         participationChecked = true
     }
     LaunchedEffect(myRating) {
@@ -128,29 +112,15 @@ fun MicroCommunityScreen(
             }
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface)) {
                 Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                    Text("社区评价总结", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    periods.forEachIndexed { index, period ->
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(period.title, Modifier.weight(1f), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                            Surface(color = when (index) {
-                                0 -> Color(0xFFE8F7EF); 1 -> Color(0xFFEAF3FF); 2 -> Color(0xFFFFF2E4); else -> Color(0xFFF0EDFF)
-                            }, shape = RoundedCornerShape(999.dp)) {
-                                Text(steamLabel(period.positivePercent), Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                    color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                            }
-                            Spacer(Modifier.width(9.dp))
-                            Text("★ %.1f".format(java.util.Locale.US, period.score), color = Color(0xFFE5A126),
-                                fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                            Text("  ${period.people}人", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                        }
-                        if (index != periods.lastIndex) HorizontalDivider(color = AppColors.Border)
-                    }
-                    Text("好评率按 4–5 星统计 · 各周期为 Mock 样本", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                    Text("本地真实评分：${ratings.size} 人 · 平均 ${String.format(java.util.Locale.US, "%.1f", average ?: 0.0)} 星",
-                        color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    Text("本机已保存的评分", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (ratings.isEmpty()) "暂无评分记录。全网评分功能尚未接入，暂不展示模拟数据。"
+                        else "本机评分记录：${ratings.size} 条 · 平均 ${String.format(java.util.Locale.US, "%.1f", average ?: 0.0)} 星",
+                        color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
+                    )
                     ratings.take(3).forEach { rating ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("匿名猎人 #${rating.walletAddress.takeLast(4).uppercase()}",
+                            Text("本机记录 #${rating.walletAddress.takeLast(4).uppercase()}",
                                 Modifier.weight(1f), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                             Text("★".repeat(rating.score), color = Color(0xFFFFB12B), style = MaterialTheme.typography.bodySmall)
                         }
