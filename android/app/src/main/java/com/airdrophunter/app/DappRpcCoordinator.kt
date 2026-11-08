@@ -118,7 +118,7 @@ internal object DappRpcCoordinator {
                 trimmed == "null" -> JSONObject.NULL
                 trimmed == "true" -> true
                 trimmed == "false" -> false
-                trimmed.startsWith("\\\"") -> org.json.JSONTokener(trimmed).nextValue()
+                trimmed.startsWith("\"") -> org.json.JSONTokener(trimmed).nextValue()
                 else -> trimmed
             }
         } catch (_: Exception) {
