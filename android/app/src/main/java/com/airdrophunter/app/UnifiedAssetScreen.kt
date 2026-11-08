@@ -42,6 +42,7 @@ fun UnifiedAssetContent(
     transactions: List<WalletTransactionDto> = emptyList(),
     transactionsLoading: Boolean = false,
     transactionsError: String? = null,
+    transactionsWarning: String? = null,
     transactionSupportMessage: String? = null,
     onRecordTransaction: ((WalletTransactionDto) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -128,6 +129,16 @@ fun UnifiedAssetContent(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+                    if (transactionsWarning != null) {
+                        item {
+                            Text(
+                                transactionsWarning,
+                                color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                        }
                     }
                     when {
                         transactionSupportMessage != null -> item {

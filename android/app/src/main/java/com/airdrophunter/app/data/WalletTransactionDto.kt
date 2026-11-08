@@ -24,3 +24,10 @@ data class WalletTransactionDto(
     val project_official_id: String? = null,
     val attribution: String = "unassigned"
 )
+
+
+data class WalletActivityBatchDto(
+    val transactions: List<WalletTransactionDto> = emptyList(),
+    val networks_checked: List<String> = emptyList(),
+    val networks_unavailable: List<String> = emptyList()
+)

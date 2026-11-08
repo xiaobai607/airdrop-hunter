@@ -30,8 +30,15 @@ class FakeClient:
                 "txID": "d" * 64, "block_timestamp": 1700000000000,
                 "raw_data": {"contract": [{"parameter": {"value": {"owner_address": owner_hex, "to_address": "41" + "f" * 40}}}]}
             }]})
-        if url == activity.COINPAPRIKA_ETH:
-            return FakeResponse({"quotes": {"USD": {"price": "2000"}}})
+        if url.startswith(activity.COINPAPRIKA_BASE):
+            prices = {
+                "eth-ethereum": "2000",
+                "bnb-binance-coin": "600",
+                "pol-polygon-ecosystem-token": "0.5",
+                "avax-avalanche": "20",
+            }
+            ticker = url.rsplit("/", 1)[-1]
+            return FakeResponse({"quotes": {"USD": {"price": prices[ticker]}}})
         if url == activity.COINPAPRIKA_TRX:
             return FakeResponse({"quotes": {"USD": {"price": "0.1"}}})
         raise AssertionError(url)
@@ -129,3 +136,47 @@ def test_tron_transaction_info_forwards_api_key_and_checks_all_contract_owners(m
     assert response.json()[0]["fee_paid_by_wallet"] is True
     assert MultiContractClient.seen_post_headers
     assert MultiContractClient.seen_post_headers[0]["TRON-PRO-API-KEY"] == "tron-test-key"
+
+
+
+def test_evm_batch_reads_each_supported_network_with_its_chain_id_and_native_token(monkeypatch):
+    class MultiNetworkClient(FakeClient):
+        seen_chain_ids = []
+
+        async def get(self, url, params=None, headers=None):
+            if url == activity.ETHERSCAN_V2:
+                chain_id = int(params["chainid"])
+                self.seen_chain_ids.append(chain_id)
+                row = {
+                    "hash": "0x" + format(chain_id, "064x"),
+                    "gasUsed": "21000",
+                    "gasPrice": "1000000000",
+                    "timeStamp": str(1700000000 + chain_id),
+                    "from": params["address"],
+                    "to": "0x" + "c" * 40,
+                    "methodId": "0x12345678",
+                    "isError": "0",
+                }
+                return FakeResponse({"status": "1", "result": [row]})
+            return await super().get(url, params=params, headers=headers)
+
+    monkeypatch.setenv("ETHERSCAN_API_KEY", "test")
+    monkeypatch.setattr(activity.httpx, "AsyncClient", MultiNetworkClient)
+    MultiNetworkClient.seen_chain_ids.clear()
+    address = "0x" + "b" * 40
+    with TestClient(app) as client:
+        response = client.get(f"/api/wallet-activity/evm/{address}/transactions?limit=50")
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(MultiNetworkClient.seen_chain_ids) == {1, 56, 137, 42161, 10, 8453, 43114}
+    assert set(payload["networks_checked"]) == set(activity.EVM_NETWORKS.keys())
+    assert payload["networks_unavailable"] == []
+    transactions = payload["transactions"]
+    by_chain = {tx["chain"]: tx for tx in transactions}
+    assert set(by_chain) == set(activity.EVM_NETWORKS.keys())
+    assert by_chain["bsc"]["native_symbol"] == "BNB"
+    assert by_chain["polygon"]["native_symbol"] == "POL"
+    assert by_chain["avalanche"]["native_symbol"] == "AVAX"
+    assert by_chain["base"]["native_symbol"] == "ETH"
+    assert by_chain["ethereum"]["fee_paid_by_wallet"] is True
+    assert by_chain["bsc"]["gas_cost_native"] == "0.000021"

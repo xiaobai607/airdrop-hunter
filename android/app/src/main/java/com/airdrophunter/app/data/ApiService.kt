@@ -45,6 +45,10 @@ interface ApiService {
     @GET("api/coins") suspend fun getCoins(): List<CoinDto>
     @POST("api/coins") suspend fun addCoin(@Body request: CoinCreateRequest): CoinDto
     @DELETE("api/coins/{coinId}") suspend fun removeCoin(@Path("coinId") coinId: String)
+    @GET("api/wallet-activity/evm/{address}/transactions") suspend fun getEvmWalletTransactions(
+        @Path("address") address: String,
+        @Query("limit") limit: Int = 50
+    ): WalletActivityBatchDto
     @GET("api/wallet-activity/{chain}/{address}/transactions") suspend fun getWalletTransactions(
         @Path("chain") chain: String,
         @Path("address") address: String,

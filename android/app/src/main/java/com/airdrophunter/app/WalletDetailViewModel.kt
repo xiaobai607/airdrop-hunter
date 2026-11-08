@@ -26,7 +26,13 @@ data class WalletDetailUiState(
     val transactions: List<WalletTransactionDto> = emptyList(),
     val transactionsLoading: Boolean = false,
     val transactionsError: String? = null,
+    val transactionsWarning: String? = null,
     val transactionSupportMessage: String? = null
+)
+
+private data class WalletActivityLoadResult(
+    val transactions: List<WalletTransactionDto> = emptyList(),
+    val warning: String? = null
 )
 
 class WalletDetailViewModel(
@@ -51,7 +57,7 @@ class WalletDetailViewModel(
             return
         }
         val activityChain = when (ecosystem) {
-            WalletEcosystem.EVM -> "ethereum"
+            WalletEcosystem.EVM -> "evm"
             WalletEcosystem.TRON -> "tron"
             else -> null
         }
@@ -78,6 +84,7 @@ class WalletDetailViewModel(
                 errorMessage = null,
                 transactionsLoading = activityChain != null,
                 transactionsError = null,
+                transactionsWarning = null,
                 transactionSupportMessage = if (activityChain == null) "该网络的真实交易费用采集暂未接入" else null
             )
             lastRequestAtMillis = System.currentTimeMillis()
@@ -86,10 +93,30 @@ class WalletDetailViewModel(
                     val assetsTask = async { repository.fetchAssets(address) }
                     val activityTask = async {
                         if (activityChain == null) {
-                            Result.success(emptyList<WalletTransactionDto>())
+                            Result.success(WalletActivityLoadResult())
                         } else {
                             try {
-                                Result.success(apiService.getWalletTransactions(activityChain, address, 50))
+                                if (activityChain == "evm") {
+                                    val response = apiService.getEvmWalletTransactions(address, 50)
+                                    val displayNames = mapOf(
+                                        "ethereum" to "Ethereum",
+                                        "bsc" to "BNB Chain",
+                                        "polygon" to "Polygon",
+                                        "arbitrum" to "Arbitrum",
+                                        "optimism" to "Optimism",
+                                        "base" to "Base",
+                                        "avalanche" to "Avalanche"
+                                    )
+                                    val warning = response.networks_unavailable
+                                        .takeIf { it.isNotEmpty() }
+                                        ?.joinToString("、") { displayNames[it] ?: it }
+                                        ?.let { "部分 EVM 网络暂时无法读取：$it。已显示其余可用网络的交易。" }
+                                    Result.success(WalletActivityLoadResult(response.transactions, warning))
+                                } else {
+                                    Result.success(WalletActivityLoadResult(
+                                        apiService.getWalletTransactions(activityChain, address, 50)
+                                    ))
+                                }
                             } catch (cancelled: CancellationException) {
                                 throw cancelled
                             } catch (error: Exception) {
@@ -117,9 +144,10 @@ class WalletDetailViewModel(
                                 activityTask.onAwait { result ->
                                     if (_uiState.value.address == address) {
                                         _uiState.value = _uiState.value.copy(
-                                            transactions = result.getOrNull().orEmpty(),
+                                            transactions = result.getOrNull()?.transactions.orEmpty(),
                                             transactionsLoading = false,
-                                            transactionsError = result.exceptionOrNull()?.message
+                                            transactionsError = result.exceptionOrNull()?.message,
+                                            transactionsWarning = result.getOrNull()?.warning
                                         )
                                     }
                                     activityDone = true

@@ -78,6 +78,7 @@ fun WalletDetailScreen(
             transactions = state.transactions,
             transactionsLoading = state.transactionsLoading,
             transactionsError = state.transactionsError,
+            transactionsWarning = state.transactionsWarning,
             transactionSupportMessage = state.transactionSupportMessage,
             onRecordTransaction = { transaction ->
                 recordingTransaction = transaction
