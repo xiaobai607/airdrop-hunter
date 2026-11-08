@@ -64,3 +64,11 @@ def test_task_step_order_is_persisted_and_sorted():
         tasks = client.get(f"/api/projects/{project_id}/tasks", headers=headers).json()
         assert [task["id"] for task in tasks] == [first["id"], second["id"]]
         assert [task["step_order"] for task in tasks] == [1, 2]
+
+
+def test_address_classifier_distinguishes_bitcoin_base58_from_solana():
+    from app.routers.wallet import identify_chain
+
+    assert identify_chain("1BoatSLRHtKNngkdXEeobR76b53LETtpyT") == "Bitcoin"
+    assert identify_chain("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh") == "Bitcoin"
+    assert identify_chain("11111111111111111111111111111111") == "SOL"
