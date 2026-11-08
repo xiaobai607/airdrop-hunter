@@ -84,3 +84,19 @@ def test_personal_ledger_offset_pagination_keeps_equal_timestamp_rows():
             for row in first_page.json() + second_page.json()
         }
         assert returned_ids == {"same-time-a", "same-time-b", "same-time-c"}
+
+\n\ndef test_personal_ledger_preserves_unknown_expected_reward_as_null():
+    with TestClient(app) as client:
+        headers = auth(client)
+        payload = ledger_payload("unknown-reward")
+        payload["expected_reward_usd"] = None
+        saved = client.put(
+            "/api/personal-ledger/unknown-reward",
+            headers=headers,
+            json=payload,
+        )
+        assert saved.status_code == 200
+        assert saved.json()["expected_reward_usd"] is None
+        restored = client.get("/api/personal-ledger", headers=headers)
+        assert restored.status_code == 200
+        assert restored.json()[0]["expected_reward_usd"] is None
