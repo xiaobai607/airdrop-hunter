@@ -165,3 +165,9 @@ internal data class PendingDappConnection(
     val origin: String,
     val replyProxy: JavaScriptReplyProxy
 )
+
+internal data class PendingDappWalletAction(
+    val request: DappRpcRequest,
+    val origin: String,
+    val replyProxy: JavaScriptReplyProxy
+)
