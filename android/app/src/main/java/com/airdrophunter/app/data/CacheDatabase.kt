@@ -215,7 +215,7 @@ object CacheStore {
         gas: Double,
         reward: Double
     ): Boolean = withContext(Dispatchers.IO) {
-        if (projectLocalId.isBlank() || gas < 0.0 || reward < 0.0) return@withContext false
+        if (projectLocalId.isBlank() || !gas.isFinite() || !reward.isFinite() || gas < 0.0 || reward < 0.0) return@withContext false
         val db = database ?: return@withContext false
         val scope = currentAccountScope()
         db.withTransaction {

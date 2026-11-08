@@ -1,11 +1,12 @@
 package com.airdrophunter.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -13,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.*
@@ -20,16 +23,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
@@ -42,11 +47,12 @@ fun BrowserAccountingToolbar(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
-    val gasTrackerRepository = remember(application) { application.appContainer.gasTrackerRepository }
     val accountingRepository = remember(application) { application.appContainer.accountingRepository }
     val pending by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
+
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var activeBill by remember { mutableStateOf<PendingBillEntity?>(null) }
+    var showBillList by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
     var showProjectPicker by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
@@ -54,7 +60,7 @@ fun BrowserAccountingToolbar(
     var gas by remember { mutableStateOf("") }
     var reward by remember { mutableStateOf("0.00") }
     var saving by remember { mutableStateOf(false) }
-    var fetchingGas by remember { mutableStateOf(false) }
+    var creatingMockBill by remember { mutableStateOf(false) }
 
     LaunchedEffect(accountingRepository) {
         projects = accountingRepository.loadProjects()
@@ -64,9 +70,7 @@ fun BrowserAccountingToolbar(
     fun saveProjectLocally(project: ProjectDto) {
         projects = (projects.filterNot { it.id == project.id } + project)
         selectedProjectLocalId = project.id
-        scope.launch {
-            accountingRepository.saveLocalProject(project)
-        }
+        scope.launch { accountingRepository.saveLocalProject(project) }
     }
 
     fun createAndSelectProject() {
@@ -90,119 +94,145 @@ fun BrowserAccountingToolbar(
         if (selectedProjectLocalId.isBlank()) {
             selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
         }
+        showBillList = false
         showConfirm = true
     }
 
-    fun fetchRealGasBill() {
-        if (fetchingGas) return
-        if (walletAddress.isBlank() || walletAddress == "MOCK-WALLET-LOCAL") {
-            Toast.makeText(context, "请先选择有效的钱包地址", Toast.LENGTH_SHORT).show()
-            return
-        }
-        fetchingGas = true
+    fun createMockBill() {
+        if (creatingMockBill) return
+        creatingMockBill = true
         scope.launch {
             try {
-                val result = gasTrackerRepository.fetchLatestGasCost(walletAddress)
-                if (result == null || result.txHash.isBlank() ||
-                    !result.gasCostUsd.isFinite() || result.gasCostUsd < 0.0
-                ) {
-                    Toast.makeText(context, "抓取失败或无记录", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
+                val mockGasSamples = listOf(0.12, 0.28, 0.45, 0.63, 0.91)
+                val mockHash = "MOCK-" + UUID.randomUUID().toString().replace("-", "").uppercase(Locale.US)
                 val bill = PendingBillEntity(
                     id = UUID.randomUUID().toString(),
-                    txHash = result.txHash,
-                    walletAddress = walletAddress,
-                    gasCostUsd = result.gasCostUsd,
-                    interactionMethod = result.interactionMethod,
+                    txHash = mockHash,
+                    walletAddress = walletAddress.ifBlank { "MOCK-WALLET-LOCAL" },
+                    gasCostUsd = mockGasSamples[pending.size % mockGasSamples.size],
+                    interactionMethod = "模拟合约交互",
                     timestamp = System.currentTimeMillis()
                 )
                 accountingRepository.addPendingBill(bill)
-                activeBill = bill
-                gas = String.format(Locale.US, "%.2f", result.gasCostUsd)
-                reward = "0.00"
-                if (selectedProjectLocalId.isBlank()) {
-                    selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
-                }
-                showConfirm = true
+                openBill(bill)
             } catch (_: Exception) {
-                Toast.makeText(context, "抓取失败或无记录", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "模拟账单创建失败，请重试", Toast.LENGTH_SHORT).show()
             } finally {
-                fetchingGas = false
+                creatingMockBill = false
             }
         }
     }
 
+    fun deleteDraft(bill: PendingBillEntity) {
+        scope.launch {
+            val ok = runCatching { accountingRepository.deletePendingBill(bill.id) }.isSuccess
+            if (!ok) Toast.makeText(context, "删除失败，请重试", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val gasValue = gas.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
+    val rewardValue = reward.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
+
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = Color(0xFFFDFEFF),
-        shape = RoundedCornerShape(30.dp),
-        border = BorderStroke(1.dp, AppColors.Border),
-        shadowElevation = 9.dp
+        modifier = modifier,
+        color = Color(0xCCFFFFFF),
+        shape = CircleShape,
+        border = BorderStroke(1.dp, AppColors.Border.copy(alpha = 0.8f)),
+        shadowElevation = 5.dp
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            ToolbarCircleButton(
-                description = "一键抓取",
+            AccountingCapsuleButton(
+                description = "模拟抓取账单",
                 background = Color(0xFFEAF7F1),
                 tint = Color(0xFF16845B),
-                loading = fetchingGas,
-                onClick = ::fetchRealGasBill
+                loading = creatingMockBill,
+                onClick = ::createMockBill
             ) {
-                if (fetchingGas) {
-                    CircularProgressIndicator(Modifier.size(21.dp), color = Color(0xFF16845B), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Default.FlashOn, contentDescription = "一键抓取", tint = Color(0xFF16845B), modifier = Modifier.size(21.dp))
-                }
+                if (creatingMockBill) CircularProgressIndicator(Modifier.size(19.dp), color = Color(0xFF16845B), strokeWidth = 2.dp)
+                else Icon(Icons.Default.FlashOn, contentDescription = "模拟抓取账单", tint = Color(0xFF16845B), modifier = Modifier.size(20.dp))
             }
-            ToolbarCircleButton(
-                description = "复制地址",
+            AccountingCapsuleButton(
+                description = "复制钱包地址",
                 background = Color(0xFFEDF3FF),
                 tint = Color(0xFF356BC5),
                 onClick = onCopyAddress
             ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "复制地址", tint = Color(0xFF356BC5), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.ContentCopy, contentDescription = "复制钱包地址", tint = Color(0xFF356BC5), modifier = Modifier.size(18.dp))
             }
-            if (pending.isEmpty()) {
-                Text(
-                    "暂无待确认账单",
-                    modifier = Modifier.weight(1f).padding(start = 3.dp),
-                    color = AppColors.TextHelper,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1
-                )
-            } else {
-                LazyRow(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(end = 2.dp)
-                ) {
-                    items(pending, key = { it.id }) { bill ->
-                        Surface(
-                            onClick = { openBill(bill) },
-                            shape = RoundedCornerShape(18.dp),
-                            color = Color(0xFFFFF4E8),
-                            border = BorderStroke(1.dp, Color(0xFFF2D8B9))
+            AccountingCapsuleButton(
+                description = "待确认账单",
+                background = Color(0xFFFFF4E8),
+                tint = Color(0xFF9A5A16),
+                onClick = { showBillList = true }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "待确认账单", tint = Color(0xFF9A5A16), modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+
+    if (showBillList) {
+        Dialog(
+            onDismissRequest = { showBillList = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = true)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 420.dp).heightIn(max = 520.dp),
+                color = Color.White,
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, AppColors.Border),
+                shadowElevation = 14.dp
+            ) {
+                Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("待确认账单", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text("选择账单继续记账，红色 X 可删除草稿", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                        }
+                        IconButton(onClick = { showBillList = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "关闭", tint = AppColors.TextSecondary)
+                        }
+                    }
+                    if (pending.isEmpty()) {
+                        Box(Modifier.fillMaxWidth().padding(vertical = 22.dp), contentAlignment = Alignment.Center) {
+                            Text("暂无待确认账单", color = AppColors.TextHelper)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(Modifier.padding(horizontal = 11.dp, vertical = 7.dp)) {
-                                Text(
-                                    String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd),
-                                    color = Color(0xFF9A5A16),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    bill.interactionMethod,
-                                    color = AppColors.TextSecondary,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1
-                                )
+                            items(pending, key = { it.id }) { bill ->
+                                Surface(
+                                    color = Color(0xFFFFFAF4),
+                                    shape = RoundedCornerShape(14.dp),
+                                    border = BorderStroke(1.dp, Color(0xFFF2D8B9))
+                                ) {
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(
+                                            Modifier.weight(1f).clickable { openBill(bill) }.padding(vertical = 3.dp),
+                                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Text(String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd), color = Color(0xFF9A5A16), fontWeight = FontWeight.Bold)
+                                            Text("模拟账单 · " + bill.interactionMethod, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                            Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                                        }
+                                        IconButton(onClick = { deleteDraft(bill) }) {
+                                            Icon(Icons.Default.Close, contentDescription = "删除草稿", tint = Color(0xFFD92D20))
+                                        }
+                                    }
+                                }
                             }
                         }
+                    }
+                    Button(onClick = { showBillList = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+                        Text("完成")
                     }
                 }
             }
@@ -210,8 +240,7 @@ fun BrowserAccountingToolbar(
     }
 
     if (showConfirm && activeBill != null) {
-        val gasValue = gas.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
-        val rewardValue = reward.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
+        val bill = activeBill!!
         Dialog(
             onDismissRequest = {
                 if (!saving) {
@@ -219,26 +248,30 @@ fun BrowserAccountingToolbar(
                     activeBill = null
                 }
             },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = true)
         ) {
             Surface(
-                modifier = Modifier.fillMaxWidth(0.94f).heightIn(max = 640.dp),
+                modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 420.dp).heightIn(max = 620.dp),
                 color = Color.White,
-                shape = RoundedCornerShape(24.dp),
-                shadowElevation = 16.dp
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, AppColors.Border),
+                shadowElevation = 14.dp
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("确认本次记账", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text(
-                        "交易：${activeBill?.txHash?.take(12)}…",
-                        color = AppColors.TextHelper,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-
-                    // 1. Gas fee input
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("确认本次记账", modifier = Modifier.weight(1f), color = AppColors.TextPrimary,
+                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        IconButton(
+                            enabled = !saving,
+                            onClick = { showConfirm = false; activeBill = null }
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "关闭确认弹窗", tint = AppColors.TextSecondary)
+                        }
+                    }
+                    Text("模拟账单：\${bill.txHash.take(16)}…", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     OutlinedTextField(
                         value = gas,
                         onValueChange = { gas = it },
@@ -248,29 +281,17 @@ fun BrowserAccountingToolbar(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         shape = RoundedCornerShape(13.dp)
                     )
-
-                    // 2. Project selector
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("归属项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                         val selectedProject = projects.firstOrNull { it.id == selectedProjectLocalId }
-                        OutlinedButton(
-                            onClick = { showProjectPicker = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(13.dp)
-                        ) {
-                            Text(
-                                selectedProject?.name ?: "选择项目",
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1
-                            )
+                        OutlinedButton(onClick = { showProjectPicker = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+                            Text(selectedProject?.name ?: "选择项目", modifier = Modifier.weight(1f), maxLines = 1)
                             Text("选择", color = AppColors.Primary)
                         }
                         if (selectedProject == null) {
-                            Text("请先从项目列表选择，或新建一个本地项目。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                            Text("请先选择项目，或新建一个本地项目。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
                     }
-
-                    // 3. Actual reward input
                     OutlinedTextField(
                         value = reward,
                         onValueChange = { reward = it },
@@ -280,12 +301,9 @@ fun BrowserAccountingToolbar(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         shape = RoundedCornerShape(13.dp)
                     )
-
-                    // 4. Confirm action is in normal vertical flow, never overlaid on fields.
                     Button(
                         enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null,
                         onClick = {
-                            val bill = activeBill ?: return@Button
                             val project = projects.firstOrNull { it.id == selectedProjectLocalId } ?: return@Button
                             val safeGas = gasValue ?: return@Button
                             val safeReward = rewardValue ?: return@Button
@@ -294,12 +312,7 @@ fun BrowserAccountingToolbar(
                             scope.launch {
                                 val ok = runCatching {
                                     accountingRepository.confirmPendingBill(
-                                        bill.id,
-                                        project.id,
-                                        project.communityOfficialId,
-                                        project.name,
-                                        safeGas,
-                                        safeReward
+                                        bill.id, project.id, project.communityOfficialId, project.name, safeGas, safeReward
                                     )
                                 }.getOrDefault(false)
                                 saving = false
@@ -312,21 +325,18 @@ fun BrowserAccountingToolbar(
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
                         shape = RoundedCornerShape(13.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
                     ) {
                         if (saving) {
-                            CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                            CircularProgressIndicator(Modifier.size(17.dp), color = Color.White, strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
                         }
                         Text(if (saving) "入账中…" else "确认入账")
                     }
-                    TextButton(
-                        enabled = !saving,
-                        onClick = { showConfirm = false; activeBill = null },
-                        modifier = Modifier.align(Alignment.End)
-                    ) { Text("取消") }
+                    TextButton(onClick = { if (!saving) { showConfirm = false; activeBill = null } }, enabled = !saving,
+                        modifier = Modifier.align(Alignment.End)) { Text("取消") }
                 }
             }
         }
@@ -335,66 +345,57 @@ fun BrowserAccountingToolbar(
     if (showProjectPicker) {
         Dialog(
             onDismissRequest = { showProjectPicker = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = true)
         ) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).heightIn(max = 620.dp),
-                    color = Color.White,
-                    shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
-                    shadowElevation = 18.dp
-                ) {
-                    Column(
-                        Modifier.fillMaxWidth().imePadding().padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("选择归属项目", Modifier.weight(1f), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            TextButton(onClick = { showProjectPicker = false }) { Text("关闭") }
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 420.dp).heightIn(max = 560.dp),
+                color = Color.White,
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, AppColors.Border),
+                shadowElevation = 14.dp
+            ) {
+                Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("选择归属项目", modifier = Modifier.weight(1f), color = AppColors.TextPrimary,
+                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        IconButton(onClick = { showProjectPicker = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "关闭项目选择", tint = AppColors.TextSecondary)
                         }
-                        Text("新建项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                        OutlinedTextField(
-                            value = newProjectName,
-                            onValueChange = { newProjectName = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("输入新项目名称") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(13.dp)
-                        )
-                        Button(
-                            onClick = ::createAndSelectProject,
-                            enabled = newProjectName.isNotBlank(),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(13.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                        ) { Text("+ 新建并选中项目") }
-                        HorizontalDivider(color = AppColors.Border)
-                        Text("本地已有项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                        if (projects.isEmpty()) {
-                            Text("暂无项目，请在上方新建。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.heightIn(max = 280.dp),
-                                verticalArrangement = Arrangement.spacedBy(7.dp)
-                            ) {
-                                items(projects, key = { it.id }) { project ->
-                                    val selected = selectedProjectLocalId == project.id
-                                    Surface(
-                                        modifier = Modifier.fillMaxWidth().clickable {
-                                            selectedProjectLocalId = project.id
-                                            showProjectPicker = false
-                                        },
-                                        color = if (selected) Color(0xFFE8F3F1) else Color(0xFFF8FAFC),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, if (selected) AppColors.Primary else AppColors.Border)
-                                    ) {
-                                        Row(
-                                            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                                            if (selected) Text("已选择", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
-                                        }
+                    }
+                    Text("新建本地项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    OutlinedTextField(
+                        value = newProjectName,
+                        onValueChange = { newProjectName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("输入项目名称") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(13.dp)
+                    )
+                    Button(onClick = ::createAndSelectProject, enabled = newProjectName.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+                        Text("+ 新建并选中")
+                    }
+                    HorizontalDivider(color = AppColors.Border)
+                    Text("已有项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    if (projects.isEmpty()) {
+                        Text("暂无项目，请先新建。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 230.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            items(projects, key = { it.id }) { project ->
+                                val selected = selectedProjectLocalId == project.id
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        selectedProjectLocalId = project.id
+                                        showProjectPicker = false
+                                    },
+                                    color = if (selected) Color(0xFFE8F3F1) else Color(0xFFF8FAFC),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, if (selected) AppColors.Primary else AppColors.Border)
+                                ) {
+                                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
+                                        verticalAlignment = Alignment.CenterVertically) {
+                                        Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                                        if (selected) Text("已选择", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
                             }
@@ -407,7 +408,7 @@ fun BrowserAccountingToolbar(
 }
 
 @Composable
-private fun ToolbarCircleButton(
+private fun AccountingCapsuleButton(
     description: String,
     background: Color,
     tint: Color,
@@ -419,9 +420,9 @@ private fun ToolbarCircleButton(
         onClick = onClick,
         enabled = !loading,
         shape = CircleShape,
-        color = background,
-        modifier = Modifier.size(44.dp),
-        border = BorderStroke(1.dp, tint.copy(alpha = 0.12f))
+        color = background.copy(alpha = 0.82f),
+        modifier = Modifier.size(40.dp),
+        border = BorderStroke(1.dp, tint.copy(alpha = 0.14f))
     ) {
         Box(contentAlignment = Alignment.Center) { content() }
     }

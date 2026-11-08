@@ -361,7 +361,7 @@ private fun BrowserScreen(
                         Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 8.dp)
+                modifier = Modifier.align(Alignment.CenterHorizontally).navigationBarsPadding().padding(bottom = 8.dp)
             )
         }
     }

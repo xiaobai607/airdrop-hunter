@@ -58,8 +58,6 @@ class AppContainer {
         AirdropsRepository(RetrofitAirdropsRemoteDataSource(apiService))
     }
 
-    val gasTrackerRepository: RealGasTrackerRepository by lazy { RealGasTrackerRepository(apiService) }
-
     val accountingRepository: AccountingRepository by lazy {
         AccountingRepository(CacheStoreAccountingLocalDataSource())
     }

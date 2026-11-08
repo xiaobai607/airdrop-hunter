@@ -41,8 +41,10 @@ class AccountingRepositoryTest {
         val bill = PendingBillEntity("bill-1", "tx-1", "0xabc", 1.25, "EVM", 100L)
         repository.addPendingBill(bill)
         val confirmed = repository.confirmPendingBill("bill-1", "project-1", null, "Custom", 1.25, 0.0)
+        repository.deletePendingBill("bill-1")
 
         assertEquals("bill-1", source.addedBill?.id)
+        assertEquals("bill-1", source.deletedBillId)
         assertTrue(confirmed)
     }
 }
@@ -51,11 +53,13 @@ private class FakeAccountingLocalDataSource : AccountingLocalDataSource {
     val local = mutableMapOf<String, String>()
     val cache = mutableMapOf<String, String>()
     var addedBill: PendingBillEntity? = null
+    var deletedBillId: String? = null
     override fun observePendingBills(): Flow<List<PendingBillEntity>> = flowOf(emptyList())
     override suspend fun readLocal(key: String): String? = local[key]
     override suspend fun read(key: String): String? = cache[key]
     override suspend fun writeLocal(key: String, payload: String) { local[key] = payload }
     override suspend fun addPendingBill(bill: PendingBillEntity) { addedBill = bill }
+    override suspend fun deletePendingBill(id: String) { deletedBillId = id }
     override suspend fun confirmPendingBill(id: String, projectLocalId: String, projectOfficialId: String?, projectCustomName: String, gas: Double, reward: Double): Boolean = true
 }
 
