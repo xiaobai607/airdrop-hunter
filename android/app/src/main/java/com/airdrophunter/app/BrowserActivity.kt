@@ -194,7 +194,51 @@ private fun BrowserScreen(
     val bottomSheetNavigator = remember(bottomSheetState) { BottomSheetNavigator(bottomSheetState) }
     val walletNavController = rememberNavController(bottomSheetNavigator)
 
+    var lastObservedSessionGeneration by remember {
+        mutableStateOf(connectedSessionGeneration)
+    }
+
     LaunchedEffect(waitingDappWalletApproval, connectedDappAccounts, connectedSessionGeneration) {
+        if (connectedSessionGeneration != lastObservedSessionGeneration) {
+            lastObservedSessionGeneration = connectedSessionGeneration
+            DappRpcCoordinator.cancelAllForSessionChange()
+
+            // A newly approved session is the expected result of this page's
+            // explicit connection prompt. Preserve that one pending origin so
+            // the approval below can grant it; all other session changes revoke
+            // previously granted site permissions.
+            val completingUserApprovedConnection =
+                waitingDappWalletApproval &&
+                    pendingDappConnection != null &&
+                    connectedDappAccounts.isNotEmpty()
+
+            if (!completingUserApprovedConnection) {
+                authorizedDappOrigins.clear()
+                val accountsChanged = JSONObject()
+                    .put("type", "event")
+                    .put("event", "accountsChanged")
+                    .put("data", JSONArray())
+                val chainChanged = JSONObject()
+                    .put("type", "event")
+                    .put("event", "chainChanged")
+                    .put("data", JSONObject.NULL)
+                bridgeReplyProxies.values.toList().forEach { proxy ->
+                    runCatching { proxy.postMessage(accountsChanged.toString()) }
+                    runCatching { proxy.postMessage(chainChanged.toString()) }
+                }
+            }
+
+            pendingWalletAction?.let { action ->
+                DappProviderBridge.error(
+                    action.replyProxy,
+                    action.request.id,
+                    4001,
+                    "Wallet account or session changed; please request approval again"
+                )
+                pendingWalletAction = null
+            }
+        }
+
         if (waitingDappWalletApproval && connectedDappAccounts.isNotEmpty()) {
             val pending = pendingDappConnection
             if (pending != null) {
@@ -204,32 +248,6 @@ private fun BrowserScreen(
             }
             pendingDappConnection = null
             waitingDappWalletApproval = false
-        }
-    }
-
-    LaunchedEffect(connectedSessionGeneration) {
-        DappRpcCoordinator.cancelAllForSessionChange()
-        authorizedDappOrigins.clear()
-        val accountsChanged = JSONObject()
-            .put("type", "event")
-            .put("event", "accountsChanged")
-            .put("data", JSONArray())
-        val chainChanged = JSONObject()
-            .put("type", "event")
-            .put("event", "chainChanged")
-            .put("data", JSONObject.NULL)
-        bridgeReplyProxies.values.toList().forEach { proxy ->
-            runCatching { proxy.postMessage(accountsChanged.toString()) }
-            runCatching { proxy.postMessage(chainChanged.toString()) }
-        }
-        pendingWalletAction?.let { action ->
-            DappProviderBridge.error(
-                action.replyProxy,
-                action.request.id,
-                4001,
-                "Wallet account or session changed; please request approval again"
-            )
-            pendingWalletAction = null
         }
     }
 

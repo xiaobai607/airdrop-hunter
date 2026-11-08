@@ -6,6 +6,7 @@ import com.reown.appkit.client.models.request.Request
 import com.reown.appkit.client.models.request.SentRequestResult
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 internal object DappRpcCoordinator {
     private data class Pending(
@@ -16,6 +17,10 @@ internal object DappRpcCoordinator {
     )
 
     private val pendingByWalletRequest = ConcurrentHashMap<Long, Pending>()
+    private val originEpochs = ConcurrentHashMap<String, AtomicLong>()
+
+    private fun originEpoch(origin: String): AtomicLong =
+        originEpochs.computeIfAbsent(origin) { AtomicLong(0L) }
 
     fun send(
         origin: String,
@@ -25,6 +30,7 @@ internal object DappRpcCoordinator {
         sessionGeneration: Long,
         reply: androidx.webkit.JavaScriptReplyProxy
     ) {
+        val requestOriginEpoch = originEpoch(origin).get()
         if (WalletConnectSessionDelegate.sessionGeneration.value != sessionGeneration) {
             DappProviderBridge.error(reply, pageRequestId, 4001, "Wallet session changed before the request was sent")
             return
@@ -35,16 +41,18 @@ internal object DappRpcCoordinator {
                 onSuccess = { sent ->
                     when (sent) {
                         is SentRequestResult.WalletConnect -> {
-                            if (WalletConnectSessionDelegate.sessionGeneration.value != sessionGeneration) {
-                                DappProviderBridge.error(reply, pageRequestId, 4001, "Wallet session changed before the external wallet responded")
+                            if (WalletConnectSessionDelegate.sessionGeneration.value != sessionGeneration ||
+                                originEpoch(origin).get() != requestOriginEpoch) {
+                                DappProviderBridge.error(reply, pageRequestId, 4001, "Wallet session or page changed before the external wallet responded")
                             } else {
                                 pendingByWalletRequest[sent.requestId] =
                                     Pending(origin, reply, pageRequestId, sessionGeneration)
                             }
                         }
                         is SentRequestResult.Coinbase -> {
-                            if (WalletConnectSessionDelegate.sessionGeneration.value != sessionGeneration) {
-                                DappProviderBridge.error(reply, pageRequestId, 4001, "Wallet session changed before the external wallet responded")
+                            if (WalletConnectSessionDelegate.sessionGeneration.value != sessionGeneration ||
+                                originEpoch(origin).get() != requestOriginEpoch) {
+                                DappProviderBridge.error(reply, pageRequestId, 4001, "Wallet session or page changed before the external wallet responded")
                             } else {
                                 val result = sent.results.firstOrNull()
                                 when (result) {
@@ -82,6 +90,9 @@ internal object DappRpcCoordinator {
     }
 
     fun cancelOrigin(origin: String) {
+        // Invalidate callbacks that have been sent to AppKit but have not yet
+        // returned a WalletConnect request ID and entered the pending map.
+        originEpoch(origin).incrementAndGet()
         val entries = pendingByWalletRequest.entries.filter { it.value.origin == origin }
         entries.forEach { entry ->
             if (pendingByWalletRequest.remove(entry.key, entry.value)) {
