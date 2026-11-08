@@ -43,6 +43,12 @@ data class PnlRecordEntity(
 )
 
 
+data class CommunitySyncBatch(
+    val accountScope: String,
+    val authorizationHeader: String?,
+    val entries: List<CommunitySyncOutboxEntity>
+)
+
 @Entity(tableName = "user_projects", indices = [Index(value = ["accountScope", "projectLocalId"], unique = true), Index(value = ["projectOfficialId"])])
 data class UserProjectEntity(
     @PrimaryKey val id: String,
@@ -365,6 +371,39 @@ object CacheStore {
         observeAccountScope().flatMapLatest { scope ->
             database?.communitySyncOutboxDao()?.observeAll(scope) ?: flowOf(emptyList())
         }
+
+    suspend fun getPendingCommunitySyncBatches(limit: Int = 50): List<CommunitySyncBatch> =
+        withContext(Dispatchers.IO) {
+            val token = TokenStore.readTokenBlocking()
+            val activeScope = accountScopeFromToken(token)
+            if (activeScope == "invalid-session") return@withContext emptyList()
+            val dao = database?.communitySyncOutboxDao() ?: return@withContext emptyList()
+            val result = mutableListOf<CommunitySyncBatch>()
+            val guestEntries = dao.getPending("guest", limit)
+            if (guestEntries.isNotEmpty()) result += CommunitySyncBatch("guest", "", guestEntries)
+            if (activeScope != "guest") {
+                val accountEntries = dao.getPending(activeScope, limit)
+                if (accountEntries.isNotEmpty() && !token.isNullOrBlank()) {
+                    result += CommunitySyncBatch(activeScope, "Bearer $token", accountEntries)
+                }
+            }
+            result
+        }
+
+    suspend fun completeCommunitySync(id: String, accountScope: String) = withContext(Dispatchers.IO) {
+        database?.communitySyncOutboxDao()?.deleteById(id, accountScope)
+    }
+
+    suspend fun markCommunitySyncAttempt(
+        id: String,
+        accountScope: String,
+        error: String
+    ) = withContext(Dispatchers.IO) {
+        database?.communitySyncOutboxDao()?.markAttemptById(
+            id, accountScope, System.currentTimeMillis(), error.take(500)
+        )
+    }
+
     fun observeProjectRatings(projectOfficialId: String): Flow<List<ProjectRatingEntity>> =
         observeAccountScope().flatMapLatest { scope ->
             database?.projectRatingDao()?.observeByProject(projectOfficialId, scope) ?: flowOf(emptyList())
