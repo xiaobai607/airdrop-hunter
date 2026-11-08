@@ -13,8 +13,9 @@ val configuredApiBaseUrl = (
         ?: "https://airdrop-hunter-z6qn.onrender.com/"
     ).let { if (it.endsWith("/")) it else "$it/" }
 
-val apiBaseUri = java.net.URI(configuredApiBaseUrl)
-require(apiBaseUri.scheme in setOf("http", "https") && !apiBaseUri.host.isNullOrBlank()) {
+val apiBaseScheme = configuredApiBaseUrl.substringBefore("://", "")
+val apiBaseHost = configuredApiBaseUrl.substringAfter("://", "").substringBefore("/")
+require(apiBaseScheme in setOf("http", "https") && apiBaseHost.isNotBlank()) {
     "API_BASE_URL must be a valid HTTP(S) URL with a host."
 }
 
