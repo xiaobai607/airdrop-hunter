@@ -3,6 +3,7 @@ package com.airdrophunter.app.data
 import java.math.BigDecimal
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.json.JSONObject
 import org.junit.Test
 
 class AssetRepositoryTest {
@@ -52,4 +53,41 @@ class AssetRepositoryTest {
         )
         assertTrue(tokens.isEmpty())
     }
+
+    @Test fun evmNativeBalancesCoverEveryConfiguredNetworkAndRemainChainSpecific() {
+        val balances = EVM_ASSET_NETWORKS.associate { it.id to BigDecimal("1.25") }
+        val assets = buildEvmAssetData("0x0000000000000000000000000000000000000001", balances)
+
+        assertEquals(7, assets.tokenList.size)
+        assertEquals("EVM · 7/7 网络可用", assets.ecosystemName)
+        assertEquals("ETH", assets.nativeSymbol)
+        assertEquals(BigDecimal("1.25"), assets.nativeBalance)
+        assertEquals(
+            listOf("ETH", "BNB", "POL", "ETH", "ETH", "ETH", "AVAX"),
+            assets.tokenList.map { it.symbol }
+        )
+        assertEquals(
+            listOf("native-ethereum", "native-bsc", "native-polygon", "native-arbitrum", "native-optimism", "native-base", "native-avalanche"),
+            assets.tokenList.map { it.id }
+        )
+    }
+
+    @Test fun evmAssetDataReportsPartialRpcAvailabilityWithoutInventingMissingBalances() {
+        val assets = buildEvmAssetData(
+            "0x0000000000000000000000000000000000000001",
+            mapOf("ethereum" to BigDecimal("0.5"), "base" to BigDecimal("2"))
+        )
+        assertEquals("EVM · 2/7 网络可用", assets.ecosystemName)
+        assertEquals(2, assets.tokenList.size)
+        assertTrue(assets.tokenList.none { it.id == "native-bsc" })
+    }
+
+    @Test fun evmBalanceParserHandlesZeroAndRejectsMalformedRpcValues() {
+        assertEquals(BigDecimal.ZERO, parseEvmNativeBalance(JSONObject("""{"result":"0x0"}""")))
+        assertEquals(BigDecimal("1"), parseEvmNativeBalance(JSONObject("""{"result":"0xde0b6b3a7640000"}""")))
+        assertTrue(runCatching {
+            parseEvmNativeBalance(JSONObject("""{"result":"not-hex"}"""))
+        }.isFailure)
+    }
+
 }

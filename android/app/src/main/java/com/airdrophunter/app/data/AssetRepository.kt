@@ -1,6 +1,9 @@
 package com.airdrophunter.app.data
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -54,6 +57,65 @@ data class UnifiedAssetData(
     val tokenList: List<UnifiedToken>,
     val lastUpdatedEpochSeconds: Long? = null
 )
+
+
+internal data class EvmAssetNetwork(
+    val id: String,
+    val name: String,
+    val symbol: String,
+    val rpcUrl: String
+)
+
+internal val EVM_ASSET_NETWORKS = listOf(
+    EvmAssetNetwork("ethereum", "Ethereum", "ETH", "https://cloudflare-eth.com"),
+    EvmAssetNetwork("bsc", "BNB Smart Chain", "BNB", "https://bsc-dataseed.binance.org"),
+    EvmAssetNetwork("polygon", "Polygon PoS", "POL", "https://polygon-rpc.com"),
+    EvmAssetNetwork("arbitrum", "Arbitrum One", "ETH", "https://arb1.arbitrum.io/rpc"),
+    EvmAssetNetwork("optimism", "OP Mainnet", "ETH", "https://mainnet.optimism.io"),
+    EvmAssetNetwork("base", "Base", "ETH", "https://mainnet.base.org"),
+    EvmAssetNetwork("avalanche", "Avalanche C-Chain", "AVAX", "https://api.avax.network/ext/bc/C/rpc")
+)
+
+internal fun parseEvmNativeBalance(response: JSONObject): BigDecimal {
+    val hexBalance = response.optString("result")
+    if (!hexBalance.startsWith("0x")) throw IOException("EVM RPC 未返回有效余额。")
+    val digits = hexBalance.removePrefix("0x").ifBlank { "0" }
+    val wei = try {
+        BigInteger(digits, 16)
+    } catch (_: NumberFormatException) {
+        throw IOException("EVM RPC 返回了无效的余额格式。")
+    }
+    if (wei.signum() < 0) throw IOException("EVM RPC 返回了负数余额。")
+    return BigDecimal(wei).movePointLeft(18)
+}
+
+internal fun buildEvmAssetData(
+    address: String,
+    balances: Map<String, BigDecimal>
+): UnifiedAssetData {
+    val ordered = EVM_ASSET_NETWORKS.mapNotNull { network ->
+        balances[network.id]?.let { network to it }
+    }
+    require(ordered.isNotEmpty()) { "所有 EVM 网络均无法读取余额。" }
+    val primary = ordered.firstOrNull { it.first.id == "ethereum" } ?: ordered.first()
+    val tokens = ordered.map { (network, balance) ->
+        UnifiedToken(
+            id = "native-${network.id}",
+            name = "${network.name} 主币",
+            symbol = network.symbol,
+            quantity = balance
+        )
+    }
+    return UnifiedAssetData(
+        address = address,
+        ecosystemName = "EVM · ${ordered.size}/${EVM_ASSET_NETWORKS.size} 网络可用",
+        totalUsd = null,
+        nativeAssetName = primary.first.name,
+        nativeSymbol = primary.first.symbol,
+        nativeBalance = primary.second,
+        tokenList = tokens
+    )
+}
 
 internal data class SolanaTokenBalance(
     val mint: String,
@@ -141,23 +203,24 @@ class DefaultAssetRepository(
         }
     }
 
-    private fun fetchEvmAssets(address: String): UnifiedAssetData {
-        // EVM addresses are shared across Ethereum-compatible networks. Without
-        // an explicit chain selector, the gateway queries Ethereum mainnet.
-        val response = rpc("https://cloudflare-eth.com", "eth_getBalance", JSONArray().put(address).put("latest"))
-        val hexBalance = response.optString("result")
-        if (!hexBalance.startsWith("0x")) throw IOException("Ethereum RPC 未返回有效余额。")
-        val wei = BigInteger(hexBalance.removePrefix("0x").ifBlank { "0" }, 16)
-        val balance = BigDecimal(wei).movePointLeft(18)
-        return UnifiedAssetData(
-            address = address,
-            ecosystemName = "EVM · Ethereum",
-            totalUsd = null,
-            nativeAssetName = "Ethereum",
-            nativeSymbol = "ETH",
-            nativeBalance = balance,
-            tokenList = listOf(UnifiedToken("native-eth", "Ethereum", "ETH", balance))
-        )
+    private suspend fun fetchEvmAssets(address: String): UnifiedAssetData {
+        // An EVM address is shared across chains. Query each supported mainnet
+        // independently so one unavailable public RPC does not hide other balances.
+        val balances = coroutineScope {
+            EVM_ASSET_NETWORKS.map { network ->
+                async(Dispatchers.IO) {
+                    network.id to runCatching {
+                        val response = rpc(
+                            network.rpcUrl,
+                            "eth_getBalance",
+                            JSONArray().put(address).put("latest")
+                        )
+                        parseEvmNativeBalance(response)
+                    }.getOrNull()
+                }
+            }.awaitAll()
+        }.mapNotNull { (networkId, balance) -> balance?.let { networkId to it } }.toMap()
+        return buildEvmAssetData(address, balances)
     }
 
     private fun fetchBitcoinAssets(address: String): UnifiedAssetData {
