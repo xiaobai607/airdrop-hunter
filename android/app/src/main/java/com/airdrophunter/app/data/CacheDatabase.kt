@@ -104,7 +104,7 @@ data class CommunitySyncOutboxEntity(
 
 data class CommunitySyncBatch(
     val accountScope: String,
-    val authorizationHeader: String,
+    val authorizationHeader: String?,
     val entries: List<CommunitySyncOutboxEntity>
 )
 
