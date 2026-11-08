@@ -42,6 +42,63 @@ data class PnlRecordEntity(
     @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest"
 )
 
+
+@Entity(
+    tableName = "user_projects",
+    indices = [Index(value = ["accountScope", "projectLocalId"], unique = true), Index(value = ["projectOfficialId"])]
+)
+data class UserProjectEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
+    val projectLocalId: String,
+    val projectOfficialId: String?,
+    val projectName: String,
+    val status: String,
+    val totalGasCostUsd: Double,
+    val totalActualRewardUsd: Double,
+    val netProfitUsd: Double,
+    val interactionCount: Int,
+    val lastInteractionAt: Long,
+    val createdAt: Long,
+    val updatedAt: Long
+)
+
+@Entity(
+    tableName = "user_interactions",
+    indices = [Index(value = ["accountScope", "projectLocalId", "timestamp"]), Index(value = ["projectOfficialId"])]
+)
+data class UserInteractionEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
+    val projectLocalId: String,
+    val projectOfficialId: String?,
+    val projectName: String,
+    val txHash: String,
+    val walletAddress: String,
+    val network: String,
+    val gasCostUsd: Double,
+    val actualRewardUsd: Double,
+    val interactionMethod: String,
+    val timestamp: Long
+)
+
+@Entity(
+    tableName = "community_sync_outbox",
+    indices = [Index(value = ["accountScope", "createdAt"])]
+)
+data class CommunitySyncOutboxEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
+    val projectOfficialId: String,
+    val gasCostUsd: Double,
+    val actualRewardUsd: Double,
+    val interactionCount: Int,
+    val createdAt: Long,
+    @ColumnInfo(defaultValue = "0") val attemptCount: Int = 0,
+    val lastAttemptAt: Long? = null,
+    val lastError: String? = null
+)
+
 @Entity(
     tableName = "project_ratings",
     indices = [Index(value = ["accountScope", "projectOfficialId", "walletAddress"], unique = true)]
@@ -102,6 +159,49 @@ interface PnlRecordDao {
     }
 }
 
+
+@Dao
+interface UserProjectDao {
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insert(project: UserProjectEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(project: UserProjectEntity)
+    @Query("SELECT * FROM user_projects WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope LIMIT 1")
+    suspend fun findByLocalId(projectLocalId: String, accountScope: String): UserProjectEntity?
+    @Query("SELECT * FROM user_projects WHERE accountScope = :accountScope ORDER BY lastInteractionAt DESC, projectName COLLATE NOCASE")
+    fun observeAll(accountScope: String): Flow<List<UserProjectEntity>>
+    @Query("SELECT * FROM user_projects WHERE accountScope = :accountScope ORDER BY lastInteractionAt DESC, projectName COLLATE NOCASE")
+    suspend fun getAll(accountScope: String): List<UserProjectEntity>
+    @Query("SELECT * FROM user_projects WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope LIMIT 1")
+    fun observeByLocalId(projectLocalId: String, accountScope: String): Flow<UserProjectEntity?>
+    @Query("UPDATE user_projects SET projectOfficialId = :projectOfficialId, projectName = :projectName, totalGasCostUsd = totalGasCostUsd + :gas, totalActualRewardUsd = totalActualRewardUsd + :reward, netProfitUsd = (totalActualRewardUsd + :reward) - (totalGasCostUsd + :gas), interactionCount = interactionCount + 1, lastInteractionAt = :timestamp, updatedAt = :timestamp WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope")
+    suspend fun addAmounts(projectLocalId: String, projectOfficialId: String?, projectName: String, gas: Double, reward: Double, timestamp: Long, accountScope: String): Int
+}
+
+@Dao
+interface UserInteractionDao {
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insert(interaction: UserInteractionEntity)
+    @Query("SELECT * FROM user_interactions WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope ORDER BY timestamp DESC")
+    fun observeByProject(projectLocalId: String, accountScope: String): Flow<List<UserInteractionEntity>>
+    @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND LOWER(txHash) = LOWER(:txHash) AND walletAddress = :walletAddress)")
+    suspend fun hasTransaction(accountScope: String, network: String, walletAddress: String, txHash: String): Boolean
+}
+
+@Dao
+interface CommunitySyncOutboxDao {
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(entry: CommunitySyncOutboxEntity): Long
+    @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope ORDER BY createdAt ASC")
+    fun observeAll(accountScope: String): Flow<List<CommunitySyncOutboxEntity>>
+    @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope ORDER BY createdAt ASC LIMIT :limit")
+    suspend fun getPending(accountScope: String, limit: Int): List<CommunitySyncOutboxEntity>
+    @Query("DELETE FROM community_sync_outbox WHERE id = :id AND accountScope = :accountScope")
+    suspend fun deleteById(id: String, accountScope: String)
+    @Query("UPDATE community_sync_outbox SET attemptCount = attemptCount + 1, lastAttemptAt = :attemptAt, lastError = :error WHERE id = :id AND accountScope = :accountScope")
+    suspend fun markAttemptById(id: String, accountScope: String, attemptAt: Long, error: String?)
+}
+
 @Dao
 interface ProjectRatingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -122,6 +222,9 @@ abstract class CacheDatabase : RoomDatabase() {
     abstract fun pendingBillDao(): PendingBillDao
     abstract fun pnlRecordDao(): PnlRecordDao
     abstract fun projectRatingDao(): ProjectRatingDao
+    abstract fun userProjectDao(): UserProjectDao
+    abstract fun userInteractionDao(): UserInteractionDao
+    abstract fun communitySyncOutboxDao(): CommunitySyncOutboxDao
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
