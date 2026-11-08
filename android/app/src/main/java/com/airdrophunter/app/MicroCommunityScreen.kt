@@ -27,6 +27,13 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 
+private data class CommunityDemoStats(
+    val gas: Double,
+    val reward: Double,
+    val contributions: Long,
+    val interactions: Long
+)
+
 @Composable
 fun MicroCommunityScreen(
     projectOfficialId: String,
@@ -49,19 +56,19 @@ fun MicroCommunityScreen(
     var saving by remember { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
     val demoStats = when (projectOfficialId.lowercase()) {
-        "linea" -> listOf(42.80, 184.20, 1280L, 4320L)
-        "scroll" -> listOf(38.60, 128.60, 964L, 3210L)
-        "zksync" -> listOf(62.00, 156.00, 1820L, 5860L)
-        "starknet" -> listOf(51.00, 98.00, 1450L, 4100L)
-        "base" -> listOf(73.00, 226.00, 2200L, 7240L)
-        "arbitrum" -> listOf(84.00, 142.00, 1730L, 5320L)
-        "optimism" -> listOf(49.00, 117.00, 1390L, 4680L)
-        else -> listOf(18.50, 64.00, 320L, 980L)
+        "linea" -> CommunityDemoStats(42.80, 184.20, 1280, 4320)
+        "scroll" -> CommunityDemoStats(38.60, 128.60, 964, 3210)
+        "zksync" -> CommunityDemoStats(62.00, 156.00, 1820, 5860)
+        "starknet" -> CommunityDemoStats(51.00, 98.00, 1450, 4100)
+        "base" -> CommunityDemoStats(73.00, 226.00, 2200, 7240)
+        "arbitrum" -> CommunityDemoStats(84.00, 142.00, 1730, 5320)
+        "optimism" -> CommunityDemoStats(49.00, 117.00, 1390, 4680)
+        else -> CommunityDemoStats(18.50, 64.00, 320, 980)
     }
-    val displayGasTotal = if (useDemoStats) demoStats[0] as Double else communityStats?.total_gas_cost_usd ?: 0.0
-    val displayRewardTotal = if (useDemoStats) demoStats[1] as Double else communityStats?.total_actual_reward_usd ?: 0.0
-    val displayContributionCount = if (useDemoStats) demoStats[2] as Long else communityStats?.contribution_count ?: 0L
-    val displayInteractionCount = if (useDemoStats) demoStats[3] as Long else communityStats?.total_interactions ?: 0L
+    val displayGasTotal = if (useDemoStats) demoStats.gas else communityStats?.total_gas_cost_usd ?: 0.0
+    val displayRewardTotal = if (useDemoStats) demoStats.reward else communityStats?.total_actual_reward_usd ?: 0.0
+    val displayContributionCount = if (useDemoStats) demoStats.contributions else communityStats?.contribution_count ?: 0L
+    val displayInteractionCount = if (useDemoStats) demoStats.interactions else communityStats?.total_interactions ?: 0L
     val combinedTotal = (displayGasTotal + displayRewardTotal).coerceAtLeast(1.0)
     val rewardWeight = if (displayGasTotal + displayRewardTotal <= 0.0) 0.5f
         else (displayRewardTotal / combinedTotal).toFloat().coerceIn(0.01f, 0.99f)
