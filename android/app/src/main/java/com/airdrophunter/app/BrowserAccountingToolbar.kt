@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,7 +60,6 @@ fun BrowserAccountingToolbar(
     var gas by remember { mutableStateOf("") }
     var reward by remember { mutableStateOf("0.00") }
     var saving by remember { mutableStateOf(false) }
-    var creatingMockBill by remember { mutableStateOf(false) }
 
     LaunchedEffect(accountingRepository) {
         projects = accountingRepository.loadProjects()
@@ -99,32 +97,6 @@ fun BrowserAccountingToolbar(
         showConfirm = true
     }
 
-    fun createMockBill() {
-        if (creatingMockBill) return
-        creatingMockBill = true
-        scope.launch {
-            try {
-                val mockGasSamples = listOf(0.12, 0.28, 0.45, 0.63, 0.91)
-                val mockHash = "MOCK-" + UUID.randomUUID().toString().replace("-", "").uppercase(Locale.US)
-                val bill = PendingBillEntity(
-                    id = UUID.randomUUID().toString(),
-                    txHash = mockHash,
-                    walletAddress = walletAddress.ifBlank { "MOCK-WALLET-LOCAL" },
-                    gasCostUsd = mockGasSamples[pending.size % mockGasSamples.size],
-                    interactionMethod = "模拟合约交互",
-                    timestamp = System.currentTimeMillis(),
-                    network = network
-                )
-                accountingRepository.addPendingBill(bill)
-                openBill(bill)
-            } catch (_: Exception) {
-                Toast.makeText(context, "模拟账单创建失败，请重试", Toast.LENGTH_SHORT).show()
-            } finally {
-                creatingMockBill = false
-            }
-        }
-    }
-
     fun deleteDraft(bill: PendingBillEntity) {
         scope.launch {
             val ok = runCatching { accountingRepository.deletePendingBill(bill.id) }.isSuccess
@@ -147,16 +119,6 @@ fun BrowserAccountingToolbar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            AccountingCapsuleButton(
-                description = "模拟抓取账单",
-                background = Color(0xFFEAF7F1),
-                tint = Color(0xFF16845B),
-                loading = creatingMockBill,
-                onClick = ::createMockBill
-            ) {
-                if (creatingMockBill) CircularProgressIndicator(Modifier.size(19.dp), color = Color(0xFF16845B), strokeWidth = 2.dp)
-                else Icon(Icons.Default.FlashOn, contentDescription = "模拟抓取账单", tint = Color(0xFF16845B), modifier = Modifier.size(20.dp))
-            }
             AccountingCapsuleButton(
                 description = "复制钱包地址",
                 background = Color(0xFFEDF3FF),
@@ -222,7 +184,7 @@ fun BrowserAccountingToolbar(
                                             verticalArrangement = Arrangement.spacedBy(3.dp)
                                         ) {
                                             Text(String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd), color = Color(0xFF9A5A16), fontWeight = FontWeight.Bold)
-                                            Text("模拟账单 · " + bill.interactionMethod, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                            Text("待核实交易 · " + bill.interactionMethod, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                                             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                                         }
                                         IconButton(onClick = { deleteDraft(bill) }) {
@@ -273,7 +235,7 @@ fun BrowserAccountingToolbar(
                             Icon(Icons.Default.Close, contentDescription = "关闭确认弹窗", tint = AppColors.TextSecondary)
                         }
                     }
-                    Text("模拟账单：\${bill.txHash.take(16)}…", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    Text("链上交易：\${bill.txHash.take(16)}…", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     OutlinedTextField(
                         value = gas,
                         onValueChange = { gas = it },
