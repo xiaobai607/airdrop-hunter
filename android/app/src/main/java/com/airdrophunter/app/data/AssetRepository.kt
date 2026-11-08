@@ -81,7 +81,7 @@ internal fun mergeSolanaTokenBalances(accounts: List<SolanaTokenBalance>): List<
             id = mint,
             name = data.second,
             symbol = mint.take(5) + "…",
-            quantity = data.first
+            quantity = data.first.stripTrailingZeros()
         )
     }
 }
