@@ -139,10 +139,21 @@ class ProjectsRepository(
     }
 
     suspend fun addTask(projectId: String, name: String, guest: Boolean, current: List<TaskDto>): List<TaskDto> {
+        require(projectId.isNotBlank()) { "项目 ID 不能为空" }
+        val normalizedName = name.trim()
+        require(normalizedName.isNotEmpty()) { "任务名称不能为空" }
+        require(current.all { it.project_id == projectId }) { "任务列表包含其他项目的任务" }
         val nextOrder = (current.maxOfOrNull { it.step_order } ?: 0) + 1
-        val task = if (guest) TaskDto(UUID.randomUUID().toString(), projectId, name.trim(), false, nextOrder)
-        else remote.createTask(projectId, TaskCreateRequest(name.trim(), nextOrder))
+        val task = if (guest) TaskDto(UUID.randomUUID().toString(), projectId, normalizedName, false, nextOrder)
+        else remote.createTask(projectId, TaskCreateRequest(normalizedName, nextOrder))
+        require(task.project_id == projectId) { "服务器返回的任务不属于当前项目" }
         return (current + task).sortedBy { it.step_order }.also { saveTasks(projectId, it, guest) }
+    }
+
+    private fun requireTaskBelongsToProject(projectId: String, task: TaskDto, current: List<TaskDto>) {
+        require(projectId.isNotBlank() && task.project_id == projectId) { "不能操作其他项目的任务" }
+        require(current.any { it.id == task.id && it.project_id == projectId }) { "任务已不存在或不属于当前项目" }
+        require(current.all { it.project_id == projectId }) { "任务列表包含其他项目的任务" }
     }
 
     suspend fun setTaskCompleted(
@@ -152,8 +163,10 @@ class ProjectsRepository(
         guest: Boolean,
         current: List<TaskDto>
     ): List<TaskDto> {
+        requireTaskBelongsToProject(projectId, task, current)
         val updated = if (guest) task.copy(is_completed = completed)
         else remote.updateTask(projectId, task.id, TaskUpdateRequest(completed))
+        require(updated.project_id == projectId) { "服务器返回的任务不属于当前项目" }
         return current.map { if (it.id == updated.id) updated else it }
             .also { saveTasks(projectId, it, guest) }
     }
@@ -164,6 +177,7 @@ class ProjectsRepository(
         guest: Boolean,
         current: List<TaskDto>
     ): List<TaskDto> {
+        requireTaskBelongsToProject(projectId, task, current)
         if (!guest) remote.deleteTask(projectId, task.id)
         return current.filterNot { it.id == task.id }.also { saveTasks(projectId, it, guest) }
     }
