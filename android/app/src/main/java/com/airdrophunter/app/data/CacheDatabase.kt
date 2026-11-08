@@ -19,7 +19,7 @@ import org.json.JSONObject
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
 
 @Entity(tableName = "pending_bills")
-data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest")
+data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest", @ColumnInfo(defaultValue = "'unknown'") val network: String = "unknown")
 
 @Entity(
     tableName = "pnl_records",
@@ -227,7 +227,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class], version = 7, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class], version = 8, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -272,7 +272,7 @@ object CacheStore {
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
         }
     }
     private fun accountScopeFromToken(token: String?): String {
@@ -385,7 +385,7 @@ object CacheStore {
                     projectName = projectCustomName,
                     txHash = bill.txHash,
                     walletAddress = bill.walletAddress,
-                    network = "unknown",
+                    network = bill.network,
                     gasCostUsd = gas,
                     actualRewardUsd = reward,
                     interactionMethod = bill.interactionMethod,
@@ -520,6 +520,12 @@ object CacheStore {
                     totalGasCostUsd, totalRewardUsd, netProfitUsd, 0, 0, 0, 0
                 FROM pnl_records
             """.trimIndent())
+        }
+    }
+
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE pending_bills ADD COLUMN network TEXT NOT NULL DEFAULT 'unknown'")
         }
     }
 
