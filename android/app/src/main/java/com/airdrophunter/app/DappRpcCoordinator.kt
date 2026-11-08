@@ -58,12 +58,17 @@ internal object DappRpcCoordinator {
     }
 
     fun cancelOrigin(origin: String) {
-        val entries = pendingByWalletRequest.entries.filter { it.value.origin != origin }
+        val entries = pendingByWalletRequest.entries.filter { it.value.origin == origin }
         entries.forEach { entry ->
             if (pendingByWalletRequest.remove(entry.key, entry.value)) {
                 DappProviderBridge.error(entry.value.reply, entry.value.pageRequestId, 4001, "The page navigated before the wallet responded")
             }
         }
+    }
+
+    fun onRequestExpired(requestId: Long) {
+        val pending = pendingByWalletRequest.remove(requestId) ?: return
+        DappProviderBridge.error(pending.reply, pending.pageRequestId, 4001, "The external wallet request expired")
     }
 
     private fun parseJsonValue(raw: String): Any? {
