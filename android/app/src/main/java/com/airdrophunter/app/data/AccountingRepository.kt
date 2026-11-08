@@ -29,7 +29,7 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
     override suspend fun addPendingBill(bill: PendingBillEntity) {
         CacheStore.addPendingBill(bill)
     }
-    override suspend fun deletePendingBill(id: String) = CacheStore.deletePendingBill(id)
+    override suspend fun deletePendingBill(id: String) { CacheStore.deletePendingBill(id) }
     override suspend fun confirmPendingBill(
         id: String,
         projectLocalId: String,

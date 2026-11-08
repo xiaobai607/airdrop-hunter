@@ -197,7 +197,7 @@ fun BrowserAccountingToolbar(
                         }
                     }
                     if (pending.isEmpty()) {
-                        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                        Box(Modifier.fillMaxWidth().padding(vertical = 22.dp), contentAlignment = Alignment.Center) {
                             Text("暂无待确认账单", color = AppColors.TextHelper)
                         }
                     } else {
