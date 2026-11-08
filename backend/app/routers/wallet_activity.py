@@ -198,9 +198,14 @@ async def bitcoin_transactions(client: httpx.AsyncClient, address: str, limit: i
     if not isinstance(first_page, list):
         raise HTTPException(502, "Bitcoin 交易服务返回无效数据")
 
-    mempool_rows = [row for row in first_page if not (row.get("status") or {}).get("confirmed")]
-    confirmed_rows = [row for row in first_page if (row.get("status") or {}).get("confirmed")]
-    while len(confirmed_rows) < limit and len(confirmed_rows) >= 25:
+    mempool_rows = [
+        row for row in first_page if not (row.get("status") or {}).get("confirmed")
+    ][:min(limit, 50)]
+    confirmed_rows = [
+        row for row in first_page if (row.get("status") or {}).get("confirmed")
+    ]
+    confirmed_needed = max(limit - len(mempool_rows), 0)
+    while len(confirmed_rows) < confirmed_needed and len(confirmed_rows) >= 25:
         last_seen = str(confirmed_rows[-1].get("txid") or "")
         if not re.fullmatch(r"[0-9a-fA-F]{64}", last_seen):
             break
@@ -216,10 +221,10 @@ async def bitcoin_transactions(client: httpx.AsyncClient, address: str, limit: i
         )
         if len(page) < 25:
             break
-    return mempool_rows[:50] + confirmed_rows[:limit]
+    return mempool_rows + confirmed_rows[:confirmed_needed]
 
 
-def build_bitcoin_transactions(rows, address: str, price: Decimal | None):
+def build_bitcoin_transactions(rows, address: str, price: Decimal | None, limit: int):
     results = []
     for row in rows:
         try:
@@ -244,6 +249,7 @@ def build_bitcoin_transactions(rows, address: str, price: Decimal | None):
             fee_paid_by_wallet = bool(input_addresses) and all(
                 value == address for value in input_addresses
             )
+            shared_input_fee = address in input_addresses and not fee_paid_by_wallet
             outputs = row.get("vout") or []
             first_input = next((value for value in input_addresses if value), "")
             first_output = next((
@@ -255,7 +261,8 @@ def build_bitcoin_transactions(rows, address: str, price: Decimal | None):
                 chain="bitcoin", hash=tx_hash, timestamp=timestamp,
                 from_address=first_input, to_address=first_output,
                 method_id=None, gas_used=None, gas_price_base_unit=None,
-                total_fee_base_unit=str(fee_sats), fee_type="bitcoin_fee_sat",
+                total_fee_base_unit=str(fee_sats),
+                fee_type="bitcoin_fee_sat_shared_inputs" if shared_input_fee else "bitcoin_fee_sat",
                 gas_cost_native=decimal_text(native_cost), native_symbol="BTC",
                 native_price_usd=decimal_text(price) if price is not None else None,
                 gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
@@ -272,7 +279,7 @@ def build_bitcoin_transactions(rows, address: str, price: Decimal | None):
             continue
         seen.add(key)
         deduped.append(tx)
-    return deduped
+    return deduped[:limit]
 
 
 @router.get("/evm/{address}/transactions", response_model=WalletActivityBatchResponse)
@@ -358,7 +365,7 @@ async def list_wallet_transactions(
             if chain == "bitcoin":
                 rows = await bitcoin_transactions(client, address, limit)
                 price = await fetch_price(client, "btc-bitcoin")
-                return build_bitcoin_transactions(rows, address, price)
+                return build_bitcoin_transactions(rows, address, price, limit)
             if chain != "tron":
                 rows = await evm_transactions(client, address, limit, api_key, chain)
                 price = await fetch_price(client, EVM_NETWORKS[chain]["price_id"])

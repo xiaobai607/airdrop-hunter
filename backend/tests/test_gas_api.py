@@ -229,6 +229,7 @@ def test_bitcoin_mixed_address_inputs_are_not_assigned_the_full_transaction_fee(
         response = client.get(f"/api/wallet-activity/bitcoin/{address}/transactions")
     assert response.status_code == 200
     assert response.json()[0]["fee_paid_by_wallet"] is False
+    assert response.json()[0]["fee_type"] == "bitcoin_fee_sat_shared_inputs"
 
 
 def test_bitcoin_unconfirmed_transaction_is_pending_and_not_recordable(monkeypatch):

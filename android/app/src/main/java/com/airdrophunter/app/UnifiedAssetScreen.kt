@@ -330,7 +330,12 @@ private fun WalletTransactionRow(transaction: WalletTransactionDto, onRecord: ((
                 )
             }
             Text(
-                if (transaction.fee_paid_by_wallet) "手续费由此钱包支付" else "此钱包未支付手续费",
+                when {
+                    transaction.fee_type == "bitcoin_fee_sat_shared_inputs" ->
+                        "此交易涉及多个输入地址，手续费无法准确归属当前地址"
+                    transaction.fee_paid_by_wallet -> "手续费可完整归属于此地址"
+                    else -> "此钱包未支付手续费"
+                },
                 color = AppColors.TextHelper,
                 style = MaterialTheme.typography.labelSmall
             )

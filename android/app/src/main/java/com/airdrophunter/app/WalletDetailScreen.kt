@@ -94,7 +94,7 @@ fun WalletDetailScreen(
         AlertDialog(
             onDismissRequest = { if (!isRecording) recordingTransaction = null },
             containerColor = AppColors.Surface,
-            title = { Text("确认链上 Gas 记账", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text(if (transaction.chain == "bitcoin") "确认 Bitcoin 矿工手续费记账" else "确认链上 Gas 记账", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
@@ -113,7 +113,7 @@ fun WalletDetailScreen(
                         value = selectedGasUsd,
                         onValueChange = { selectedGasUsd = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("真实 Gas 费用 (USD)") },
+                        label = { Text(if (transaction.chain == "bitcoin") "真实矿工手续费 (USD)" else "真实 Gas 费用 (USD)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                     )
