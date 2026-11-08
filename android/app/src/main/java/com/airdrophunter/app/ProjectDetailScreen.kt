@@ -53,7 +53,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         if (parsed != null && parsed.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrBlank()) {
             context.startActivity(Intent(context, BrowserActivity::class.java)
                 .putExtra(BrowserActivity.EXTRA_URL, claimUrl)
-                .putExtra(BrowserActivity.EXTRA_TITLE, "\u0024{project.name} · 资格领取"))
+                .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取"))
         } else Toast.makeText(context, "领取链接无效，已阻止打开", Toast.LENGTH_LONG).show()
         projectDetailViewModel.consumeClaimUrl()
     }
@@ -195,13 +195,13 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                         .build().toString()
                                     context.startActivity(Intent(context, BrowserActivity::class.java)
                                         .putExtra(BrowserActivity.EXTRA_URL, url)
-                                        .putExtra(BrowserActivity.EXTRA_TITLE, "\u0024{project.name} · 资格领取"))
+                                        .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取"))
                                 } else Toast.makeText(context, "领取链接无效", Toast.LENGTH_LONG).show()
                             } else projectDetailViewModel.requestClaimUrl(project.id, wallet.id)
                         }) {
                             Column(Modifier.fillMaxWidth()) {
                                 Text(wallet.wallet_name.ifBlank { "钱包" }, color = AppColors.TextPrimary)
-                                Text("\u0024{wallet.ecosystem} · \u0024{wallet.address.take(8)}…\u0024{wallet.address.takeLast(5)}",
+                                Text("${wallet.ecosystem} · ${wallet.address.take(8)}…${wallet.address.takeLast(5)}",
                                     color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                             }
                         }
