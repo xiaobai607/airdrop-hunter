@@ -154,7 +154,11 @@ def build_evm_transactions(rows, chain: str, address: str, price: Decimal | None
                 method_id=str(row.get("methodId") or "") or None,
                 gas_used=str(gas_used), gas_price_base_unit=str(gas_price),
                 total_fee_base_unit=str(total_fee_wei),
-                fee_type="evm_gas_fee_with_l1_wei" if l1_fee_wei else "evm_gas_fee_wei",
+                fee_type=(
+                    "evm_gas_fee_with_l1_wei" if l1_fee_wei
+                    else "evm_l2_execution_fee_wei" if chain in {"optimism", "base"}
+                    else "evm_gas_fee_wei"
+                ),
                 gas_cost_native=decimal_text(native_cost), native_symbol=network["native_symbol"],
                 native_price_usd=decimal_text(price) if price is not None else None,
                 gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,

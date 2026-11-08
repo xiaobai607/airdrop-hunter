@@ -102,6 +102,13 @@ fun WalletDetailScreen(
                         color = AppColors.TextHelper,
                         style = MaterialTheme.typography.labelSmall
                     )
+                    if (transaction.fee_type == "evm_l2_execution_fee_wei") {
+                        Text(
+                            "提示：当前金额可能不含 L1 数据费，请核对实际总费用后再保存。",
+                            color = AppColors.Danger,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                     OutlinedTextField(
                         value = selectedGasUsd,
                         onValueChange = { selectedGasUsd = it },

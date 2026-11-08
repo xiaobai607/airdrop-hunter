@@ -180,6 +180,16 @@ fun UnifiedAssetContent(
                         fontWeight = FontWeight.Bold
                     )
                 }
+                if (transactionsWarning != null) {
+                    item {
+                        Text(
+                            transactionsWarning,
+                            color = AppColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(vertical = 6.dp)
+                        )
+                    }
+                }
                 when {
                     transactionSupportMessage != null -> item {
                         Text(transactionSupportMessage, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 10.dp))
@@ -310,6 +320,13 @@ private fun WalletTransactionRow(transaction: WalletTransactionDto, onRecord: ((
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(date, Modifier.weight(1f), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                 Text(usd?.let { "约 $" + it } ?: "USD 估值暂无", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+            }
+            if (transaction.fee_type == "evm_l2_execution_fee_wei") {
+                Text(
+                    "当前仅统计执行层费用，可能未包含 L1 数据费；记账前请核对总费用。",
+                    color = AppColors.Danger,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
             Text(
                 if (transaction.fee_paid_by_wallet) "手续费由此钱包支付" else "此钱包未支付手续费",

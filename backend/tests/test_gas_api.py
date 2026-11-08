@@ -36,6 +36,7 @@ class FakeClient:
                 "bnb-binance-coin": "600",
                 "pol-polygon-ecosystem-token": "0.5",
                 "avax-avalanche": "20",
+                "trx-tron": "0.1",
             }
             ticker = url.rsplit("/", 1)[-1]
             return FakeResponse({"quotes": {"USD": {"price": prices[ticker]}}})
@@ -178,5 +179,6 @@ def test_evm_batch_reads_each_supported_network_with_its_chain_id_and_native_tok
     assert by_chain["polygon"]["native_symbol"] == "POL"
     assert by_chain["avalanche"]["native_symbol"] == "AVAX"
     assert by_chain["base"]["native_symbol"] == "ETH"
+    assert by_chain["base"]["fee_type"] == "evm_l2_execution_fee_wei"
     assert by_chain["ethereum"]["fee_paid_by_wallet"] is True
     assert by_chain["bsc"]["gas_cost_native"] == "0.000021"
