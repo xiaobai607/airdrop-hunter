@@ -37,7 +37,7 @@ class FakeClient:
             owner_hex = activity.tron_address_to_hex(address)
             return FakeResponse({"data": [{
                 "txID": "d" * 64, "block_timestamp": 1700000000000,
-                "raw_data": {"contract": [{"parameter": {"value": {"owner_address": owner_hex, "to_address": "41" + "f" * 40}}}]}
+                "raw_data": {"contract": [{"type": "TransferContract", "parameter": {"value": {"owner_address": owner_hex, "to_address": "41" + "f" * 40}}}]}
             }]})
         if url.startswith(activity.COINPAPRIKA_BASE):
             prices = {
@@ -119,6 +119,24 @@ def test_ethereum_inbound_transaction_does_not_attribute_sender_fee_to_recipient
     assert response.status_code == 200
     tx = response.json()[0]
     assert tx["fee_paid_by_wallet"] is False
+
+
+
+
+def test_tron_smart_contract_fee_is_not_assigned_from_owner_address_alone(monkeypatch):
+    class SmartContractClient(FakeClient):
+        async def get(self, url, params=None, headers=None):
+            response = await super().get(url, params=params, headers=headers)
+            if url.startswith(activity.TRONGRID + "/v1/accounts/") and url.endswith("/transactions"):
+                response.data["data"][0]["raw_data"]["contract"][0]["type"] = "TriggerSmartContract"
+            return response
+
+    monkeypatch.setattr(activity.httpx, "AsyncClient", SmartContractClient)
+    address = "TUoHaVjx7n5xz8LwPRDckgFrDWhMhuSuJM"
+    with TestClient(app) as client:
+        response = client.get(f"/api/wallet-activity/tron/{address}/transactions")
+    assert response.status_code == 200
+    assert response.json()[0]["fee_paid_by_wallet"] is False
 
 
 

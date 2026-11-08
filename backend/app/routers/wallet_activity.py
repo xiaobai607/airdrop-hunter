@@ -419,14 +419,20 @@ async def list_wallet_transactions(
                         contract for contract in raw_contracts
                         if isinstance(contract, dict)
                     ]
-                    # TRON receipt.fee is the transaction's total burned fee. If
-                    # multiple contract owners appear, the receipt does not tell us
-                    # how that fee was split between them. Only attribute it when
-                    # every contract owner is this wallet and a fee was actually burned.
+                    # TRON receipts expose aggregate fees, not a definitive payer split.
+                    # Smart-contract calls can consume energy sponsored by the contract
+                    # origin, so matching owner_address alone is insufficient evidence.
+                    # Attribute fees only for basic transfer operations where the
+                    # transaction owner is the fee payer and no contract energy sponsor
+                    # can be involved. All other cases remain unassigned for manual review.
                     fee_paid_by_wallet = (
                         fee_sun > 0
                         and bool(contract_owners)
-                        and all(contract_owner_matches(contract) for contract in contract_owners)
+                        and all(
+                            contract.get("type") in {"TransferContract", "TransferAssetContract"}
+                            and contract_owner_matches(contract)
+                            for contract in contract_owners
+                        )
                     )
                     results.append(WalletTransaction(
                         chain="tron", hash=tx_hash, timestamp=timestamp,

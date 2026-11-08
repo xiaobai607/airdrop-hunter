@@ -109,6 +109,13 @@ fun WalletDetailScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
+                    if (transaction.chain == "tron" && !transaction.fee_paid_by_wallet) {
+                        Text(
+                            "提示：链上回执无法确认此钱包承担了这笔 TRON 手续费，可能存在合约能量赞助。请核实实际付款账户后再记账。",
+                            color = AppColors.Danger,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                     OutlinedTextField(
                         value = selectedGasUsd,
                         onValueChange = { selectedGasUsd = it },
