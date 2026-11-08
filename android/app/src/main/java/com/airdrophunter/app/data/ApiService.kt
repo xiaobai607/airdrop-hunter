@@ -45,7 +45,7 @@ interface ApiService {
     @GET("api/coins") suspend fun getCoins(): List<CoinDto>
     @POST("api/coins") suspend fun addCoin(@Body request: CoinCreateRequest): CoinDto
     @DELETE("api/coins/{coinId}") suspend fun removeCoin(@Path("coinId") coinId: String)
-    @GET("api/wallet/check") suspend fun checkWallet(@Query("address") address: String): WalletCheckResponse
+    @GET("api/wallet-activity/{chain}/{address}/transactions") suspend fun getWalletTransactions(\n        @Path("chain") chain: String,\n        @Path("address") address: String,\n        @Query("limit") limit: Int = 50\n    ): List<WalletTransactionDto>\n    @GET("api/wallet/check") suspend fun checkWallet(@Query("address") address: String): WalletCheckResponse
     @GET("api/wallets") suspend fun getWallets(): List<WalletDto>
     @POST("api/wallets") suspend fun addWallet(@Body request: WalletWriteRequest): WalletDto
     @DELETE("api/wallets/{walletId}") suspend fun deleteWallet(@Path("walletId") walletId: String)
