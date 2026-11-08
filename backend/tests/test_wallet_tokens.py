@@ -89,6 +89,29 @@ def test_evm_token_portfolio_rejects_invalid_address(address):
     assert response.status_code == 422
 
 
+
+class OneNetworkOfflineClient(FakeClient):
+    async def get(self, url, params=None, headers=None):
+        if params["chainid"] == "56":
+            raise wallet_tokens.httpx.ConnectError("BSC explorer unavailable")
+        return await super().get(url, params=params, headers=headers)
+
+
+def test_one_evm_explorer_failure_does_not_hide_other_network_holdings(monkeypatch):
+    monkeypatch.setenv("ETHERSCAN_API_KEY", "test")
+    monkeypatch.setattr(wallet_tokens.httpx, "AsyncClient", OneNetworkOfflineClient)
+    monkeypatch.setattr(wallet_tokens, "_LAST_REQUEST_AT", 0.0)
+    address = "0x" + "b" * 40
+    with TestClient(app) as client:
+        response = client.get(f"/api/wallet-tokens/evm/{address}")
+    assert response.status_code == 200
+    payload = response.json()
+    by_chain = {item["chain"]: item for item in payload["networks"]}
+    assert by_chain["bsc"]["status"] == "unavailable"
+    assert sum(item["status"] == "available" for item in payload["networks"]) == 6
+    assert {item["chain"] for item in payload["holdings"]} == set(wallet_tokens.EVM_NETWORKS) - {"bsc"}
+
+
 def test_evm_token_parser_rejects_malformed_or_zero_balances():
     assert wallet_tokens._parse_holding({
         "TokenAddress": "0x" + "a" * 40,
