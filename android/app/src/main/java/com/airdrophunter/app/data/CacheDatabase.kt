@@ -389,7 +389,32 @@ object CacheStore {
         true
     }
     suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) {
-        database?.pendingBillDao()?.insert(bill.copy(accountScope = currentAccountScope()))
+        val db = database ?: return@withContext
+        val scope = currentAccountScope()
+        val scopedBill = bill.copy(
+            accountScope = scope,
+            txHash = bill.txHash.trim(),
+            walletAddress = bill.walletAddress.trim(),
+            network = bill.network.trim().lowercase()
+        )
+        db.withTransaction {
+            // Make duplicate detection and insertion atomic, so repeated refresh
+            // callbacks cannot create duplicate pending rows for one chain event.
+            val hasStableIdentity =
+                scopedBill.txHash.isNotBlank() &&
+                scopedBill.walletAddress.isNotBlank() &&
+                WalletActivityNetworkPolicy.isSupported(scopedBill.network)
+            if (hasStableIdentity) {
+                val pendingDuplicate = db.pendingBillDao().hasTransaction(
+                    scope, scopedBill.network, scopedBill.walletAddress, scopedBill.txHash
+                )
+                val recordedDuplicate = db.userInteractionDao().hasTransaction(
+                    scope, scopedBill.network, scopedBill.walletAddress, scopedBill.txHash
+                )
+                if (pendingDuplicate || recordedDuplicate) return@withTransaction
+            }
+            db.pendingBillDao().insert(scopedBill)
+        }
     }
     suspend fun deletePendingBill(id: String) = withContext(Dispatchers.IO) {
         database?.pendingBillDao()?.delete(id, currentAccountScope())

@@ -26,6 +26,18 @@ data class WalletTransactionDto(
 )
 
 
+/**
+ * Do not prefill a wallet's actual cost unless the chain data attributes the
+ * fee to this wallet and the fee type represents a complete amount.
+ */
+object WalletTransactionAccountingPolicy {
+    fun suggestedGasCostUsd(transaction: WalletTransactionDto): String =
+        if (
+            transaction.fee_paid_by_wallet &&
+            transaction.fee_type != "evm_l2_execution_fee_wei"
+        ) transaction.gas_cost_usd.orEmpty() else ""
+}
+
 data class WalletActivityBatchDto(
     val transactions: List<WalletTransactionDto> = emptyList(),
     val networks_checked: List<String> = emptyList(),

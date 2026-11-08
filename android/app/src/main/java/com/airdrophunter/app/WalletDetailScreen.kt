@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.data.WalletTransactionDto
+import com.airdrophunter.app.data.WalletTransactionAccountingPolicy
 import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.ui.theme.AppColors
 
@@ -51,7 +52,8 @@ fun WalletDetailScreen(
     val rewardValue = actualRewardUsd.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
     LaunchedEffect(accountingRepository) {
         projects = accountingRepository.loadProjects()
-        selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
+        // Never silently assign a chain transaction to the first project.
+        selectedProjectLocalId = ""
     }
     LaunchedEffect(wallet.address, wallet.ecosystem) { walletDetailViewModel.loadWallet(wallet.address, wallet.ecosystem) }
     DisposableEffect(walletDetailViewModel) { onDispose { walletDetailViewModel.clear() } }
@@ -82,9 +84,9 @@ fun WalletDetailScreen(
             transactionSupportMessage = state.transactionSupportMessage,
             onRecordTransaction = { transaction ->
                 recordingTransaction = transaction
-                selectedGasUsd = transaction.gas_cost_usd.orEmpty()
+                selectedGasUsd = WalletTransactionAccountingPolicy.suggestedGasCostUsd(transaction)
                 actualRewardUsd = ""
-                if (selectedProjectLocalId.isBlank()) selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
+                selectedProjectLocalId = ""
             },
             modifier = Modifier.weight(1f)
         )
@@ -102,17 +104,24 @@ fun WalletDetailScreen(
                         color = AppColors.TextHelper,
                         style = MaterialTheme.typography.labelSmall
                     )
-                    if (transaction.fee_type == "evm_l2_execution_fee_wei") {
+                    if (!transaction.fee_paid_by_wallet) {
                         Text(
-                            "提示：当前金额可能不含 L1 数据费，请核对实际总费用后再保存。",
+                            "无法确认这笔手续费由当前钱包承担（可能由其他地址支付，或 Bitcoin 多输入无法拆分）。金额已留空；请核实实际承担金额后手动填写。",
                             color = AppColors.Danger,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    if (transaction.chain == "tron" && !transaction.fee_paid_by_wallet) {
+                    if (transaction.fee_type == "evm_l2_execution_fee_wei") {
                         Text(
-                            "提示：链上回执无法确认此钱包承担了这笔 TRON 手续费，可能存在合约能量赞助。请核实实际付款账户后再记账。",
+                            "目前只取得执行层费用，尚未取得 L1 数据费。完整手续费未知，金额已留空；请核实实际总费用后手动填写。",
                             color = AppColors.Danger,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    if (transaction.fee_paid_by_wallet && transaction.gas_cost_usd.isNullOrBlank()) {
+                        Text(
+                            "已确认此钱包支付手续费，但暂时无法取得美元估值。请核实真实费用后手动填写。",
+                            color = AppColors.TextSecondary,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
