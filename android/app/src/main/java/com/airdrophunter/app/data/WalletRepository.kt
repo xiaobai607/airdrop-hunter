@@ -49,6 +49,7 @@ class WalletRepository(
             chain = request.chain, network_icon = when (request.chain) {
                 WalletEcosystem.EVM -> "E"
                 WalletEcosystem.TRON -> "T"
+                WalletEcosystem.BITCOIN -> "B"
                 else -> "S"
             }, address = request.address
         )
