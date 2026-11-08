@@ -111,7 +111,9 @@ class AccountingRepository(
             var offset = 0
             var pageCount = 0
             var reachedEnd = false
-            while (pageCount < 20) {
+            // Read one final page at the 10,000-row boundary so an exact-cap ledger
+            // is accepted only after the API confirms there are no more rows.
+            while (pageCount <= 20) {
                 val page = remote.getPersonalLedger(limit = 500, offset = offset)
                 cloudEntries += page
                 if (page.size < 500) {
