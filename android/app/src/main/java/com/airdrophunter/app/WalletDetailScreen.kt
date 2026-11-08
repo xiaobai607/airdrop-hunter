@@ -8,13 +8,10 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.text.input.KeyboardType
+import com.airdrophunter.app.data.CommunityContributionSyncScheduler
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.window.Dialog
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.window.DialogProperties
 import android.widget.Toast
 import kotlinx.coroutines.launch
-import java.util.Locale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager

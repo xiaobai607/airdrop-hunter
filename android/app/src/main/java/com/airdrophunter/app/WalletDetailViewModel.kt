@@ -16,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 
 data class WalletDetailUiState(
     val address: String = "",
@@ -96,17 +97,36 @@ class WalletDetailViewModel(
                             }
                         }
                     }
-                    val assetsResult = assetsTask.await()
-                    val activityResult = activityTask.await()
-                    if (_uiState.value.address != address) return@coroutineScope
-                    _uiState.value = _uiState.value.copy(
-                        assets = assetsResult.getOrNull(),
-                        isLoading = false,
-                        errorMessage = assetsResult.exceptionOrNull()?.message,
-                        transactions = activityResult.getOrNull().orEmpty(),
-                        transactionsLoading = false,
-                        transactionsError = activityResult.exceptionOrNull()?.message
-                    )
+                    var assetsDone = false
+                    var activityDone = false
+                    while (!assetsDone || !activityDone) {
+                        select<Unit> {
+                            if (!assetsDone) {
+                                assetsTask.onAwait { result ->
+                                    if (_uiState.value.address == address) {
+                                        _uiState.value = _uiState.value.copy(
+                                            assets = result.getOrNull(),
+                                            isLoading = false,
+                                            errorMessage = result.exceptionOrNull()?.message
+                                        )
+                                    }
+                                    assetsDone = true
+                                }
+                            }
+                            if (!activityDone) {
+                                activityTask.onAwait { result ->
+                                    if (_uiState.value.address == address) {
+                                        _uiState.value = _uiState.value.copy(
+                                            transactions = result.getOrNull().orEmpty(),
+                                            transactionsLoading = false,
+                                            transactionsError = result.exceptionOrNull()?.message
+                                        )
+                                    }
+                                    activityDone = true
+                                }
+                            }
+                        }
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled

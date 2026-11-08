@@ -153,6 +153,45 @@ fun UnifiedAssetContent(
                 }
             }
         }
+
+        if (assets == null) {
+            LazyColumn(
+                Modifier.fillMaxWidth().weight(1f),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    Text(
+                        "近期链上交易",
+                        Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp),
+                        color = AppColors.TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                when {
+                    transactionSupportMessage != null -> item {
+                        Text(transactionSupportMessage, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 10.dp))
+                    }
+                    transactionsLoading -> item {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(18.dp), color = AppColors.Primary, strokeWidth = 2.dp)
+                            Spacer(Modifier.width(10.dp))
+                            Text("正在读取真实链上交易…", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    transactionsError != null -> item {
+                        Text("交易记录暂时无法读取：$transactionsError", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 10.dp))
+                    }
+                    transactions.isEmpty() -> item {
+                        Text("该地址暂未查询到交易记录", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 10.dp))
+                    }
+                    else -> items(transactions, key = { "unavailable-assets:${it.chain}:${it.hash}" }) { transaction ->
+                        WalletTransactionRow(transaction, onRecordTransaction?.let { callback -> { callback(transaction) } })
+                    }
+                }
+            }
+        }
     }
 }
 
