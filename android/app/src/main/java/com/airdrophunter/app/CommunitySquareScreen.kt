@@ -33,7 +33,8 @@ import java.util.Locale
 private data class CommunityProject(
     val id: String, val name: String, val chain: String, val logo: String,
     val reward: Double, val gas: Double, val contributionCount: Long,
-    val tags: List<String>, val isDemo: Boolean = false
+    val tags: List<String>, val isDemo: Boolean = false,
+    val demoScore: Double = 0.0, val demoPositive: Int = 0, val demoReviews: Int = 0
 ) {
     val label: String get() = if (isDemo) "测试演示" else if (contributionCount > 0) "真实贡献" else "暂无贡献"
     val rewardWeight: Float get() =
@@ -46,13 +47,13 @@ private enum class CommunityRanking(val title: String) {
 }
 
 private val communityProjectCatalog = listOf(
-    CommunityProject("linea", "Linea", "Consensys zkEVM", "L", 184.20, 42.80, 1280, listOf("L2", "零撸", "明牌空投"), true),
-    CommunityProject("scroll", "Scroll", "zkEVM", "S", 128.60, 38.60, 964, listOf("L2", "需测试网", "明牌空投"), true),
-    CommunityProject("zksync", "zkSync", "ZK Rollup", "Z", 156.00, 62.00, 1820, listOf("L2", "高Gas", "明牌空投"), true),
-    CommunityProject("starknet", "Starknet", "Validity Rollup", "✦", 98.00, 51.00, 1450, listOf("L2", "需测试网", "高Gas"), true),
-    CommunityProject("base", "Base", "Ethereum L2", "B", 226.00, 73.00, 2200, listOf("L2", "零撸", "高Gas"), true),
-    CommunityProject("arbitrum", "Arbitrum", "Ethereum L2", "A", 142.00, 84.00, 1730, listOf("L2", "高Gas"), true),
-    CommunityProject("optimism", "Optimism", "Superchain", "O", 117.00, 49.00, 1390, listOf("L2", "零撸", "明牌空投"), true)
+    CommunityProject("linea", "Linea", "Consensys zkEVM", "L", 184.20, 42.80, 1280, listOf("L2", "零撸", "明牌空投"), true, 4.9, 97, 1280),
+    CommunityProject("scroll", "Scroll", "zkEVM", "S", 128.60, 38.60, 964, listOf("L2", "需测试网", "明牌空投"), true, 4.8, 95, 964),
+    CommunityProject("zksync", "zkSync", "ZK Rollup", "Z", 156.00, 62.00, 1820, listOf("L2", "高Gas", "明牌空投"), true, 4.7, 93, 1820),
+    CommunityProject("starknet", "Starknet", "Validity Rollup", "✦", 98.00, 51.00, 1450, listOf("L2", "需测试网", "高Gas"), true, 4.4, 88, 1450),
+    CommunityProject("base", "Base", "Ethereum L2", "B", 226.00, 73.00, 2200, listOf("L2", "零撸", "高Gas"), true, 4.9, 96, 2200),
+    CommunityProject("arbitrum", "Arbitrum", "Ethereum L2", "A", 142.00, 84.00, 1730, listOf("L2", "高Gas"), true, 4.2, 82, 1730),
+    CommunityProject("optimism", "Optimism", "Superchain", "O", 117.00, 49.00, 1390, listOf("L2", "零撸", "明牌空投"), true, 4.6, 91, 1390)
 )
 
 @Composable
@@ -203,6 +204,13 @@ fun CommunitySquareScreen(
                                     style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
                                 )
                             }
+                        }
+                    }
+                    if (project.isDemo) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("★ ${String.format(Locale.US, "%.1f", project.demoScore)} · ${project.demoPositive}% 好评",
+                                color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                            Text("${project.demoReviews} 条模拟评价", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
                     }
                     Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
