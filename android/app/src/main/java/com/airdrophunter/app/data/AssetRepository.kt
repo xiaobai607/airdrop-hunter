@@ -116,6 +116,25 @@ internal fun buildEvmAssetData(
     )
 }
 
+internal data class EvmTokenHoldingDto(val chain: String, val contract_address: String, val name: String, val symbol: String, val quantity: String, val decimals: Int)
+internal data class EvmTokenNetworkResultDto(val chain: String, val status: String, val detail: String? = null)
+internal data class EvmTokenPortfolioDto(val holdings: List<EvmTokenHoldingDto> = emptyList(), val networks: List<EvmTokenNetworkResultDto> = emptyList())
+
+internal fun mergeEvmTokenHoldings(base: UnifiedAssetData, holdings: List<EvmTokenHoldingDto>, networks: List<EvmTokenNetworkResultDto>): UnifiedAssetData {
+    val tokens = holdings.mapNotNull { holding ->
+        val quantity = holding.quantity.toBigDecimalOrNull() ?: return@mapNotNull null
+        if (quantity.signum() <= 0 || holding.contract_address.isBlank()) return@mapNotNull null
+        UnifiedToken(id = "erc20-${holding.chain}-${holding.contract_address.lowercase()}", name = holding.name.ifBlank { holding.symbol }, symbol = holding.symbol, quantity = quantity)
+    }
+    val unavailable = networks.filter { it.status != "available" }
+    val status = when {
+        networks.isEmpty() -> "ERC-20 查询状态未知"
+        unavailable.isNotEmpty() -> "ERC-20 部分网络不可用（${unavailable.size}/${networks.size}）"
+        else -> "ERC-20 已读取"
+    }
+    return base.copy(ecosystemName = base.ecosystemName.substringBefore("（ERC-20") + "（$status）", tokenList = base.tokenList + tokens)
+}
+
 internal data class SolanaTokenBalance(
     val mint: String,
     val rawAmount: String,
@@ -219,7 +238,13 @@ class DefaultAssetRepository(
                 }
             }.awaitAll()
         }.mapNotNull { (networkId, balance) -> balance?.let { networkId to it } }.toMap()
-        return buildEvmAssetData(address, balances)
+        val nativeAssets = buildEvmAssetData(address, balances)
+        val tokenPortfolio = runCatching { ApiClient.service.getEvmTokenPortfolio(address) }.getOrNull()
+        return if (tokenPortfolio == null) {
+            nativeAssets.copy(ecosystemName = nativeAssets.ecosystemName.replace("（ERC-20 未读取）", "（ERC-20 查询暂不可用）"))
+        } else {
+            mergeEvmTokenHoldings(nativeAssets, tokenPortfolio.holdings, tokenPortfolio.networks)
+        }
     }
 
     private fun fetchBitcoinAssets(address: String): UnifiedAssetData {

@@ -89,4 +89,20 @@ class AssetRepositoryTest {
         }.isFailure)
     }
 
+    @Test fun evmTokenHoldingsMergeByChainAndKeepUsdUnknown() {
+        val base = buildEvmAssetData("0x0000000000000000000000000000000000000001", mapOf("ethereum" to BigDecimal("1")))
+        val merged = mergeEvmTokenHoldings(base, listOf(EvmTokenHoldingDto("ethereum", "0x0000000000000000000000000000000000000002", "USD Coin", "USDC", "12.5", 6), EvmTokenHoldingDto("base", "0x0000000000000000000000000000000000000002", "USD Coin", "USDC", "3", 6)), listOf(EvmTokenNetworkResultDto("ethereum", "available"), EvmTokenNetworkResultDto("base", "available")))
+        assertEquals(3, merged.tokenList.size)
+        assertEquals(2, merged.tokenList.count { it.symbol == "USDC" })
+        assertEquals(null, merged.totalUsd)
+        assertTrue(merged.tokenList.filter { it.symbol == "USDC" }.all { it.usdValue == null })
+        assertTrue(merged.ecosystemName.contains("ERC-20 已读取"))
+    }
+
+    @Test fun evmTokenPortfolioMarksUnavailableNetworks() {
+        val base = buildEvmAssetData("0x0000000000000000000000000000000000000001", mapOf("ethereum" to BigDecimal("1")))
+        val merged = mergeEvmTokenHoldings(base, emptyList(), listOf(EvmTokenNetworkResultDto("ethereum", "available"), EvmTokenNetworkResultDto("base", "unavailable")))
+        assertTrue(merged.ecosystemName.contains("ERC-20 部分网络不可用"))
+        assertEquals(1, merged.tokenList.size)
+    }
 }
