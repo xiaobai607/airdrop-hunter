@@ -66,7 +66,9 @@ fun ProjectsScreen(
             communityOfficialId = saved.projectOfficialId
         )
     }
-    val visibleProjects = (state.projects + savedProjectDtos).distinctBy { it.id }
+    val visibleProjects = (savedProjectDtos + state.projects).distinctBy {
+        it.communityOfficialId?.let { officialId -> "official:$officialId" } ?: "local:${it.id}"
+    }
     val filterOptions = listOf("全部" to visibleProjects.size) +
         listOf(
             "进行中" to visibleProjects.count { it.status == "tracking" },

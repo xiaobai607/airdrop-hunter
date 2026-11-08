@@ -183,6 +183,9 @@ interface UserProjectDao {
     @Query("SELECT * FROM user_projects WHERE accountScope = :accountScope ORDER BY lastInteractionAt DESC, projectName COLLATE NOCASE")
     fun observeAll(accountScope: String): Flow<List<UserProjectEntity>>
 
+    @Query("SELECT * FROM user_projects WHERE accountScope = :accountScope ORDER BY lastInteractionAt DESC, projectName COLLATE NOCASE")
+    suspend fun getAll(accountScope: String): List<UserProjectEntity>
+
     @Query("SELECT * FROM user_projects WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope LIMIT 1")
     fun observeByLocalId(projectLocalId: String, accountScope: String): Flow<UserProjectEntity?>
 
@@ -309,6 +312,9 @@ object CacheStore {
     }
     fun observeUserProjects(): Flow<List<UserProjectEntity>> = observeAccountScope().flatMapLatest { scope ->
         database?.userProjectDao()?.observeAll(scope) ?: flowOf(emptyList())
+    }
+    suspend fun readUserProjects(): List<UserProjectEntity> = withContext(Dispatchers.IO) {
+        database?.userProjectDao()?.getAll(currentAccountScope()).orEmpty()
     }
     suspend fun joinCommunityProject(projectOfficialId: String, projectName: String): Boolean =
         withContext(Dispatchers.IO) {

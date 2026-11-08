@@ -8,6 +8,7 @@ interface AccountingLocalDataSource {
     fun observePendingBills(): Flow<List<PendingBillEntity>>
     suspend fun readLocal(key: String): String?
     suspend fun read(key: String): String?
+    suspend fun readUserProjects(): List<UserProjectEntity>
     suspend fun writeLocal(key: String, payload: String)
     suspend fun addPendingBill(bill: PendingBillEntity)
     suspend fun deletePendingBill(id: String)
@@ -25,6 +26,7 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
     override fun observePendingBills(): Flow<List<PendingBillEntity>> = CacheStore.observePendingBills()
     override suspend fun readLocal(key: String): String? = CacheStore.readLocal(key)
     override suspend fun read(key: String): String? = CacheStore.read(key)
+    override suspend fun readUserProjects(): List<UserProjectEntity> = CacheStore.readUserProjects()
     override suspend fun writeLocal(key: String, payload: String) = CacheStore.writeLocal(key, payload)
     override suspend fun addPendingBill(bill: PendingBillEntity) {
         CacheStore.addPendingBill(bill)
@@ -56,9 +58,23 @@ class AccountingRepository(
             local.read("projects"),
             local.readLocal("pnl_projects")
         )
-        return sources.flatMap { raw ->
+        val cachedProjects = sources.flatMap { raw ->
             runCatching { gson.fromJson<List<ProjectDto>>(raw, projectsType) }.getOrNull().orEmpty()
-        }.distinctBy { it.id }
+        }
+        val joinedProjects = local.readUserProjects().map { saved ->
+            ProjectDto(
+                id = saved.projectLocalId,
+                name = saved.projectName,
+                description = "",
+                status = saved.status,
+                communityOfficialId = saved.projectOfficialId
+            )
+        }
+        // Prefer the Room library entry for a linked community project so
+        // accounting always writes to the same private project ID as its ledger.
+        return (joinedProjects + cachedProjects).distinctBy {
+            it.communityOfficialId?.let { officialId -> "official:$officialId" } ?: "local:${it.id}"
+        }
     }
 
     suspend fun saveLocalProject(project: ProjectDto): List<ProjectDto> {
