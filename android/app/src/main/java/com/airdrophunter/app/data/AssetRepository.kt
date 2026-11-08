@@ -116,10 +116,6 @@ internal fun buildEvmAssetData(
     )
 }
 
-internal data class EvmTokenHoldingDto(val chain: String, val contract_address: String, val name: String, val symbol: String, val quantity: String, val decimals: Int)
-internal data class EvmTokenNetworkResultDto(val chain: String, val status: String, val detail: String? = null)
-internal data class EvmTokenPortfolioDto(val holdings: List<EvmTokenHoldingDto> = emptyList(), val networks: List<EvmTokenNetworkResultDto> = emptyList())
-
 internal fun mergeEvmTokenHoldings(base: UnifiedAssetData, holdings: List<EvmTokenHoldingDto>, networks: List<EvmTokenNetworkResultDto>): UnifiedAssetData {
     val tokens = holdings.mapNotNull { holding ->
         val quantity = holding.quantity.toBigDecimalOrNull() ?: return@mapNotNull null
