@@ -12,6 +12,7 @@ import java.io.IOException
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.concurrent.TimeUnit
+import java.security.MessageDigest
 
 enum class DetectedNetwork(val label: String) {
     EVM("EVM"), TRON("TRON"), SOL("Solana"), BITCOIN("Bitcoin"), UNKNOWN("未知网络")
@@ -22,15 +23,28 @@ object AddressDetector {
     private val evm = Regex("^0x[a-fA-F0-9]{40}$")
     private val tron = Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$")
     private val bitcoinBech32 = Regex("^bc1[ac-hj-np-z02-9]{11,71}$", RegexOption.IGNORE_CASE)
-    private val bitcoinBase58 = Regex("^[13][1-9A-HJ-NP-Za-km-z]{25,34}$")
     private val base58 = Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$")
+
+    private fun isValidBitcoinBase58(value: String): Boolean {
+        if (value.length !in 26..35 || value.any { it !in "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz" }) return false
+        val alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+        var number = BigInteger.ZERO
+        value.forEach { char -> number = number.multiply(BigInteger.valueOf(58)).add(BigInteger.valueOf(alphabet.indexOf(char).toLong())) }
+        val decoded = number.toByteArray().let { bytes -> if (bytes.firstOrNull() == 0.toByte()) bytes.dropWhile { it == 0.toByte() }.toByteArray() else bytes }
+        val leadingZeros = value.takeWhile { it == '1' }.length
+        val payload = ByteArray(leadingZeros) + decoded
+        if (payload.size != 25 || payload[0].toInt() and 0xff !in setOf(0, 5)) return false
+        val digest = MessageDigest.getInstance("SHA-256")
+        val checksum = digest.digest(digest.digest(payload.copyOfRange(0, 21))).copyOfRange(0, 4)
+        return checksum.contentEquals(payload.copyOfRange(21, 25))
+    }
 
     fun detect(address: String): DetectedNetwork {
         val value = address.trim()
         return when {
             evm.matches(value) -> DetectedNetwork.EVM
             tron.matches(value) -> DetectedNetwork.TRON
-            bitcoinBech32.matches(value) || bitcoinBase58.matches(value) -> DetectedNetwork.BITCOIN
+            bitcoinBech32.matches(value) || isValidBitcoinBase58(value) -> DetectedNetwork.BITCOIN
             base58.matches(value) -> DetectedNetwork.SOL
             else -> DetectedNetwork.UNKNOWN
         }
