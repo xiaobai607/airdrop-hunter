@@ -160,7 +160,7 @@ interface UserInteractionDao {
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insert(interaction: UserInteractionEntity)
     @Query("SELECT * FROM user_interactions WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope ORDER BY timestamp DESC")
     fun observeByProject(projectLocalId: String, accountScope: String): Flow<List<UserInteractionEntity>>
-    @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND LOWER(txHash) = LOWER(:txHash) AND walletAddress = :walletAddress)")
+    @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND LOWER(txHash) = LOWER(:txHash) AND ((LOWER(:network) IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (LOWER(:network) NOT IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND walletAddress = :walletAddress)))")
     suspend fun hasTransaction(accountScope: String, network: String, walletAddress: String, txHash: String): Boolean
 }
 
@@ -447,6 +447,20 @@ object CacheStore {
         db.withTransaction {
             val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
             val canonicalOfficialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
+            val effectiveNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
+                ?: when (bill.chain.trim().lowercase()) {
+                    "ethereum", "erc20", "evm" -> "ethereum"
+                    "tron", "trc20" -> "tron"
+                    "bitcoin", "btc" -> "bitcoin"
+                    "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" -> bill.chain.trim().lowercase()
+                    else -> "unknown"
+                }
+            val effectiveBill = bill.copy(network = effectiveNetwork)
+            if (
+                bill.txHash.isNotBlank() && bill.walletAddress.isNotBlank() &&
+                WalletActivityNetworkPolicy.isSupported(effectiveNetwork) &&
+                db.userInteractionDao().hasTransaction(scope, effectiveNetwork, bill.walletAddress, bill.txHash)
+            ) return@withTransaction false
             val ledgerKey = "${scope}:local:personal_ledger"
             val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
             val gson = Gson()
@@ -499,15 +513,6 @@ object CacheStore {
                     )
                 )
             }
-            val effectiveNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
-                ?: when (bill.chain.trim().lowercase()) {
-                    "ethereum", "erc20", "evm" -> "ethereum"
-                    "tron", "trc20" -> "tron"
-                    "bitcoin", "btc" -> "bitcoin"
-                    "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" -> bill.chain.trim().lowercase()
-                    else -> "unknown"
-                }
-            val effectiveBill = bill.copy(network = effectiveNetwork)
             db.userInteractionDao().insert(
                 UserInteractionEntity(
                     id = bill.id,
