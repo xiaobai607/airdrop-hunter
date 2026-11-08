@@ -26,6 +26,11 @@ import com.airdrophunter.app.ui.theme.AppColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.time.Instant
+import java.time.ZoneId
+import java.time.DayOfWeek
+
+enum class LedgerPeriod(val label: String) { DAY("日"), WEEK("周"), MONTH("月") }
 
 @Composable
 fun ProjectDetailScreen(
@@ -45,6 +50,7 @@ fun ProjectDetailScreen(
     val interactions by CacheStore.observeUserInteractions(project.id).collectAsStateWithLifecycle(initialValue = emptyList())
     val twitterTitle = stringResource(R.string.twitter)
     var taskName by remember(project.id) { mutableStateOf("") }
+    var ledgerPeriod by remember(project.id) { mutableStateOf(LedgerPeriod.MONTH) }
     val completed = state.tasks.count { it.is_completed }
     val progress = if (state.tasks.isEmpty()) 0f else completed.toFloat() / state.tasks.size
     // Community library projects use the shared official ID for public stats,
@@ -145,6 +151,67 @@ fun ProjectDetailScreen(
             }
         }
         item {
+            val zone = remember { ZoneId.systemDefault() }
+            val today = remember { Instant.ofEpochMilli(System.currentTimeMillis()).atZone(zone).toLocalDate() }
+            val periodStart = remember(ledgerPeriod, today) {
+                when (ledgerPeriod) {
+                    LedgerPeriod.DAY -> today
+                    LedgerPeriod.WEEK -> today.with(DayOfWeek.MONDAY)
+                    LedgerPeriod.MONTH -> today.withDayOfMonth(1)
+                }
+            }
+            val periodInteractions = remember(interactions, periodStart, zone) {
+                interactions.filter { interaction ->
+                    Instant.ofEpochMilli(interaction.timestamp).atZone(zone).toLocalDate() >= periodStart
+                }
+            }
+            val periodGas = periodInteractions.sumOf { it.gasCostUsd }
+            val periodReward = periodInteractions.sumOf { it.actualRewardUsd }
+            val periodNet = periodReward - periodGas
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                border = BorderStroke(1.dp, AppColors.Border),
+                shape = RoundedCornerShape(18.dp),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("周期统计", Modifier.weight(1f), color = AppColors.TextPrimary,
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("从本地已确认流水计算", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        LedgerPeriod.values().forEach { option ->
+                            FilterChip(
+                                selected = ledgerPeriod == option,
+                                onClick = { ledgerPeriod = option },
+                                label = { Text(option.label) },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = AppColors.TealTint,
+                                    selectedLabelColor = AppColors.Primary,
+                                    labelColor = AppColors.TextSecondary
+                                )
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text("${periodInteractions.size} 笔", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LedgerPeriodMetric(Modifier.weight(1f), "Gas 消耗", periodGas, AppColors.Danger)
+                        LedgerPeriodMetric(Modifier.weight(1f), "实际收益", periodReward, AppColors.Success)
+                        LedgerPeriodMetric(
+                            Modifier.weight(1f),
+                            "净盈亏",
+                            periodNet,
+                            if (periodNet >= 0.0) AppColors.Success else AppColors.Danger
+                        )
+                    }
+                }
+            }
+        }
+        item {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("个人交互流水", color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -219,5 +286,23 @@ private fun ProjectMetric(modifier: Modifier = Modifier, label: String, value: D
         Text(label, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
         Text(String.format(Locale.US, "$%.2f", value), color = Color(0xFF16845B),
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+    }
+}
+
+
+@Composable
+private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double, color: Color) {
+    Column(
+        modifier.background(AppColors.Background, RoundedCornerShape(12.dp)).padding(horizontal = 9.dp, vertical = 11.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(label, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        Text(
+            String.format(Locale.US, "$%.2f", value),
+            color = color,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
     }
 }
