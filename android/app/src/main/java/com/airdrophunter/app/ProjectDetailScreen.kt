@@ -39,7 +39,9 @@ enum class LedgerPeriod(val label: String) { DAY("日"), WEEK("周"), MONTH("月
 
 @Composable
 fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGuest: Boolean = false,
-    vm: ProjectDetailViewModel? = null) {
+    vm: ProjectDetailViewModel? = null,
+    onOpenCommunity: ((ProjectDto) -> Unit)? = null
+) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
     val projectDetailViewModel: ProjectDetailViewModel = vm ?: viewModel(
@@ -125,6 +127,12 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 .putExtra(BrowserActivity.EXTRA_URL, project.twitter_url)
                                 .putExtra(BrowserActivity.EXTRA_TITLE, twitterTitle))
                         }) { Text(stringResource(R.string.twitter)) }
+                    }
+                    if (project.communityOfficialId != null && onOpenCommunity != null) {
+                        OutlinedButton(
+                            onClick = { onOpenCommunity(project) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("查看全网大盘数据") }
                     }
                 }
             }
