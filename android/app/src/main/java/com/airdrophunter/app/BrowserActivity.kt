@@ -351,7 +351,8 @@ private fun BrowserScreen(
                     if (address.isBlank()) Toast.makeText(context, "当前没有可复制的钱包地址", Toast.LENGTH_SHORT).show()
                     else {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", address))                        Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", address))
+                        Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally).navigationBarsPadding().padding(bottom = 8.dp)
