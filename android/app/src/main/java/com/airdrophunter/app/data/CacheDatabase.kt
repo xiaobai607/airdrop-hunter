@@ -349,8 +349,11 @@ object CacheStore {
         val scope = currentAccountScope()
         db.withTransaction {
             val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
-            val canonicalOfficialId = projectOfficialId?.takeIf { candidate ->
-                CommunityProjectCatalog.projects.any { it.officialId == candidate }
+            // Official IDs come from the shared project directory and must not be
+            // restricted to a compile-time list: newly discovered community projects
+            // need to contribute to the same public ledger without an APK update.
+            val canonicalOfficialId = projectOfficialId?.trim()?.takeIf {
+                it.isNotEmpty() && it.length <= 120
             }
             db.pnlRecordDao().addToProject(projectLocalId, canonicalOfficialId, projectCustomName, bill.walletAddress, gas, reward, scope)
             val recordedAt = bill.timestamp
