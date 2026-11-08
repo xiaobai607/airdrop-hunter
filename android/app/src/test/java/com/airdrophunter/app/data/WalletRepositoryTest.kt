@@ -58,4 +58,18 @@ class WalletRepositoryTest {
         assertEquals(1, result.size)
         assertEquals("B", result.single().wallet_name)
     }
+    @Test fun bitcoinBase58AddressIsNotMisclassifiedAsSolana() {
+        val address = "1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
+        assertTrue(Base58Address.isBase58Check(address, setOf(0x00, 0x05)))
+        assertEquals(WalletEcosystem.BITCOIN, WalletEcosystem.fromAddress(address))
+        assertEquals(DetectedNetwork.BITCOIN, AddressDetector.detect(address))
+    }
+
+    @Test fun rawThirtyTwoByteSolanaKeyRemainsSolana() {
+        val address = "11111111111111111111111111111111"
+        assertTrue(Base58Address.is32BytePublicKey(address))
+        assertEquals(WalletEcosystem.SOL, WalletEcosystem.fromAddress(address))
+        assertEquals(DetectedNetwork.SOL, AddressDetector.detect(address))
+    }
+
 }
