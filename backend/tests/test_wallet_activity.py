@@ -3,6 +3,7 @@ from decimal import Decimal
 from app.routers.wallet_activity import (
     build_bitcoin_transactions,
     build_evm_transactions,
+    build_solana_transactions,
 )
 
 
