@@ -39,7 +39,7 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
         _accounts.value = emptyList()
     }
 
-    override fun onSessionRequestResponse(response: Modal.Model.SessionRequestResponse) = Unit
+    override fun onSessionRequestResponse(response: Modal.Model.SessionRequestResponse) { DappRpcCoordinator.onWalletResponse(response) }
     override fun onProposalExpired(proposal: Modal.Model.ExpiredProposal) = Unit
     override fun onRequestExpired(request: Modal.Model.ExpiredRequest) = Unit
     override fun onConnectionStateChange(state: Modal.Model.ConnectionState) = Unit
