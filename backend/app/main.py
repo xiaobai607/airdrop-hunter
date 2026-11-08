@@ -20,6 +20,7 @@ from app.api.stats import router as stats_router
 from app.api.airdrops import router as airdrops_router
 from app.api.airdrop_hub import router as airdrop_hub_router, sync_router as airdrop_sync_router
 from app.api.sources import router as sources_router
+from app.api.personal_ledger import router as personal_ledger_router
 from app.database import engine
 from app import models  # noqa: F401
 
@@ -92,7 +93,7 @@ async def unexpected_exception_handler(request: Request, exc: Exception):
 for router in (
     auth_router, projects_router, market_router, wallet_router, wallets_router,
     tasks_router, stats_router, airdrops_router, airdrop_hub_router,
-    airdrop_sync_router, sources_router,
+    airdrop_sync_router, sources_router, personal_ledger_router,
 ):
     app.include_router(router)
 
