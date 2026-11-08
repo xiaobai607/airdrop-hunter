@@ -50,7 +50,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     LaunchedEffect(state.claimUrl) {
         val claimUrl = state.claimUrl ?: return@LaunchedEffect
         val parsed = runCatching { Uri.parse(claimUrl) }.getOrNull()
-        if (parsed?.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrBlank()) {
+        if (parsed != null && parsed.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrBlank()) {
             context.startActivity(Intent(context, BrowserActivity::class.java)
                 .putExtra(BrowserActivity.EXTRA_URL, claimUrl)
                 .putExtra(BrowserActivity.EXTRA_TITLE, "\u0024{project.name} · 资格领取"))
@@ -189,7 +189,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             showClaimWalletPicker = false
                             if (isGuest) {
                                 val parsed = runCatching { Uri.parse(project.claim_url) }.getOrNull()
-                                if (parsed?.scheme.equals("https", true) && !parsed?.host.isNullOrBlank()) {
+                                if (parsed != null && parsed.scheme.equals("https", true) && !parsed.host.isNullOrBlank()) {
                                     val url = parsed!!.buildUpon()
                                         .appendQueryParameter("address", wallet.address.ifBlank { wallet.public_key })
                                         .build().toString()
