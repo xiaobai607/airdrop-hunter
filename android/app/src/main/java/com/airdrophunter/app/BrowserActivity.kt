@@ -158,13 +158,10 @@ private fun BrowserScreen(
     val authorizedDappOrigins = remember { mutableStateMapOf<String, String>() }
     val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsState()
     val connectedSessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsState()
-    val dappAuthorizationStamp = remember(connectedSessionGeneration, connectedDappAccounts) {
-        connectedSessionGeneration.toString() + ":" +
-            connectedDappAccounts.map { it.address.lowercase() }.sorted().joinToString(",")
-    }
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var loadAttempt by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
+    var pageStartCount by remember(url) { mutableIntStateOf(0) }
     var approvedExternalEntry by remember(url) { mutableStateOf(false) }
     var approvedHost by remember(url) { mutableStateOf(Uri.parse(url).host.orEmpty().lowercase()) }
     var pendingNavigationUrl by remember { mutableStateOf<String?>(null) }
@@ -201,7 +198,7 @@ private fun BrowserScreen(
         if (waitingDappWalletApproval && connectedDappAccounts.isNotEmpty()) {
             val pending = pendingDappConnection
             if (pending != null) {
-                authorizedDappOrigins[pending.origin] = dappAuthorizationStamp
+                authorizedDappOrigins[pending.origin] = currentDappAuthorizationStamp()
                 val addresses = JSONArray(connectedDappAccounts.map { it.address }.distinct())
                 DappProviderBridge.success(pending.replyProxy, pending.request.id, addresses)
             }
@@ -311,7 +308,7 @@ private fun BrowserScreen(
                                         "eth_requestAccounts" -> {
                                             if (pendingDappConnection != null) {
                                                 DappProviderBridge.error(replyProxy, request.id, -32002, "A wallet connection request is already pending")
-                                            } else if (authorizedDappOrigins[origin] == dappAuthorizationStamp && connectedDappAccounts.isNotEmpty()) {
+                                            } else if (authorizedDappOrigins[origin] == currentDappAuthorizationStamp() && connectedDappAccounts.isNotEmpty()) {
                                                 DappProviderBridge.success(
                                                     replyProxy,
                                                     request.id,
@@ -322,7 +319,7 @@ private fun BrowserScreen(
                                             }
                                         }
                                         "eth_accounts" -> {
-                                            val addresses = if (authorizedDappOrigins[origin] == dappAuthorizationStamp) {
+                                            val addresses = if (authorizedDappOrigins[origin] == currentDappAuthorizationStamp()) {
                                                 connectedDappAccounts.map { it.address }.distinct()
                                             } else emptyList()
                                             DappProviderBridge.success(replyProxy, request.id, JSONArray(addresses))
@@ -352,7 +349,7 @@ private fun BrowserScreen(
                                             }
                                         }
                                         "personal_sign", "eth_signTypedData_v4", "eth_sendTransaction" -> {
-                                            if (authorizedDappOrigins[origin] != dappAuthorizationStamp) {
+                                            if (authorizedDappOrigins[origin] != currentDappAuthorizationStamp()) {
                                                 DappProviderBridge.error(replyProxy, request.id, 4100, "Connect this website to the wallet first")
                                             } else if (pendingWalletAction != null) {
                                                 DappProviderBridge.error(replyProxy, request.id, -32002, "Another wallet confirmation is pending")
@@ -424,26 +421,28 @@ private fun BrowserScreen(
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
                                 pageUrl?.let {
+                                    val isNewDocument = pageStartCount > 0
+                                    pageStartCount += 1
                                     bridgeReplyProxies.clear()
                                     val previousOrigin = runCatching { DappProviderBridge.origin(Uri.parse(currentPageUrl)) }.getOrNull()
                                     val currentOrigin = runCatching { DappProviderBridge.origin(Uri.parse(it)) }.getOrNull()
                                     if (previousOrigin != null && currentOrigin != previousOrigin) {
                                         authorizedDappOrigins.clear()
-                                        DappRpcCoordinator.cancelOrigin(previousOrigin)
                                     }
-                                    currentPageUrl = it
-                                    val pending = pendingDappConnection
-                                    if (pending != null && currentOrigin != pending.origin) {
-                                        DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "The page changed before wallet access was approved")
+                                    if (isNewDocument) {
+                                        previousOrigin?.let { DappRpcCoordinator.cancelOrigin(it) }
+                                        pendingDappConnection?.let { pending ->
+                                            DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "The page navigated before wallet access was approved")
+                                        }
                                         pendingDappConnection = null
                                         waitingDappWalletApproval = false
-                                    }
-                                    val action = pendingWalletAction
-                                    if (action != null && currentOrigin != action.origin) {
-                                        DappProviderBridge.error(action.replyProxy, action.request.id, 4001, "The page changed before wallet approval")
+                                        pendingWalletAction?.let { action ->
+                                            DappProviderBridge.error(action.replyProxy, action.request.id, 4001, "The page navigated before wallet approval")
+                                            DappRpcCoordinator.cancelOrigin(action.origin)
+                                        }
                                         pendingWalletAction = null
-                                        DappRpcCoordinator.cancelOrigin(action.origin)
                                     }
+                                    currentPageUrl = it
                                 }
                                 pageState = BrowserPageState.Loading
                                 Log.d("AirdropBrowser", "Page started: $pageUrl")
@@ -640,7 +639,7 @@ private fun BrowserScreen(
                 TextButton(onClick = {
                     val addresses = connectedDappAccounts.map { it.address }.distinct()
                     if (addresses.isNotEmpty()) {
-                        authorizedDappOrigins[pending.origin] = dappAuthorizationStamp
+                        authorizedDappOrigins[pending.origin] = currentDappAuthorizationStamp()
                         DappProviderBridge.success(pending.replyProxy, pending.request.id, JSONArray(addresses))
                         pendingDappConnection = null
                     } else {
@@ -740,4 +739,11 @@ private fun BrowserPageOverlay(
             }
         }
     }
+}
+private fun currentDappAuthorizationStamp(): String {
+    val generation = WalletConnectSessionDelegate.sessionGeneration.value
+    val addresses = WalletConnectSessionDelegate.accounts.value
+        .map { it.address.lowercase() }
+        .sorted()
+    return generation.toString() + ":" + addresses.joinToString(",")
 }
