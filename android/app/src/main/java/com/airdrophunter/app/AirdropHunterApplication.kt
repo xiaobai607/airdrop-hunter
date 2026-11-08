@@ -14,6 +14,8 @@ class AirdropHunterApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        CrashDiagnostics.install(this)
+        CrashDiagnostics.markAction("Application.onCreate")
 
         // Application is the composition root for process-wide app dependencies.
         // Initialize local auth/cache storage before any Activity or ViewModel can use it.

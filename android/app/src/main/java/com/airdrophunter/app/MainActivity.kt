@@ -1,6 +1,8 @@
 package com.airdrophunter.app
 
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -8,6 +10,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
@@ -37,12 +42,14 @@ import org.json.JSONObject
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashDiagnostics.markAction("MainActivity.onCreate")
         window.statusBarColor = android.graphics.Color.rgb(248, 249, 250)
         window.navigationBarColor = android.graphics.Color.rgb(248, 249, 250)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         setContent {
             AirdropHunterTheme {
+                var crashReport by remember { mutableStateOf(CrashDiagnostics.readReport(applicationContext)) }
                 val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = null)
                 var showAuth by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(token) { if (!token.isNullOrBlank()) showAuth = false }
@@ -59,6 +66,34 @@ class MainActivity : ComponentActivity() {
                         onRequireAuth = { showAuth = true },
                         onLogout = { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } },
                         onOpenAuth = { showAuth = true }
+                    )
+                }
+
+                crashReport?.let { report ->
+                    AlertDialog(
+                        onDismissRequest = { crashReport = null },
+                        title = { Text("检测到上次闪退记录") },
+                        text = {
+                            SelectionContainer {
+                                Text(
+                                    report,
+                                    modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("Airdrop Hunter crash report", report))
+                                CrashDiagnostics.clearReport(applicationContext)
+                                crashReport = null
+                                Toast.makeText(this@MainActivity, "闪退报告已复制，可以粘贴发给我", Toast.LENGTH_LONG).show()
+                            }) { Text("复制报告") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { crashReport = null }) { Text("稍后") }
+                        }
                     )
                 }
             }
@@ -131,7 +166,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                     NavigationBar(modifier = Modifier.fillMaxSize(), containerColor = Color.Transparent, tonalElevation = 0.dp) {
                         destinations.forEachIndexed { index, destination ->
                             val label = stringResource(destination.label)
-                            NavigationBarItem(selected = tab == index, onClick = { tab = index },
+                            NavigationBarItem(selected = tab == index, onClick = { CrashDiagnostics.markAction("Bottom navigation tab=$index"); tab = index },
                                 icon = { Icon(destination.icon, label) }, label = { Text(label) },
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = AppColors.Primary, selectedTextColor = AppColors.Primary,
@@ -152,6 +187,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                     modifier = Modifier.fillMaxSize(),
                     onBack = { activeOverlay = AppOverlay.NONE },
                     onOpenBrowser = { address ->
+                        CrashDiagnostics.markAction("Launch browser from TRON energy assistant")
                         activeOverlay = AppOverlay.NONE
                         context.startActivity(Intent(context, BrowserActivity::class.java)
                             .putExtra(BrowserActivity.EXTRA_URL, "https://feee.io/")
@@ -163,6 +199,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                     modifier = Modifier.fillMaxSize(),
                     onCancel = { activeOverlay = AppOverlay.NONE },
                     onSearch = { url ->
+                        CrashDiagnostics.markAction("Launch browser from global search")
                         activeOverlay = AppOverlay.NONE
                         context.startActivity(
                             Intent(context, BrowserActivity::class.java)
@@ -200,24 +237,25 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                 selectedProject != null -> ProjectDetailScreen(selectedProject!!, Modifier.fillMaxSize(), isGuest)
                 tab == 0 -> HomeScreen(
                     modifier = Modifier.fillMaxSize(),
-                    onOpenSources = { activeOverlay = AppOverlay.SOURCES },
-                    onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
-                    onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
-                    onOpenProjects = { tab = 1 },
-                    onOpenAirdropHub = { activeOverlay = AppOverlay.AIRDROP_HUB },
-                    onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
+                    onOpenSources = { CrashDiagnostics.markAction("Open sources overlay"); activeOverlay = AppOverlay.SOURCES },
+                    onOpenWallet = { CrashDiagnostics.markAction("Open wallet manager overlay"); activeOverlay = AppOverlay.WALLET_MANAGER },
+                    onOpenGlobalSearch = { CrashDiagnostics.markAction("Open global search overlay"); activeOverlay = AppOverlay.GLOBAL_SEARCH },
+                    onOpenProjects = { CrashDiagnostics.markAction("Open projects tab"); tab = 1 },
+                    onOpenAirdropHub = { CrashDiagnostics.markAction("Open airdrop hub overlay"); activeOverlay = AppOverlay.AIRDROP_HUB },
+                    onOpenTronEnergy = { CrashDiagnostics.markAction("Open TRON energy overlay"); activeOverlay = AppOverlay.TRON_ENERGY },
                     isGuest = isGuest, onRequireAuth = onRequireAuth
                 )
                 tab == 2 -> CommunitySquareScreen(
                     modifier = Modifier.fillMaxSize(),
                     onProjectSelected = { id, name, description ->
+                        CrashDiagnostics.markAction("Open micro-community project")
                         selectedCommunityProject = ProjectDto(id, name, description, "tracking", communityOfficialId = id)
                     }
                 )
-                tab == 1 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth,
+                tab == 1 -> ProjectsScreen(Modifier.fillMaxSize(), { CrashDiagnostics.markAction("Open project detail"); selectedProject = it }, isGuest, onRequireAuth,
                     onOpenCommunity = { selectedCommunityProject = it })
                 else -> ProfileScreen(Modifier.fillMaxSize(), onLogout, isGuest, onRequireAuth,
-                    onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER })
+                    onManageWallets = { CrashDiagnostics.markAction("Open wallet manager from profile"); activeOverlay = AppOverlay.WALLET_MANAGER })
             }
         }
     }

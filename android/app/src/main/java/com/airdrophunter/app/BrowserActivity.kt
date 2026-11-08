@@ -72,6 +72,7 @@ private data class BrowserWallet(
 class BrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashDiagnostics.markAction("BrowserActivity.onCreate")
         ApiClient.initialize(applicationContext)
         val receivedUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
         Log.d(TAG, "BrowserActivity received URL: $receivedUrl")
