@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import CommunityContribution, CommunityProjectStats, User
-from app.routers.auth import get_current_user, limiter
+from app.routers.auth import get_optional_current_user, limiter
 
 router = APIRouter(prefix="/api/community/projects", tags=["community"])
 MAX_AMOUNT = Decimal("999999999999.99999999")
@@ -50,11 +50,11 @@ async def add_community_contribution(
     payload: CommunityContributionRequest,
     project_official_id: Annotated[str, Path(min_length=1, max_length=120)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User | None, Depends(get_optional_current_user)],
 ):
     contribution = pg_insert(CommunityContribution).values(
         id=payload.event_id,
-        user_id=user.id,
+        user_id=user.id if user is not None else None,
         project_official_id=project_official_id,
         gas_cost_usd=payload.gas_cost_usd,
         actual_reward_usd=payload.actual_reward_usd,
@@ -68,7 +68,7 @@ async def add_community_contribution(
         )
         same_contribution = (
             existing is not None
-            and existing.user_id == user.id
+            and existing.user_id == (user.id if user is not None else None)
             and existing.project_official_id == project_official_id
             and existing.gas_cost_usd == payload.gas_cost_usd
             and existing.actual_reward_usd == payload.actual_reward_usd
