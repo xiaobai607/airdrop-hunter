@@ -26,7 +26,7 @@ object AddressDetector {
         return when {
             evm.matches(value) -> DetectedNetwork.EVM
             tron.matches(value) -> DetectedNetwork.TRON
-            value.startsWith("bc1q", true) || value.startsWith("bc1p", true) ||
+            Base58Address.isBitcoinSegwitAddress(value) ||
                 Base58Address.isBase58Check(value, setOf(0x00, 0x05)) -> DetectedNetwork.BITCOIN
             Base58Address.is32BytePublicKey(value) -> DetectedNetwork.SOL
             else -> DetectedNetwork.UNKNOWN

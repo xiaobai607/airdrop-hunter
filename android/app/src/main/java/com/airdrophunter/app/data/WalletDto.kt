@@ -27,7 +27,7 @@ object WalletEcosystem {
         return when {
             Regex("^0x[a-fA-F0-9]{40}$").matches(value) -> EVM
             Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$").matches(value) -> TRON
-            value.startsWith("bc1q", true) || value.startsWith("bc1p", true) ||
+            Base58Address.isBitcoinSegwitAddress(value) ||
                 Base58Address.isBase58Check(value, setOf(0x00, 0x05)) -> BITCOIN
             Base58Address.is32BytePublicKey(value) -> SOL
             legacyChain.equals("Ethereum", true) || legacyChain.equals("ERC20", true) ||

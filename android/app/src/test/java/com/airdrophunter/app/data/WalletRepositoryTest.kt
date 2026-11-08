@@ -65,6 +65,11 @@ class WalletRepositoryTest {
         assertEquals(DetectedNetwork.BITCOIN, AddressDetector.detect(address))
     }
 
+    @Test fun bitcoinBech32AddressRequiresAValidChecksumAndCase() {
+        assertFalse(Base58Address.isBitcoinSegwitAddress("bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"))
+        assertFalse(Base58Address.isBitcoinSegwitAddress("bc1QqQqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"))
+    }
+
     @Test fun rawThirtyTwoByteSolanaKeyRemainsSolana() {
         val address = "11111111111111111111111111111111"
         assertTrue(Base58Address.is32BytePublicKey(address))

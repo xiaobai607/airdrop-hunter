@@ -64,3 +64,34 @@ def test_task_step_order_is_persisted_and_sorted():
         tasks = client.get(f"/api/projects/{project_id}/tasks", headers=headers).json()
         assert [task["id"] for task in tasks] == [first["id"], second["id"]]
         assert [task["step_order"] for task in tasks] == [1, 2]
+
+
+
+def test_bitcoin_wallet_alias_accepts_base58check_and_rejects_bad_checksum():
+    legacy = "1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
+    nested_segwit = "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy"
+    with TestClient(app) as client:
+        headers = auth(client)
+        for index, address in enumerate((legacy, nested_segwit)):
+            response = client.post("/api/wallets", headers=headers, json={
+                "wallet_name": f"BTC {index}", "chain": "BITCOIN", "address": address
+            })
+            assert response.status_code == 201
+            assert response.json()["chain"] == "Bitcoin"
+            assert response.json()["network_icon"] == "B"
+
+        invalid = client.post("/api/wallets", headers=headers, json={
+            "wallet_name": "Bad checksum", "chain": "BITCOIN",
+            "address": "1BoatSLRHtKNngkdXEeobR76b53LETtpyU"
+        })
+        assert invalid.status_code == 422
+
+
+def test_bitcoin_segwit_requires_valid_bech32_checksum():
+    with TestClient(app) as client:
+        headers = auth(client)
+        invalid = client.post("/api/wallets", headers=headers, json={
+            "wallet_name": "Invalid SegWit", "chain": "BITCOIN",
+            "address": "bc1q" + "q" * 38
+        })
+        assert invalid.status_code == 422
