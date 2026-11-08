@@ -4,10 +4,19 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.kapt")
 }
-val configuredApiBaseUrl = providers.environmentVariable("API_BASE_URL")
-    .orElse("https://airdrop-hunter-z6qn.onrender.com/")
-    .get()
-    .let { if (it.endsWith("/")) it else "$it/" }
+// GitHub Actions may define API_BASE_URL as an empty string when the repository
+// variable is unset. Provider.orElse() does not treat an empty value as missing.
+val configuredApiBaseUrl = (
+    providers.environmentVariable("API_BASE_URL").orNull
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: "https://airdrop-hunter-z6qn.onrender.com/"
+    ).let { if (it.endsWith("/")) it else "$it/" }
+
+val apiBaseUri = java.net.URI(configuredApiBaseUrl)
+require(apiBaseUri.scheme in setOf("http", "https") && !apiBaseUri.host.isNullOrBlank()) {
+    "API_BASE_URL must be a valid HTTP(S) URL with a host."
+}
 
 android {
     namespace = "com.airdrophunter.app"
