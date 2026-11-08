@@ -139,7 +139,7 @@ interface PendingBillDao {
     fun observeAll(accountScope: String): Flow<List<PendingBillEntity>>
     @Query("SELECT * FROM pending_bills WHERE id = :id AND accountScope = :accountScope LIMIT 1")
     suspend fun findById(id: String, accountScope: String): PendingBillEntity?
-    @Query("SELECT EXISTS(SELECT 1 FROM pending_bills WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND LOWER(txHash) = LOWER(:txHash) AND ((:network = 'ethereum' AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (:network != 'ethereum' AND walletAddress = :walletAddress)))")
+    @Query("SELECT EXISTS(SELECT 1 FROM pending_bills WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND LOWER(txHash) = LOWER(:txHash) AND ((LOWER(:network) IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (LOWER(:network) NOT IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND walletAddress = :walletAddress)))")
     suspend fun hasTransaction(accountScope: String, network: String, walletAddress: String, txHash: String): Boolean
     @Query("DELETE FROM pending_bills WHERE id = :id AND accountScope = :accountScope")
     suspend fun delete(id: String, accountScope: String)
@@ -210,7 +210,7 @@ interface UserInteractionDao {
 
     @Query("SELECT * FROM user_interactions WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope ORDER BY timestamp DESC")
     fun observeByProject(projectLocalId: String, accountScope: String): Flow<List<UserInteractionEntity>>
-    @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND LOWER(txHash) = LOWER(:txHash) AND ((:network = 'ethereum' AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (:network != 'ethereum' AND walletAddress = :walletAddress)))")
+    @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND LOWER(txHash) = LOWER(:txHash) AND ((LOWER(:network) IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (LOWER(:network) NOT IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND walletAddress = :walletAddress)))")
     suspend fun hasTransaction(accountScope: String, network: String, walletAddress: String, txHash: String): Boolean
 }
 
@@ -488,7 +488,7 @@ object CacheStore {
         val normalizedWallet = walletAddress.trim()
         if (
             projectLocalId.isBlank() || projectName.isBlank() || normalizedHash.isBlank() ||
-            normalizedWallet.isBlank() || normalizedNetwork !in setOf("ethereum", "tron") ||
+            normalizedWallet.isBlank() || !WalletActivityNetworkPolicy.isSupported(normalizedNetwork) ||
             !gasCostUsd.isFinite() || !actualRewardUsd.isFinite() ||
             gasCostUsd < 0.0 || actualRewardUsd < 0.0 || timestamp <= 0L
         ) return@withContext false

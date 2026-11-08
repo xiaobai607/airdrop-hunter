@@ -26,6 +26,14 @@ data class WalletTransactionDto(
 )
 
 
+internal object WalletActivityNetworkPolicy {
+    private val evmNetworks = setOf("ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche")
+    private val supportedNetworks = evmNetworks + setOf("tron", "bitcoin")
+
+    fun isSupported(network: String): Boolean = network.trim().lowercase() in supportedNetworks
+    fun usesCaseInsensitiveAddress(network: String): Boolean = network.trim().lowercase() in evmNetworks
+}
+
 data class WalletActivityBatchDto(
     val transactions: List<WalletTransactionDto> = emptyList(),
     val networks_checked: List<String> = emptyList(),
