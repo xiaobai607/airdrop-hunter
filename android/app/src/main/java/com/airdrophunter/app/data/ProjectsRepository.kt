@@ -237,7 +237,7 @@ class ProjectsRepository(
             require(
                 parsed != null && parsed.scheme.equals("https", ignoreCase = true) &&
                     !parsed.host.isNullOrBlank() && parsed.rawUserInfo == null &&
-                    parsed.port <= 65535
+                    (parsed.port == -1 || parsed.port in 1..65535)
             ) { "$label必须是有效的 HTTPS URL" }
             return normalized
         }

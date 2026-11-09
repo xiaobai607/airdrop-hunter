@@ -266,6 +266,7 @@ class ProjectsRepositoryTest {
                 ProjectWriteRequest("Name", "", "unknown"),
                 ProjectWriteRequest("Name", "", "tracking", official_url = "http://project.example"),
                 ProjectWriteRequest("Name", "", "tracking", twitter_url = "https://user:pass@social.example"),
+                ProjectWriteRequest("Name", "", "tracking", official_url = "https://project.example:0"),
                 ProjectWriteRequest("Name", "", "tracking", expected_income = Double.NaN),
                 ProjectWriteRequest("Name", "", "tracking", gas_cost = -1.0)
             )
