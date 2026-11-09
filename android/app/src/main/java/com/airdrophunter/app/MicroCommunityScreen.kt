@@ -100,7 +100,7 @@ fun MicroCommunityScreen(
         }.orEmpty()
         wallet = wallets.firstOrNull()?.address.orEmpty()
         isGuest = TokenStore.readTokenBlocking().isNullOrBlank()
-        canRate = wallet.isNotBlank() && CacheStore.hasPnlParticipation(projectOfficialId)
+        canRate = CacheStore.hasPnlParticipation(projectOfficialId) && (!isGuest || wallet.isNotBlank())
         participationChecked = true
     }
     LaunchedEffect(myRating) {
@@ -227,7 +227,7 @@ fun MicroCommunityScreen(
                                             communityStats = ApiClient.service.submitCommunityProjectRating(
                                                 projectOfficialId, CommunityProjectRatingRequest(selectedScore)
                                             )
-                                            CacheStore.saveProjectRating(projectOfficialId, wallet, selectedScore)
+                                            if (wallet.isBlank()) true else CacheStore.saveProjectRating(projectOfficialId, wallet, selectedScore)
                                         }.getOrDefault(false)
                                     }
                                     saving = false
