@@ -105,7 +105,7 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
             return event_id
 
         def one(self):
-            return type("RecentStats", (), {"contributions": 0, "interactions": 0})()
+            return type("RecentStats", (), {"contributions": 0, "interactions": 0, "average": None, "count": 0})()
 
     class FakeDatabase:
         async def execute(self, statement):
