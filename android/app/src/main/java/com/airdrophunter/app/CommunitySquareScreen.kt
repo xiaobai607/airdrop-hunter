@@ -53,14 +53,19 @@ private enum class CommunityRanking(val title: String) {
     REWARD("🔥 吸金榜"), GAS("💀 避坑榜"), NEW("🚀 新星榜")
 }
 
-private val communityProjectCatalog = listOf(
-    CommunityProject("linea", "Linea", "Consensys zkEVM", "L", 184.20, 42.80, 1280, listOf("L2", "零撸", "明牌空投"), true, 4.9, 97, 1280, 310),
-    CommunityProject("scroll", "Scroll", "zkEVM", "S", 128.60, 38.60, 964, listOf("L2", "需测试网", "明牌空投"), true, 4.8, 95, 964, 205),
-    CommunityProject("zksync", "zkSync", "ZK Rollup", "Z", 156.00, 62.00, 1820, listOf("L2", "高Gas", "明牌空投"), true, 4.7, 93, 1820, 480),
-    CommunityProject("starknet", "Starknet", "Validity Rollup", "✦", 98.00, 51.00, 1450, listOf("L2", "需测试网", "高Gas"), true, 4.4, 88, 1450, 365),
-    CommunityProject("base", "Base", "Ethereum L2", "B", 226.00, 73.00, 2200, listOf("L2", "零撸", "高Gas"), true, 4.9, 96, 2200, 520),
-    CommunityProject("arbitrum", "Arbitrum", "Ethereum L2", "A", 142.00, 84.00, 1730, listOf("L2", "高Gas"), true, 4.2, 82, 1730, 190),
-    CommunityProject("optimism", "Optimism", "Superchain", "O", 117.00, 49.00, 1390, listOf("L2", "零撸", "明牌空投"), true, 4.6, 91, 1390, 270)
+private data class CommunityDemoMetrics(
+    val reward: Double, val gas: Double, val contributions: Long,
+    val score: Double, val positive: Int, val reviews: Int, val recent: Long
+)
+
+private val communityDemoMetrics = mapOf(
+    "linea" to CommunityDemoMetrics(184.20, 42.80, 1280, 4.9, 97, 1280, 310),
+    "scroll" to CommunityDemoMetrics(128.60, 38.60, 964, 4.8, 95, 964, 205),
+    "zksync" to CommunityDemoMetrics(156.00, 62.00, 1820, 4.7, 93, 1820, 480),
+    "starknet" to CommunityDemoMetrics(98.00, 51.00, 1450, 4.4, 88, 1450, 365),
+    "base" to CommunityDemoMetrics(226.00, 73.00, 2200, 4.9, 96, 2200, 520),
+    "arbitrum" to CommunityDemoMetrics(142.00, 84.00, 1730, 4.2, 82, 1730, 190),
+    "optimism" to CommunityDemoMetrics(117.00, 49.00, 1390, 4.6, 91, 1390, 270)
 )
 
 @Composable
@@ -74,42 +79,59 @@ fun CommunitySquareScreen(
     val favorites by CacheStore.observeCommunityFavorites().collectAsStateWithLifecycle(initialValue = emptyList())
     val favoriteIds = remember(favorites) { favorites.map { it.projectOfficialId }.toSet() }
     val joinedOfficialIds = remember(joinedIds) { joinedIds.mapNotNull { it.projectOfficialId }.toSet() }
+    var catalogEntries by remember { mutableStateOf<List<com.airdrophunter.app.data.CommunityProjectCatalogDto>>(emptyList()) }
     var communityStats by remember { mutableStateOf<Map<String, CommunityProjectStatsDto>>(emptyMap()) }
     var statsLoading by remember { mutableStateOf(true) }
+    var catalogError by remember { mutableStateOf<String?>(null) }
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
     var useDemoData by remember { mutableStateOf(BuildConfig.DEBUG) }
     var selectedTag by remember { mutableStateOf<String?>(null) }
     var favoritesOnly by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    val allTags = listOf("L2", "零撸", "需测试网", "高Gas", "明牌空投")
+    val allTags = remember(catalogEntries) { catalogEntries.flatMap { it.tags }.distinct().sorted() }
 
     LaunchedEffect(Unit) {
         ApiClient.initialize(context)
-        communityStats = coroutineScope {
-            communityProjectCatalog.map { project ->
-                async {
-                    project.id to runCatching {
-                        ApiClient.service.getCommunityProjectStats(project.id)
-                    }.getOrNull()
-                }
-            }.awaitAll().mapNotNull { (id, stats) -> stats?.let { id to it } }.toMap()
+        try {
+            catalogEntries = ApiClient.service.getCommunityCatalog()
+            communityStats = coroutineScope {
+                catalogEntries.map { project ->
+                    async {
+                        project.project_official_id to runCatching {
+                            ApiClient.service.getCommunityProjectStats(project.project_official_id)
+                        }.getOrNull()
+                    }
+                }.awaitAll().mapNotNull { (id, stats) -> stats?.let { id to it } }.toMap()
+            }
+        } catch (error: Exception) {
+            catalogError = error.message ?: "社区项目目录加载失败"
+        } finally {
+            statsLoading = false
         }
-        statsLoading = false
     }
 
-    val combinedProjects = communityProjectCatalog.map { base ->
-        if (useDemoData) base.copy(recentInteractions24h = base.demoRecentInteractions) else {
-            val stats = communityStats[base.id]
-            base.copy(
-                reward = stats?.total_actual_reward_usd ?: 0.0,
-                gas = stats?.total_gas_cost_usd ?: 0.0,
-                contributionCount = stats?.contribution_count ?: 0L,
-                recentInteractions24h = stats?.interactions_24h ?: 0L,
-                averageRating = stats?.average_rating,
-                ratingCount = stats?.rating_count ?: 0L,
-                isDemo = false
-            )
-        }
+    val combinedProjects = catalogEntries.map { entry ->
+        val demo = communityDemoMetrics[entry.project_official_id]
+        val stats = communityStats[entry.project_official_id]
+        val showDemo = BuildConfig.DEBUG && useDemoData && demo != null
+        CommunityProject(
+            id = entry.project_official_id,
+            name = entry.name,
+            chain = entry.chain,
+            logo = entry.logo.ifBlank { entry.name.take(1).uppercase() },
+            reward = if (showDemo) demo!!.reward else stats?.total_actual_reward_usd ?: 0.0,
+            gas = if (showDemo) demo!!.gas else stats?.total_gas_cost_usd ?: 0.0,
+            contributionCount = if (showDemo) demo!!.contributions else stats?.contribution_count ?: 0L,
+            tags = entry.tags,
+            isDemo = showDemo,
+            demoScore = demo?.score ?: 0.0,
+            demoPositive = demo?.positive ?: 0,
+            demoReviews = demo?.reviews ?: 0,
+            demoRecentInteractions = demo?.recent ?: 0L,
+            recentInteractions24h = if (showDemo) demo!!.recent else stats?.interactions_24h ?: 0L,
+            averageRating = stats?.average_rating,
+            ratingCount = stats?.rating_count ?: 0L
+        )
     }
     val displayedProjects = combinedProjects.filter {
         (selectedTag == null || selectedTag in it.tags) &&
@@ -158,7 +180,9 @@ fun CommunitySquareScreen(
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = useDemoData, onClick = { useDemoData = true }, label = { Text("测试演示") })
+                    if (BuildConfig.DEBUG) {
+                        FilterChip(selected = useDemoData, onClick = { useDemoData = true }, label = { Text("测试演示") })
+                    }
                     FilterChip(selected = !useDemoData, onClick = { useDemoData = false }, label = { Text("全网真实") })
                 }
             }
@@ -206,8 +230,17 @@ fun CommunitySquareScreen(
                 }
             }
         }
-        item { Text("发现 ${displayedProjects.size} 个项目" + if (statsLoading) " · 统计加载中" else "",
-            color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall) }
+        item {
+            Text(
+                when {
+                    statsLoading -> "正在加载社区项目目录…"
+                    catalogError != null && catalogEntries.isEmpty() -> catalogError!!
+                    else -> "发现 ${displayedProjects.size} 个项目" + if (statsLoading) " · 统计加载中" else ""
+                },
+                color = if (catalogError != null && catalogEntries.isEmpty()) AppColors.Danger else AppColors.TextHelper,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
         if (displayedProjects.isEmpty()) {
             item {
                 Text(
