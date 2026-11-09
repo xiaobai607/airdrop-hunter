@@ -82,33 +82,26 @@ fun ProfileScreen(
             border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column {
-                Row(Modifier.fillMaxWidth().height(88.dp)) {
+                Row(Modifier.fillMaxWidth().height(100.dp)) {
                     StatCell("跟踪项目", stats.tracked_projects.toString(), Modifier.weight(1f))
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
-                    StatCell("参与项目", stats.ledger_project_count.toString(), Modifier.weight(1f))
+                    StatCell("胜率", String.format(Locale.US, "%.1f%%", stats.win_rate),
+                        Modifier.weight(1f))
                 }
                 HorizontalDivider(color = AppColors.Border)
-                Row(Modifier.fillMaxWidth().height(88.dp)) {
+                Row(Modifier.fillMaxWidth().height(100.dp)) {
                     StatCell("累计 Gas", String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost),
                         Modifier.weight(1f), "USD")
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
                     StatCell("实际收益", String.format(Locale.US, "%.2f", stats.ledger_total_actual_reward),
                         Modifier.weight(1f), "USD")
                 }
-                HorizontalDivider(color = AppColors.Border)
-                Row(Modifier.fillMaxWidth().height(88.dp)) {
-                    StatCell("净收益", String.format(Locale.US, "%.2f", stats.ledger_net_profit),
-                        Modifier.weight(1f), "USD")
-                    Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
-                    StatCell("胜率", String.format(Locale.US, "%.1f%%", stats.win_rate),
-                        Modifier.weight(1f))
-                }
-                HorizontalDivider(color = AppColors.Border)
-                Row(Modifier.fillMaxWidth().height(72.dp)) {
-                    StatCell("已完成项目", stats.completed_projects.toString(), Modifier.weight(1f))
-                    Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
-                    StatCell("交互天数", stats.ledger_interaction_days.toString(), Modifier.weight(1f))
-                }
+                Text(
+                    "参与项目 ${stats.ledger_project_count} · 净收益 ${String.format(Locale.US, "%.2f", stats.ledger_net_profit)} USD · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    color = AppColors.TextHelper,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
 
