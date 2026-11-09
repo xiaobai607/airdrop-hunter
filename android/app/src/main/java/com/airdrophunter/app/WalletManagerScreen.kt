@@ -107,7 +107,7 @@ private fun detectEcosystem(address: String): String? =
         DetectedNetwork.EVM -> WalletEcosystem.EVM
         DetectedNetwork.TRON -> WalletEcosystem.TRON
         DetectedNetwork.SOL -> WalletEcosystem.SOL
-        else -> null
+        else -> WalletEcosystem.fromAddress(address).takeIf { it == WalletEcosystem.BTC }
     }
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class)
@@ -348,7 +348,8 @@ fun WalletManagerScreen(
                             WalletEcosystem.TRON -> "TRON：第一版支持真实余额查询"
                             WalletEcosystem.EVM -> "EVM：余额查询接入中"
                             WalletEcosystem.SOL -> "Solana：余额查询接入中"
-                            else -> "支持 EVM、TRON 和 Solana 公开地址"
+                            WalletEcosystem.BTC -> "Bitcoin：支持只读交易记录查询"
+                            else -> "支持 EVM、TRON、Solana 和 Bitcoin 公开地址"
                         },
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
