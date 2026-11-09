@@ -78,9 +78,7 @@ fun ProjectsScreen(
             communityOfficialId = saved.projectOfficialId
         )
     }
-    // Prefer the full project record over a ledger-derived summary when both refer
-    // to the same community project; ledger-only history remains visible as fallback.
-    val visibleProjects = (state.projects + savedProjectDtos).distinctBy {
+    val visibleProjects = (savedProjectDtos + state.projects).distinctBy {
         it.communityOfficialId?.let { officialId -> "official:$officialId" } ?: "local:${it.id}"
     }
 
