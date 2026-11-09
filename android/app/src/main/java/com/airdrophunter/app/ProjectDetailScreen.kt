@@ -60,6 +60,12 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     var claimWallets by remember(sessionScopeKey) { mutableStateOf<List<WalletDto>>(emptyList()) }
     var showClaimWalletPicker by remember(sessionScopeKey) { mutableStateOf(false) }
     var isLoadingClaimWallets by remember(sessionScopeKey) { mutableStateOf(false) }
+    var assignmentWallets by remember(project.id, sessionScopeKey) { mutableStateOf<List<WalletDto>>(emptyList()) }
+    var assignedWalletIds by remember(project.id, sessionScopeKey) { mutableStateOf<Set<String>>(emptySet()) }
+    var savedAssignedWalletIds by remember(project.id, sessionScopeKey) { mutableStateOf<Set<String>>(emptySet()) }
+    var isLoadingAssignments by remember(project.id, sessionScopeKey) { mutableStateOf(false) }
+    var isSavingAssignments by remember(project.id, sessionScopeKey) { mutableStateOf(false) }
+    var assignmentError by remember(project.id, sessionScopeKey) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val projectUsesLocalTasks = isGuest || project.id.startsWith("community:")
     val completed = state.tasks.count { it.is_completed }
@@ -69,6 +75,23 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         showClaimWalletPicker = false
         editingTask = null
         projectDetailViewModel.load(project.id, projectUsesLocalTasks)
+    }
+    LaunchedEffect(project.id, sessionScopeKey, isGuest) {
+        assignmentWallets = emptyList()
+        assignedWalletIds = emptySet()
+        savedAssignedWalletIds = emptySet()
+        assignmentError = null
+        isLoadingAssignments = true
+        try {
+            assignmentWallets = application.appContainer.walletRepository.load(isGuest)
+            val assigned = application.appContainer.projectWalletAssignmentRepository.load(project.id, isGuest)
+            assignedWalletIds = assigned
+            savedAssignedWalletIds = assigned
+        } catch (error: Exception) {
+            assignmentError = error.message ?: "读取项目钱包关联失败"
+        } finally {
+            isLoadingAssignments = false
+        }
     }
     LaunchedEffect(state.claimUrl) {
         val claimUrl = state.claimUrl ?: return@LaunchedEffect
@@ -114,7 +137,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 scope.launch {
                                     isLoadingClaimWallets = true
                                     try {
-                                        claimWallets = application.appContainer.walletRepository.load(isGuest)
+                                        val availableWallets = application.appContainer.walletRepository.load(isGuest)
+                                        claimWallets = availableWallets.sortedByDescending { it.id in assignedWalletIds }
                                         if (claimWallets.isEmpty()) Toast.makeText(context, "请先在钱包管理中添加公开地址", Toast.LENGTH_LONG).show()
                                         else showClaimWalletPicker = true
                                     } catch (error: Exception) {
@@ -141,6 +165,82 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             onClick = { onOpenCommunity(project) },
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("查看全网大盘数据") }
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                border = BorderStroke(1.dp, AppColors.Border),
+                shape = RoundedCornerShape(18.dp),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("项目关联钱包", color = AppColors.TextPrimary,
+                                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("可为同一项目绑定多个公开地址；领取时优先显示已关联钱包",
+                                color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        }
+                        Text("${assignedWalletIds.size} 个", color = AppColors.Primary,
+                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    }
+                    when {
+                        isLoadingAssignments -> LinearProgressIndicator(Modifier.fillMaxWidth(), color = AppColors.Primary)
+                        assignmentWallets.isEmpty() -> Text("还没有钱包地址，请先在钱包管理中添加。", color = AppColors.TextHelper,
+                            style = MaterialTheme.typography.bodySmall)
+                        else -> assignmentWallets.forEach { wallet ->
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = wallet.id in assignedWalletIds,
+                                    onCheckedChange = { checked ->
+                                        assignedWalletIds = if (checked) assignedWalletIds + wallet.id
+                                            else assignedWalletIds - wallet.id
+                                    },
+                                    enabled = !isSavingAssignments
+                                )
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(wallet.wallet_name, color = AppColors.TextPrimary,
+                                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                    Text("${wallet.ecosystem} · ${wallet.address.take(8)}…${wallet.address.takeLast(5)}",
+                                        color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
+                    assignmentError?.let {
+                        Text(it, color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                    }
+                    if (assignedWalletIds != savedAssignedWalletIds) {
+                        Button(
+                            enabled = !isSavingAssignments && !isLoadingAssignments,
+                            onClick = {
+                                scope.launch {
+                                    isSavingAssignments = true
+                                    assignmentError = null
+                                    try {
+                                        val saved = application.appContainer.projectWalletAssignmentRepository.save(
+                                            project.id, assignedWalletIds, isGuest
+                                        )
+                                        assignedWalletIds = saved
+                                        savedAssignedWalletIds = saved
+                                        Toast.makeText(context, "项目钱包关联已保存", Toast.LENGTH_SHORT).show()
+                                    } catch (error: Exception) {
+                                        assignmentError = error.message ?: "保存项目钱包关联失败"
+                                    } finally {
+                                        isSavingAssignments = false
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                        ) {
+                            Text(if (isSavingAssignments) "保存中…" else "保存钱包关联")
+                        }
                     }
                 }
             }
