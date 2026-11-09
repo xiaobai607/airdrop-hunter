@@ -9,12 +9,12 @@ def test_community_contribution_is_the_single_migration_head() -> None:
     config = Config(str(backend_dir / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0005_anonymize_community_contributions"
+    assert scripts.get_current_head() == "0005_anonymize_contributions"
     bootstrap = scripts.get_revision("0001_bootstrap")
     ledger = scripts.get_revision("0002_personal_ledger")
     nullable_reward = scripts.get_revision("0003_nullable_expected_reward")
     community = scripts.get_revision("0004_community_contributions")
-    anonymize = scripts.get_revision("0005_anonymize_community_contributions")
+    anonymize = scripts.get_revision("0005_anonymize_contributions")
     assert bootstrap is not None and bootstrap.down_revision is None
     assert ledger is not None and ledger.down_revision == "0001_bootstrap"
     assert nullable_reward is not None and nullable_reward.down_revision == "0002_personal_ledger"
