@@ -40,6 +40,7 @@ import com.airdrophunter.app.ui.theme.AppColors
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,8 +58,11 @@ data class WalletManagerUiState(
 class WalletManagerViewModel(private val repository: WalletRepository) : ViewModel() {
     private val _state = MutableStateFlow(WalletManagerUiState(isLoading = true))
     val state = _state.asStateFlow()
+    private var activeJob: Job? = null
 
-    fun load(isGuest: Boolean = false) = viewModelScope.launch {
+    fun load(isGuest: Boolean = false) {
+        activeJob?.cancel()
+        activeJob = viewModelScope.launch {
         _state.value = WalletManagerUiState(isLoading = true)
         try {
             val wallets = repository.load(isGuest)
@@ -68,9 +72,12 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
         } catch (_: Exception) {
             _state.value = _state.value.copy(isLoading = false, error = "服务器繁忙，请稍后重试")
         }
+        }
     }
 
-    fun add(request: WalletWriteRequest, isGuest: Boolean = false) = viewModelScope.launch {
+    fun add(request: WalletWriteRequest, isGuest: Boolean = false) {
+        activeJob?.cancel()
+        activeJob = viewModelScope.launch {
         _state.value = _state.value.copy(isSaving = true, error = null)
         try {
             val wallets = repository.add(request, isGuest)
@@ -80,9 +87,12 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
         } catch (_: Exception) {
             _state.value = _state.value.copy(isSaving = false, error = "保存失败，请检查地址或稍后重试")
         }
+        }
     }
 
-    fun update(wallet: WalletDto, request: WalletWriteRequest, isGuest: Boolean = false) = viewModelScope.launch {
+    fun update(wallet: WalletDto, request: WalletWriteRequest, isGuest: Boolean = false) {
+        activeJob?.cancel()
+        activeJob = viewModelScope.launch {
         _state.value = _state.value.copy(isSaving = true, error = null)
         try {
             val wallets = repository.update(wallet, request, isGuest, _state.value.wallets)
@@ -92,9 +102,12 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
         } catch (error: Exception) {
             _state.value = _state.value.copy(isSaving = false, error = error.message ?: "更新钱包信息失败")
         }
+        }
     }
 
-    fun delete(wallet: WalletDto, isGuest: Boolean = false) = viewModelScope.launch {
+    fun delete(wallet: WalletDto, isGuest: Boolean = false) {
+        activeJob?.cancel()
+        activeJob = viewModelScope.launch {
         _state.value = _state.value.copy(isSaving = true, error = null)
         try {
             val wallets = repository.delete(wallet, isGuest, _state.value.wallets)
@@ -103,6 +116,7 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
             throw error
         } catch (_: Exception) {
             _state.value = _state.value.copy(isSaving = false, error = "删除失败，请稍后重试")
+        }
         }
     }
 }
