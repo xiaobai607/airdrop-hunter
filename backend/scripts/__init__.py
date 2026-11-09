@@ -1,1 +1,1 @@
-"""Operational scripts for Airdrop Hunter backend tasks."""
+"""Operational scripts for the Airdrop Hunter backend."""
