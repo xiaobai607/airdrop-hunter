@@ -23,7 +23,6 @@ import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CacheStoreAccountingLocalDataSource
 import com.airdrophunter.app.data.CommunityProjectRatingRequest
-import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AppColors
@@ -45,7 +44,9 @@ private data class CommunityDemoStats(
 fun MicroCommunityScreen(
     projectOfficialId: String,
     projectName: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isGuest: Boolean = true,
+    sessionScopeKey: String = "guest"
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -55,12 +56,12 @@ fun MicroCommunityScreen(
     var statsLoading by remember(projectOfficialId) { mutableStateOf(true) }
     var statsFailed by remember(projectOfficialId) { mutableStateOf(false) }
     var useDemoStats by remember(projectOfficialId) { mutableStateOf(BuildConfig.DEBUG) }
-    var wallet by remember { mutableStateOf("") }
-    var canRate by remember { mutableStateOf(false) }
-    var participationChecked by remember { mutableStateOf(false) }
-    var selectedScore by remember { mutableIntStateOf(0) }
-    var saved by remember { mutableStateOf(false) }
-    var saving by remember { mutableStateOf(false) }
+    var wallet by remember(projectOfficialId, sessionScopeKey) { mutableStateOf("") }
+    var canRate by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
+    var participationChecked by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
+    var selectedScore by remember(projectOfficialId, sessionScopeKey) { mutableIntStateOf(0) }
+    var saved by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
+    var saving by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
     val demoStats = when (projectOfficialId.lowercase()) {
         "linea" -> CommunityDemoStats(42.80, 184.20, 1280, 4320, 310, 4.9, 97)
@@ -79,12 +80,17 @@ fun MicroCommunityScreen(
     val displayRecentInteractions = if (useDemoStats) demoStats.recentInteractions else communityStats?.interactions_24h ?: 0L
     val displayAverageRating = if (useDemoStats) demoStats.score else communityStats?.average_rating
     val displayRatingCount = if (useDemoStats) demoStats.ratingCount else communityStats?.rating_count ?: 0L
-    var isGuest by remember { mutableStateOf(TokenStore.readTokenBlocking().isNullOrBlank()) }
     val combinedTotal = (displayGasTotal + displayRewardTotal).coerceAtLeast(1.0)
     val rewardWeight = if (displayGasTotal + displayRewardTotal <= 0.0) 0.5f
         else (displayRewardTotal / combinedTotal).toFloat().coerceIn(0.01f, 0.99f)
     val gasWeight = 1f - rewardWeight
-    LaunchedEffect(projectOfficialId) {
+    LaunchedEffect(projectOfficialId, sessionScopeKey) {
+        wallet = ""
+        canRate = false
+        participationChecked = false
+        selectedScore = 0
+        saved = false
+        saving = false
         statsLoading = true
         statsFailed = false
         runCatching {
@@ -95,11 +101,11 @@ fun MicroCommunityScreen(
         statsLoading = false
 
         val type = object : TypeToken<List<WalletDto>>() {}.type
-        val wallets = CacheStore.readLocal("wallets")?.let {
+        val walletCache = if (isGuest) CacheStore.readLocal("wallets") else CacheStore.read("wallets")
+        val wallets = walletCache?.let {
             runCatching { Gson().fromJson<List<WalletDto>>(it, type) }.getOrNull()
         }.orEmpty()
         wallet = wallets.firstOrNull()?.address.orEmpty()
-        isGuest = TokenStore.readTokenBlocking().isNullOrBlank()
         canRate = CacheStore.hasPnlParticipation(projectOfficialId) && (!isGuest || wallet.isNotBlank())
         participationChecked = true
     }
