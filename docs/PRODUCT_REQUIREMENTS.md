@@ -242,7 +242,8 @@ Recommended next implementation order, based on shared-code dependencies:
 2. **Transaction-to-ledger reliability (PR #74 merged):** duplicate transaction identities are isolated by account scope, public event IDs remain stable for server idempotency, demo rows are excluded from sync/contribution, fee-payer attribution is conservative, and manual confirmation is required.
 3. **Currency-aware accounting (PR #75 merged):** native token amount/symbol/decimals and valuation timestamp/source now flow through chain activity, pending bills, private ledger, anonymous public contributions, and per-token static snapshots. USD valuations remain separate and unlike native units are never added together.
 4. **Sync/restore hardening (PR #77 merged):** bind each private-ledger sync to the token/account that started it, use explicit Authorization headers and token-scoped local cache access, atomically merge cloud rows with local rows, and reject cloud restores beyond the 10,000-row safety cap without overwriting local data. Real-device cross-device and app-data-clear acceptance remains pending.
-5. **Discovery rights and operations (PR #78 in progress):** require explicit source-level content-reuse approval for RSS and provider APIs, in addition to HTTPS host allowlisting. Do not enable feeds/APIs based only on public availability; keep sources disabled until their terms or written permission permit public display. Then configure candidate review/Cron without blocking user submissions.
+5. **Discovery rights and operations (PR #78 merged):** require explicit source-level content-reuse approval for RSS and provider APIs, in addition to HTTPS host allowlisting. Do not enable feeds/APIs based only on public availability; keep sources disabled until their terms or written permission permit public display. PR #79 adds persistent source sync status, an admin-only status endpoint, and a daily scheduled workflow disabled by default.
+
 6. **Production and device acceptance:** configure database backups, CDN/R2, scheduled publishing, and end-to-end phone tests before claiming production readiness.
 7. **Unified UI refinement:** defer broad visual redesign until the above core chains are complete.
 
@@ -273,12 +274,12 @@ Recommended next implementation order, based on shared-code dependencies:
 
 ### Implemented discovery and submission slices
 
-- PR #60 (merged): RSS/Atom candidate intake with HTTPS exact-host allowlisting, bounded parsing, source attribution, candidate API, and scheduled-script integration. No feeds are enabled by default; PR #78 adds an explicit source-name content-reuse approval gate. Render Cron/environment setup remains operational.
+- PR #60 (merged): RSS/Atom candidate intake with HTTPS exact-host allowlisting, bounded parsing, source attribution, candidate API, and scheduled-script integration. No feeds are enabled by default; PR #78 adds explicit source-reuse approval gates for RSS and the existing provider API. PR #79 adds persistent last-attempt/last-success status and a disabled-by-default GitHub daily sync workflow.
 - PR #61 (merged): public community project submission API and Android submission dialog. Required fields are project name + HTTPS URL; official websites are not mandatory, and third-party airdrop listing URLs are accepted. The backend normalizes URLs, checks name/URL duplicates against the catalog and RSS candidates, rejects unsafe URL forms, rate-limits submissions, and holds known URL shorteners as unverified candidates. It does not fetch or crawl submitted websites. CI passed; real-device verification and moderation/abuse monitoring remain pending.
 - PR #62 (merged): show each catalog project's stored URL directly on its Android community card and provide an explicit open-link action. Missing URLs are labeled as awaiting supplementation; no URL is invented.
 - PR #63 (merged): admin-token-protected candidate review queue, approve-to-catalog and reject actions, review timestamps/status, safe URL revalidation, and duplicate-to-existing-project linking. Android review UI remains deferred because the admin token must not be embedded in the public app.
 - Project-list overall Gas/reward bar and project-detail waterfall layout above are confirmed requirements. PR #66 implements the concise project card. PRs #68–#70 implement the four-window static snapshot detail page and correct empty-data rendering
-- Still pending: obtain/verify explicit reuse permission or a permissive license for any public feed before adding its source name to `AIRDROP_RSS_APPROVED_SOURCES`; production Cron/environment setup; optional free provider enrichment only when stable and authorized. Do not add paid or complex integrations.
+- Still pending: obtain/verify explicit reuse permission or a permissive license for any public feed before adding its source name to `AIRDROP_RSS_APPROVED_SOURCES`; configure `AIRDROP_DISCOVERY_SYNC_ENABLED` only after an approved source and database secret exist; real deployment workflow verification. Do not add paid or complex integrations.
 
 ### User-confirmed community static-newspaper snapshot mechanism (2026-11-09)
 
@@ -354,6 +355,17 @@ Recommended next implementation order, based on shared-code dependencies:
 - Airdrops.io terms restrict the license to personal, non-commercial transitory viewing and prohibit copying, public display, and mirroring. AirdropAlert advertises an RSS endpoint, but its terms limit content use to personal purposes unless prior written permission is obtained. Neither source is approved for this app's public project catalog without further permission.
 - Do not enable feeds merely because their RSS endpoint is public or because a feed-reader page advertises RSS. Keep user submissions and already permitted free APIs available.
 - Production feed configuration and Cron activation remain pending; no new feed/API source is enabled by this change. User project submissions remain available.
+
+### Discovery source sync health and daily operations (PR #79 in progress)
+
+- Persist one status row per configured discovery feed/API, keyed by exact source name + URL identity.
+- Record last attempt, last successful sync, last successful item count, current status, and sanitized error class; never persist response bodies, credentials, or user data.
+- A failed attempt updates failure status but preserves the last known successful timestamp and item count.
+- Strip query strings/fragments from source URLs before storing or exposing source health metadata.
+- Expose source health only through the admin-token-protected `GET /api/airdrops/discovery/sources/status` endpoint. Never embed the admin token in the Android APK.
+- Add a GitHub Actions daily sync at 08:17 Asia/Shanghai. The workflow is disabled unless repository variable `AIRDROP_DISCOVERY_SYNC_ENABLED=true` and a database secret are configured.
+- Feed/API source approval gates from PR #78 remain mandatory; no source is enabled by this workflow automatically. User project submissions continue independently.
+- Real production workflow activation and approved source setup remain pending.
 
 ### Legacy cached wallet-activity precision compatibility (PR #76 merged)
 

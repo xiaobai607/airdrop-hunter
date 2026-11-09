@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import AirdropDiscoveryCandidate, CommunityProjectCatalogEntry
+from app.models import AirdropDiscoveryCandidate, AirdropDiscoverySourceStatus, CommunityProjectCatalogEntry
 from app.api.community_catalog import (
     normalize_project_url,
     normalized_identity,
@@ -37,6 +37,37 @@ class CandidateReviewResponse(DiscoveryCandidateResponse):
     review_status: str
     reviewed_at: datetime | None
     reviewed_catalog_id: str | None
+
+
+class DiscoverySourceStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    source_key: str
+    source_name: str
+    source_url: str
+    last_attempt_at: datetime
+    last_success_at: datetime | None
+    last_status: str
+    last_item_count: int
+    last_error: str | None
+    updated_at: datetime
+
+
+@router.get(
+    "/sources/status",
+    response_model=list[DiscoverySourceStatusResponse],
+    dependencies=[Depends(require_catalog_admin)],
+)
+async def list_discovery_source_status(
+    limit: int = Query(default=100, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    statement = (
+        select(AirdropDiscoverySourceStatus)
+        .order_by(AirdropDiscoverySourceStatus.last_attempt_at.desc())
+        .limit(limit)
+    )
+    return list(await db.scalars(statement))
 
 
 @router.get("/candidates", response_model=list[DiscoveryCandidateResponse])
