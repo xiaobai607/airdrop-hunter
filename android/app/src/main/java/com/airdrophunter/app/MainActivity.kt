@@ -236,7 +236,8 @@ private fun AirdropHunterApp(
                     onOpenProjects = { tab = 1 },
                     onOpenAirdropHub = { activeOverlay = AppOverlay.AIRDROP_HUB },
                     onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
-                    isGuest = isGuest, onRequireAuth = onRequireAuth
+                    isGuest = isGuest, onRequireAuth = onRequireAuth,
+                    sessionScopeKey = sessionScopeKey
                 )
                 tab == 2 -> CommunitySquareScreen(
                     modifier = Modifier.fillMaxSize(),
