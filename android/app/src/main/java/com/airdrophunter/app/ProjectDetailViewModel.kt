@@ -62,6 +62,12 @@ class ProjectDetailViewModel(private val repository: ProjectsRepository) : ViewM
         }
     }
 
+    fun renameTask(projectId: String, task: TaskDto, name: String, isGuest: Boolean = false) {
+        mutateTasks {
+            repository.renameTask(projectId, task, name, isGuest, _uiState.value.tasks)
+        }
+    }
+
     fun requestClaimUrl(projectId: String, walletId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isClaimLoading = true, claimError = null, claimUrl = null)

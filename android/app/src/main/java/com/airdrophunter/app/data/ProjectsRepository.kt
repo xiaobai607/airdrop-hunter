@@ -144,6 +144,7 @@ class ProjectsRepository(
         require(projectId.isNotBlank()) { "项目 ID 不能为空" }
         val normalizedName = name.trim()
         require(normalizedName.isNotEmpty()) { "任务名称不能为空" }
+        require(normalizedName.length <= 240) { "任务名称不能超过240个字符" }
         require(current.all { it.project_id == projectId }) { "任务列表包含其他项目的任务" }
         val nextOrder = (current.maxOfOrNull { it.step_order } ?: 0) + 1
         val task = if (guest) TaskDto(UUID.randomUUID().toString(), projectId, normalizedName, false, nextOrder)
@@ -168,6 +169,23 @@ class ProjectsRepository(
         requireTaskBelongsToProject(projectId, task, current)
         val updated = if (guest) task.copy(is_completed = completed)
         else remote.updateTask(projectId, task.id, TaskUpdateRequest(completed))
+        require(updated.project_id == projectId) { "服务器返回的任务不属于当前项目" }
+        return current.map { if (it.id == updated.id) updated else it }
+            .also { saveTasks(projectId, it, guest) }
+    }
+
+    suspend fun renameTask(
+        projectId: String,
+        task: TaskDto,
+        name: String,
+        guest: Boolean,
+        current: List<TaskDto>
+    ): List<TaskDto> {
+        requireTaskBelongsToProject(projectId, task, current)
+        val normalizedName = name.trim()
+        require(normalizedName.isNotEmpty()) { "任务名称不能为空" }
+        val updated = if (guest) task.copy(task_name = normalizedName)
+        else remote.updateTask(projectId, task.id, TaskUpdateRequest(task_name = normalizedName))
         require(updated.project_id == projectId) { "服务器返回的任务不属于当前项目" }
         return current.map { if (it.id == updated.id) updated else it }
             .also { saveTasks(projectId, it, guest) }

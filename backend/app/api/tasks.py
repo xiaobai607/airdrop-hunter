@@ -13,7 +13,8 @@ class TaskCreate(BaseModel):
     task_name: str = Field(min_length=1, max_length=240)
     step_order: int | None = Field(default=None, ge=1, le=10000)
 class TaskUpdate(BaseModel):
-    is_completed: bool
+    is_completed: bool | None = None
+    task_name: str | None = Field(default=None, min_length=1, max_length=240)
 class TaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -59,7 +60,18 @@ async def update_task(project_id: UUID, task_id: UUID, payload: TaskUpdate, db: 
     t = await db.scalar(select(Task).where(Task.id == task_id, Task.project_id == project_id, Task.user_id == user.id))
     if t is None:
         raise HTTPException(404, "任务不存在")
-    t.is_completed = payload.is_completed
+    changed = False
+    if "task_name" in payload.model_fields_set:
+        normalized_name = (payload.task_name or "").strip()
+        if not normalized_name:
+            raise HTTPException(422, "任务名称不能为空")
+        t.task_name = normalized_name
+        changed = True
+    if "is_completed" in payload.model_fields_set and payload.is_completed is not None:
+        t.is_completed = payload.is_completed
+        changed = True
+    if not changed:
+        raise HTTPException(422, "至少提供一个需要更新的任务字段")
     await db.commit()
     await db.refresh(t)
     return serialize(t)

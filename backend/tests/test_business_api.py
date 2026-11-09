@@ -30,6 +30,12 @@ def test_project_task_stats_are_user_scoped():
         assert client.get(f"/api/projects/{pid}/tasks", headers=bob).status_code == 404
         assert client.patch(f"/api/projects/{pid}/tasks/{tid}", headers=bob, json={"is_completed": True}).status_code == 404
         assert client.patch(f"/api/projects/{pid}/tasks/{tid}", headers=alice, json={"is_completed": True}).json()["is_completed"] is True
+        renamed = client.patch(f"/api/projects/{pid}/tasks/{tid}", headers=alice, json={"task_name": "Bridge assets"})
+        assert renamed.status_code == 200
+        assert renamed.json()["task_name"] == "Bridge assets"
+        assert renamed.json()["is_completed"] is True
+        assert client.patch(f"/api/projects/{pid}/tasks/{tid}", headers=alice, json={"task_name": "   "}).status_code == 422
+        assert client.patch(f"/api/projects/{pid}/tasks/{tid}", headers=bob, json={"task_name": "Hijack"}).status_code == 404
         stats = client.get("/api/stats", headers=alice).json()
         assert stats["total_actual_income"] == 90 and stats["total_gas_cost"] == 5
         assert client.get("/api/stats", headers=bob).json()["project_count"] == 0

@@ -15,7 +15,10 @@ data class CoinDto(val id: String, val coinpaprika_id: String, val symbol: Strin
 data class CoinCreateRequest(val coinpaprika_id: String, val symbol: String, val name: String)
 data class TaskDto(val id: String, val project_id: String, val task_name: String, val is_completed: Boolean, val step_order: Int = 1)
 data class TaskCreateRequest(val task_name: String, val step_order: Int? = null)
-data class TaskUpdateRequest(val is_completed: Boolean)
+data class TaskUpdateRequest(
+    val is_completed: Boolean? = null,
+    val task_name: String? = null
+)
 data class WalletSyncResponse(val wallet_id: String, val public_key: String, val chain: String, val daily_gas_usd: Double, val recent_airdrop_income_usd: Double, val status: String, val notice: String)
 data class StatsDto(
     val currency: String,
