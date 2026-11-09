@@ -123,7 +123,7 @@ private fun WalletActivityPanel(
     val pendingKeys = remember(pendingBills, wallet.address, wallet.ecosystem) {
         pendingBills.filter { bill ->
             bill.walletAddress.equals(wallet.address, ignoreCase = wallet.ecosystem == WalletEcosystem.EVM)
-        }.map { "${it.network.lowercase()}:${it.txHash.lowercase()}" }.toSet()
+        }.map { "${it.network.lowercase()}:${normalizeWalletActivityHash(it.network, it.txHash)}" }.toSet()
     }
 
     Column(modifier.fillMaxSize()) {
@@ -165,7 +165,7 @@ private fun WalletActivityPanel(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(transactions, key = { "${it.chain}:${it.hash}" }) { tx ->
-                    val normalizedHash = if (tx.chain.equals("solana", true)) tx.hash else tx.hash.lowercase()
+                    val normalizedHash = normalizeWalletActivityHash(tx.chain, tx.hash)
                     val txKey = "${tx.chain.lowercase()}:$normalizedHash"
                     val alreadyPending = txKey in pendingKeys
                     val suggestedGas = WalletTransactionAccountingPolicy.suggestedGasCostUsd(tx)
@@ -218,7 +218,7 @@ private fun WalletActivityPanel(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        tx.gas_cost_usd?.let { "约 \\${it}" } ?: "美元估值暂不可用",
+                                        tx.gas_cost_usd?.let { "约 \$${it}" } ?: "美元估值暂不可用",
                                         color = AppColors.TextSecondary,
                                         style = MaterialTheme.typography.labelSmall
                                     )
@@ -299,3 +299,7 @@ private fun WalletActivityPanel(
 
 private fun formatWalletActivityTime(timestampSeconds: Long): String =
     SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(timestampSeconds * 1000L))
+
+
+private fun normalizeWalletActivityHash(network: String, hash: String): String =
+    if (network.equals("solana", true)) hash else hash.lowercase()
