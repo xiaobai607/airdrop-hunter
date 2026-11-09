@@ -443,3 +443,10 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - Workflow concurrency is grouped by GitHub ref and cancels superseded runs, so repeated pushes to the same PR branch do not leave obsolete full builds consuming runner minutes.
 - Manual `workflow_dispatch` remains available for deliberate full verification.
 - This reduces redundant runs; it does not delete historical workflow records or change the repository's GitHub Actions billing/retention settings.
+ 
+### Dormant scheduled publishers while production configuration is absent (2026-11-09)
+
+- The five-minute community snapshot cron and daily discovery cron are dormant until their required production storage/database and approved-source settings are configured. While dormant, keep manual `workflow_dispatch` available for deliberate operator runs, but do not create recurring no-op workflow history.
+- Restore the community five-minute schedule only after `COMMUNITY_SNAPSHOT_PUBLISH_ENABLED=true` and all database/object-storage/public-CDN settings are configured and verified.
+- Restore the discovery daily schedule only after an approved source with explicit content-reuse permission is configured and the database secret is present. Never enable sources based only on a publicly reachable feed.
+- Workflow-only and documentation-only pull requests do not consume the Android/backend build workflow; application/backend changes continue to receive the full PR verification.
