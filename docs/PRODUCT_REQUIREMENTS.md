@@ -476,7 +476,7 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - This does not enable any feed. Source allowlisting and explicit content-reuse approval remain mandatory; feeds stay disabled until production configuration and rights review are complete.
 
 
-### PostgreSQL backup and restore drill (PR pending, 2026-11-10)
+### PostgreSQL backup and restore drill (PR #95 merged, 2026-11-10)
 
 - Add a manual-only GitHub Actions workflow to create a custom-format PostgreSQL backup, restore it into a separately provisioned empty database, and verify the Alembic revision and public table set.
 - Require two independent repository secrets: BACKUP_SOURCE_DATABASE_URL and BACKUP_RESTORE_DATABASE_URL. The restore database name must end in _restore_check, differ from the source, and be created empty from template0 so the dump can recreate the public schema.
