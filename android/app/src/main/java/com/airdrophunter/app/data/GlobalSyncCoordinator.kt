@@ -87,10 +87,26 @@ object GlobalSyncScheduler {
 
         // Each source has its own unique queue. A failure in one source retries
         // independently and cannot block unrelated ledger, wallet, or favorite work.
-        workManager.enqueueUniqueWork("global-sync-community-contribution", ExistingWorkPolicy.KEEP, contribution)
-        workManager.enqueueUniqueWork("global-sync-wallet-activity", ExistingWorkPolicy.KEEP, walletActivity)
-        workManager.enqueueUniqueWork("global-sync-private-ledger", ExistingWorkPolicy.KEEP, personalLedger)
-        workManager.enqueueUniqueWork("global-sync-community-favorites", ExistingWorkPolicy.KEEP, favorites)
+        workManager.enqueueUniqueWork(
+            "global-sync-community-contribution",
+            if (forceCommunityContribution) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
+            contribution
+        )
+        workManager.enqueueUniqueWork(
+            "global-sync-wallet-activity",
+            if (forceWalletActivity) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
+            walletActivity
+        )
+        workManager.enqueueUniqueWork(
+            "global-sync-private-ledger",
+            if (forcePersonalLedger) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
+            personalLedger
+        )
+        workManager.enqueueUniqueWork(
+            "global-sync-community-favorites",
+            if (forceFavorites) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
+            favorites
+        )
     }
 }
 
