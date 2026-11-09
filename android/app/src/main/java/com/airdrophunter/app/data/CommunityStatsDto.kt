@@ -15,5 +15,7 @@ data class CommunityProjectStatsDto(
     val contribution_count: Long,
     val data_quality: String = "user_confirmed",
     val contributions_24h: Long = 0,
-    val interactions_24h: Long = 0
+    val interactions_24h: Long = 0,
+    val average_rating: Double? = null,
+    val rating_count: Long = 0
 )
