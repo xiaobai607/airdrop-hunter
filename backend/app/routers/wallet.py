@@ -67,7 +67,7 @@ def _decode_base58(value: str) -> bytes | None:
     for char in value:
         number = number * 58 + BASE58_ALPHABET.index(char)
     body = number.to_bytes((number.bit_length() + 7) // 8, "big") if number else b""
-    return b"\\x00" * (len(value) - len(value.lstrip("1"))) + body
+    return b"\x00" * (len(value) - len(value.lstrip("1"))) + body
 
 def _is_base58check(value: str, versions: set[int], payload_size: int) -> bool:
     import hashlib
