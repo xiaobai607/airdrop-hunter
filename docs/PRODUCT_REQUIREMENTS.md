@@ -863,3 +863,12 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Backend verifier/outbox integration and provenance-aware public aggregation remain pending. Do not label local syntax validation as on-chain verification.
 
 - **Follow-up compile review:** the repository facade also needs to declare the new opt-in parameter before forwarding it to the local data source; this signature is included in the latest follow-up commit. Revalidate the exact latest head rather than relying on an earlier in-progress CI run.
+
+
+### 2026-11-10 accounting aggregate correctness follow-up
+
+- Exact latest PR #119 head `98818a62c666de9f7bd3ad17fce7f047e1582065` passed Android Debug APK assembly and unit tests in Actions run `42709360469`.
+- Code-fit review then found that the profile's local achievement aggregator still summed compatibility sentinel values from projects whose USD reward valuation is incomplete. This could make a partial ledger appear to have a confirmed total reward, net profit, or win rate.
+- The local profile aggregate now keeps Gas totals, but excludes incomplete-valuation projects from USD reward/profit and win-rate calculations. It carries an explicit `usd_profit_complete` flag; the profile shows “估值未完整” rather than presenting the partial sum as a final USD total. The number of participating projects remains the full ledger project count.
+- Added regression coverage for a mixed complete/incomplete ledger. This is part of the same accounting-domain consistency pass; it does not change historical ledger rows or infer missing reward values.
+- The new follow-up commit requires its own exact-head Android CI run before PR #119 can be considered validated. Backend receipt verification, historical-price quotes, global chain+hash replay protection, and the verified contribution pipeline remain pending.
