@@ -1020,7 +1020,7 @@ object CacheStore {
                     "reward_usd_valuation" to (rewardUsd?.toString() ?: ""),
                     "reward_quote_source" to (reward.quoteSource ?: ""),
                     "reward_quote_timestamp" to (reward.quoteTimestamp?.toString() ?: ""),
-                    "public_contribution_opt_in" to batch.publicContributionOptIn.toString(),
+                    "public_contribution_opt_in" to entry.publicContributionOptIn.toString(),
                     "project_official_id" to (officialId ?: "")
                 )
                 ledgerRows.removeAll { it.client_record_id == id }
@@ -1053,7 +1053,7 @@ object CacheStore {
                     rewardAmount = reward.amount?.toDouble(), rewardUnit = reward.unit,
                     rewardUsdValuation = rewardUsd, rewardQuoteSource = reward.quoteSource,
                     rewardQuoteTimestamp = reward.quoteTimestamp, usdProfitComplete = complete,
-                    publicContributionOptIn = batch.publicContributionOptIn
+                    publicContributionOptIn = entry.publicContributionOptIn
                 ))
             }
             db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(ledgerRows), System.currentTimeMillis()))

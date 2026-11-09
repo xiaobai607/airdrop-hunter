@@ -29,7 +29,9 @@ data class ManualWalletAccountingInput(
     val gasCostUsd: BigDecimal,
     val txHash: String = "",
     /** Used only in PER_WALLET mode. */
-    val reward: ManualRewardInput? = null
+    val reward: ManualRewardInput? = null,
+    /** Explicit consent applies only to this wallet row. */
+    val publicContributionOptIn: Boolean = false
 )
 
 data class AllocatedWalletAccountingEntry(
@@ -42,14 +44,15 @@ data class AllocatedWalletAccountingEntry(
     /** Null is intentionally different from a confirmed zero-dollar reward. */
     val actualRewardUsd: BigDecimal?,
     /** Null means net P&L is incomplete and must not be presented as a final result. */
-    val netProfitUsd: BigDecimal?
+    val netProfitUsd: BigDecimal?,
+    val publicContributionOptIn: Boolean
 )
 
 data class ManualAccountingBatch(
-    val entries: List<AllocatedWalletAccountingEntry>,
-    val publicContributionOptIn: Boolean
+    val entries: List<AllocatedWalletAccountingEntry>
 ) {
     val hasCompleteUsdProfit: Boolean get() = entries.all { it.netProfitUsd != null }
+    val hasPublicContributionOptIn: Boolean get() = entries.any { it.publicContributionOptIn }
 }
 
 /**
@@ -64,8 +67,7 @@ object ManualProjectAccountingPolicy {
     fun prepare(
         wallets: List<ManualWalletAccountingInput>,
         allocationMode: ManualRewardAllocationMode,
-        totalReward: ManualRewardInput? = null,
-        publicContributionOptIn: Boolean = false
+        totalReward: ManualRewardInput? = null
     ): ManualAccountingBatch {
         require(wallets.isNotEmpty() && wallets.size <= maxRows) { "请选择1至100个钱包" }
         require(wallets.map { it.walletId }.distinct().size == wallets.size) { "钱包不能重复" }
@@ -77,10 +79,12 @@ object ManualProjectAccountingPolicy {
             require(wallet.walletAddress.isNotBlank() && wallet.walletAddress.length <= 160) { "钱包地址无效" }
             require(wallet.network.isNotBlank() && wallet.network.length <= 40) { "网络标识无效" }
             require(wallet.gasCostUsd.isValidAmount()) { "Gas 金额必须是有限的非负数" }
-            if (publicContributionOptIn) {
-                require(wallet.txHash.isNotBlank() && wallet.txHash.length <= 180) {
-                    "匿名贡献需要为每个钱包填写 Tx Hash"
+            if (wallet.publicContributionOptIn) {
+                require(isSupportedHash(wallet.network, wallet.txHash)) {
+                    "该钱包的 Tx Hash 格式无效，或当前网络暂不支持匿名贡献核验"
                 }
+            } else {
+                require(wallet.txHash.isBlank() || wallet.txHash.length <= 180) { "Tx Hash 长度无效" }
             }
         }
 
@@ -110,11 +114,28 @@ object ManualProjectAccountingPolicy {
                 txHash = wallet.txHash.trim(),
                 reward = reward,
                 actualRewardUsd = rewardUsd,
-                netProfitUsd = rewardUsd?.subtract(wallet.gasCostUsd)
+                netProfitUsd = rewardUsd?.subtract(wallet.gasCostUsd),
+                publicContributionOptIn = wallet.publicContributionOptIn
             )
         }
-        return ManualAccountingBatch(entries, publicContributionOptIn)
+        return ManualAccountingBatch(entries)
     }
+
+    private fun isSupportedHash(network: String, hash: String): Boolean {
+        val normalized = network.trim().lowercase()
+        val value = hash.trim()
+        return when (normalized) {
+            "ethereum", "eth", "evm", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" ->
+                EVM_HASH.matches(value)
+            "tron", "trc20", "bitcoin", "btc" -> HEX_HASH.matches(value)
+            "solana", "sol" -> SOLANA_SIGNATURE.matches(value)
+            else -> false
+        }
+    }
+
+    private val EVM_HASH = Regex("^0x[a-fA-F0-9]{64}$")
+    private val HEX_HASH = Regex("^[a-fA-F0-9]{64}$")
+    private val SOLANA_SIGNATURE = Regex("^[1-9A-HJ-NP-Za-km-z]{87,88}$")
 
     private fun validateReward(reward: ManualRewardInput): ManualRewardInput {
         val amount = reward.amount

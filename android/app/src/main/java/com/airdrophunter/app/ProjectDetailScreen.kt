@@ -89,7 +89,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     var accountingRewardUnit by remember(project.id, sessionScopeKey) { mutableStateOf("") }
     var accountingRewardKind by remember(project.id, sessionScopeKey) { mutableStateOf(ManualRewardKind.USD) }
     var accountingAllocationMode by remember(project.id, sessionScopeKey) { mutableStateOf(ManualRewardAllocationMode.PER_WALLET) }
-    var accountingPublicOptIn by remember(project.id, sessionScopeKey) { mutableStateOf(false) }
+    var accountingWalletPublicOptIns by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var accountingTxHashes by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isSavingAccounting by remember(project.id, sessionScopeKey) { mutableStateOf(false) }
     var isLoadingAccountingWallets by remember(project.id, sessionScopeKey) { mutableStateOf(false) }
@@ -202,7 +202,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                             .intersect(accountingWallets.map { it.id }.toSet())
                                             .ifEmpty { accountingWallets.map { it.id }.toSet() }
                                         accountingTxHashes = emptyMap()
-                                        accountingPublicOptIn = false
+                                        accountingWalletPublicOptIns = emptyMap()
                                         accountingBatchId = UUID.randomUUID().toString()
                                         showManualAccounting = true
                                     }
@@ -588,10 +588,21 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             enabled = !isSavingAccounting
                         )
                     }
-                    if (accountingPublicOptIn) {
-                        Text("每个钱包必须填写各自的 Tx Hash；保存后仍需后端链上核验，未核验前不会进入公共大盘。",
-                            color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
-                        selectedWallets.forEach { wallet ->
+                    Text("匿名贡献授权按钱包分别设置；每个已授权钱包必须填写该钱包自己的 Tx Hash。链上核验完成前不会进入公共大盘。",
+                        color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                    selectedWallets.forEach { wallet ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = accountingWalletPublicOptIns[wallet.id] == true,
+                                onCheckedChange = { checked ->
+                                    accountingWalletPublicOptIns = accountingWalletPublicOptIns + (wallet.id to checked)
+                                },
+                                enabled = !isSavingAccounting
+                            )
+                            Text("授权 " + wallet.wallet_name.ifBlank { "该钱包" } + " 匿名贡献",
+                                color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (accountingWalletPublicOptIns[wallet.id] == true) {
                             OutlinedTextField(
                                 value = accountingTxHashes[wallet.id].orEmpty(),
                                 onValueChange = { value -> accountingTxHashes = accountingTxHashes + (wallet.id to value.trim()) },
@@ -601,15 +612,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 enabled = !isSavingAccounting
                             )
                         }
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = accountingPublicOptIn,
-                            onCheckedChange = { accountingPublicOptIn = it },
-                            enabled = !isSavingAccounting
-                        )
-                        Text("将本批数据匿名贡献至全网大盘", color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
@@ -638,7 +640,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     network = wallet.chain.trim().lowercase(),
                                     gasCostUsd = gas,
                                     txHash = accountingTxHashes[wallet.id].orEmpty(),
-                                    reward = if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET) reward else null
+                                    reward = if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET) reward else null,
+                                    publicContributionOptIn = accountingWalletPublicOptIns[wallet.id] == true
                                 )
                             }
                             val totalReward = if (accountingAllocationMode == ManualRewardAllocationMode.EVEN_SPLIT_TOTAL) {
@@ -655,8 +658,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             val batch = ManualProjectAccountingPolicy.prepare(
                                 wallets = inputs,
                                 allocationMode = accountingAllocationMode,
-                                totalReward = totalReward,
-                                publicContributionOptIn = accountingPublicOptIn
+                                totalReward = totalReward
                             )
                             val saved = CacheStore.recordManualAccountingBatch(
                                 accountingBatchId, project.id, project.communityOfficialId, project.name, batch
@@ -664,7 +666,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             if (!saved) error("记账未保存，请检查是否存在重复交易或部分重复提交")
                             showManualAccounting = false
                             Toast.makeText(context,
-                                if (accountingPublicOptIn) "私账已保存，匿名贡献等待链上核验" else "记账成功",
+                                if (batch.hasPublicContributionOptIn) "私账已保存，已授权的钱包等待链上核验" else "记账成功",
                                 Toast.LENGTH_LONG).show()
                         } catch (error: Exception) {
                             Toast.makeText(context, error.message ?: "记账失败，请检查输入", Toast.LENGTH_LONG).show()

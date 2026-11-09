@@ -8,15 +8,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ManualProjectAccountingPolicyTest {
-    private fun wallet(id: String, reward: ManualRewardInput? = null, hash: String = "") =
-        ManualWalletAccountingInput(
-            walletId = id,
-            walletAddress = "0x" + id.padEnd(40, '1').take(40),
-            network = "ethereum",
-            gasCostUsd = BigDecimal("2.50"),
-            txHash = hash,
-            reward = reward
-        )
+    private fun wallet(
+        id: String,
+        reward: ManualRewardInput? = null,
+        hash: String = "",
+        network: String = "ethereum",
+        optIn: Boolean = false
+    ) = ManualWalletAccountingInput(
+        walletId = id,
+        walletAddress = "0x" + id.padEnd(40, '1').take(40),
+        network = network,
+        gasCostUsd = BigDecimal("2.50"),
+        txHash = hash,
+        reward = reward,
+        publicContributionOptIn = optIn
+    )
 
     @Test
     fun perWalletUsdRewardProducesExplicitNetProfit() {
@@ -71,28 +77,57 @@ class ManualProjectAccountingPolicyTest {
     }
 
     @Test
-    fun anonymousContributionIsOptInAndRequiresHashForEveryWallet() {
-        val privateBatch = ManualProjectAccountingPolicy.prepare(
-            listOf(wallet("one", ManualRewardInput(ManualRewardKind.UNKNOWN))),
-            ManualRewardAllocationMode.PER_WALLET,
-            publicContributionOptIn = false
+    fun anonymousContributionConsentIsIndependentForEachWallet() {
+        val hash = "0x" + "a".repeat(64)
+        val batch = ManualProjectAccountingPolicy.prepare(
+            listOf(
+                wallet("one", ManualRewardInput(ManualRewardKind.UNKNOWN)),
+                wallet("two", ManualRewardInput(ManualRewardKind.USD, BigDecimal.ZERO), hash = hash, optIn = true)
+            ),
+            ManualRewardAllocationMode.PER_WALLET
         )
-        assertFalse(privateBatch.publicContributionOptIn)
-
-        val optedIn = ManualProjectAccountingPolicy.prepare(
-            listOf(wallet("one", ManualRewardInput(ManualRewardKind.USD, BigDecimal.ZERO), hash = "0xabc")),
-            ManualRewardAllocationMode.PER_WALLET,
-            publicContributionOptIn = true
-        )
-        assertTrue(optedIn.publicContributionOptIn)
+        assertFalse(batch.entries[0].publicContributionOptIn)
+        assertTrue(batch.entries[1].publicContributionOptIn)
+        assertTrue(batch.hasPublicContributionOptIn)
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun optedInBatchRejectsMissingPerWalletHash() {
+    fun optedInWalletRejectsMissingHash() {
         ManualProjectAccountingPolicy.prepare(
-            listOf(wallet("one"), wallet("two", hash = "0xabc")),
-            ManualRewardAllocationMode.PER_WALLET,
-            publicContributionOptIn = true
+            listOf(wallet("one", optIn = true)),
+            ManualRewardAllocationMode.PER_WALLET
+        )
+    }
+
+    @Test
+    fun validatesTransactionHashSyntaxByChain() {
+        val evmHash = "0x" + "b".repeat(64)
+        val tronHash = "c".repeat(64)
+        val solanaSignature = "1".repeat(88)
+        listOf(
+            wallet("eth", hash = evmHash, optIn = true),
+            wallet("tron", hash = tronHash, network = "tron", optIn = true),
+            wallet("sol", hash = solanaSignature, network = "solana", optIn = true)
+        ).forEach { row ->
+            assertTrue(ManualProjectAccountingPolicy.prepare(
+                listOf(row), ManualRewardAllocationMode.PER_WALLET
+            ).entries.single().publicContributionOptIn)
+        }
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsMalformedEvmHash() {
+        ManualProjectAccountingPolicy.prepare(
+            listOf(wallet("one", hash = "0xabc", optIn = true)),
+            ManualRewardAllocationMode.PER_WALLET
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsOptInOnUnsupportedNetwork() {
+        ManualProjectAccountingPolicy.prepare(
+            listOf(wallet("one", hash = "anything", network = "unknown-chain", optIn = true)),
+            ManualRewardAllocationMode.PER_WALLET
         )
     }
 
