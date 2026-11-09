@@ -172,7 +172,7 @@ Additional rules:
 - PR #46: anonymous public community contributions; merged commit 85ac85e1729af303e41a16106cdf14aeb9dc95e1.
 - PR #47: ledger-based personal achievement statistics and historical contribution anonymization migration; merged commit 8f96d9a7cbf1d24834494fcb5b6685094297d50c.
 - PR #48: account/guest-scoped local community favorites; merged commit 9b0315b6753127a1a682b577641ac7daccb23754.
-- PR #49: community ranking enhancement; merged commit 7dcf9fecf41bbb58bda0634a4d6e57599ad21506. Legacy community-only metric output from this implementation is scheduled for removal.
+- PR #49: community ranking enhancement; merged commit 7dcf9fecf41bbb58bda0634a4d6e57599ad21506. The New ranking sorts by project catalog creation time.
 - PR #50: verified global community star ratings; merged commit 3d8e9dff7db59471f63df4a6b2da9619e0c1efe6.
 - PR #51: internal community project search by name, chain, and tags; merged commit 1902ecc74fc1307c3d6785842f55f6892aa6a3ff.
 - PR #52: project task-name editing for guest-local and authenticated account tasks, with server ownership checks and name validation; merged commit 30b1c58849bbc4606b618cc5c74e0186d9e1892f.
@@ -228,15 +228,15 @@ The main data path is intentionally one-way at each boundary:
 1. **Wallet/address layer:** user adds a public address -> account/guest-scoped wallet repository -> read-only chain activity refresh/cache.
 2. **Accounting layer:** user selects a transaction or enters an interaction -> pending bill -> user manually reviews/enters actual Gas and actual reward -> one Room transaction updates the private ledger, project P&L, interaction history, and (only if eligible) public-contribution outbox.
 3. **Private sync layer:** authenticated users sync/restore detailed ledger rows through account-scoped authenticated APIs; guests do not sync private ledger details to any cloud endpoint.
-4. **Public contribution layer:** both guest and authenticated sessions may send only project ID + confirmed aggregate Gas/actual reward + event ID/count. The server stores public contribution rows with no account identity; idempotency prevents duplicate retries.
+4. **Public contribution layer:** both guest and authenticated sessions may send only project ID + confirmed aggregate Gas/actual reward + an opaque event ID for idempotency. The server stores public contribution rows with no account identity; idempotency prevents duplicate retries.
 5. **Community presentation layer:** server-side scheduled jobs aggregate anonymous contributions into static JSON; Android Room cache renders first and CDN revalidation updates silently. Community UI must not bypass this path with live per-project aggregation.
 6. **Project/task layer:** project and task ownership, project-to-wallet assignments, and ledger links are separate from public project metadata. A transaction is linked to a project only by explicit user selection.
 7. **Discovery layer:** provider APIs/RSS candidates and user submissions populate project metadata only. They must never fabricate participation, Gas, rewards, ratings, or P&L.
 
 Recommended next implementation order, based on shared-code dependencies:
 
-1. **Public metric cleanup (PR #73):** remove public counters and activity signals through API, storage, snapshot, and UI while retaining private transaction history and confirmed monetary aggregates.
-2. **Transaction-to-ledger reliability:** test and harden the chain activity -> pending bill -> manual confirmation path, especially fee-payer attribution, duplicate detection, demo exclusion, and account-scope isolation. Never auto-confirm a transaction or estimated reward.
+1. **Public metric cleanup (PR #73 merged):** backend, snapshot, and Android public data contracts now expose confirmed monetary aggregates, star ratings, and catalog metadata. The New ranking sorts by catalog creation time.
+2. **Transaction-to-ledger reliability (PR #74):** harden duplicate transaction identity across guest/account scopes, preserve stable public event IDs, and ensure test/demo rows never sync or contribute. test and harden the chain activity -> pending bill -> manual confirmation path, especially fee-payer attribution, duplicate detection, demo exclusion, and account-scope isolation. Never auto-confirm a transaction or estimated reward.
 3. **Currency-aware accounting:** extend the private ledger and anonymous public contribution model to retain native token amount/symbol/decimals and valuation timestamp/source. Keep USD valuation separate and never sum unlike tokens. Update snapshots only after the source model is correct.
 4. **Sync/restore acceptance:** verify guest data survives normal app restarts but is lost on app-data clearing; verify account data restores on another device and cannot leak across account switches. Add conflict/retry handling only where tests demonstrate a gap.
 5. **Discovery operations:** verify source terms/access, enable only feeds that are genuinely free and stable, and configure review/Cron without blocking user submissions.
@@ -311,6 +311,14 @@ Recommended next implementation order, based on shared-code dependencies:
 - Set `COMMUNITY_SNAPSHOT_BASE_URL` as a repository variable for Android builds after the public CDN endpoint is ready. No storage credential is included in the APK.
 - GitHub scheduled jobs are best-effort and can start late under platform load; the dispatcher still computes due windows from Asia/Shanghai at actual execution time. This is not a real-time SLA.
 
+
+### Transaction-to-ledger reliability (PR #74 in progress)
+
+- Pending bills, private interaction history, and public contribution outbox rows use account-scoped composite primary keys so the same chain transaction can exist independently in guest and authenticated scopes.
+- Transaction identity remains stable across account scopes; the public event ID remains idempotent at the server boundary.
+- Confirmed transaction imports are atomic: duplicate checks, private ledger updates, project totals, interaction history, outbox enqueue, and pending-bill deletion occur in one Room transaction.
+- Only supported networks and non-demo transactions may enter the public contribution outbox. Demo/mock classification is shared by contribution eligibility and private cloud sync filtering.
+- Chain fee attribution remains conservative: prefill only when chain data proves this wallet paid the complete fee; uncertain/shared fees stay blank for manual review.
 
 ### Public community metric scope (user-confirmed)
 

@@ -21,8 +21,8 @@ import java.time.Instant
 @Entity(tableName = "cached_payloads")
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
 
-@Entity(tableName = "pending_bills")
-data class PendingBillEntity(@PrimaryKey val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest", @ColumnInfo(defaultValue = "'unknown'") val network: String = "unknown")
+@Entity(tableName = "pending_bills", primaryKeys = ["accountScope", "id"])
+data class PendingBillEntity(val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest", @ColumnInfo(defaultValue = "'unknown'") val network: String = "unknown")
 
 @Entity(
     tableName = "pnl_records",
@@ -59,18 +59,18 @@ data class UserProjectEntity(
     val createdAt: Long, val updatedAt: Long
 )
 
-@Entity(tableName = "user_interactions", indices = [Index(value = ["accountScope", "projectLocalId", "timestamp"]), Index(value = ["projectOfficialId"])])
+@Entity(tableName = "user_interactions", primaryKeys = ["accountScope", "id"], indices = [Index(value = ["accountScope", "projectLocalId", "timestamp"]), Index(value = ["projectOfficialId"])])
 data class UserInteractionEntity(
-    @PrimaryKey val id: String,
+    val id: String,
     @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
     val projectLocalId: String, val projectOfficialId: String?, val projectName: String,
     val txHash: String, val walletAddress: String, val network: String,
     val gasCostUsd: Double, val actualRewardUsd: Double, val interactionMethod: String, val timestamp: Long
 )
 
-@Entity(tableName = "community_sync_outbox", indices = [Index(value = ["accountScope", "createdAt"])])
+@Entity(tableName = "community_sync_outbox", primaryKeys = ["accountScope", "id"], indices = [Index(value = ["accountScope", "createdAt"])])
 data class CommunitySyncOutboxEntity(
-    @PrimaryKey val id: String,
+    val id: String,
     @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
     val projectOfficialId: String, val gasCostUsd: Double, val actualRewardUsd: Double,
     val createdAt: Long,
@@ -247,7 +247,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 11, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 12, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -395,13 +395,80 @@ object CacheStore {
         }
     }
 
+    private val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS pending_bills_new (
+                    id TEXT NOT NULL, txHash TEXT NOT NULL, walletAddress TEXT NOT NULL,
+                    gasCostUsd REAL NOT NULL, interactionMethod TEXT NOT NULL, timestamp INTEGER NOT NULL,
+                    chain TEXT NOT NULL DEFAULT 'unknown', accountScope TEXT NOT NULL DEFAULT 'guest',
+                    network TEXT NOT NULL DEFAULT 'unknown', PRIMARY KEY(accountScope, id)
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO pending_bills_new (
+                    id, txHash, walletAddress, gasCostUsd, interactionMethod, timestamp, chain, accountScope, network
+                )
+                SELECT id, txHash, walletAddress, gasCostUsd, interactionMethod, timestamp, chain, accountScope, network
+                FROM pending_bills
+            """.trimIndent())
+            db.execSQL("DROP TABLE pending_bills")
+            db.execSQL("ALTER TABLE pending_bills_new RENAME TO pending_bills")
+
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS user_interactions_new (
+                    id TEXT NOT NULL, accountScope TEXT NOT NULL DEFAULT 'guest',
+                    projectLocalId TEXT NOT NULL, projectOfficialId TEXT, projectName TEXT NOT NULL,
+                    txHash TEXT NOT NULL, walletAddress TEXT NOT NULL, network TEXT NOT NULL,
+                    gasCostUsd REAL NOT NULL, actualRewardUsd REAL NOT NULL,
+                    interactionMethod TEXT NOT NULL, timestamp INTEGER NOT NULL,
+                    PRIMARY KEY(accountScope, id)
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO user_interactions_new (
+                    id, accountScope, projectLocalId, projectOfficialId, projectName, txHash,
+                    walletAddress, network, gasCostUsd, actualRewardUsd, interactionMethod, timestamp
+                )
+                SELECT id, accountScope, projectLocalId, projectOfficialId, projectName, txHash,
+                    walletAddress, network, gasCostUsd, actualRewardUsd, interactionMethod, timestamp
+                FROM user_interactions
+            """.trimIndent())
+            db.execSQL("DROP TABLE user_interactions")
+            db.execSQL("ALTER TABLE user_interactions_new RENAME TO user_interactions")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_user_interactions_accountScope_projectLocalId_timestamp ON user_interactions(accountScope, projectLocalId, timestamp)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_user_interactions_projectOfficialId ON user_interactions(projectOfficialId)")
+
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS community_sync_outbox_new (
+                    id TEXT NOT NULL, accountScope TEXT NOT NULL DEFAULT 'guest',
+                    projectOfficialId TEXT NOT NULL, gasCostUsd REAL NOT NULL, actualRewardUsd REAL NOT NULL,
+                    createdAt INTEGER NOT NULL, attemptCount INTEGER NOT NULL DEFAULT 0,
+                    lastAttemptAt INTEGER, lastError TEXT, PRIMARY KEY(accountScope, id)
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO community_sync_outbox_new (
+                    id, accountScope, projectOfficialId, gasCostUsd, actualRewardUsd,
+                    createdAt, attemptCount, lastAttemptAt, lastError
+                )
+                SELECT id, accountScope, projectOfficialId, gasCostUsd, actualRewardUsd,
+                    createdAt, attemptCount, lastAttemptAt, lastError
+                FROM community_sync_outbox
+            """.trimIndent())
+            db.execSQL("DROP TABLE community_sync_outbox")
+            db.execSQL("ALTER TABLE community_sync_outbox_new RENAME TO community_sync_outbox")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_community_sync_outbox_accountScope_createdAt ON community_sync_outbox(accountScope, createdAt)")
+        }
+    }
+
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -676,7 +743,7 @@ object CacheStore {
                 extra = mapOf(
                     "project_official_id" to (canonicalOfficialId ?: ""),
                     // Demo transactions remain available for local UI testing but are never synced.
-                    "is_demo" to bill.txHash.startsWith("MOCK-").toString()
+                    "is_demo" to isDemoAccountingTransaction(bill.txHash, bill.walletAddress, bill.interactionMethod).toString()
                 )
             )
             val updatedLedger = (existingLedger.filterNot { it.client_record_id == bill.id } + ledgerEntry)

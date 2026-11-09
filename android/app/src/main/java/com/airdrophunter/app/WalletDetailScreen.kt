@@ -26,7 +26,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 @Composable
 fun WalletDetailScreen(
@@ -245,9 +244,9 @@ private fun WalletActivityPanel(
                                             if (recorded) {
                                                 android.widget.Toast.makeText(context, "这笔交易已经记过账", android.widget.Toast.LENGTH_SHORT).show()
                                             } else {
-                                                val id = UUID.nameUUIDFromBytes(
-                                                    "${tx.chain.lowercase()}|${if (wallet.ecosystem == WalletEcosystem.EVM) wallet.address.lowercase() else wallet.address}|${if (tx.chain.equals("solana", true)) tx.hash else tx.hash.lowercase()}".toByteArray()
-                                                ).toString()
+                                                val id = WalletTransactionIdentity.pendingBillId(
+                                                    tx.chain, wallet.address, tx.hash, wallet.ecosystem
+                                                )
                                                 val prefilledGas = suggestedGas.toDoubleOrNull()
                                                     ?.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
                                                 accountingRepository.addPendingBill(
