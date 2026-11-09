@@ -102,3 +102,28 @@ def test_personal_ledger_preserves_unknown_expected_reward_as_null():
         restored = client.get("/api/personal-ledger", headers=headers)
         assert restored.status_code == 200
         assert restored.json()[0]["expected_reward_usd"] is None
+
+
+def test_user_stats_aggregate_confirmed_ledger_gas_rewards_and_win_rate():
+    with TestClient(app) as client:
+        headers = auth(client)
+        entries = [
+            ("stats-linea", "linea", "5.00", "10.00", "2026-11-08T10:00:00+00:00"),
+            ("stats-scroll", "scroll", "4.00", "1.00", "2026-11-08T11:00:00+00:00"),
+            ("stats-base", "base", "2.00", "2.00", "2026-11-09T09:00:00+00:00"),
+        ]
+        for record_id, project_id, gas, reward, occurred_at in entries:
+            payload = ledger_payload(record_id, project_id=project_id, actual_gas_cost_usd=gas,
+                                     actual_reward_usd=reward, occurred_at=occurred_at)
+            saved = client.put(f"/api/personal-ledger/{record_id}", headers=headers, json=payload)
+            assert saved.status_code == 200
+        result = client.get("/api/user/stats", headers=headers).json()
+        assert result["ledger_project_count"] == 3
+        assert result["ledger_total_gas_cost"] == 11.0
+        assert result["ledger_total_actual_reward"] == 13.0
+        assert result["ledger_net_profit"] == 2.0
+        assert result["profitable_projects"] == 1
+        assert result["evaluated_projects"] == 3
+        assert abs(result["win_rate"] - 33.3333333333) < 0.001
+        assert result["ledger_interaction_days"] == 2
+        assert result["total_interactions"] == 3

@@ -3,6 +3,7 @@ package com.airdrophunter.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.ProfileRepository
 import com.airdrophunter.app.data.UserProfileDto
 import com.airdrophunter.app.data.UserStatsDto
@@ -30,7 +31,11 @@ class ProfileViewModel(
     fun load(isGuest: Boolean) {
         loadJob?.cancel()
         if (isGuest) {
-            _uiState.value = ProfileUiState()
+            loadJob = viewModelScope.launch {
+                _uiState.value = ProfileUiState(isLoading = true)
+                val stats = runCatching { CacheStore.getUserStats() }.getOrDefault(UserStatsDto())
+                _uiState.value = ProfileUiState(stats = stats)
+            }
             return
         }
         loadJob = viewModelScope.launch {

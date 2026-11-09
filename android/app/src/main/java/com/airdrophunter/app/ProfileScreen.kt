@@ -42,7 +42,7 @@ fun ProfileScreen(
     val state by profileViewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(isGuest) { profileViewModel.load(isGuest) }
-    val stats = if (isGuest) com.airdrophunter.app.data.UserStatsDto() else state.stats
+    val stats = state.stats
 
     Column(
         modifier.fillMaxSize().background(AppColors.Background)
@@ -85,20 +85,28 @@ fun ProfileScreen(
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
                     StatCell("跟踪项目", stats.tracked_projects.toString(), Modifier.weight(1f))
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
-                    StatCell("已完成", stats.completed_projects.toString(), Modifier.weight(1f))
+                    StatCell("胜率", String.format(Locale.US, "%.1f%%", stats.win_rate),
+                        Modifier.weight(1f))
                 }
                 HorizontalDivider(color = AppColors.Border)
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
-                    StatCell("累计实际收益", String.format(Locale.US, "%.2f", stats.total_actual_income),
+                    StatCell("累计 Gas", String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost),
                         Modifier.weight(1f), "USD")
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
-                    StatCell("交互天数", stats.interaction_days.toString(), Modifier.weight(1f))
+                    StatCell("实际收益", String.format(Locale.US, "%.2f", stats.ledger_total_actual_reward),
+                        Modifier.weight(1f), "USD")
                 }
+                Text(
+                    "参与项目 ${stats.ledger_project_count} · 净收益 ${String.format(Locale.US, "%.2f", stats.ledger_net_profit)} USD · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    color = AppColors.TextHelper,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
 
         if (isGuest) {
-            Text("当前数据保存在本机；跨设备云同步功能正在开发中", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+            Text("游客个人账本仅保存在本机；登录后才会启用账号私有云同步", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
             Button(onClick = onRequireAuth, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("登录 / 注册") }
         }
 
