@@ -156,7 +156,11 @@ def test_readiness_rejects_oversized_json_response(monkeypatch):
             assert limit == readiness.MAX_RESPONSE_BYTES + 1
             return b"x" * limit
 
-    monkeypatch.setattr(readiness, "urlopen", lambda request, timeout: Response())
+    class Opener:
+        def open(self, request, timeout):
+            return Response()
+
+    monkeypatch.setattr(readiness, "build_opener", lambda handler: Opener())
     with pytest.raises(ValueError, match="safety limit"):
         readiness.fetch_json("https://api.example.test/health/ready")
 

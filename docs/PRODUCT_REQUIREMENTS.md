@@ -496,5 +496,5 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 
 - Validate every redirect target inside urllib's redirect handler before sending the redirected request.
 - Reject redirects to another hostname, port, or non-HTTPS URL at the redirect boundary; do not wait until after contacting the redirected server.
-- Same-origin HTTPS redirects remain supported. Regression tests cover cross-origin rejection, HTTPS downgrade rejection, and same-origin acceptance.
+- Same-origin HTTPS redirects remain supported. Regression tests cover cross-origin rejection, HTTPS downgrade rejection, same-origin acceptance, and oversized-response rejection through the opener-based request path.
 - The checker remains unauthenticated and accepts only configured public HTTPS base URLs.
