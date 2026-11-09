@@ -118,6 +118,25 @@ Additional rules:
 - Self-written crawlers/scrapers that parse arbitrary airdrop websites are prohibited. APP-side discovery prioritizes free, stable third-party APIs and allowlisted RSS/Atom feeds from airdrop platforms, plus user submissions. Use public third-party listing URLs as project links when official websites are unavailable or unnecessary. Paid data sources are not required; skip any source that cannot be accessed reliably and permissibly for free.
 - Internal community project directory/search remains required.
 
+### 8.1 Home navigation and market dashboard (new user-confirmed requirements, 2026-11-10)
+
+- Bottom navigation order is exactly: **首页 → 空投库 → 项目管理 → 我的**. Rename the existing airdrop discovery/library entry to “空投库”; remove redundant subtitle copy. Navigation between destinations must preserve each tab's independent navigation/back-stack state using save/restore state behavior.
+- Home starts with a compact BTC/ETH market dashboard. Its displayed refresh status must reflect the same underlying cache/network refresh state as the data it displays; do not show a success timestamp when refresh failed.
+- Place the global search entry immediately below the market dashboard. Use a pill-shaped search field and adaptive category tabs: **币种 / 股票 / DApp**. Tabs must adapt to available width rather than overflow.
+- Search input uses a 300 ms debounce. Search locally against Room first with fuzzy matching, then request remote results as appropriate. Typing must not trigger one network request per keystroke.
+- Search history is stored locally in Room, deduplicated by normalized query/category, ordered by most recent use, and capped at 10 entries. History remains local to the app/account scope and is not part of public community contributions.
+- Hot-coin results include symbol/name, current price, price-change percentage, logo where available, and contract address/network where applicable. A 24-hour percentage here means market-price change only; it does **not** reintroduce the cancelled standalone community “24-hour heat” metric or project participation count.
+- Preserve existing global search navigation behavior: selecting a coin opens its market/detail destination, not an automatic search-field fill. DApp results open their validated project/site destination under the existing WebView security rules. Stock search must use a free, permitted data source; if no stable free source exists, show a clear unavailable state rather than introducing paid APIs.
+
+### 8.2 Unified asset detail model and presentation (limited scope; not a portfolio dashboard)
+
+- Normalize supported EVM multi-chain assets, Solana assets, and Bitcoin native balances into a shared **UnifiedAsset** domain model so UI and valuation logic do not need chain-specific presentation branches.
+- Required Room/domain structures: **UnifiedAssetEntity** plus **UnifiedAsset** data class; **MarketCoinEntity/MarketCoin**; **HotCoinCacheEntity/HotCoin**; **SearchHistoryEntity/SearchHistory**; and cache metadata keyed by data source/cache key. Fields must preserve chain/network identity, asset/token contract (nullable for native assets), symbol/name, decimals, raw/formatted quantity, nullable price and USD value, verification/source metadata, and fetched/updated timestamps as applicable. Cache rows must be correctly scoped to the wallet/account context and must never be sent as public contribution payloads.
+- In the wallet's relevant asset-detail view, hide or fold low-value dust whose verified USD value is below **$0.10**. Hide unpriced/fake or unverified spam tokens from the normal asset list; do not fabricate a zero valuation. Filtering is presentation-only: do not delete source balances or ledger history, and allow a deliberate way to inspect hidden items if needed.
+- For supported non-Bitcoin asset detail, show a value-distribution pie chart using the five largest verified assets plus one aggregated “Others” slice. Do not include unpriced assets in the chart. Bitcoin detail must not show this pie chart.
+- Reuse the existing TRON asset-card visual style for consistent chain asset rows. This limited detail view does not authorize restoring the cancelled full OKX-style portfolio dashboard, a separate asset tab, or wallet-wide portfolio overview.
+
+
 ## 9. Refresh, sync, and reliability
 
 - Manual refresh and background refresh.
@@ -127,6 +146,26 @@ Additional rules:
 - Clear distinction between local cache, private cloud sync, and public aggregate contribution.
 - Handle expired/invalid sessions, account switching, network failures, and partial sync without data loss.
 - Do not claim app-wide refresh is complete based only on one subsystem's sync worker.
+
+### 9.1 Room cache, 15-minute TTL, and stale-while-revalidate (new user-confirmed requirements, 2026-11-10)
+
+- All remote data presented by the market/search/asset-query features must have a Room-backed local cache. Cache identity must include the data source and all relevant query dimensions (for example coin/category, chain, wallet/account scope, and query key) to prevent cross-source or cross-account contamination.
+- For market dashboard, market coin detail, hot-coin lists, remote search results, and unified asset snapshots, use a **15-minute TTL**. A cache row is fresh for 15 minutes from its successful fetch timestamp. Do not apply this TTL to the authoritative personal ledger, pending bills, tasks, account credentials, or other user-authored records; those remain persistent data with their own synchronization rules.
+- Apply stale-while-revalidate (SWR): render Room data immediately on screen entry; if stale or absent, start a background request while keeping existing content visible. On success, transactionally update Room and then let the UI observe the new rows. On timeout, provider error, rate limit, or partial outage, retain and continue displaying the last good cache; never clear valid stale data just because a refresh failed.
+- Every cache-backed screen must show a human-readable last-successful-update label (for example “更新于 5 分钟前”). The label must come from the same cache metadata used by the screen, not from an unrelated global timestamp. Loading, stale, refreshing, and refresh-failed-with-cache states must be distinguishable without blanking existing content.
+- User-triggered refresh for these market/search/asset cache surfaces is throttled to at most once per 30 seconds per relevant cache key. A throttled tap must not start duplicate requests and should provide restrained feedback. This 30-second throttle does not alter the community snapshot schedule and does not introduce pull-to-refresh for community pages.
+- Background refresh must use bounded concurrency and cancellation/coalescing so multiple screens requesting the same cache key do not create duplicate network calls. Normal navigation and local cached interaction remain responsive while refresh runs.
+- Use a shared cache repository/SWR policy or a generic **BaseCacheViewModel** abstraction so TTL, stale retention, refresh timestamps, request coalescing, and UI state are consistent rather than reimplemented independently in each screen. Suggested Room support includes **CacheMetadataEntity** keyed by cache key/source with fetchedAt, expiry/TTL policy, and refresh status/error metadata.
+- Community project snapshots remain governed by their existing four-window schedule, static JSON/CDN publication, and Room cache-first revalidation requirements. The generic 15-minute market TTL must not overwrite the community overall/7d/3d/1h schedules or per-row update times.
+
+### 9.2 Provider failover, node rotation, and retry policy
+
+- For public RPC/market providers that publish multiple permitted endpoints, maintain a configurable ordered node pool and rotate to a healthy alternative after a retryable transport/provider failure. Track node health/cooldown so a persistently failing endpoint is not selected on every request.
+- Use bounded exponential backoff with jitter, honoring **Retry-After** for HTTP 429 where supplied. Retry only safe/idempotent reads and retryable network failures or statuses such as 408, 429, 500, 502, 503, and 504. Do not retry validation errors, ordinary 4xx responses, authentication failures, or unsafe write/transaction operations.
+- Set per-attempt and total time budgets, cap retry counts, propagate cancellation, and surface a useful recoverable state after all nodes fail. TLS certificate errors must never be bypassed and must not trigger insecure downgrade.
+- A shared OkHttp interceptor may implement bounded GET retry/rotation where appropriate; repository/coroutine-level retry is preferred when it provides clearer provider-specific node selection, cancellation, and UI state. Do not block threads with Thread.sleep inside interceptors; use suspending delays at the repository layer when possible.
+- Provider rotation and retry must not silently change chain, network, token contract, or query semantics. Preserve source attribution and the successful endpoint/source metadata for diagnostics.
+
 
 ## 10. Security, deployment, and release quality
 
@@ -543,11 +582,11 @@ The user explicitly requires development to proceed as **15 substantial function
 8. **Community snapshot data pipeline** — four windows (overall/7d/3d/1h), scheduled aggregation, static JSON publication, version manifest and cache integrity.
 9. **Community UI and social metrics** — waterfall project detail, rating eligibility/reputation, exact Gas/reward comparison, rankings, favorites and privacy.
 10. **Project discovery and submissions** — safe user submission/deduplication/moderation, approved free data providers only, attribution and source-health reporting; no arbitrary-site crawler or paid source.
-11. **Global search and market** — recoverable search, BTC/ETH/SOL/BNB/XRP market data and coin-detail navigation.
-12. **Background sync and reliability** — WorkManager coordination, source cadence, offline queue, retry/backoff, account switching and recovery.
+11. **Global search, market dashboard, and unified asset detail** — BTC/ETH dashboard, BTC/ETH/SOL/BNB/XRP market data, 300 ms local-first search across coin/stock/DApp categories, hot-coin cache, search history, unified EVM/Solana/Bitcoin asset model and limited asset-detail presentation.
+12. **Background sync, Room cache, and reliability** — WorkManager coordination, 15-minute SWR for market/search/asset query data, 30-second per-key manual refresh throttle, cache metadata/updated labels, provider node rotation, bounded exponential backoff, offline queue, account switching and recovery. Community snapshot schedules remain independent.
 13. **Backend/API/data integrity** — authentication/authorization, schema/migrations, idempotency, validation, limits, tests and end-to-end contract consistency.
 14. **Production operations and recovery** — CDN/storage/Cron configuration, readiness/smoke checks, backup/restore drill and rollback evidence.
-15. **Unified UI and final regression** — one consolidated UI refinement after core flows, full Android/backend regression, APK artifact and acceptance checklist.
+15. **Unified navigation/UI and final regression** — bottom navigation order/state restoration, home dashboard/search integration, unified asset cards and chart behavior, one consolidated UI refinement after core flows, full Android/backend regression, APK artifact and acceptance checklist.
 
 Batch numbering is a delivery grouping, not permission to reintroduce cancelled scope. Items already complete in code and validated are marked complete and carried forward; production configuration and real-device acceptance remain pending until actually verified. A passing CI run is not a substitute for deployment or device acceptance.
 
@@ -644,4 +683,13 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Audit found a retry starvation edge case: Android treated every HTTP error as transient. A backend 409 is a permanent event-ID/payload conflict, so the worker retried it indefinitely and returned before processing later entries in the same outbox batch.
 - Batch 07 adds a Room `terminalFailure` marker with an additive 15→16 migration. On HTTP 409 the worker retains the failed row and diagnostic error, excludes it from future automatic batches, and continues processing subsequent contributions. Network errors, rate limits, and server failures retain retry behavior. The backend conflict response and no-double-counting semantics are unchanged.
 - Regression tests distinguish permanent 409 conflicts from retryable 408/429/5xx responses; existing backend idempotency and anonymous-storage tests remain in the same validation suite.
-- PR/CI/merge status for Batch 07 is pending. Real-device guest/account outbox retry, offline recovery, and public aggregate visibility remain required.
+- PR #109 merged as **0b131113113d6299e5a80724bec06c6e0cd4cf54**; exact-head Android unit tests and Debug APK assembly passed in Actions run **42688621980** on head **103e7638f9d171a12fa8559dbce239d27197744a**. Backend tests were correctly skipped because this batch changed Android only.
+- **Batch 07 code/CI complete.** Real-device guest/account outbox retry, offline recovery, and public aggregate visibility remain required.
+
+### New cross-module requirements captured — 2026-11-10 (requirements only; not yet implemented)
+
+- Added the home bottom-navigation order and state restoration; BTC/ETH dashboard; pill-shaped global search with coin/stock/DApp categories, 300 ms debounce, local fuzzy search, and local ten-item deduplicated history.
+- Added Room entities/domain models for unified multi-chain assets, market coins, hot coins, search history, and cache metadata. Added 15-minute Room TTL + stale-while-revalidate behavior, last-successful-update labels, stale-cache retention on failure, and a per-cache-key 30-second manual refresh throttle for market/search/asset surfaces.
+- Added bounded exponential backoff, retryable-status policy, provider node rotation/health handling, and TLS-safe failover requirements.
+- Added limited unified asset-detail presentation: EVM/Solana/Bitcoin normalization, $0.10 dust folding, spam/unpriced asset filtering without data deletion, top-five-plus-Others chart, no Bitcoin pie chart, and reuse of TRON card styling. This does not restore the cancelled full portfolio dashboard.
+- **Documentation only:** these are now part of the project-wide source of truth and are not claimed as implemented. They must be integrated into the existing 15-batch plan by code fit and feature fit; no duplicate Room entities, cache layers, navigation destinations, or market APIs should be created if equivalent implementations already exist.
