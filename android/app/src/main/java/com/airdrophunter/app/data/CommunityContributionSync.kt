@@ -1,15 +1,9 @@
 package com.airdrophunter.app.data
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
@@ -19,6 +13,9 @@ import java.util.concurrent.TimeUnit
 class CommunityContributionSyncWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        if (!SyncCadence.isDue(applicationContext, SyncCadence.COMMUNITY_KEY, 15, TimeUnit.MINUTES)) {
+            return@withContext Result.success()
+        }
         ApiClient.initialize(applicationContext)
         val batches = CacheStore.getPendingCommunitySyncBatches()
         for (batch in batches) {
@@ -35,6 +32,8 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
                         batch.authorizationHeader
                     )
                     CacheStore.completeCommunitySync(entry.id, batch.accountScope)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (error: HttpException) {
                     CacheStore.markCommunitySyncAttempt(entry.id, batch.accountScope, "HTTP ${error.code()}")
                     return@withContext Result.retry()
@@ -47,24 +46,12 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
                 }
             }
         }
+        SyncCadence.markSuccess(applicationContext, SyncCadence.COMMUNITY_KEY)
         Result.success()
     }
 }
 
 object CommunityContributionSyncScheduler {
-    private const val ONE_TIME_NAME = "community-contribution-sync"
-    private const val PERIODIC_NAME = "community-contribution-periodic-sync"
-    private fun constraints() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-    fun enqueue(context: Context) {
-        val request = OneTimeWorkRequestBuilder<CommunityContributionSyncWorker>()
-            .setConstraints(constraints()).build()
-        WorkManager.getInstance(context.applicationContext)
-            .enqueueUniqueWork(ONE_TIME_NAME, ExistingWorkPolicy.KEEP, request)
-    }
-    fun ensurePeriodic(context: Context) {
-        val request = PeriodicWorkRequestBuilder<CommunityContributionSyncWorker>(15, TimeUnit.MINUTES)
-            .setConstraints(constraints()).build()
-        WorkManager.getInstance(context.applicationContext)
-            .enqueueUniquePeriodicWork(PERIODIC_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
-    }
+    fun enqueue(context: Context) = GlobalSyncScheduler.enqueueNow(context)
+    fun ensurePeriodic(context: Context) = GlobalSyncScheduler.ensurePeriodic(context)
 }

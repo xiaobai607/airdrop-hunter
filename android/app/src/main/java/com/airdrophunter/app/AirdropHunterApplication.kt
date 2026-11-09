@@ -3,9 +3,7 @@ package com.airdrophunter.app
 import android.app.Application
 import android.util.Log
 import com.airdrophunter.app.data.ApiClient
-import com.airdrophunter.app.data.CommunityContributionSyncScheduler
-import com.airdrophunter.app.data.WalletActivitySyncScheduler
-import com.airdrophunter.app.data.PersonalLedgerSyncScheduler
+import com.airdrophunter.app.data.GlobalSyncScheduler
 import com.reown.android.Core
 import com.reown.android.CoreClient
 import com.reown.appkit.client.AppKit
@@ -18,12 +16,11 @@ class AirdropHunterApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Application is the composition root for process-wide app dependencies.
-        // Initialize local auth/cache storage before any Activity or ViewModel can use it.
+        // One coordinator serializes all background sync pipelines. Individual
+        // tasks keep their own cadence, account boundary, and retry semantics.
         ApiClient.initialize(this)
-        CommunityContributionSyncScheduler.ensurePeriodic(this)
-        WalletActivitySyncScheduler.ensurePeriodic(this)
-        PersonalLedgerSyncScheduler.ensurePeriodic(this)
+        GlobalSyncScheduler.ensurePeriodic(this)
+        GlobalSyncScheduler.enqueueNow(this)
 
         val metadata = Core.Model.AppMetaData(
             name = "Airdrop Hunter",

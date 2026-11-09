@@ -1,12 +1,7 @@
 package com.airdrophunter.app.data
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.airdrophunter.app.AirdropHunterApplication
 import kotlinx.coroutines.CancellationException
@@ -24,6 +19,9 @@ class WalletActivitySyncWorker(
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        if (!SyncCadence.isDue(applicationContext, SyncCadence.WALLET_ACTIVITY_KEY, 8, TimeUnit.HOURS)) {
+            return@withContext Result.success()
+        }
         ApiClient.initialize(applicationContext)
         val app = applicationContext as? AirdropHunterApplication ?: return@withContext Result.failure()
         // Bind API requests and cache writes to the session that started this work.
@@ -48,21 +46,15 @@ class WalletActivitySyncWorker(
                 hadFailure = true
             }
         }
-        if (hadFailure) Result.retry() else Result.success()
+        if (hadFailure) {
+            Result.retry()
+        } else {
+            SyncCadence.markSuccess(applicationContext, SyncCadence.WALLET_ACTIVITY_KEY)
+            Result.success()
+        }
     }
 }
 
 object WalletActivitySyncScheduler {
-    private const val PERIODIC_NAME = "wallet-activity-periodic-refresh"
-
-    fun ensurePeriodic(context: Context) {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-        val request = PeriodicWorkRequestBuilder<WalletActivitySyncWorker>(8, TimeUnit.HOURS)
-            .setConstraints(constraints)
-            .build()
-        WorkManager.getInstance(context.applicationContext)
-            .enqueueUniquePeriodicWork(PERIODIC_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
-    }
+    fun ensurePeriodic(context: Context) = GlobalSyncScheduler.ensurePeriodic(context)
 }
