@@ -160,7 +160,7 @@ interface UserInteractionDao {
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insert(interaction: UserInteractionEntity)
     @Query("SELECT * FROM user_interactions WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope ORDER BY timestamp DESC")
     fun observeByProject(projectLocalId: String, accountScope: String): Flow<List<UserInteractionEntity>>
-    @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND LOWER(txHash) = LOWER(:txHash) AND ((LOWER(:network) IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (LOWER(:network) NOT IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND walletAddress = :walletAddress)))")
+    @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND ((LOWER(:network) = 'solana' AND txHash = :txHash) OR (LOWER(:network) != 'solana' AND LOWER(txHash) = LOWER(:txHash))) AND ((LOWER(:network) IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (LOWER(:network) NOT IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND walletAddress = :walletAddress)))")
     suspend fun hasTransaction(accountScope: String, network: String, walletAddress: String, txHash: String): Boolean
 }
 
@@ -429,6 +429,12 @@ object CacheStore {
     suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) {
         database?.pendingBillDao()?.insert(bill.copy(accountScope = currentAccountScope()))
     }
+    suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean =
+        withContext(Dispatchers.IO) {
+            database?.userInteractionDao()?.hasTransaction(
+                currentAccountScope(), network, walletAddress, txHash
+            ) ?: false
+        }
     suspend fun deletePendingBill(id: String) = withContext(Dispatchers.IO) {
         database?.pendingBillDao()?.delete(id, currentAccountScope())
     }

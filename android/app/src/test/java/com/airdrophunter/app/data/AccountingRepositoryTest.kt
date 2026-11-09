@@ -60,6 +60,7 @@ private class FakeAccountingLocalDataSource : AccountingLocalDataSource {
     override suspend fun writeLocal(key: String, payload: String) { local[key] = payload }
     override suspend fun addPendingBill(bill: PendingBillEntity) { addedBill = bill }
     override suspend fun deletePendingBill(id: String) { deletedBillId = id }
+    override suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean = false
     override suspend fun confirmPendingBill(id: String, projectLocalId: String, projectOfficialId: String?, projectCustomName: String, gas: Double, reward: Double): Boolean = true
 }
 
