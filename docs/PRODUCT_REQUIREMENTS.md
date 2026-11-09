@@ -242,7 +242,7 @@ Recommended next implementation order, based on shared-code dependencies:
 2. **Transaction-to-ledger reliability (PR #74 merged):** duplicate transaction identities are isolated by account scope, public event IDs remain stable for server idempotency, demo rows are excluded from sync/contribution, fee-payer attribution is conservative, and manual confirmation is required.
 3. **Currency-aware accounting (PR #75 merged):** native token amount/symbol/decimals and valuation timestamp/source now flow through chain activity, pending bills, private ledger, anonymous public contributions, and per-token static snapshots. USD valuations remain separate and unlike native units are never added together.
 4. **Sync/restore hardening (PR #77 merged):** bind each private-ledger sync to the token/account that started it, use explicit Authorization headers and token-scoped local cache access, atomically merge cloud rows with local rows, and reject cloud restores beyond the 10,000-row safety cap without overwriting local data. Real-device cross-device and app-data-clear acceptance remains pending.
-5. **Discovery rights and operations (PR #78 in progress):** require explicit source-level content-reuse approval in addition to HTTPS host allowlisting. Do not enable feeds based only on public RSS availability; keep sources disabled until their terms or written permission permit public display. Then configure candidate review/Cron without blocking user submissions.
+5. **Discovery rights and operations (PR #78 in progress):** require explicit source-level content-reuse approval for RSS and provider APIs, in addition to HTTPS host allowlisting. Do not enable feeds/APIs based only on public availability; keep sources disabled until their terms or written permission permit public display. Then configure candidate review/Cron without blocking user submissions.
 6. **Production and device acceptance:** configure database backups, CDN/R2, scheduled publishing, and end-to-end phone tests before claiming production readiness.
 7. **Unified UI refinement:** defer broad visual redesign until the above core chains are complete.
 
@@ -348,11 +348,12 @@ Recommended next implementation order, based on shared-code dependencies:
 ### RSS content-reuse approval gate (PR #78 in progress)
 
 - A feed source must pass both exact HTTPS hostname allowlisting and explicit source-name approval via `AIRDROP_RSS_APPROVED_SOURCES`.
+- The existing `web3-discover.vercel.app` API importer is also disabled by default and requires `AIRDROP_HUB_SOURCE_APPROVED=true`; Vercel's API terms require an active account and make end-user app use conditional on permission. The separate CC0 GitHub mirror currently has an old snapshot timestamp (2026-05-11), so it is not a reliable live substitute.
 - The approval variable must remain empty unless the source terms or written permission explicitly allow the intended public display/reuse of feed content.
 - RSS discovery remains candidate intake only; feed records never become verified projects without admin review.
 - Airdrops.io terms restrict the license to personal, non-commercial transitory viewing and prohibit copying, public display, and mirroring. AirdropAlert advertises an RSS endpoint, but its terms limit content use to personal purposes unless prior written permission is obtained. Neither source is approved for this app's public project catalog without further permission.
 - Do not enable feeds merely because their RSS endpoint is public or because a feed-reader page advertises RSS. Keep user submissions and already permitted free APIs available.
-- Production feed configuration and Cron activation remain pending; no new feed source is enabled by this change.
+- Production feed configuration and Cron activation remain pending; no new feed/API source is enabled by this change. User project submissions remain available.
 
 ### Legacy cached wallet-activity precision compatibility (PR #76 merged)
 
