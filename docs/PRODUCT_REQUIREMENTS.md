@@ -479,7 +479,7 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 ### PostgreSQL backup and restore drill (PR pending, 2026-11-10)
 
 - Add a manual-only GitHub Actions workflow to create a custom-format PostgreSQL backup, restore it into a separately provisioned empty database, and verify the Alembic revision and public table set.
-- Require two independent repository secrets: BACKUP_SOURCE_DATABASE_URL and BACKUP_RESTORE_DATABASE_URL. The restore database name must end in _restore_check and differ from the source.
+- Require two independent repository secrets: BACKUP_SOURCE_DATABASE_URL and BACKUP_RESTORE_DATABASE_URL. The restore database name must end in _restore_check, differ from the source, and be created empty from template0 so the dump can recreate the public schema.
 - The restore command intentionally does not drop databases or use pg_restore --clean; a non-empty target fails rather than being overwritten. Provision a dedicated empty target before running the drill.
 - Database credentials and raw server output are never printed. The workflow is not scheduled and does not run against production unless an operator explicitly configures the secrets and dispatches it.
 - Code and tests are complete only after CI; a real restore drill remains pending until the two secrets and isolated restore database are configured and the manual workflow succeeds.
