@@ -26,6 +26,13 @@ def _configured_feeds() -> list[tuple[str, str]]:
         for host in os.getenv("AIRDROP_RSS_ALLOWED_HOSTS", "").split(",")
         if host.strip()
     }
+    # RSS availability does not itself grant rights to republish feed content.
+    # A source must be explicitly approved after rights/terms review.
+    approved_sources = {
+        source.strip().casefold()
+        for source in os.getenv("AIRDROP_RSS_APPROVED_SOURCES", "").split(",")
+        if source.strip()
+    }
     feeds: list[tuple[str, str]] = []
     for entry in configured.split(";"):
         if "=" not in entry:
@@ -34,8 +41,11 @@ def _configured_feeds() -> list[tuple[str, str]]:
         name, raw_url = name.strip()[:120], raw_url.strip()
         parsed = urlparse(raw_url)
         host = (parsed.hostname or "").lower()
+        if not name or name.casefold() not in approved_sources:
+            logger.warning("Skipping RSS feed without explicit content-reuse approval")
+            continue
         if (
-            not name or parsed.scheme != "https" or not host
+            parsed.scheme != "https" or not host
             or parsed.username or parsed.password or host not in allowed_hosts
         ):
             logger.warning("Skipping RSS feed not covered by HTTPS host allowlist")
