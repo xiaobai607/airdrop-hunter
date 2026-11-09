@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AirdropProject
+from app.services.discovery_source_status import record_discovery_source_status
 
 logger = logging.getLogger("airdrop_hunter.airdrop_sync")
 
@@ -174,6 +175,9 @@ async def sync_airdrop_hub(db: AsyncSession) -> int:
                     setattr(current, key, value)
                 current.imported_at = now
             count += 1
+        await record_discovery_source_status(
+            db, "web3-discover", source, now, "success", item_count=count
+        )
         await db.commit()
         _sync_status.update({
             "last_success_at": now.isoformat(),
@@ -184,6 +188,13 @@ async def sync_airdrop_hub(db: AsyncSession) -> int:
         return count
     except Exception as exc:
         await db.rollback()
+        try:
+            await record_discovery_source_status(
+                db, "web3-discover", JSON_SOURCE, now, "failed", error=type(exc).__name__
+            )
+            await db.commit()
+        except Exception:
+            await db.rollback()
         _sync_status["error"] = str(exc)[:500]
         logger.warning("Airdrop hub import failed: %s", exc)
         raise

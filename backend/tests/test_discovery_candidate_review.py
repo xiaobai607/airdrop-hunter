@@ -10,10 +10,21 @@ def test_candidate_review_endpoints_require_catalog_admin_token(monkeypatch):
     candidate_id = "5d2b3f2c-1a1e-4d8d-9a8b-6f9f55a2c001"
     with TestClient(app) as client:
         assert client.get("/api/airdrops/discovery/candidates/review-queue").status_code == 403
+        assert client.get("/api/airdrops/discovery/sources/status").status_code == 403
         assert client.get(
             "/api/airdrops/discovery/candidates/review-queue",
             headers={"X-Catalog-Admin-Token": "wrong"},
         ).status_code == 403
+        assert client.get(
+            "/api/airdrops/discovery/sources/status",
+            headers={"X-Catalog-Admin-Token": "wrong"},
+        ).status_code == 403
+        status_response = client.get(
+            "/api/airdrops/discovery/sources/status",
+            headers={"X-Catalog-Admin-Token": "review-secret"},
+        )
+        assert status_response.status_code == 200
+        assert isinstance(status_response.json(), list)
         assert client.post(
             f"/api/airdrops/discovery/candidates/{candidate_id}/approve"
         ).status_code == 403

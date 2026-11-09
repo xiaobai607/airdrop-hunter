@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AirdropDiscoveryCandidate
+from app.services.discovery_source_status import record_discovery_source_status
 
 logger = logging.getLogger("airdrop_hunter.rss_discovery")
 MAX_FEED_BYTES = 2_000_000
@@ -127,6 +128,9 @@ async def sync_rss_discovery_candidates(db: AsyncSession) -> int:
                 if len(response.content) > MAX_FEED_BYTES:
                     raise ValueError("RSS feed exceeds size limit")
                 records = parse_feed(response.content, source_url)
+                await record_discovery_source_status(
+                    db, source_name, source_url, now, "success", item_count=len(records)
+                )
                 for record in records:
                     item_url = str(record["item_url"])
                     source_key = hashlib.sha256(item_url.encode("utf-8")).hexdigest()
@@ -155,6 +159,9 @@ async def sync_rss_discovery_candidates(db: AsyncSession) -> int:
                     total += 1
             except (httpx.HTTPError, ET.ParseError, ValueError) as exc:
                 # One broken feed must not block other configured feeds.
+                await record_discovery_source_status(
+                    db, source_name, source_url, now, "failed", error=type(exc).__name__
+                )
                 logger.warning("RSS feed %s failed: %s", source_name, type(exc).__name__)
                 continue
     await db.commit()
