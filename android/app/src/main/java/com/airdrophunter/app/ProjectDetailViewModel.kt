@@ -7,6 +7,7 @@ import com.airdrophunter.app.data.ProjectsRepository
 import com.airdrophunter.app.data.TaskDto
 import com.airdrophunter.app.data.WalletCheckResponse
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,9 +27,17 @@ data class ProjectDetailUiState(
 class ProjectDetailViewModel(private val repository: ProjectsRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(ProjectDetailUiState())
     val uiState: StateFlow<ProjectDetailUiState> = _uiState.asStateFlow()
+    private var loadJob: Job? = null
+    private var taskJob: Job? = null
+    private var claimJob: Job? = null
+    private var walletCheckJob: Job? = null
 
     fun load(projectId: String, isGuest: Boolean = false) {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        taskJob?.cancel()
+        claimJob?.cancel()
+        walletCheckJob?.cancel()
+        loadJob = viewModelScope.launch {
             _uiState.value = ProjectDetailUiState()
             try {
                 val cached = repository.readCachedTasks(projectId, isGuest)
@@ -69,7 +78,8 @@ class ProjectDetailViewModel(private val repository: ProjectsRepository) : ViewM
     }
 
     fun requestClaimUrl(projectId: String, walletId: String) {
-        viewModelScope.launch {
+        claimJob?.cancel()
+        claimJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isClaimLoading = true, claimError = null, claimUrl = null)
             try {
                 val response = repository.getClaimUrl(projectId, walletId)
@@ -85,7 +95,8 @@ class ProjectDetailViewModel(private val repository: ProjectsRepository) : ViewM
     fun consumeClaimUrl() { _uiState.value = _uiState.value.copy(claimUrl = null) }
 
     fun checkWallet(address: String) {
-        viewModelScope.launch {
+        walletCheckJob?.cancel()
+        walletCheckJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isBusy = true, hasError = false)
             try {
                 val result = repository.checkWallet(address)
@@ -99,7 +110,8 @@ class ProjectDetailViewModel(private val repository: ProjectsRepository) : ViewM
     }
 
     private fun mutateTasks(operation: suspend () -> List<TaskDto>) {
-        viewModelScope.launch {
+        taskJob?.cancel()
+        taskJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isBusy = true, hasError = false)
             try {
                 val tasks = operation()

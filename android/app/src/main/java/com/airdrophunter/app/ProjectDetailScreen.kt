@@ -41,7 +41,8 @@ enum class LedgerPeriod(val label: String) { DAY("日"), WEEK("周"), MONTH("月
 @Composable
 fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGuest: Boolean = false,
     vm: ProjectDetailViewModel? = null,
-    onOpenCommunity: ((ProjectDto) -> Unit)? = null
+    onOpenCommunity: ((ProjectDto) -> Unit)? = null,
+    sessionScopeKey: String = "guest"
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -53,18 +54,22 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     val interactions by CacheStore.observeUserInteractions(project.id).collectAsStateWithLifecycle(initialValue = emptyList())
     var ledgerPeriod by remember(project.id) { mutableStateOf(LedgerPeriod.MONTH) }
     val twitterTitle = stringResource(R.string.twitter)
-    var taskName by remember(project.id) { mutableStateOf("") }
-    var editingTask by remember(project.id) { mutableStateOf<TaskDto?>(null) }
-    var editedTaskName by remember(project.id) { mutableStateOf("") }
-    var claimWallets by remember { mutableStateOf<List<WalletDto>>(emptyList()) }
-    var showClaimWalletPicker by remember { mutableStateOf(false) }
-    var isLoadingClaimWallets by remember { mutableStateOf(false) }
+    var taskName by remember(project.id, sessionScopeKey) { mutableStateOf("") }
+    var editingTask by remember(project.id, sessionScopeKey) { mutableStateOf<TaskDto?>(null) }
+    var editedTaskName by remember(project.id, sessionScopeKey) { mutableStateOf("") }
+    var claimWallets by remember(sessionScopeKey) { mutableStateOf<List<WalletDto>>(emptyList()) }
+    var showClaimWalletPicker by remember(sessionScopeKey) { mutableStateOf(false) }
+    var isLoadingClaimWallets by remember(sessionScopeKey) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val projectUsesLocalTasks = isGuest || project.id.startsWith("community:")
     val completed = state.tasks.count { it.is_completed }
     val progress = if (state.tasks.isEmpty()) 0f else completed.toFloat() / state.tasks.size
 
-    LaunchedEffect(project.id, projectUsesLocalTasks) { projectDetailViewModel.load(project.id, projectUsesLocalTasks) }
+    LaunchedEffect(project.id, projectUsesLocalTasks, sessionScopeKey) {
+        showClaimWalletPicker = false
+        editingTask = null
+        projectDetailViewModel.load(project.id, projectUsesLocalTasks)
+    }
     LaunchedEffect(state.claimUrl) {
         val claimUrl = state.claimUrl ?: return@LaunchedEffect
         val parsed = runCatching { Uri.parse(claimUrl) }.getOrNull()

@@ -30,6 +30,7 @@ class ProfileViewModel(
 
     fun load(isGuest: Boolean) {
         loadJob?.cancel()
+        _uiState.value = ProfileUiState(isLoading = true)
         if (isGuest) {
             loadJob = viewModelScope.launch {
                 _uiState.value = ProfileUiState(isLoading = true)

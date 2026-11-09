@@ -339,6 +339,8 @@ object CacheStore {
     fun schedulePrivateLedgerSync() {
         appContext?.let { PersonalLedgerSyncScheduler.enqueue(it) }
     }
+    fun accountScopeKey(token: String?): String = accountScopeFromToken(token)
+
     private fun accountScopeFromToken(token: String?): String {
         if (token.isNullOrBlank()) return "guest"
         val payload = token.split(".").getOrNull(1) ?: return "invalid-session"

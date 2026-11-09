@@ -32,6 +32,7 @@ fun ProfileScreen(
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
     onManageWallets: () -> Unit = {},
+    sessionScopeKey: String = "guest",
     vm: ProfileViewModel? = null
 ) {
     val context = LocalContext.current
@@ -41,7 +42,7 @@ fun ProfileScreen(
     )
     val state by profileViewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(isGuest) { profileViewModel.load(isGuest) }
+    LaunchedEffect(isGuest, sessionScopeKey) { profileViewModel.load(isGuest) }
     val stats = state.stats
 
     Column(
