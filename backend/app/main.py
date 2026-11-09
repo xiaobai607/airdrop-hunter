@@ -28,6 +28,7 @@ from app.api.personal_ledger import router as personal_ledger_router
 from app.api.project_wallet_assignments import router as project_wallet_assignments_router
 from app.api.community_stats import router as community_stats_router
 from app.api.community_catalog import router as community_catalog_router
+from app.api.community_favorites import router as community_favorites_router
 from app.database import engine
 from app import models  # noqa: F401
 
@@ -101,7 +102,7 @@ for router in (
     auth_router, projects_router, market_router, wallet_router, wallets_router, wallet_activity_router,
     tasks_router, stats_router, airdrops_router, airdrop_hub_router,
     airdrop_sync_router, discovery_candidates_router, sources_router, personal_ledger_router,
-    project_wallet_assignments_router, community_stats_router, community_catalog_router,
+    project_wallet_assignments_router, community_stats_router, community_catalog_router, community_favorites_router,
 ):
     app.include_router(router)
 

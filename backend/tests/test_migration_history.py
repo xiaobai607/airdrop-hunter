@@ -9,7 +9,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     config = Config(str(backend_dir / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0014_discovery_source_status"
+    assert scripts.get_current_head() == "0015_community_favorites"
     bootstrap = scripts.get_revision("0001_bootstrap")
     ledger = scripts.get_revision("0002_personal_ledger")
     nullable_reward = scripts.get_revision("0003_nullable_expected_reward")
@@ -24,6 +24,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     public_metrics = scripts.get_revision("0012_public_metrics")
     currency_assets = scripts.get_revision("0013_currency_assets")
     discovery_source_status = scripts.get_revision("0014_discovery_source_status")
+    community_favorites = scripts.get_revision("0015_community_favorites")
     assert bootstrap is not None and bootstrap.down_revision is None
     assert ledger is not None and ledger.down_revision == "0001_bootstrap"
     assert nullable_reward is not None and nullable_reward.down_revision == "0002_personal_ledger"
@@ -38,3 +39,4 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     assert public_metrics is not None and public_metrics.down_revision == "0011_candidate_review"
     assert currency_assets is not None and currency_assets.down_revision == "0012_public_metrics"
     assert discovery_source_status is not None and discovery_source_status.down_revision == "0013_currency_assets"
+    assert community_favorites is not None and community_favorites.down_revision == "0014_discovery_source_status"
