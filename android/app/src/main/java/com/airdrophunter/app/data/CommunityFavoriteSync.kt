@@ -12,15 +12,17 @@ import java.util.concurrent.TimeUnit
 class CommunityFavoriteSyncWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        if (TokenStore.readTokenBlocking().isNullOrBlank()) return@withContext Result.success()
+        val accessToken = TokenStore.readTokenBlocking()?.takeIf { it.isNotBlank() }
+            ?: return@withContext Result.success()
+        val cadenceKey = SyncCadence.scopedKey(SyncCadence.COMMUNITY_FAVORITES_KEY, accessToken)
         if (!inputData.getBoolean(GlobalSyncScheduler.FORCE_KEY, false) &&
-            !SyncCadence.isDue(applicationContext, SyncCadence.COMMUNITY_FAVORITES_KEY, 8, TimeUnit.HOURS)) {
+            !SyncCadence.isDue(applicationContext, cadenceKey, 8, TimeUnit.HOURS)) {
             return@withContext Result.success()
         }
         ApiClient.initialize(applicationContext)
         try {
             if (CacheStore.syncCommunityFavorites()) {
-                SyncCadence.markSuccess(applicationContext, SyncCadence.COMMUNITY_FAVORITES_KEY)
+                SyncCadence.markSuccess(applicationContext, cadenceKey)
                 Result.success()
             } else {
                 Result.retry()

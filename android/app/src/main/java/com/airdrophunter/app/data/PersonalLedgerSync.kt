@@ -18,16 +18,18 @@ class PersonalLedgerSyncWorker(
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        if (TokenStore.readTokenBlocking().isNullOrBlank()) return@withContext Result.success()
+        val accessToken = TokenStore.readTokenBlocking()?.takeIf { it.isNotBlank() }
+            ?: return@withContext Result.success()
+        val cadenceKey = SyncCadence.scopedKey(SyncCadence.PERSONAL_LEDGER_KEY, accessToken)
         if (!inputData.getBoolean(GlobalSyncScheduler.FORCE_KEY, false) &&
-            !SyncCadence.isDue(applicationContext, SyncCadence.PERSONAL_LEDGER_KEY, 8, TimeUnit.HOURS)) {
+            !SyncCadence.isDue(applicationContext, cadenceKey, 8, TimeUnit.HOURS)) {
             return@withContext Result.success()
         }
         ApiClient.initialize(applicationContext)
         val app = applicationContext as? AirdropHunterApplication ?: return@withContext Result.failure()
         try {
             if (app.appContainer.accountingRepository.syncPersonalLedger()) {
-                SyncCadence.markSuccess(applicationContext, SyncCadence.PERSONAL_LEDGER_KEY)
+                SyncCadence.markSuccess(applicationContext, cadenceKey)
                 Result.success()
             } else {
                 Result.retry()

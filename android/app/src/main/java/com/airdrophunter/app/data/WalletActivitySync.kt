@@ -19,14 +19,15 @@ class WalletActivitySyncWorker(
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        // Bind cadence, API requests, and cache writes to this exact session.
+        val accessToken = TokenStore.readTokenBlocking()?.takeIf { it.isNotBlank() }
+        val cadenceKey = SyncCadence.scopedKey(SyncCadence.WALLET_ACTIVITY_KEY, accessToken)
         if (!inputData.getBoolean(GlobalSyncScheduler.FORCE_KEY, false) &&
-            !SyncCadence.isDue(applicationContext, SyncCadence.WALLET_ACTIVITY_KEY, 8, TimeUnit.HOURS)) {
+            !SyncCadence.isDue(applicationContext, cadenceKey, 8, TimeUnit.HOURS)) {
             return@withContext Result.success()
         }
         ApiClient.initialize(applicationContext)
         val app = applicationContext as? AirdropHunterApplication ?: return@withContext Result.failure()
-        // Bind API requests and cache writes to the session that started this work.
-        val accessToken = TokenStore.readTokenBlocking()?.takeIf { it.isNotBlank() }
         val guest = accessToken == null
 
         val wallets = try {
@@ -50,7 +51,7 @@ class WalletActivitySyncWorker(
         if (hadFailure) {
             Result.retry()
         } else {
-            SyncCadence.markSuccess(applicationContext, SyncCadence.WALLET_ACTIVITY_KEY)
+            SyncCadence.markSuccess(applicationContext, cadenceKey)
             Result.success()
         }
     }

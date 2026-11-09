@@ -115,6 +115,9 @@ internal object SyncCadence {
             .putLong(key, System.currentTimeMillis())
             .apply()
     }
+
+    fun scopedKey(key: String, accessToken: String?): String =
+        key + ":" + CacheStore.accountScopeKey(accessToken)
 }
 
 internal fun isSyncCadenceDue(lastSuccessAtMillis: Long, nowMillis: Long, intervalMillis: Long): Boolean {
