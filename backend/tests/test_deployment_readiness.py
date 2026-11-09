@@ -6,6 +6,7 @@ from app.services.deployment_readiness import (
     validate_manifest,
     validate_response_origin,
     validate_snapshot,
+    validate_snapshot_privacy,
 )
 
 
@@ -100,3 +101,21 @@ def test_readiness_rejects_cross_origin_or_downgrade_redirects():
             "https://cdn.example.test/manifest.json",
             "http://cdn.example.test/manifest.json",
         )
+
+
+def test_readiness_rejects_private_wallet_and_transaction_fields_recursively():
+    validate_snapshot_privacy({
+        "projects": [{"project_id": "linea", "gas_by_token": [{"symbol": "ETH"}]}],
+    })
+    with pytest.raises(ValueError):
+        validate_snapshot_privacy({
+            "projects": [{"stats": {"wallet_address": "0xprivate"}}],
+        })
+    with pytest.raises(ValueError):
+        validate_snapshot_privacy({
+            "projects": [{"events": [{"transaction_hash": "0xprivate"}]}],
+        })
+    with pytest.raises(ValueError):
+        validate_snapshot_privacy({
+            "projects": [{"stats": {"user_id": "account-123"}}],
+        })

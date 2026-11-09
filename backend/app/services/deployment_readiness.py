@@ -127,6 +127,35 @@ def validate_manifest(manifest: dict, cdn_base: str) -> dict[str, str]:
     return urls
 
 
+PRIVATE_SNAPSHOT_KEYS = {
+    "walletaddress",
+    "walletaddresses",
+    "txhash",
+    "transactionhash",
+    "transactionid",
+    "userid",
+    "accountid",
+    "useremail",
+    "privateledger",
+    "privateledgerrows",
+    "ledgerrows",
+    "pendingbills",
+    "personalrecords",
+}
+
+
+def validate_snapshot_privacy(value: object, path: str = "snapshot") -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized = "".join(character for character in str(key).lower() if character.isalnum())
+            if normalized in PRIVATE_SNAPSHOT_KEYS:
+                raise ValueError(f"Public snapshot contains a prohibited private field at {path}.{key}")
+            validate_snapshot_privacy(child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            validate_snapshot_privacy(child, f"{path}[{index}]")
+
+
 def validate_snapshot(payload: dict, window: str, expected_update_time: str) -> None:
     if payload.get("schema_version") != 1 or payload.get("window") != window:
         raise ValueError(f"Community {window} snapshot schema/window mismatch")
@@ -138,6 +167,7 @@ def validate_snapshot(payload: dict, window: str, expected_update_time: str) -> 
         raise ValueError(f"Community {window} snapshot money metadata is invalid")
     if not isinstance(payload.get("projects"), list):
         raise ValueError(f"Community {window} snapshot projects must be an array")
+    validate_snapshot_privacy(payload)
 
 
 def run_readiness(api_base: str, cdn_base: str) -> list[str]:
