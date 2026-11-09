@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.UserInteractionEntity
+import com.airdrophunter.app.data.TaskDto
 import com.airdrophunter.app.data.WalletDto
 import kotlinx.coroutines.launch
 import com.airdrophunter.app.ui.theme.AppColors
@@ -53,6 +54,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     var ledgerPeriod by remember(project.id) { mutableStateOf(LedgerPeriod.MONTH) }
     val twitterTitle = stringResource(R.string.twitter)
     var taskName by remember(project.id) { mutableStateOf("") }
+    var editingTask by remember(project.id) { mutableStateOf<TaskDto?>(null) }
+    var editedTaskName by remember(project.id) { mutableStateOf("") }
     var claimWallets by remember { mutableStateOf<List<WalletDto>>(emptyList()) }
     var showClaimWalletPicker by remember { mutableStateOf(false) }
     var isLoadingClaimWallets by remember { mutableStateOf(false) }
@@ -269,6 +272,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     Text(task.task_name, Modifier.weight(1f),
                         color = if (task.is_completed) AppColors.TextHelper else AppColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium)
+                    TextButton(onClick = {
+                        editingTask = task
+                        editedTaskName = task.task_name
+                    }) { Text("编辑", color = AppColors.Primary) }
                     TextButton(onClick = { projectDetailViewModel.deleteTask(project.id, task, projectUsesLocalTasks) }) {
                         Text("删除", color = AppColors.Danger)
                     }
@@ -276,6 +283,36 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
             }
         }
     }
+    editingTask?.let { taskToEdit ->
+        AlertDialog(
+            onDismissRequest = { editingTask = null },
+            containerColor = AppColors.Surface,
+            title = { Text("编辑任务", color = AppColors.TextPrimary) },
+            text = {
+                OutlinedTextField(
+                    value = editedTaskName,
+                    onValueChange = { editedTaskName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("任务名称") }
+                )
+            },
+            confirmButton = {
+                Button(
+                    enabled = editedTaskName.isNotBlank() && !state.isBusy,
+                    onClick = {
+                        projectDetailViewModel.renameTask(
+                            project.id, taskToEdit, editedTaskName, projectUsesLocalTasks
+                        )
+                        editingTask = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                ) { Text("保存") }
+            },
+            dismissButton = { TextButton(onClick = { editingTask = null }) { Text("取消") } }
+        )
+    }
+
     if (showClaimWalletPicker) {
         AlertDialog(
             onDismissRequest = { showClaimWalletPicker = false },

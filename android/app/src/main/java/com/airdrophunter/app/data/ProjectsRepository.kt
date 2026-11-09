@@ -173,6 +173,23 @@ class ProjectsRepository(
             .also { saveTasks(projectId, it, guest) }
     }
 
+    suspend fun renameTask(
+        projectId: String,
+        task: TaskDto,
+        name: String,
+        guest: Boolean,
+        current: List<TaskDto>
+    ): List<TaskDto> {
+        requireTaskBelongsToProject(projectId, task, current)
+        val normalizedName = name.trim()
+        require(normalizedName.isNotEmpty()) { "任务名称不能为空" }
+        val updated = if (guest) task.copy(task_name = normalizedName)
+        else remote.updateTask(projectId, task.id, TaskUpdateRequest(task_name = normalizedName))
+        require(updated.project_id == projectId) { "服务器返回的任务不属于当前项目" }
+        return current.map { if (it.id == updated.id) updated else it }
+            .also { saveTasks(projectId, it, guest) }
+    }
+
     suspend fun deleteTask(
         projectId: String,
         task: TaskDto,

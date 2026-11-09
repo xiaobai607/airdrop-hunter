@@ -147,6 +147,10 @@ Additional rules:
 - PR #45: Bitcoin wallet address/activity support; merged commit e259d9ec837b52ac2c75f8ea3f1e89884a8ab05d.
 - PR #46: anonymous public community contributions; merged commit 85ac85e1729af303e41a16106cdf14aeb9dc95e1.
 - PR #47: ledger-based personal achievement statistics and historical contribution anonymization migration; merged commit 8f96d9a7cbf1d24834494fcb5b6685094297d50c.
+- PR #48: account/guest-scoped local community favorites; merged commit 9b0315b6753127a1a682b577641ac7daccb23754.
+- PR #49: rolling 24-hour confirmed community activity and new-star ranking; merged commit 7dcf9fecf41bbb58bda0634a4d6e57599ad21506.
+- PR #50: verified global community star ratings; merged commit 3d8e9dff7db59471f63df4a6b2da9619e0c1efe6.
+- PR #51: internal community project search by name, chain, and tags; merged commit 1902ecc74fc1307c3d6785842f55f6892aa6a3ff.
 
 ### Current audit findings
 
@@ -156,9 +160,10 @@ Additional rules:
 - Confirmed in main source: guest wallet addresses are saved through the app-local cache; logged-in wallet addresses are loaded from the authenticated wallet API and cached under an account-specific key. Room project, P&L, interaction, pending-bill, and outbox records are scoped by token user ID or guest scope.
 - Confirmed in main source: private personal-ledger endpoint requires authentication and scopes reads/deletes/upserts to the authenticated user. Android AccountingRepository.syncPersonalLedger() returns before any private cloud call when no token exists.
 - PR #46 and PR #47 are merged: new public contribution rows store user_id as null; migration 0005 clears historical account links while preserving aggregate totals.
-- Not yet proven by code inspection in this audit: guest wallet-address persistence end-to-end, Android account-switch edge cases, production database backup/restore, and real-device cross-device restoration.
-- Community implementation audit: the project square has three ranking tabs and category tags, but its catalog is a fixed seven-project list. The “new star” ranking currently sorts by lifetime contribution count, not recent activity. Project ratings are saved only on-device; global rating aggregation and global 24-hour heat are not implemented. The current branch adds account/guest-scoped local favorites; cross-device favorite sync remains pending.
+- Source audit confirms guest wallet addresses are stored in the guest-scoped app cache and authenticated wallet lists are fetched from the private wallet API and cached by account scope. Device-level app-data clearing and account-switch behavior still require real-device acceptance; production database backup/restore also remains unverified.
+- Community implementation: PR #48 adds guest/account-scoped local favorites; cross-device favorite sync remains pending. PR #49 adds rolling 24-hour confirmed interaction heat and uses it for the new-star ranking. PR #50 adds global 1–5 star aggregates for logged-in accounts after server verification against confirmed private-ledger participation; guest ratings remain local-only. PR #51 adds in-app search over the existing seven-project catalog; this does not search external websites. The catalog is still a fixed seven-project list; dynamic catalog management remains pending. Public metrics count contribution events/interactions, not unique people, to avoid introducing account/device tracking into anonymous public contributions.
 - Personal achievement: implemented in PR #47. Guest metrics read the guest-scoped local ledger; logged-in metrics read the authenticated private cloud ledger. Win rate uses only projects with confirmed ledger interactions.
+- Task management currently supports create, complete, and delete; task-name editing is the next in-progress item in this PR.
 - Real-device acceptance for browser/wallet bridge, Android transaction import, guest data clearing, and cross-device restore remains pending.
 
 ### Status discipline

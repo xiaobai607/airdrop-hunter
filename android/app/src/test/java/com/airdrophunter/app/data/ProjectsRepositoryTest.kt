@@ -36,8 +36,12 @@ class ProjectsRepositoryTest {
             TaskDto("task-${request.step_order}", projectId, request.task_name, false, request.step_order ?: 1)
                 .also { tasks.getOrPut(projectId) { mutableListOf() }.add(it) }
         override suspend fun updateTask(projectId: String, taskId: String, request: TaskUpdateRequest): TaskDto =
-            tasks.getValue(projectId).first { it.id == taskId }.copy(is_completed = request.is_completed)
-                .also { updated -> tasks.getValue(projectId)[tasks.getValue(projectId).indexOfFirst { it.id == taskId }] = updated }
+            tasks.getValue(projectId).first { it.id == taskId }.let { current ->
+                current.copy(
+                    is_completed = request.is_completed ?: current.is_completed,
+                    task_name = request.task_name ?: current.task_name
+                )
+            }.also { updated -> tasks.getValue(projectId)[tasks.getValue(projectId).indexOfFirst { it.id == taskId }] = updated }
         override suspend fun deleteTask(projectId: String, taskId: String) {
             tasks[projectId]?.removeAll { it.id == taskId }
         }
@@ -132,3 +136,30 @@ class ProjectsRepositoryTest {
         }
     }
 }
+
+
+    @Test fun guestTaskCanBeRenamedAndPersistsLocally() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            val added = repository.addTask("p1", "Original name", true, emptyList())
+            val renamed = repository.renameTask("p1", added.single(), "  Updated task  ", true, added)
+            assertEquals("Updated task", renamed.single().task_name)
+            assertEquals("Updated task", repository.readCachedTasks("p1", true).single().task_name)
+            assertFalse(local.account.containsKey("tasks:p1"))
+        }
+    }
+
+    @Test fun authenticatedTaskRenameUsesRemoteAndKeepsCompletionState() {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val original = TaskDto("task-1", "p1", "Original", true, 1)
+            remote.tasks["p1"] = mutableListOf(original)
+            val renamed = repository.renameTask("p1", original, "Updated", false, listOf(original))
+            assertEquals("Updated", renamed.single().task_name)
+            assertTrue(renamed.single().is_completed)
+            assertTrue(local.account.containsKey("tasks:p1"))
+        }
+    }
