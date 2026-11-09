@@ -9,10 +9,16 @@ class WalletActivityRepositoryTest {
     private class FakeLocal : WalletActivityLocalDataSource {
         val guest = mutableMapOf<String, String>()
         val account = mutableMapOf<String, String>()
+        val sessionRows = mutableMapOf<String, String>()
         override suspend fun read(key: String, guest: Boolean): String? =
             (if (guest) this.guest else account)[key]
         override suspend fun write(key: String, value: String, guest: Boolean) {
             (if (guest) this.guest else account)[key] = value
+        }
+        override suspend fun readForSession(key: String, guest: Boolean, accessToken: String?): String? =
+            sessionRows["${if (guest) "guest" else accessToken}:$key"]
+        override suspend fun writeForSession(key: String, value: String, guest: Boolean, accessToken: String?) {
+            sessionRows["${if (guest) "guest" else accessToken}:$key"] = value
         }
     }
 
