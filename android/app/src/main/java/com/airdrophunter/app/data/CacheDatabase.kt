@@ -79,7 +79,8 @@ data class CommunitySyncOutboxEntity(
     val createdAt: Long,
     @ColumnInfo(defaultValue = "0") val attemptCount: Int = 0,
     val lastAttemptAt: Long? = null, val lastError: String? = null,
-    val assetBreakdownJson: String? = null
+    val assetBreakdownJson: String? = null,
+    @ColumnInfo(defaultValue = "0") val terminalFailure: Boolean = false
 )
 
 @Entity(
@@ -201,12 +202,15 @@ interface CommunitySyncOutboxDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(entry: CommunitySyncOutboxEntity): Long
     @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope ORDER BY createdAt ASC")
     fun observeAll(accountScope: String): Flow<List<CommunitySyncOutboxEntity>>
-    @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope ORDER BY createdAt ASC LIMIT :limit")
+    @Query("SELECT * FROM community_sync_outbox WHERE accountScope = :accountScope AND terminalFailure = 0 ORDER BY createdAt ASC LIMIT :limit")
     suspend fun getPending(accountScope: String, limit: Int): List<CommunitySyncOutboxEntity>
     @Query("DELETE FROM community_sync_outbox WHERE id = :id AND accountScope = :accountScope")
     suspend fun deleteById(id: String, accountScope: String)
     @Query("UPDATE community_sync_outbox SET attemptCount = attemptCount + 1, lastAttemptAt = :attemptAt, lastError = :error WHERE id = :id AND accountScope = :accountScope")
     suspend fun markAttemptById(id: String, accountScope: String, attemptAt: Long, error: String?)
+
+    @Query("UPDATE community_sync_outbox SET terminalFailure = 1, attemptCount = attemptCount + 1, lastAttemptAt = :attemptAt, lastError = :error WHERE id = :id AND accountScope = :accountScope")
+    suspend fun markTerminalFailureById(id: String, accountScope: String, attemptAt: Long, error: String?)
 }
 
 @Dao
@@ -253,7 +257,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 15, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 16, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -491,6 +495,12 @@ object CacheStore {
             db.execSQL("ALTER TABLE user_interactions ADD COLUMN expectedRewardUsd REAL")
         }
     }
+    private val MIGRATION_15_16 = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Preserve conflict rows for diagnosis, but keep them out of automatic retries.
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN terminalFailure INTEGER NOT NULL DEFAULT 0")
+        }
+    }
 
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
@@ -498,7 +508,7 @@ object CacheStore {
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -732,6 +742,16 @@ object CacheStore {
         error: String
     ) = withContext(Dispatchers.IO) {
         database?.communitySyncOutboxDao()?.markAttemptById(
+            id, accountScope, System.currentTimeMillis(), error.take(500)
+        )
+    }
+
+    suspend fun markCommunitySyncTerminalFailure(
+        id: String,
+        accountScope: String,
+        error: String
+    ) = withContext(Dispatchers.IO) {
+        database?.communitySyncOutboxDao()?.markTerminalFailureById(
             id, accountScope, System.currentTimeMillis(), error.take(500)
         )
     }
