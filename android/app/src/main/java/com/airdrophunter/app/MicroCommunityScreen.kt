@@ -31,7 +31,8 @@ private data class CommunityDemoStats(
     val gas: Double,
     val reward: Double,
     val contributions: Long,
-    val interactions: Long
+    val interactions: Long,
+    val recentInteractions: Long
 )
 
 @Composable
@@ -56,19 +57,20 @@ fun MicroCommunityScreen(
     var saving by remember { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
     val demoStats = when (projectOfficialId.lowercase()) {
-        "linea" -> CommunityDemoStats(42.80, 184.20, 1280, 4320)
-        "scroll" -> CommunityDemoStats(38.60, 128.60, 964, 3210)
-        "zksync" -> CommunityDemoStats(62.00, 156.00, 1820, 5860)
-        "starknet" -> CommunityDemoStats(51.00, 98.00, 1450, 4100)
-        "base" -> CommunityDemoStats(73.00, 226.00, 2200, 7240)
-        "arbitrum" -> CommunityDemoStats(84.00, 142.00, 1730, 5320)
-        "optimism" -> CommunityDemoStats(49.00, 117.00, 1390, 4680)
-        else -> CommunityDemoStats(18.50, 64.00, 320, 980)
+        "linea" -> CommunityDemoStats(42.80, 184.20, 1280, 4320, 310)
+        "scroll" -> CommunityDemoStats(38.60, 128.60, 964, 3210, 205)
+        "zksync" -> CommunityDemoStats(62.00, 156.00, 1820, 5860, 480)
+        "starknet" -> CommunityDemoStats(51.00, 98.00, 1450, 4100, 365)
+        "base" -> CommunityDemoStats(73.00, 226.00, 2200, 7240, 520)
+        "arbitrum" -> CommunityDemoStats(84.00, 142.00, 1730, 5320, 190)
+        "optimism" -> CommunityDemoStats(49.00, 117.00, 1390, 4680, 270)
+        else -> CommunityDemoStats(18.50, 64.00, 320, 980, 20)
     }
     val displayGasTotal = if (useDemoStats) demoStats.gas else communityStats?.total_gas_cost_usd ?: 0.0
     val displayRewardTotal = if (useDemoStats) demoStats.reward else communityStats?.total_actual_reward_usd ?: 0.0
     val displayContributionCount = if (useDemoStats) demoStats.contributions else communityStats?.contribution_count ?: 0L
     val displayInteractionCount = if (useDemoStats) demoStats.interactions else communityStats?.total_interactions ?: 0L
+    val displayRecentInteractions = if (useDemoStats) demoStats.recentInteractions else communityStats?.interactions_24h ?: 0L
     val combinedTotal = (displayGasTotal + displayRewardTotal).coerceAtLeast(1.0)
     val rewardWeight = if (displayGasTotal + displayRewardTotal <= 0.0) 0.5f
         else (displayRewardTotal / combinedTotal).toFloat().coerceIn(0.01f, 0.99f)
@@ -141,7 +143,7 @@ fun MicroCommunityScreen(
                             statsLoading -> "正在加载全网统计…"
                             statsFailed -> "全网统计暂时不可用，请稍后重试"
                             displayContributionCount == 0L -> "暂无用户确认贡献，统计从真实入账开始累计"
-                            else -> "已确认贡献 $displayContributionCount 笔 · 交互 $displayInteractionCount 次"
+                            else -> "已确认贡献 $displayContributionCount 笔 · 总交互 $displayInteractionCount 次 · 近24h交互 $displayRecentInteractions 次"
                         },
                         color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall
                     )

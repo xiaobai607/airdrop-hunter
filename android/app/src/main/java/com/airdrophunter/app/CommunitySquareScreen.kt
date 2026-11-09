@@ -37,7 +37,8 @@ private data class CommunityProject(
     val id: String, val name: String, val chain: String, val logo: String,
     val reward: Double, val gas: Double, val contributionCount: Long,
     val tags: List<String>, val isDemo: Boolean = false,
-    val demoScore: Double = 0.0, val demoPositive: Int = 0, val demoReviews: Int = 0
+    val demoScore: Double = 0.0, val demoPositive: Int = 0, val demoReviews: Int = 0,
+    val demoRecentInteractions: Long = 0, val recentInteractions24h: Long = 0
 ) {
     val label: String get() = if (isDemo) "测试演示" else if (contributionCount > 0) "真实贡献" else "暂无贡献"
     val rewardWeight: Float get() =
@@ -50,13 +51,13 @@ private enum class CommunityRanking(val title: String) {
 }
 
 private val communityProjectCatalog = listOf(
-    CommunityProject("linea", "Linea", "Consensys zkEVM", "L", 184.20, 42.80, 1280, listOf("L2", "零撸", "明牌空投"), true, 4.9, 97, 1280),
-    CommunityProject("scroll", "Scroll", "zkEVM", "S", 128.60, 38.60, 964, listOf("L2", "需测试网", "明牌空投"), true, 4.8, 95, 964),
-    CommunityProject("zksync", "zkSync", "ZK Rollup", "Z", 156.00, 62.00, 1820, listOf("L2", "高Gas", "明牌空投"), true, 4.7, 93, 1820),
-    CommunityProject("starknet", "Starknet", "Validity Rollup", "✦", 98.00, 51.00, 1450, listOf("L2", "需测试网", "高Gas"), true, 4.4, 88, 1450),
-    CommunityProject("base", "Base", "Ethereum L2", "B", 226.00, 73.00, 2200, listOf("L2", "零撸", "高Gas"), true, 4.9, 96, 2200),
-    CommunityProject("arbitrum", "Arbitrum", "Ethereum L2", "A", 142.00, 84.00, 1730, listOf("L2", "高Gas"), true, 4.2, 82, 1730),
-    CommunityProject("optimism", "Optimism", "Superchain", "O", 117.00, 49.00, 1390, listOf("L2", "零撸", "明牌空投"), true, 4.6, 91, 1390)
+    CommunityProject("linea", "Linea", "Consensys zkEVM", "L", 184.20, 42.80, 1280, listOf("L2", "零撸", "明牌空投"), true, 4.9, 97, 1280, 310),
+    CommunityProject("scroll", "Scroll", "zkEVM", "S", 128.60, 38.60, 964, listOf("L2", "需测试网", "明牌空投"), true, 4.8, 95, 964, 205),
+    CommunityProject("zksync", "zkSync", "ZK Rollup", "Z", 156.00, 62.00, 1820, listOf("L2", "高Gas", "明牌空投"), true, 4.7, 93, 1820, 480),
+    CommunityProject("starknet", "Starknet", "Validity Rollup", "✦", 98.00, 51.00, 1450, listOf("L2", "需测试网", "高Gas"), true, 4.4, 88, 1450, 365),
+    CommunityProject("base", "Base", "Ethereum L2", "B", 226.00, 73.00, 2200, listOf("L2", "零撸", "高Gas"), true, 4.9, 96, 2200, 520),
+    CommunityProject("arbitrum", "Arbitrum", "Ethereum L2", "A", 142.00, 84.00, 1730, listOf("L2", "高Gas"), true, 4.2, 82, 1730, 190),
+    CommunityProject("optimism", "Optimism", "Superchain", "O", 117.00, 49.00, 1390, listOf("L2", "零撸", "明牌空投"), true, 4.6, 91, 1390, 270)
 )
 
 @Composable
@@ -93,12 +94,13 @@ fun CommunitySquareScreen(
     }
 
     val combinedProjects = communityProjectCatalog.map { base ->
-        if (useDemoData) base else {
+        if (useDemoData) base.copy(recentInteractions24h = base.demoRecentInteractions) else {
             val stats = communityStats[base.id]
             base.copy(
                 reward = stats?.total_actual_reward_usd ?: 0.0,
                 gas = stats?.total_gas_cost_usd ?: 0.0,
                 contributionCount = stats?.contribution_count ?: 0L,
+                recentInteractions24h = stats?.interactions_24h ?: 0L,
                 isDemo = false
             )
         }
@@ -111,7 +113,7 @@ fun CommunitySquareScreen(
             when (ranking) {
                 CommunityRanking.REWARD -> filtered.sortedByDescending { it.reward }
                 CommunityRanking.GAS -> filtered.sortedByDescending { it.gas }
-                CommunityRanking.NEW -> filtered.sortedByDescending { it.contributionCount }
+                CommunityRanking.NEW -> filtered.sortedWith(compareByDescending<CommunityProject> { it.recentInteractions24h }.thenByDescending { it.contributionCount })
             }
         }
 
@@ -159,7 +161,7 @@ fun CommunitySquareScreen(
                     statsLoading -> "正在读取全网已确认统计…"
                     ranking == CommunityRanking.REWARD -> "按全网用户确认的实际收益排列"
                     ranking == CommunityRanking.GAS -> "按全网用户确认的 Gas 消耗排列"
-                    else -> "按全网已确认贡献笔数排列"
+                    else -> "按最近24小时全网确认交互热度排列"
                 }, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
         }
@@ -210,6 +212,8 @@ fun CommunitySquareScreen(
                             Text(project.chain, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("近24h ${project.recentInteractions24h} 次交互",
+                                color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                             Text(
                                 "${project.contributionCount} 笔贡献",
                                 color = AppColors.TextPrimary,

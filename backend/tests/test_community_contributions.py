@@ -37,6 +37,8 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert first.json()["total_actual_reward_usd"] == 12.0
         assert first.json()["total_interactions"] == 1
         assert first.json()["data_quality"] == "user_confirmed"
+        assert first.json()["contributions_24h"] == 1
+        assert first.json()["interactions_24h"] == 1
 
         second = client.post(
             "/api/community/projects/linea/contributions",
@@ -47,6 +49,8 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert second.json()["total_gas_cost_usd"] == 2.5
         assert second.json()["total_actual_reward_usd"] == 12.0
         assert second.json()["total_interactions"] == 1
+        assert second.json()["contributions_24h"] == 1
+        assert second.json()["interactions_24h"] == 1
 
         conflicting_payload = {**payload, "actual_reward_usd": "1200.00"}
         conflict = client.post(
@@ -86,6 +90,8 @@ def test_guest_can_contribute_to_public_stats_idempotently():
         public = client.get("/api/community/projects/scroll/stats")
         assert public.status_code == 200
         assert public.json()["contribution_count"] == 1
+        assert public.json()["contributions_24h"] == 1
+        assert public.json()["interactions_24h"] == 1
 
 
 def test_authenticated_public_contribution_does_not_persist_account_identity():
