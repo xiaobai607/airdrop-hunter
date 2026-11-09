@@ -59,7 +59,7 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
     val state = _state.asStateFlow()
 
     fun load(isGuest: Boolean = false) = viewModelScope.launch {
-        _state.value = _state.value.copy(isLoading = true, error = null)
+        _state.value = WalletManagerUiState(isLoading = true)
         try {
             val wallets = repository.load(isGuest)
             _state.value = _state.value.copy(wallets = wallets, isLoading = false)
