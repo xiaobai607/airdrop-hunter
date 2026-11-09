@@ -28,6 +28,7 @@ import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.CommunityProjectCatalog
 import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.shouldShowAccountingReminder
 import androidx.compose.runtime.collectAsState
 import com.airdrophunter.app.ui.theme.AppColors
 import java.util.Locale
@@ -116,7 +117,7 @@ fun ProjectsScreen(
             Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("项目", Modifier.weight(1f), color = AppColors.TextPrimary,
+            Text("库管理", Modifier.weight(1f), color = AppColors.TextPrimary,
                 style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             IconButton(onClick = { selectedFilter = if (selectedFilter == "全部") "进行中" else "全部" }) {
                 Icon(Icons.Default.FolderOpen, "筛选项目", tint = AppColors.TextSecondary)
@@ -172,6 +173,10 @@ fun ProjectsScreen(
             ) {
                 items(filtered, key = { it.id }) { project ->
                     val pnl = pnlRecords.firstOrNull { it.projectLocalId == project.id }
+                    val savedProjectRecord = savedProjects.firstOrNull { it.projectLocalId == project.id }
+                    val showAccountingReminder = savedProjectRecord?.let {
+                        shouldShowAccountingReminder(it.createdAt, it.interactionCount, System.currentTimeMillis())
+                    } ?: false
                     val gasTotal = pnl?.totalGasCostUsd ?: 0.0
                     val rewardTotal = pnl?.totalRewardUsd ?: 0.0
                     val netProfit = pnl?.netProfitUsd ?: 0.0
@@ -202,6 +207,13 @@ fun ProjectsScreen(
                                     Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
                                         Text(statusLabel, Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                             color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    if (showAccountingReminder) {
+                                        Surface(color = Color(0xFFFFF4E5), shape = RoundedCornerShape(999.dp)) {
+                                            Text("待记账", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                                color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.SemiBold)
+                                        }
                                     }
                                 }
                                 Text(String.format(Locale.US, "累计消耗 $%.2f  ·  累计收益 $%.2f", gasTotal, rewardTotal),

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -54,6 +56,8 @@ fun MicroCommunityScreen(
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val ratings by CacheStore.observeProjectRatings(projectOfficialId).collectAsStateWithLifecycle(initialValue = emptyList())
+    val joinedProjects by CacheStore.observeUserProjects().collectAsStateWithLifecycle(initialValue = emptyList())
+    val isJoined = joinedProjects.any { it.projectOfficialId == projectOfficialId }
     val average by CacheStore.observeProjectRatingAverage(projectOfficialId).collectAsStateWithLifecycle(initialValue = null)
     var communityStats by remember(projectOfficialId) { mutableStateOf<CommunityProjectStatsDto?>(null) }
     var periodSnapshots by remember(projectOfficialId) { mutableStateOf<Map<String, com.airdrophunter.app.data.CommunitySnapshotDto>>(emptyMap()) }
@@ -125,6 +129,27 @@ fun MicroCommunityScreen(
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(projectName, color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("Steam 式真实参与者评价 · 仅星级评分", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            val added = runCatching {
+                                CacheStore.joinCommunityProject(projectOfficialId, projectName)
+                            }.getOrDefault(false)
+                            Toast.makeText(
+                                context,
+                                if (added) "${projectName} 已加入库管理" else "添加失败，请稍后重试",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    },
+                    enabled = !isJoined,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(if (isJoined) Icons.Default.Check else Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (isJoined) "已添加到库管理" else "添加到库管理")
+                }
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
