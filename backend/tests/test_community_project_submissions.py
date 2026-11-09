@@ -61,3 +61,17 @@ def test_public_submission_rejects_unsafe_urls():
                 "url": url,
             })
             assert response.status_code == 422
+
+
+def test_distinct_chinese_project_names_are_not_treated_as_duplicates():
+    with TestClient(app) as client:
+        first = client.post("/api/community/catalog/submit", json={
+            "name": "星河测试项目甲",
+            "url": "https://galaxy-project-a.example/airdrop",
+        })
+        second = client.post("/api/community/catalog/submit", json={
+            "name": "星河测试项目乙",
+            "url": "https://galaxy-project-b.example/airdrop",
+        })
+        assert first.status_code == 200 and first.json()["status"] == "published"
+        assert second.status_code == 200 and second.json()["status"] == "published"
