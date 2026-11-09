@@ -229,3 +229,13 @@ Use only these states: **complete in code**, **partial**, **in progress**, **pen
 - **Data integrity:** snapshots aggregate only eligible anonymous public contributions and confirmed actual Gas/actual rewards; theoretical estimates, demo fixtures, private user details, and unconfirmed outcomes are excluded. Keep per-token amounts separate and label any USD conversion as an estimate/valuation. Missing data is shown as missing, not fabricated.
 - **Operational boundary:** scheduled aggregation and CDN publication are backend/ops responsibilities. Do not add a public APK secret, do not calculate aggregate snapshots on app-open, and do not claim a production CDN/Cron is configured until the deployment is actually verified.
 - **UI hierarchy:** concise project-list cards show identity, brief rating/reputation, and overall Gas-vs-actual-reward bar. Tapping opens a vertically scrolling detail page with the four windows above simultaneously visible; no tabs. Rating/reputation and rolling 24-hour heat remain distinct metrics.
+
+
+### Static snapshot backend implementation progress (PR #68)
+
+- The first backend slice adds aggregate-only snapshot generation for overall, rolling 7d, rolling 3d, and rolling 1h from the existing anonymous community_contributions table and active project catalog. Each window uses one UTC generation timestamp and a rolling lower boundary; update_time is emitted in Asia/Shanghai.
+- Snapshot rows contain only project catalog metadata and aggregate amounts/counts, rating distribution, and a separate rolling 24-hour activity aggregate. No wallet address, transaction hash, user ID, or private ledger row is serialized.
+- Current contribution schema stores USD-denominated aggregate values only. These are explicitly labeled as USD valuations; per-token totals are not fabricated and remain pending a future source-schema extension if token-level public contribution data is added.
+- A five-minute dispatcher helper returns the 1-hour snapshot on each invocation, adds the 3-day snapshot at 00:00/06:00/12:00/18:00 UTC+8, and adds overall + 7-day at 08:00 UTC+8. Deployment must invoke the command every five minutes; this PR does not create a production scheduler or claim one is active.
+- Versioned JSON objects are uploaded before the manifest pointer is changed. The S3-compatible publisher supports Cloudflare R2-style endpoints through environment variables; the local atomic publisher is for development/tests only. Production mode fails closed unless a public CDN base URL and object-storage credentials are configured.
+- Android Room caching, static-manifest consumption, removal of existing manual refresh affordances, and production CDN/Cron configuration remain subsequent implementation/acceptance steps.
