@@ -402,6 +402,7 @@ fun CommunitySquareScreen(
                         scope.launch {
                             submittingProject = true
                             runCatching {
+                                ApiClient.initialize(context)
                                 ApiClient.service.submitCommunityProject(
                                     CommunityProjectSubmissionRequest(
                                         name = submissionName.trim(),
