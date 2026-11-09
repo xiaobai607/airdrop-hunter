@@ -44,7 +44,8 @@ private data class CommunityProject(
     val reward: Double, val gas: Double, val createdAt: String,
     val tags: List<String>, val isDemo: Boolean = false,
     val demoScore: Double = 0.0,
-    val averageRating: Double? = null, val ratingCount: Long = 0
+    val averageRating: Double? = null, val ratingCount: Long = 0,
+    val gasByVerificationTier: Map<String, Double> = emptyMap()
 ) {
     val label: String get() = if (isDemo) "测试演示" else if (gas > 0.0 || reward > 0.0) "真实贡献" else "暂无贡献"
     val metricWeights: Pair<Float, Float> get() = communityMetricWeights(gas, reward)
@@ -172,7 +173,8 @@ fun CommunitySquareScreen(
             isDemo = showDemo,
             demoScore = demo?.score ?: 0.0,
             averageRating = stats?.average_rating,
-            ratingCount = stats?.rating_count ?: 0L
+            ratingCount = stats?.rating_count ?: 0L,
+            gasByVerificationTier = if (showDemo) emptyMap() else stats?.gas_by_verification_tier.orEmpty()
         )
     }
     val displayedProjects = combinedProjects.filter {
@@ -398,6 +400,9 @@ fun CommunitySquareScreen(
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(String.format(Locale.US, "Gas USD估值 $%,.2f", project.gas), color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                             Text(String.format(Locale.US, "实际收益 USD估值 $%,.2f", project.reward), color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                        }
+                        if (!project.isDemo && project.gasByVerificationTier.isNotEmpty()) {
+                            CommunityVerificationTierBar(values = project.gasByVerificationTier, compact = true)
                         }
                     } else {
                         Text("暂无已确认 Gas / 实际收益数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)

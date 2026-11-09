@@ -381,19 +381,8 @@ private fun CommunitySnapshotPeriodMetric(
                 Text("收益代币：${formatCommunityTokenBreakdown(rewardTokens)}",
                     color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
             }
-            val verificationLabels = listOf(
-                "user_reported" to "用户自报",
-                "transaction_linked" to "链上已确认",
-                "amount_verified" to "链上精确核验"
-            )
-            val verificationSummary = verificationLabels.mapNotNull { (key, label) ->
-                gasByVerificationTier[key]?.takeIf { it > 0.0 }?.let {
-                    "$label ${String.format(java.util.Locale.US, "$%.2f", it)}"
-                }
-            }
-            if (verificationSummary.isNotEmpty()) {
-                Text("Gas 核验等级：${verificationSummary.joinToString(" · ")}",
-                    color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall)
+            if (gasByVerificationTier.isNotEmpty()) {
+                CommunityVerificationTierBar(values = gasByVerificationTier, compact = false)
             }
             if (showUpdateTime) {
                 Text(

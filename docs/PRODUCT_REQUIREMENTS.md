@@ -676,9 +676,9 @@ The user explicitly requires development to proceed as **15 substantial function
 4. **Personal accounting end-to-end** — pending/confirmed lifecycle, actual versus theoretical Gas/reward, duplicate prevention, deletion, P&L, native-currency breakdown and day/week/month history.
 5. **Project and task management** — project state, task CRUD/progress/completion, ownership and wallet/ledger associations.
 6. **Guest local data and retained account infrastructure** — local-only guest private data and existing account isolation/sync code. New registration and cross-device restore are deferred from the current release; retain the existing code without presenting those capabilities as available.
-7. **Anonymous public contribution** — eligibility, privacy minimization, idempotency, retries, exclusion of estimates/demo/unconfirmed rows and separation from private ledgers.
-8. **Community snapshot data pipeline** — four windows (overall/7d/3d/1h), scheduled aggregation, static JSON publication, version manifest and cache integrity.
-9. **Community UI and social metrics** — waterfall project detail, rating eligibility/reputation, exact Gas/reward comparison, rankings, favorites and privacy.
+7. **Anonymous public contribution** — eligibility, privacy minimization, idempotency, retries, exclusion of estimates/demo/unconfirmed rows and separation from private ledgers. Batch 07 plus transaction-verification extension are merged in PR #109 and PR #119; exact-head Android/backend CI passed for PR #119 (run 42716740435, head 5c62468). Live EVM provider/deployment validation and Render secret configuration remain pending.
+8. **Community snapshot data pipeline** — four windows (overall/7d/3d/1h), scheduled aggregation, static JSON publication, version manifest and cache integrity. Code is implemented in PR #69 and tier-aware aggregate fields were extended in PR #119; production CDN/R2, database variables, and scheduled publishing remain pending.
+9. **Community UI and social metrics** — waterfall project detail, rating eligibility/reputation, exact Gas/reward comparison, rankings, favorites and privacy. Existing base UI is implemented across PRs #48–#70 and #88; provenance visualization is being completed in the current Batch 09 change.
 10. **Project discovery and submissions** — safe user submission/deduplication/moderation, approved free data providers only, attribution and source-health reporting; no arbitrary-site crawler or paid source.
 11. **Global search, market dashboard, and unified asset detail** — BTC/ETH dashboard, BTC/ETH/SOL/BNB/XRP market data, 300 ms local-first search across coin/DApp categories, hot-coin cache, search history, unified EVM/Solana/Bitcoin asset model and limited asset-detail presentation.
 12. **Background sync, Room cache, and reliability** — WorkManager coordination, 15-minute SWR for market/search/asset query data, 30-second per-key manual refresh throttle, cache metadata/updated labels, provider node rotation, bounded exponential backoff, offline queue and account-scope safety. Cross-device private-ledger recovery is deferred. Community snapshot schedules remain independent.
@@ -904,3 +904,32 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - 进行真实 EVM 交易的部署后验证，确认各网络 Etherscan V2 与历史 Chainlink `eth_call` 的实际可用性；服务商不支持历史区块读取时保持待处理，不得降级伪造 Tier 3。
 - 私账行级核验状态已写入本地账本及登录用户的私有账本元数据；“等待核验 / 已核验 / 核验拒绝”的可见状态文案和交互反馈并入 Batch 15 全局 UI 集成，避免在本批拆成零散 UI 改动。
 - TRON、Bitcoin、Solana 暂不接入公共链上核验；这些网络仍可使用个人账本，不能显示为链上核验通过。
+
+
+## Latest continuation audit and implementation status (2026-11-10)
+
+### PR #119 — Batch 07 transaction-verification extension (merged)
+
+- PR #119 merged to `main` as `d3891f2665e37220b3c0a24e332222c546c579e4`. Its exact final PR head `5c62468ddae2008e57a02fffaefea379ff53d835` passed backend pytest and Android unit tests + Debug APK assembly in Actions run `42716740435`.
+- Direct project accounting now persists atomic multi-wallet entries, per-wallet reward allocation, reward-kind/valuation completeness, and independent unchecked-by-default anonymous opt-in.
+- EVM public contribution verification uses server-side provider receipts, selected network/wallet sender matching, confirmation checks, historical Chainlink quote lookup, fee-component completeness, ±20% amount tolerance, and server-keyed chain+hash replay fingerprints. Provider/price/confirmation gaps remain retryable; public rejection never deletes the private ledger.
+- Failed EVM transactions can still be represented as Gas actually paid, but are not labelled successful activity. L2 fees with incomplete L1 components cannot be Tier 3.
+- The backend currently enables the documented EVM adapters only. TRON, Bitcoin, and Solana remain private-ledger-only for this verification path until deterministic adapters are implemented.
+- **Status: complete in code and CI.** Pending: configure server-only `ETHERSCAN_API_KEY` and stable `COMMUNITY_TX_FINGERPRINT_SECRET` in Render, then perform live provider verification. Do not claim production readiness before those checks. Actual reward/profit remains user-confirmed and is not verified by a Gas receipt.
+
+### Batch 08 — community snapshot data pipeline audit
+
+- Existing implementation was inspected on the merged main branch: `community_snapshots.py` computes overall/7d/3d/1h windows from anonymous contribution rows; `community_snapshot_schedule.py` implements the UTC+8 due-window rules; `community_snapshot_storage.py` writes immutable versioned JSON and atomically switches the manifest; `publish_community_snapshots.py` builds all due windows from one run timestamp; Android `CommunitySnapshotRepository` reads Room first and silently revalidates the configured HTTPS CDN.
+- Snapshot payloads already contain separate Gas totals for `user_reported`, `transaction_linked`, and `amount_verified`, added alongside PR #119's verified contribution fields. Snapshot privacy excludes raw wallet addresses and Tx Hash values.
+- PR #69 provides the core snapshot builder/publisher and Android cache integration; PRs #82–#85 add conditional manifest validation, CDN cache checks, deployment smoke checks, and recursive privacy assertions.
+- The production workflow currently exposes manual dispatch only; the recurring cron remains deliberately paused. R2/S3 credentials, public CDN base URL, production database configuration, and a successful real deployment smoke/publish run remain pending.
+- **Status: complete in code; pending production configuration and operational verification.** Do not rerun or rebuild this pipeline unless a concrete code defect is found.
+
+### Batch 09 — community UI and social metrics (current implementation)
+
+- Existing main code already provides compact project cards, project-detail waterfall layout with four windows, exact Gas/reward comparison bars, rating eligibility/reputation labels, rankings, favorites, and catalog adoption links. Reuse these features; do not rebuild them.
+- PR #119 added `gas_by_verification_tier` to static snapshots and Android DTOs. The project detail currently lists tier amounts as text, but the project cards do not show tier provenance and neither surface visualizes the relative split.
+- Current Batch 09 change adds a shared deterministic three-tier breakdown bar to both project cards and each project-detail time window: user-reported uses a translucent segment, transaction-linked uses a distinct amber segment, and amount-verified uses a solid segment. Amount labels remain explicit; invalid/negative/zero/unknown tiers do not create fabricated segments. The existing Gas-vs-reward comparison remains separate and unchanged.
+- Android unit tests cover stable tier ordering, exact normalized shares, invalid/negative/non-finite values, and preservation of original amounts.
+- **Status: in progress pending exact-head Android CI.** Production CDN configuration and real-device visual acceptance remain separate gates.
+
