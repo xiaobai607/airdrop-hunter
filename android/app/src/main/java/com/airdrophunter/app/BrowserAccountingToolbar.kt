@@ -71,6 +71,7 @@ fun BrowserAccountingToolbar(
     var rewardSymbol by remember { mutableStateOf("") }
     var rewardDecimals by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
+    var publicContributionOptIn by remember { mutableStateOf(false) }
     var creatingMockBill by remember { mutableStateOf(false) }
 
     LaunchedEffect(accountingRepository) {
@@ -103,6 +104,7 @@ fun BrowserAccountingToolbar(
         gas = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 }?.let { String.format(Locale.US, "%.2f", it) }.orEmpty()
         reward = ""
         rewardUsdEdited = false
+        publicContributionOptIn = false
         val existingAssets = LedgerAssetBreakdownCodec.decode(bill.assetBreakdownJson)
         val gasAsset = existingAssets.firstOrNull { it.kind == "gas" }
         val rewardAsset = existingAssets.firstOrNull { it.kind == "reward" }
@@ -268,6 +270,9 @@ fun BrowserAccountingToolbar(
 
     if (showConfirm && activeBill != null) {
         val bill = activeBill!!
+        val contributionNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
+            ?: bill.chain.trim().lowercase(Locale.US)
+        val contributionHashValid = ManualProjectAccountingPolicy.isTransactionHashFormatValid(contributionNetwork, bill.txHash)
         Dialog(
             onDismissRequest = {
                 if (!saving) {
@@ -329,6 +334,19 @@ fun BrowserAccountingToolbar(
                         shape = RoundedCornerShape(13.dp)
                     )
                     Text("请手动填写最终实际收益；如果实际为零，也请明确输入 0。未填写不能确认入账。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = publicContributionOptIn,
+                            onCheckedChange = { publicContributionOptIn = it },
+                            enabled = !saving
+                        )
+                        Text("将本笔数据匿名贡献至全网大盘（需链上核验）", color = AppColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (publicContributionOptIn && !contributionHashValid) {
+                        Text("当前网络或 Tx Hash 格式暂不支持链上核验；取消授权仍可正常保存个人账本。",
+                            color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                    }
                     Text("原生币种明细（不同币种分别记录，不相加）", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
@@ -369,7 +387,7 @@ fun BrowserAccountingToolbar(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Button(
-                        enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null && nativeAssetsValid,
+                        enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null && nativeAssetsValid && (!publicContributionOptIn || contributionHashValid),
                         onClick = {
                             val project = projects.firstOrNull { it.id == selectedProjectLocalId } ?: return@Button
                             val safeGas = gasValue ?: return@Button
@@ -403,14 +421,17 @@ fun BrowserAccountingToolbar(
                             scope.launch {
                                 val ok = runCatching {
                                     accountingRepository.confirmPendingBill(
-                                        bill.id, project.id, project.communityOfficialId, project.name, safeGas, safeReward, assetJson
+                                        bill.id, project.id, project.communityOfficialId, project.name, safeGas, safeReward, assetJson,
+                                        publicContributionOptIn
                                     )
                                 }.getOrDefault(false)
                                 saving = false
                                 if (ok) {
                                     showConfirm = false
                                     activeBill = null
-                                    Toast.makeText(context, "已确认入账", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context,
+                                        if (publicContributionOptIn) "私账已确认，匿名贡献等待链上核验" else "已确认入账",
+                                        Toast.LENGTH_SHORT).show()
                                 } else {
                                     Toast.makeText(context, "入账失败，请重试", Toast.LENGTH_SHORT).show()
                                 }

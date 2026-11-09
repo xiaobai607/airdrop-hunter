@@ -858,7 +858,8 @@ object CacheStore {
         projectCustomName: String,
         gas: Double,
         reward: Double,
-        assetBreakdownJson: String? = null
+        assetBreakdownJson: String? = null,
+        publicContributionOptIn: Boolean = false
     ): Boolean = withContext(Dispatchers.IO) {
         if (projectLocalId.isBlank() || !gas.isFinite() || !reward.isFinite() || gas < 0.0 || reward < 0.0) return@withContext false
         val db = database ?: return@withContext false
@@ -903,6 +904,8 @@ object CacheStore {
                 occurred_at = Instant.ofEpochMilli(bill.timestamp).toString(),
                 extra = mapOf(
                     "project_official_id" to (canonicalOfficialId ?: ""),
+                    "public_contribution_opt_in" to publicContributionOptIn.toString(),
+                    "public_contribution_status" to if (publicContributionOptIn) "pending_verification" else "private",
                     // Demo transactions remain available for local UI testing but are never synced.
                     "is_demo" to isDemoAccountingTransaction(bill.txHash, bill.walletAddress, bill.interactionMethod).toString()
                 ) + (effectiveAssetBreakdown?.let { mapOf("asset_breakdown" to it) } ?: emptyMap())
@@ -949,24 +952,13 @@ object CacheStore {
                     timestamp = recordedAt,
                     assetBreakdownJson = effectiveAssetBreakdown,
                     expectedGasCostUsd = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 },
-                    expectedRewardUsd = null
+                    expectedRewardUsd = null,
+                    publicContributionOptIn = publicContributionOptIn
                 )
             )
-            canonicalOfficialId?.takeIf {
-                scope != "invalid-session" && isEligibleForPublicContribution(effectiveBill)
-            }?.let { officialId ->
-                db.communitySyncOutboxDao().insert(
-                    CommunitySyncOutboxEntity(
-                        id = bill.id,
-                        accountScope = scope,
-                        projectOfficialId = officialId,
-                        gasCostUsd = gas,
-                        actualRewardUsd = reward,
-                        createdAt = recordedAt,
-                        assetBreakdownJson = effectiveAssetBreakdown
-                    )
-                )
-            }
+            // Public contributions are intentionally not enqueued here. Opted-in rows
+            // remain private and pending until the backend verifies the chain receipt,
+            // payer identity, finality, fee amount, historical quote, and replay key.
             db.pendingBillDao().delete(id, scope)
             true
         }

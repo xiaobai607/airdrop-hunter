@@ -851,3 +851,13 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Exact-head CI must be rerun after this test-only correction. No PR merge is authorized until the new exact head passes.
 - Code review confirms the direct-entry batch writes the per-wallet consent bit into each private interaction and does not enqueue an outbox row. However, the legacy `confirmPendingBill` path still auto-enqueues eligible contributions without the new explicit per-row opt-in and chain-verification contract. This is a separate connected entry point and remains a required follow-up: retain private bill confirmation, but default public contribution to off and only enqueue after explicit consent plus successful backend verification. Do not silently assume legacy confirmation is consent.
 - Local hash validation is only syntax validation; it does not prove transaction existence, ownership, finality, fee amount, or historical USD value. TRON/Bitcoin/Solana must not be described as verified until deterministic server adapters exist.
+
+
+### PR #119 legacy bill-confirmation integration — 2026-11-10 (implementation submitted; CI pending)
+
+- The browser's existing “确认本次记账” dialog now includes a separate unchecked-by-default consent for that single pending bill. If selected, the current chain and Tx Hash must pass local format validation before confirmation; unsupported/malformed inputs can still be saved privately after consent is turned off.
+- Consent is passed through the accounting repository and persisted in the private interaction row and ledger metadata. Opted-in rows are marked `pending_verification`; non-opted-in rows are marked `private`.
+- Critical privacy correction: the legacy `confirmPendingBill` transaction no longer inserts an anonymous outbox row merely because the user confirmed private accounting. It preserves the local/private ledger confirmation and only stores the user's explicit intent. No public contribution is sent until the backend verifies transaction existence, fee payer, finality, full fee components, historical quote, tolerance, and global replay protection.
+- The new direct multi-wallet dialog and the legacy single-bill confirmation dialog now share the same unchecked-by-default consent principle. The direct multi-wallet path still writes all selected rows atomically and keeps public verification separate from private-ledger success.
+- Repository tests verify that opt-in intent is propagated. Hash-format tests now provide the required UNKNOWN reward fixture so they test only the intended network/hash validation behavior.
+- Backend verifier/outbox integration and provenance-aware public aggregation remain pending. Do not label local syntax validation as on-chain verification.

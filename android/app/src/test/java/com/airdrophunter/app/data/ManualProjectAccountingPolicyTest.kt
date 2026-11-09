@@ -115,6 +115,13 @@ class ManualProjectAccountingPolicyTest {
         }
     }
 
+    @Test
+    fun publicHashFormatValidatorRecognizesSupportedNetworkAliases() {
+        assertTrue(ManualProjectAccountingPolicy.isTransactionHashFormatValid("erc20", "0x" + "a".repeat(64)))
+        assertTrue(ManualProjectAccountingPolicy.isTransactionHashFormatValid("trc20", "b".repeat(64)))
+        assertFalse(ManualProjectAccountingPolicy.isTransactionHashFormatValid("unknown", "b".repeat(64)))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsMalformedEvmHash() {
         ManualProjectAccountingPolicy.prepare(

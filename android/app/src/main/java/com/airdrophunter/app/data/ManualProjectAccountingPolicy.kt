@@ -121,11 +121,13 @@ object ManualProjectAccountingPolicy {
         return ManualAccountingBatch(entries)
     }
 
+    fun isTransactionHashFormatValid(network: String, hash: String): Boolean = isSupportedHash(network, hash)
+
     private fun isSupportedHash(network: String, hash: String): Boolean {
         val normalized = network.trim().lowercase()
         val value = hash.trim()
         return when (normalized) {
-            "ethereum", "eth", "evm", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" ->
+            "ethereum", "eth", "evm", "erc20", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" ->
                 EVM_HASH.matches(value)
             "tron", "trc20", "bitcoin", "btc" -> HEX_HASH.matches(value)
             "solana", "sol" -> SOLANA_SIGNATURE.matches(value)
