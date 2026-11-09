@@ -71,6 +71,8 @@ interface ApiService {
     ): CommunityProjectStatsDto
 
     @GET("api/community/catalog") suspend fun getCommunityCatalog(): List<CommunityProjectCatalogDto>
+    @POST("api/community/catalog/submit")
+    suspend fun submitCommunityProject(@Body request: CommunityProjectSubmissionRequest): CommunityProjectSubmissionResponse
 
     @GET("api/community/projects/{projectOfficialId}/stats")
     suspend fun getCommunityProjectStats(@Path("projectOfficialId") projectOfficialId: String): CommunityProjectStatsDto
