@@ -8,9 +8,18 @@ on:
       - '**/*.md'
       - '.github/workflows/**'
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Which verification suite to run
+        required: true
+        type: choice
+        default: both
+        options:
+          - both
+          - android
+          - backend
 
 # Keep only the newest validation for a given PR branch.
-# A merge to main does not repeat the same full build after PR checks pass.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -19,7 +28,52 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.filter.outputs.android }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MANUAL_SCOPE: ${{ inputs.scope || 'both' }}
+        run: |
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$MANUAL_SCOPE" == "both" || "$MANUAL_SCOPE" == "android" ]]; then
+              echo "android=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "android=false" >> "$GITHUB_OUTPUT"
+            fi
+            if [[ "$MANUAL_SCOPE" == "both" || "$MANUAL_SCOPE" == "backend" ]]; then
+              echo "backend=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "backend=false" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
+          git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt
+          if grep -Eq '^(android/|gradle/|gradlew$|settings\.gradle|build\.gradle|gradle\.properties$)' changed-files.txt; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "android=false" >> "$GITHUB_OUTPUT"
+          fi
+          if grep -Eq '^(backend/|database/|docker-compose\.yml$|render\.yaml$)' changed-files.txt; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+          fi
+
   backend-tests:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -50,6 +104,8 @@ jobs:
       - run: pytest -q
 
   android-build:
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
