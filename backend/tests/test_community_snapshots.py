@@ -65,6 +65,40 @@ def test_snapshot_contains_money_ratings_and_catalog_metadata_only():
     assert "tx_hash" not in project
 
 
+
+
+def test_snapshot_skips_malformed_native_amount_without_crashing():
+    now = datetime(2026, 11, 9, 8, 0, tzinfo=timezone.utc)
+    snapshot = assemble_snapshot(
+        "overall",
+        now,
+        [{
+            "project_official_id": "linea",
+            "name": "Linea",
+            "chain": "EVM",
+            "logo": "",
+            "description": "",
+            "website_url": "",
+            "created_at": now,
+            "tags": [],
+            "gas_cost_usd": 0,
+            "actual_reward_usd": 0,
+        }],
+        [],
+        [{
+            "project_official_id": "linea",
+            "asset_breakdown": [{
+                "kind": "gas",
+                "amount_native": "not-a-number",
+                "symbol": "ETH",
+                "decimals": 18,
+                "usd_valuation": "1",
+            }],
+        }],
+    )
+    assert snapshot["projects"][0]["gas_by_token"] == []
+
+
 def test_local_publisher_keeps_previous_manifest_entries_and_versions_files(tmp_path: Path):
     publisher = LocalSnapshotPublisher(tmp_path)
     first = {"generated_at": "2026-11-09T08:00:00+00:00", "update_time": "2026-11-09T16:00:00+08:00",

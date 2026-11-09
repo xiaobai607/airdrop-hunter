@@ -43,32 +43,62 @@ object CommunitySnapshotRepository {
             if (!baseUri.scheme.equals("https", true) || baseUri.host.isNullOrBlank() || baseUri.userInfo != null) {
                 return@withContext cached
             }
-            val manifestRequest = Request.Builder()
+            val manifestRequestBuilder = Request.Builder()
                 .url("$base/manifest.json")
                 .header("Cache-Control", "no-cache")
                 .get()
-                .build()
-            val manifestRaw = client.newCall(manifestRequest).execute().use { response ->
-                if (!response.isSuccessful) throw IllegalStateException("Snapshot manifest HTTP " + response.code)
-                response.body?.string() ?: throw IllegalStateException("Empty snapshot manifest")
+            CacheStore.readPublic("snapshot:manifest:etag")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { manifestRequestBuilder.header("If-None-Match", it) }
+            CacheStore.readPublic("snapshot:manifest:last-modified")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { manifestRequestBuilder.header("If-Modified-Since", it) }
+
+            var manifestNotModified = false
+            var manifestEtag: String? = null
+            var manifestLastModified: String? = null
+            val manifestRaw = client.newCall(manifestRequestBuilder.build()).execute().use { response ->
+                if (response.code == 304) {
+                    manifestNotModified = true
+                    null
+                } else {
+                    if (!response.isSuccessful) throw IllegalStateException("Snapshot manifest HTTP " + response.code)
+                    manifestEtag = response.header("ETag")
+                    manifestLastModified = response.header("Last-Modified")
+                    response.body?.string() ?: throw IllegalStateException("Empty snapshot manifest")
+                }
             }
+            if (manifestNotModified || manifestRaw == null) return@withContext cached
             val manifest = gson.fromJson(manifestRaw, CommunitySnapshotManifestDto::class.java)
             if (manifest == null || manifest.schema_version != 1) return@withContext cached
 
+            // Save validators only after every object referenced by this manifest is
+            // already cached or has been fetched and verified. Otherwise the next run
+            // must retry the incomplete snapshot set instead of accepting a 304.
+            var allReferencedSnapshotsAvailable = true
             for (window in windows) {
                 val reference = manifest.snapshots[window] ?: continue
-                if (reference.version.isBlank() || cached[window]?.let {
-                    it.generated_at == reference.version || it.update_time == reference.update_time
-                } == true) continue
+                if (reference.version.isBlank()) {
+                    allReferencedSnapshotsAvailable = false
+                    continue
+                }
+                if (cached[window]?.update_time == reference.update_time) continue
 
                 val snapshotUrl = reference.url?.takeIf { it.isNotBlank() }
                     ?: reference.key.takeIf { it.isNotBlank() }?.let { "$base/$it" }
-                    ?: continue
-                val uri = runCatching { URI(snapshotUrl) }.getOrNull() ?: continue
+                if (snapshotUrl == null) {
+                    allReferencedSnapshotsAvailable = false
+                    continue
+                }
+                val uri = runCatching { URI(snapshotUrl) }.getOrNull()
                 // A public manifest may select paths on its own CDN host, never arbitrary hosts.
-                if (!uri.scheme.equals("https", true) || uri.host.isNullOrBlank() ||
-                    !uri.host.equals(baseUri.host, true) || uri.userInfo != null) continue
+                if (uri == null || !uri.scheme.equals("https", true) || uri.host.isNullOrBlank() ||
+                    !uri.host.equals(baseUri.host, true) || uri.userInfo != null) {
+                    allReferencedSnapshotsAvailable = false
+                    continue
+                }
 
+                var snapshotAvailable = false
                 runCatching {
                     val request = Request.Builder().url(snapshotUrl).get().build()
                     val raw = client.newCall(request).execute().use { response ->
@@ -83,9 +113,23 @@ object CommunitySnapshotRepository {
                     if (currentTime == null || (incomingTime != null && incomingTime.isAfter(currentTime))) {
                         CacheStore.writePublic("snapshot:$window", raw)
                     }
+                    val persisted = readSnapshot(window)
+                    val persistedTime = persisted?.let { runCatching { Instant.parse(it.generated_at) }.getOrNull() }
+                    snapshotAvailable = persisted != null && when {
+                        incomingTime != null && persistedTime != null -> !persistedTime.isBefore(incomingTime)
+                        else -> persisted.update_time == snapshot.update_time
+                    }
+                    require(snapshotAvailable) { "Snapshot cache write could not be verified" }
                 }.onFailure { error ->
+                    allReferencedSnapshotsAvailable = false
                     Log.w(TAG, "Unable to refresh " + window + " snapshot; retaining cached copy", error)
                 }
+                if (!snapshotAvailable) allReferencedSnapshotsAvailable = false
+            }
+
+            if (allReferencedSnapshotsAvailable) {
+                CacheStore.writePublic("snapshot:manifest:etag", manifestEtag.orEmpty())
+                CacheStore.writePublic("snapshot:manifest:last-modified", manifestLastModified.orEmpty())
             }
         } catch (error: Exception) {
             Log.w(TAG, "Static snapshot revalidation failed; retaining Room cache", error)

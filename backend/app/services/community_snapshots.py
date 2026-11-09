@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, func, select
@@ -57,17 +57,26 @@ def assemble_snapshot(
                 continue
             decimals = asset.get("decimals")
             key = (kind, symbol, decimals)
+            try:
+                native_amount = Decimal(str(asset.get("amount_native") or "0"))
+            except (InvalidOperation, TypeError, ValueError):
+                continue
+            usd_amount = None
+            if asset.get("usd_valuation") is not None:
+                try:
+                    usd_amount = Decimal(str(asset["usd_valuation"]))
+                except (InvalidOperation, TypeError, ValueError):
+                    # Keep a valid native amount even when its optional USD estimate is malformed.
+                    usd_amount = None
+
             total = token_totals.setdefault(project_id, {}).setdefault(key, {
                 "amount": Decimal("0"), "usd": Decimal("0"), "has_usd": False,
                 "latest_timestamp": None, "sources": set(),
             })
-            try:
-                total["amount"] += Decimal(str(asset.get("amount_native") or "0"))
-                if asset.get("usd_valuation") is not None:
-                    total["usd"] += Decimal(str(asset["usd_valuation"]))
-                    total["has_usd"] = True
-            except (InvalidOperation, TypeError, ValueError):
-                continue
+            total["amount"] += native_amount
+            if usd_amount is not None:
+                total["usd"] += usd_amount
+                total["has_usd"] = True
             stamp = asset.get("valuation_timestamp")
             if stamp and (total["latest_timestamp"] is None or str(stamp) > total["latest_timestamp"]):
                 total["latest_timestamp"] = str(stamp)
