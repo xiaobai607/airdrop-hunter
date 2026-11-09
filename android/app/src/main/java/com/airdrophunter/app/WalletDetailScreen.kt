@@ -266,7 +266,7 @@ private fun WalletActivityPanel(
                                                                         kind = "gas",
                                                                         amount_native = it,
                                                                         symbol = tx.native_symbol,
-                                                                        decimals = tx.native_decimals,
+                                                                        decimals = WalletTransactionAccountingPolicy.nativeDecimals(tx),
                                                                         usd_valuation = tx.gas_cost_usd?.toDoubleOrNull(),
                                                                         valuation_timestamp = tx.native_price_timestamp,
                                                                         valuation_source = tx.native_price_source

@@ -21,7 +21,7 @@ data class WalletTransactionDto(
     val gas_cost_native: String,
     val native_symbol: String,
     val native_price_usd: String? = null,
-    val native_decimals: Int = 18,
+    val native_decimals: Int? = null,
     val native_price_timestamp: String? = null,
     val native_price_source: String? = null,
     val gas_cost_usd: String? = null,
@@ -42,6 +42,17 @@ object WalletTransactionAccountingPolicy {
             transaction.fee_paid_by_wallet &&
             transaction.fee_type != "evm_l2_execution_fee_wei"
         ) transaction.gas_cost_usd.orEmpty() else ""
+
+    /** Recover precision only for known chains when reading older cached DTOs. */
+    fun nativeDecimals(transaction: WalletTransactionDto): Int? =
+        transaction.native_decimals?.takeIf { it in 0..36 } ?: when (transaction.chain.trim().lowercase(Locale.US)) {
+            "ethereum", "eth", "evm", "erc20",
+            "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" -> 18
+            "tron", "trc20" -> 6
+            "bitcoin", "btc" -> 8
+            "solana", "sol" -> 9
+            else -> null
+        }
 }
 
 object WalletTransactionIdentity {
