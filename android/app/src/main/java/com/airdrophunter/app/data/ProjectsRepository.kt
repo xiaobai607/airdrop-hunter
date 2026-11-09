@@ -144,6 +144,7 @@ class ProjectsRepository(
         require(projectId.isNotBlank()) { "项目 ID 不能为空" }
         val normalizedName = name.trim()
         require(normalizedName.isNotEmpty()) { "任务名称不能为空" }
+        require(normalizedName.length <= 240) { "任务名称不能超过240个字符" }
         require(current.all { it.project_id == projectId }) { "任务列表包含其他项目的任务" }
         val nextOrder = (current.maxOfOrNull { it.step_order } ?: 0) + 1
         val task = if (guest) TaskDto(UUID.randomUUID().toString(), projectId, normalizedName, false, nextOrder)
