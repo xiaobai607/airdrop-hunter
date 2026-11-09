@@ -1,0 +1,22 @@
+name: Production deployment readiness
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      API_BASE_URL: ${{ vars.API_BASE_URL }}
+      COMMUNITY_SNAPSHOT_BASE_URL: ${{ vars.COMMUNITY_SNAPSHOT_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify deployed API and static community CDN
+        run: python backend/scripts/check_deployment_readiness.py
