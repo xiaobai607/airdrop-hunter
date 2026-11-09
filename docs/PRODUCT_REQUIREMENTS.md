@@ -195,7 +195,8 @@ Additional rules:
 - PR #69: backend four-window snapshot generation, anonymous aggregation, versioned object-storage publisher, Room-first cache, silent CDN revalidation, and waterfall detail integration; merged commit 25035c83e6f69f125d0b336170fdd0e0d5c93316 with Android and backend CI green. CDN/R2 and scheduled publisher remain unconfigured.
 - PR #70: removed fabricated empty/50:50 comparison bars, made data presence depend on confirmed contribution count, corrected the stale five-window requirement to four windows; merged commit 0c57de441fcfb668dbb6e4d639ea68f9e6c443ee; Android and backend CI green.
 - PR #71: consolidated the single-source product requirements, README boundaries, cross-module data-flow map, and dependency-driven roadmap; merged commit 1bc27b7a3ec78b45321891c3f68b82db5b91a1ec; Android and backend CI green.
-- PR #72: explicit chain selection and checksum-aware address validation for EVM/TRON/Solana/Bitcoin; in progress until CI passes and the change is merged.
+- PR #72: explicit chain selection and checksum-aware address validation for EVM/TRON/Solana/Bitcoin; merged commit c4a2092d7a4a52edbd69525e408cade806846f99; Android and backend CI passed.
+- PR #73: community data-contract cleanup across API, database, snapshots, and Android; in progress pending CI.
 
 ### Current audit findings
 
@@ -234,7 +235,7 @@ The main data path is intentionally one-way at each boundary:
 
 Recommended next implementation order, based on shared-code dependencies:
 
-1. **Wallet input correctness (PR #72; awaiting CI):** the user selects EVM/TRON/Solana/Bitcoin explicitly; Android local validation and backend validation check the selected chain, including Base58Check for TRON/Bitcoin and 32-byte Base58 for Solana. Stored chain metadata takes priority over address inference so overlapping Base58 encodings do not silently change ecosystems. Preserve WalletConnect and guest/account storage; do not merge old PR #32 wholesale.
+1. **Public metric cleanup (PR #73):** remove public counters and activity signals through API, storage, snapshot, and UI while retaining private transaction history and confirmed monetary aggregates.
 2. **Transaction-to-ledger reliability:** test and harden the chain activity -> pending bill -> manual confirmation path, especially fee-payer attribution, duplicate detection, demo exclusion, and account-scope isolation. Never auto-confirm a transaction or estimated reward.
 3. **Currency-aware accounting:** extend the private ledger and anonymous public contribution model to retain native token amount/symbol/decimals and valuation timestamp/source. Keep USD valuation separate and never sum unlike tokens. Update snapshots only after the source model is correct.
 4. **Sync/restore acceptance:** verify guest data survives normal app restarts but is lost on app-data clearing; verify account data restores on another device and cannot leak across account switches. Add conflict/retry handling only where tests demonstrate a gap.
@@ -311,12 +312,18 @@ Recommended next implementation order, based on shared-code dependencies:
 - GitHub scheduled jobs are best-effort and can start late under platform load; the dispatcher still computes due windows from Asia/Shanghai at actual execution time. This is not a real-time SLA.
 
 
-### Wallet chain selection and validation regression fix (PR #72 follow-up)
+### Public community metric scope (user-confirmed)
+
+- Public project data shows only the four confirmed Gas-versus-actual-reward windows, per-currency amounts/valuations, and real star-rating aggregates.
+- The New ranking uses project catalog creation time. Personal ledger history and internal eligibility checks remain intact; they are not public project statistics.
+- Public contribution retries use an opaque event ID for idempotency only.
+
+### Wallet chain selection and validation (PR #72 merged)
 
 - Wallet creation requires explicit EVM / TRON / Solana / Bitcoin selection; no automatic chain guessing is added to the add-wallet flow.
 - EVM hexadecimal address validation accepts either `0x` or `0X` prefix while retaining exactly 40 hexadecimal payload characters. Duplicate EVM addresses remain case-insensitive.
 - Legacy address-format tests use a checksum-valid Bitcoin Base58Check fixture rather than a shape-only fake address, matching the stricter validator contract.
-- PR #72 follow-up fixes the two Android unit-test regressions found by CI; merge remains blocked until Android build/unit tests and backend tests pass.
+- PR #72's Android address fixture now uses a checksum-valid Bitcoin address; Android build/unit tests and backend tests passed before merge.
 
 ### Binding user correction — guest data ownership reaffirmed (2026-11-09)
 

@@ -32,19 +32,12 @@ data class CommunitySnapshotProjectDto(
     val logo: String = "",
     val description: String = "",
     val website_url: String = "",
+    val created_at: String = "",
     val tags: List<String> = emptyList(),
     val gas_cost_usd_valuation: Double = 0.0,
     val actual_reward_usd_valuation: Double = 0.0,
     val net_result_usd_valuation: Double = 0.0,
-    val contribution_count: Long = 0,
-    val interaction_count: Long = 0,
     val average_rating: Double? = null,
     val rating_count: Long = 0,
-    val rating_distribution: Map<String, Long> = emptyMap(),
-    val activity_24h: CommunitySnapshotActivityDto = CommunitySnapshotActivityDto()
-)
-
-data class CommunitySnapshotActivityDto(
-    val contribution_count: Long = 0,
-    val interaction_count: Long = 0
+    val rating_distribution: Map<String, Long> = emptyMap()
 )

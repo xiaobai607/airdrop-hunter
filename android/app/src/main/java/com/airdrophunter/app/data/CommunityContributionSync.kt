@@ -29,8 +29,7 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
                         CommunityContributionRequest(
                             event_id = entry.id,
                             gas_cost_usd = entry.gasCostUsd,
-                            actual_reward_usd = entry.actualRewardUsd,
-                            interaction_count = entry.interactionCount
+                            actual_reward_usd = entry.actualRewardUsd
                         ),
                         batch.authorizationHeader
                     )

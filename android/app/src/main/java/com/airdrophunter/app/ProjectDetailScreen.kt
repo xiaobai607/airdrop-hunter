@@ -275,8 +275,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("个人项目账本", Modifier.weight(1f), color = AppColors.TextPrimary,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("${userProject?.interactionCount ?: 0} 次交互", color = AppColors.TextHelper,
-                            style = MaterialTheme.typography.labelSmall)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ProjectMetric(Modifier.weight(1f), "累计 Gas", userProject?.totalGasCostUsd ?: 0.0)
@@ -297,9 +295,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 )
                             )
                         }
-                        Spacer(Modifier.weight(1f))
-                        Text("${periodInteractions.size} 笔", color = AppColors.TextHelper,
-                            style = MaterialTheme.typography.labelSmall)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LedgerPeriodMetric(Modifier.weight(1f), "Gas 消耗", periodGas, AppColors.Danger)
