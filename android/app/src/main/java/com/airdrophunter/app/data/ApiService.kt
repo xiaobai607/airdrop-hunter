@@ -66,6 +66,11 @@ interface ApiService {
         @Path("projectOfficialId") projectOfficialId: String,
         @Body request: CommunityProjectRatingRequest
     ): CommunityProjectStatsDto
+    @POST("api/community/projects/{projectOfficialId}/ratings")
+    suspend fun submitCommunityProjectRating(
+        @Path("projectOfficialId") projectOfficialId: String,
+        @Body request: CommunityProjectRatingRequest
+    ): CommunityProjectStatsDto
     @GET("api/community/projects/{projectOfficialId}/stats")
     suspend fun getCommunityProjectStats(@Path("projectOfficialId") projectOfficialId: String): CommunityProjectStatsDto
 }
