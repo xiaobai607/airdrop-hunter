@@ -257,6 +257,37 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
+@Dao
+interface LocalBackupDao {
+ @Query("SELECT * FROM cached_payloads WHERE cacheKey LIKE :prefix || '%'") suspend fun cachedPayloadsByPrefix(prefix:String):List<CachedPayload>
+ @Query("DELETE FROM cached_payloads WHERE cacheKey LIKE :prefix || '%'") suspend fun deleteCachedPayloadsByPrefix(prefix:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertCachedPayloads(rows:List<CachedPayload>)
+ @Query("SELECT * FROM pending_bills WHERE accountScope=:scope") suspend fun pendingBills(scope:String):List<PendingBillEntity>
+ @Query("DELETE FROM pending_bills WHERE accountScope=:scope") suspend fun clearPendingBills(scope:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertPendingBills(rows:List<PendingBillEntity>)
+ @Query("SELECT * FROM pnl_records WHERE accountScope=:scope") suspend fun pnlRecords(scope:String):List<PnlRecordEntity>
+ @Query("DELETE FROM pnl_records WHERE accountScope=:scope") suspend fun clearPnlRecords(scope:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertPnlRecords(rows:List<PnlRecordEntity>)
+ @Query("SELECT * FROM project_ratings WHERE accountScope=:scope") suspend fun projectRatings(scope:String):List<ProjectRatingEntity>
+ @Query("DELETE FROM project_ratings WHERE accountScope=:scope") suspend fun clearProjectRatings(scope:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectRatings(rows:List<ProjectRatingEntity>)
+ @Query("SELECT * FROM user_projects WHERE accountScope=:scope") suspend fun userProjects(scope:String):List<UserProjectEntity>
+ @Query("DELETE FROM user_projects WHERE accountScope=:scope") suspend fun clearUserProjects(scope:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertUserProjects(rows:List<UserProjectEntity>)
+ @Query("SELECT * FROM user_interactions WHERE accountScope=:scope") suspend fun userInteractions(scope:String):List<UserInteractionEntity>
+ @Query("DELETE FROM user_interactions WHERE accountScope=:scope") suspend fun clearUserInteractions(scope:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertUserInteractions(rows:List<UserInteractionEntity>)
+ @Query("SELECT * FROM community_sync_outbox WHERE accountScope=:scope") suspend fun communityOutbox(scope:String):List<CommunitySyncOutboxEntity>
+ @Query("DELETE FROM community_sync_outbox WHERE accountScope=:scope") suspend fun clearCommunityOutbox(scope:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertCommunityOutbox(rows:List<CommunitySyncOutboxEntity>)
+ @Query("SELECT * FROM community_favorites WHERE accountScope=:scope") suspend fun communityFavorites(scope:String):List<CommunityFavoriteEntity>
+ @Query("DELETE FROM community_favorites WHERE accountScope=:scope") suspend fun clearCommunityFavorites(scope:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertCommunityFavorites(rows:List<CommunityFavoriteEntity>)
+ @Query("SELECT * FROM project_wallet_assignments WHERE accountScope=:scope") suspend fun projectWalletAssignments(scope:String):List<ProjectWalletAssignmentEntity>
+ @Query("DELETE FROM project_wallet_assignments WHERE accountScope=:scope") suspend fun clearProjectWalletAssignments(scope:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectWalletAssignments(rows:List<ProjectWalletAssignmentEntity>)
+}
+
 @Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 16, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
@@ -268,6 +299,7 @@ abstract class CacheDatabase : RoomDatabase() {
     abstract fun userProjectDao(): UserProjectDao
     abstract fun userInteractionDao(): UserInteractionDao
     abstract fun communitySyncOutboxDao(): CommunitySyncOutboxDao
+    abstract fun localBackupDao(): LocalBackupDao
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -1029,6 +1061,69 @@ object CacheStore {
         }
         true
     }
+    suspend fun exportLocalBackup(): LocalBackupSnapshot = withContext(Dispatchers.IO) {
+        val db = database ?: error("本地数据库尚未初始化")
+        val scope = currentAccountScope()
+        require(scope == "guest" || scope.startsWith("user:")) { "当前账户状态无效，无法备份" }
+        val dao = db.localBackupDao()
+        val prefixes = backupCachePrefixes(scope)
+        LocalBackupSnapshot(
+            createdAt = System.currentTimeMillis(), sourceScope = scope,
+            cachedPayloads = prefixes.flatMap { dao.cachedPayloadsByPrefix(it) },
+            pendingBills = dao.pendingBills(scope), pnlRecords = dao.pnlRecords(scope),
+            projectRatings = dao.projectRatings(scope), userProjects = dao.userProjects(scope),
+            userInteractions = dao.userInteractions(scope), communityOutbox = dao.communityOutbox(scope),
+            communityFavorites = dao.communityFavorites(scope),
+            projectWalletAssignments = dao.projectWalletAssignments(scope)
+        )
+    }
+
+    suspend fun restoreLocalBackup(snapshot: LocalBackupSnapshot) = withContext(Dispatchers.IO) {
+        require(snapshot.formatVersion == LocalBackupSnapshot.CURRENT_VERSION) { "备份文件版本不受支持" }
+        require(snapshot.sourceScope == "guest" || snapshot.sourceScope.startsWith("user:")) { "备份文件账户范围无效" }
+        val db = database ?: error("本地数据库尚未初始化")
+        val targetScope = currentAccountScope()
+        require(targetScope == "guest" || targetScope.startsWith("user:")) { "当前账户状态无效，无法导入" }
+        require(snapshot.pendingBills.all { it.accountScope == snapshot.sourceScope } &&
+            snapshot.pnlRecords.all { it.accountScope == snapshot.sourceScope } &&
+            snapshot.projectRatings.all { it.accountScope == snapshot.sourceScope } &&
+            snapshot.userProjects.all { it.accountScope == snapshot.sourceScope } &&
+            snapshot.userInteractions.all { it.accountScope == snapshot.sourceScope } &&
+            snapshot.communityOutbox.all { it.accountScope == snapshot.sourceScope } &&
+            snapshot.communityFavorites.all { it.accountScope == snapshot.sourceScope } &&
+            snapshot.projectWalletAssignments.all { it.accountScope == snapshot.sourceScope }) {
+            "备份文件包含不一致的账户数据"
+        }
+        val sourcePrefixes = backupCachePrefixes(snapshot.sourceScope)
+        val targetPrefixes = backupCachePrefixes(targetScope)
+        val remapped = snapshot.cachedPayloads.map { row ->
+            val index = sourcePrefixes.indexOfFirst { row.cacheKey.startsWith(it) }
+            require(index >= 0) { "备份文件包含越权缓存数据" }
+            row.copy(cacheKey = targetPrefixes[index] + row.cacheKey.removePrefix(sourcePrefixes[index]))
+        }
+        val dao = db.localBackupDao()
+        db.withTransaction {
+            dao.clearPendingBills(targetScope); dao.clearPnlRecords(targetScope)
+            dao.clearProjectRatings(targetScope); dao.clearUserProjects(targetScope)
+            dao.clearUserInteractions(targetScope); dao.clearCommunityOutbox(targetScope)
+            dao.clearCommunityFavorites(targetScope); dao.clearProjectWalletAssignments(targetScope)
+            targetPrefixes.forEach { dao.deleteCachedPayloadsByPrefix(it) }
+            dao.insertPendingBills(snapshot.pendingBills.map { it.copy(accountScope = targetScope) })
+            dao.insertPnlRecords(snapshot.pnlRecords.map { it.copy(accountScope = targetScope) })
+            dao.insertProjectRatings(snapshot.projectRatings.map { it.copy(accountScope = targetScope) })
+            dao.insertUserProjects(snapshot.userProjects.map { it.copy(accountScope = targetScope) })
+            dao.insertUserInteractions(snapshot.userInteractions.map { it.copy(accountScope = targetScope) })
+            dao.insertCommunityOutbox(snapshot.communityOutbox.map { it.copy(accountScope = targetScope) })
+            dao.insertCommunityFavorites(snapshot.communityFavorites.map { it.copy(accountScope = targetScope) })
+            dao.insertProjectWalletAssignments(snapshot.projectWalletAssignments.map { it.copy(accountScope = targetScope) })
+            dao.insertCachedPayloads(remapped)
+        }
+    }
+
+    private fun backupCachePrefixes(scope: String): List<String> =
+        if (scope == "guest") listOf("guest:", "signed-out:")
+        else listOf("$scope:", "${scope.removePrefix("user:")}:")
+
     // Public community snapshots are shared across guest and signed-in sessions.
     suspend fun readPublic(key: String): String? = withContext(Dispatchers.IO) {
         runCatching { database?.cacheDao()?.read("public:community:$key") }.getOrNull()
