@@ -27,7 +27,18 @@ class ProjectsRepositoryTest {
                 .also { projects.add(it) }
         }
         override suspend fun updateProject(projectId: String, request: ProjectWriteRequest): ProjectDto =
-            projects.first { it.id == projectId }.copy(name = request.name).also { updated ->
+            projects.first { it.id == projectId }.copy(
+                name = request.name,
+                description = request.description,
+                status = request.status,
+                official_url = request.official_url,
+                claim_url = request.claim_url,
+                twitter_url = request.twitter_url,
+                deadline = request.deadline,
+                expected_income = request.expected_income,
+                gas_cost = request.gas_cost,
+                actual_income = request.actual_income
+            ).also { updated ->
                 projects[projects.indexOfFirst { it.id == projectId }] = updated
             }
         override suspend fun deleteProject(projectId: String) { projects.removeAll { it.id == projectId } }
@@ -159,6 +170,66 @@ class ProjectsRepositoryTest {
             assertEquals("Updated", renamed.single().task_name)
             assertTrue(renamed.single().is_completed)
             assertTrue(local.account.containsKey("tasks:p1"))
+        }
+    }
+
+
+    @Test fun guestProjectEditPreservesAndUpdatesAllFieldsLocally() {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val original = ProjectDto(
+                id = "local-1", name = "Old", description = "Old details", status = "tracking",
+                official_url = "https://old.example", claim_url = "https://old.example/claim",
+                twitter_url = "https://x.com/old", deadline = "2026-12-01T00:00:00Z",
+                expected_income = 10.0, gas_cost = 2.0, actual_income = 7.0
+            )
+            local.write("projects", com.google.gson.Gson().toJson(listOf(original)), true)
+            val request = ProjectWriteRequest(
+                name = "  New name ", description = " Updated details ", status = "completed",
+                official_url = "https://new.example", claim_url = "https://new.example/claim",
+                twitter_url = "https://x.com/new", deadline = "2027-01-01T00:00:00Z",
+                expected_income = 20.0, gas_cost = 4.0, actual_income = 18.0
+            )
+            val updated = repository.updateProject(original, request, true).single()
+            assertEquals("New name", updated.name)
+            assertEquals("Updated details", updated.description)
+            assertEquals("completed", updated.status)
+            assertEquals("https://x.com/new", updated.twitter_url)
+            assertEquals(20.0, updated.expected_income, 0.0)
+            assertEquals(4.0, updated.gas_cost, 0.0)
+            assertEquals(18.0, updated.actual_income, 0.0)
+            assertTrue(remote.projects.isEmpty())
+        }
+    }
+
+    @Test fun guestProjectDeleteRemovesLocalProjectWithoutCallingServer() {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val original = project("local-delete")
+            local.write("projects", com.google.gson.Gson().toJson(listOf(original)), true)
+            val remaining = repository.deleteProject(original, true)
+            assertTrue(remaining.isEmpty())
+            assertTrue(repository.readCachedProjects(true).isEmpty())
+            assertTrue(remote.projects.isEmpty())
+        }
+    }
+
+    @Test fun authenticatedProjectEditUsesOwnedRemoteApiAndRefreshesAccountCache() {
+        val local = FakeLocal()
+        val remote = FakeRemote().apply { projects.add(project("server-1", "Before")) }
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val original = remote.projects.single()
+            val request = ProjectWriteRequest("After", "details", "completed")
+            val updated = repository.updateProject(original, request, false)
+            assertEquals("After", updated.single().name)
+            assertEquals("completed", updated.single().status)
+            assertTrue(local.account.containsKey("projects"))
+            assertFalse(local.guest.containsKey("projects"))
         }
     }
 
