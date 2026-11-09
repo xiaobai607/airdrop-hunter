@@ -44,10 +44,9 @@ private data class CommunityProject(
     val averageRating: Double? = null, val ratingCount: Long = 0
 ) {
     val label: String get() = if (isDemo) "测试演示" else if (gas > 0.0 || reward > 0.0) "真实贡献" else "暂无贡献"
-    val rewardWeight: Float get() =
-        if (reward + gas <= 0.0) 0.5f
-        else (reward / (reward + gas)).toFloat().coerceIn(0.02f, 0.98f)
-    val gasWeight: Float get() = 1f - rewardWeight
+    val metricWeights: Pair<Float, Float> get() = communityMetricWeights(gas, reward)
+    val gasWeight: Float get() = metricWeights.first
+    val rewardWeight: Float get() = metricWeights.second
     val reputationLabel: String get() = when {
         isDemo && demoScore >= 4.5 -> "好评如潮"
         isDemo && demoScore >= 4.0 -> "整体较好"
