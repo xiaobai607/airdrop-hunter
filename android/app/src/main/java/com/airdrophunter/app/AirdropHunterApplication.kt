@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CommunityContributionSyncScheduler
+import com.airdrophunter.app.data.WalletActivitySyncScheduler
 import com.reown.android.Core
 import com.reown.android.CoreClient
 import com.reown.appkit.client.AppKit
@@ -20,6 +21,7 @@ class AirdropHunterApplication : Application() {
         // Initialize local auth/cache storage before any Activity or ViewModel can use it.
         ApiClient.initialize(this)
         CommunityContributionSyncScheduler.ensurePeriodic(this)
+        WalletActivitySyncScheduler.ensurePeriodic(this)
 
         val metadata = Core.Model.AppMetaData(
             name = "Airdrop Hunter",
