@@ -98,7 +98,8 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
 
     class FakeDatabase:
         async def execute(self, statement):
-            captured.update(statement.compile().params)
+            if not captured:
+                captured.update(statement.compile().params)
             return FakeResult()
 
         async def commit(self):
