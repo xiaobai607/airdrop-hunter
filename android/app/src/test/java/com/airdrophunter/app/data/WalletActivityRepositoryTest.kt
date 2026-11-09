@@ -58,7 +58,7 @@ class WalletActivityRepositoryTest {
     @Test
     fun bitcoinAddressUsesBitcoinEndpoint() = runBlocking {
         val remote = FakeRemote()
-        val wallet = wallet("bc1q" + "a".repeat(38), WalletEcosystem.BTC)
+        val wallet = wallet("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", WalletEcosystem.BTC)
         WalletActivityRepository(remote).load(wallet)
 
         assertEquals(listOf("bitcoin"), remote.chainCalls)
