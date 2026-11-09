@@ -39,6 +39,18 @@ def normalized_identity(value: str) -> str:
     return re.sub(r"[\W_]+", "", value.casefold())
 
 
+def submission_review_reason(canonical_url: str) -> str | None:
+    parsed = urlparse(canonical_url)
+    hostname = (parsed.hostname or "").lower()
+    if any(hostname == host or hostname.endswith("." + host) for host in SHORTENER_HOSTS):
+        return "链接属于跳转短链接"
+    if any(label.startswith("xn--") for label in hostname.split(".")):
+        return "域名使用国际化编码，需要人工核验是否存在仿冒"
+    if parsed.port not in (None, 443):
+        return "链接使用非标准 HTTPS 端口"
+    return None
+
+
 class CatalogWrite(BaseModel):
     project_official_id: str = Field(min_length=1, max_length=120)
     name: str = Field(min_length=1, max_length=180)
@@ -111,16 +123,40 @@ class ProjectSubmission(BaseModel):
     def validate_submission_url(cls, value: str) -> str:
         value = value.strip()
         parsed = urlparse(value)
-        if parsed.scheme.lower() != "https" or not parsed.hostname or parsed.username or parsed.password:
-            raise ValueError("项目链接必须是有效的 HTTPS URL，不能包含账号或密码")
-        hostname = parsed.hostname.encode("idna").decode("ascii").lower().rstrip(".")
+        if (
+            parsed.scheme.lower() != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or "\\" in value
+            or any(ord(character) < 32 or ord(character) == 127 for character in value)
+        ):
+            raise ValueError("项目链接必须是有效的 HTTPS URL，不能包含账号、密码或控制字符")
+        try:
+            hostname = parsed.hostname.encode("idna").decode("ascii").lower().rstrip(".")
+            parsed.port
+        except (UnicodeError, ValueError) as exc:
+            raise ValueError("项目链接域名或端口格式无效") from exc
         try:
             ipaddress.ip_address(hostname)
         except ValueError:
             pass
         else:
             raise ValueError("项目链接必须使用域名，不能直接填写 IP 地址")
-        if "." not in hostname or hostname in {"localhost"} or hostname.endswith((".local", ".internal", ".localhost")):
+        labels = hostname.split(".")
+        if (
+            len(hostname) > 253
+            or len(labels) < 2
+            or hostname == "localhost"
+            or hostname.endswith((".local", ".internal", ".localhost"))
+            or any(
+                not label
+                or len(label) > 63
+                or not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", label)
+                for label in labels
+            )
+            or not re.search(r"[a-z]", labels[-1])
+        ):
             raise ValueError("项目链接域名无效")
         return normalize_project_url(value)
 
@@ -186,9 +222,8 @@ async def submit_community_project(
                 "existing_project": None,
             }
 
-    hostname = urlparse(canonical_url).hostname or ""
-    is_shortener = any(hostname == host or hostname.endswith("." + host) for host in SHORTENER_HOSTS)
-    if is_shortener:
+    review_reason = submission_review_reason(canonical_url)
+    if review_reason:
         source_key = hashlib.sha256(f"user-submission:{canonical_url}".encode()).hexdigest()
         db.add(AirdropDiscoveryCandidate(
             source_key=source_key,
@@ -196,12 +231,12 @@ async def submit_community_project(
             source_url=canonical_url,
             title=payload.name,
             item_url=canonical_url,
-            summary="用户提交的短链接，需要人工核验目标地址；未抓取目标页面。",
+            summary=f"用户提交的链接需要人工核验：{review_reason}；未抓取目标页面。",
         ))
         await db.commit()
         return {
             "status": "pending_review",
-            "message": "链接属于跳转短链接，已放入待核验列表，不会直接发布",
+            "message": f"{review_reason}，已放入待核验列表，不会直接发布",
             "existing_project": None,
         }
 

@@ -499,3 +499,11 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - Same-origin HTTPS redirects remain supported. Regression tests cover cross-origin rejection, HTTPS downgrade rejection, same-origin acceptance, and oversized-response rejection through the opener-based request path.
 - The checker remains unauthenticated and accepts only configured public HTTPS base URLs.
 - PR #99 merged as `16026d8576b7e807451ee5cab68f698748a75494`; backend CI passed on final head `313db39fef2e664702a47bf78caf6b073a816186` (run `42666329837`), and Android build was correctly skipped.
+
+
+### Public project submission URL safety hardening (PR pending, 2026-11-10)
+
+- Validate DNS hostname labels and total hostname length before accepting a submitted project URL; reject malformed labels, numeric-only top-level labels, control characters, backslashes, credentials, IP literals, and invalid ports.
+- Keep ordinary HTTPS domains on the immediate-publication path. Internationalized/punycode domains and non-standard HTTPS ports are treated as suspicious and held in the existing admin review queue; known shorteners remain held as well.
+- No submitted URL is fetched, crawled, or resolved through DNS. Manual review is a moderation safeguard, not a claim that the destination has been verified.
+- Regression tests cover malformed domains, IDN review, custom-port review, and preservation of normal submission behavior.
