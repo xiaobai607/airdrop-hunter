@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from uuid import UUID
 import hashlib
 import re
-from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, ValidationError
