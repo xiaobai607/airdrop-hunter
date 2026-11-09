@@ -148,3 +148,36 @@ def test_solana_fee_is_not_attributed_when_another_address_is_fee_payer():
     )
     assert len(transactions) == 1
     assert transactions[0].fee_paid_by_wallet is False
+
+
+def test_tron_basic_transfer_fee_is_attributed_only_to_matching_owner():
+    from app.routers.wallet_activity import tron_fee_is_paid_by_wallet
+
+    wallet_hex = "41" + "11" * 20
+    contracts = [{
+        "type": "TransferContract",
+        "parameter": {"value": {"owner_address": wallet_hex}},
+    }]
+    assert tron_fee_is_paid_by_wallet(contracts, wallet_hex, 270)
+
+
+def test_tron_smart_contract_fee_remains_unassigned_even_when_owner_matches():
+    from app.routers.wallet_activity import tron_fee_is_paid_by_wallet
+
+    wallet_hex = "41" + "11" * 20
+    contracts = [{
+        "type": "TriggerSmartContract",
+        "parameter": {"value": {"owner_address": wallet_hex}},
+    }]
+    assert tron_fee_is_paid_by_wallet(contracts, wallet_hex, 270) is False
+
+
+def test_tron_zero_fee_is_not_prefilled_as_paid_gas():
+    from app.routers.wallet_activity import tron_fee_is_paid_by_wallet
+
+    wallet_hex = "41" + "11" * 20
+    contracts = [{
+        "type": "TransferContract",
+        "parameter": {"value": {"owner_address": wallet_hex}},
+    }]
+    assert tron_fee_is_paid_by_wallet(contracts, wallet_hex, 0) is False
