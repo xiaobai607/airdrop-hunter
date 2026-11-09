@@ -196,7 +196,8 @@ Additional rules:
 - PR #70: removed fabricated empty/50:50 comparison bars, made data presence depend on confirmed contribution count, corrected the stale five-window requirement to four windows; merged commit 0c57de441fcfb668dbb6e4d639ea68f9e6c443ee; Android and backend CI green.
 - PR #71: consolidated the single-source product requirements, README boundaries, cross-module data-flow map, and dependency-driven roadmap; merged commit 1bc27b7a3ec78b45321891c3f68b82db5b91a1ec; Android and backend CI green.
 - PR #72: explicit chain selection and checksum-aware address validation for EVM/TRON/Solana/Bitcoin; merged commit c4a2092d7a4a52edbd69525e408cade806846f99; Android and backend CI passed.
-- PR #73: community data-contract cleanup across API, database, snapshots, and Android; in progress pending CI.
+- PR #73: community data-contract cleanup across API, database, snapshots, and Android; merged commit bdca459794aced3c2ff39622b39222f26c0fb1ff; Android and backend CI passed.
+- PR #74: transaction identity and account-scoped ledger storage hardening; in progress pending CI.
 
 ### Current audit findings
 
@@ -236,7 +237,7 @@ The main data path is intentionally one-way at each boundary:
 Recommended next implementation order, based on shared-code dependencies:
 
 1. **Public metric cleanup (PR #73 merged):** backend, snapshot, and Android public data contracts now expose confirmed monetary aggregates, star ratings, and catalog metadata. The New ranking sorts by catalog creation time.
-2. **Transaction-to-ledger reliability (PR #74):** harden duplicate transaction identity across guest/account scopes, preserve stable public event IDs, and ensure test/demo rows never sync or contribute. test and harden the chain activity -> pending bill -> manual confirmation path, especially fee-payer attribution, duplicate detection, demo exclusion, and account-scope isolation. Never auto-confirm a transaction or estimated reward.
+2. **Transaction-to-ledger reliability (PR #74):** harden duplicate transaction identity across guest/account scopes, preserve stable public event IDs, and ensure test/demo rows never sync or contribute. Fee-payer attribution remains conservative, and no transaction or estimated reward is auto-confirmed.
 3. **Currency-aware accounting:** extend the private ledger and anonymous public contribution model to retain native token amount/symbol/decimals and valuation timestamp/source. Keep USD valuation separate and never sum unlike tokens. Update snapshots only after the source model is correct.
 4. **Sync/restore acceptance:** verify guest data survives normal app restarts but is lost on app-data clearing; verify account data restores on another device and cannot leak across account switches. Add conflict/retry handling only where tests demonstrate a gap.
 5. **Discovery operations:** verify source terms/access, enable only feeds that are genuinely free and stable, and configure review/Cron without blocking user submissions.
