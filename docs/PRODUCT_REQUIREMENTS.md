@@ -122,11 +122,11 @@ Additional rules:
 
 - Bottom navigation order is exactly: **首页 → 空投库 → 项目管理 → 我的**. Rename the existing airdrop discovery/library entry to “空投库”; remove redundant subtitle copy. Navigation between destinations must preserve each tab's independent navigation/back-stack state using save/restore state behavior.
 - Home starts with a compact BTC/ETH market dashboard. Its displayed refresh status must reflect the same underlying cache/network refresh state as the data it displays; do not show a success timestamp when refresh failed.
-- Place the global search entry immediately below the market dashboard. Use a pill-shaped search field and adaptive category tabs: **币种 / 股票 / DApp**. Tabs must adapt to available width rather than overflow.
+- Place the global search entry immediately below the market dashboard. Use a pill-shaped search field and adaptive category tabs: **币种 / DApp**. Tabs must adapt to available width rather than overflow.
 - Search input uses a 300 ms debounce. Search locally against Room first with fuzzy matching, then request remote results as appropriate. Typing must not trigger one network request per keystroke.
 - Search history is stored locally in Room, deduplicated by normalized query/category, ordered by most recent use, and capped at 10 entries. History remains local to the app/account scope and is not part of public community contributions.
 - Hot-coin results include symbol/name, current price, price-change percentage, logo where available, and contract address/network where applicable. A 24-hour percentage here means market-price change only; it does **not** reintroduce the cancelled standalone community “24-hour heat” metric or project participation count.
-- Preserve existing global search navigation behavior: selecting a coin opens its market/detail destination, not an automatic search-field fill. DApp results open their validated project/site destination under the existing WebView security rules. Stock search must use a free, permitted data source; if no stable free source exists, show a clear unavailable state rather than introducing paid APIs.
+- Preserve existing global search navigation behavior: selecting a coin opens its market/detail destination, not an automatic search-field fill. DApp results open their validated project/site destination under the existing WebView security rules. Stock search is explicitly out of scope; do not add stock categories, stock data providers, stock search UI, or stock-specific cache models.
 
 ### 8.2 Unified asset detail model and presentation (limited scope; not a portfolio dashboard)
 
@@ -582,7 +582,7 @@ The user explicitly requires development to proceed as **15 substantial function
 8. **Community snapshot data pipeline** — four windows (overall/7d/3d/1h), scheduled aggregation, static JSON publication, version manifest and cache integrity.
 9. **Community UI and social metrics** — waterfall project detail, rating eligibility/reputation, exact Gas/reward comparison, rankings, favorites and privacy.
 10. **Project discovery and submissions** — safe user submission/deduplication/moderation, approved free data providers only, attribution and source-health reporting; no arbitrary-site crawler or paid source.
-11. **Global search, market dashboard, and unified asset detail** — BTC/ETH dashboard, BTC/ETH/SOL/BNB/XRP market data, 300 ms local-first search across coin/stock/DApp categories, hot-coin cache, search history, unified EVM/Solana/Bitcoin asset model and limited asset-detail presentation.
+11. **Global search, market dashboard, and unified asset detail** — BTC/ETH dashboard, BTC/ETH/SOL/BNB/XRP market data, 300 ms local-first search across coin/DApp categories, hot-coin cache, search history, unified EVM/Solana/Bitcoin asset model and limited asset-detail presentation.
 12. **Background sync, Room cache, and reliability** — WorkManager coordination, 15-minute SWR for market/search/asset query data, 30-second per-key manual refresh throttle, cache metadata/updated labels, provider node rotation, bounded exponential backoff, offline queue, account switching and recovery. Community snapshot schedules remain independent.
 13. **Backend/API/data integrity** — authentication/authorization, schema/migrations, idempotency, validation, limits, tests and end-to-end contract consistency.
 14. **Production operations and recovery** — CDN/storage/Cron configuration, readiness/smoke checks, backup/restore drill and rollback evidence.
@@ -688,7 +688,7 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 
 ### New cross-module requirements captured — 2026-11-10 (requirements only; not yet implemented)
 
-- Added the home bottom-navigation order and state restoration; BTC/ETH dashboard; pill-shaped global search with coin/stock/DApp categories, 300 ms debounce, local fuzzy search, and local ten-item deduplicated history.
+- Added the home bottom-navigation order and state restoration; BTC/ETH dashboard; pill-shaped global search with coin/DApp categories, 300 ms debounce, local fuzzy search, and local ten-item deduplicated history.
 - Added Room entities/domain models for unified multi-chain assets, market coins, hot coins, search history, and cache metadata. Added 15-minute Room TTL + stale-while-revalidate behavior, last-successful-update labels, stale-cache retention on failure, and a per-cache-key 30-second manual refresh throttle for market/search/asset surfaces.
 - Added bounded exponential backoff, retryable-status policy, provider node rotation/health handling, and TLS-safe failover requirements.
 - Added limited unified asset-detail presentation: EVM/Solana/Bitcoin normalization, $0.10 dust folding, spam/unpriced asset filtering without data deletion, top-five-plus-Others chart, no Bitcoin pie chart, and reuse of TRON card styling. This does not restore the cancelled full portfolio dashboard.
