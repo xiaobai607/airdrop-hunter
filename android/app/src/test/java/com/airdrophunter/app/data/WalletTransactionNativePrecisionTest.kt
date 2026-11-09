@@ -18,7 +18,8 @@ class WalletTransactionNativePrecisionTest {
     @Test
     fun explicitBackendPrecisionTakesPrecedenceOverChainFallback() {
         assertEquals(8, WalletTransactionAccountingPolicy.nativeDecimals(transaction("ethereum", 8)))
-        assertNull(WalletTransactionAccountingPolicy.nativeDecimals(transaction("ethereum", 40)))
+        assertEquals(18, WalletTransactionAccountingPolicy.nativeDecimals(transaction("ethereum", 40)))
+        assertNull(WalletTransactionAccountingPolicy.nativeDecimals(transaction("unknown-chain", 40)))
     }
 
     private fun transaction(chain: String, decimals: Int? = null) = WalletTransactionDto(
