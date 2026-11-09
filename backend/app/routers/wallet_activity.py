@@ -174,6 +174,27 @@ def build_evm_transactions(rows, chain: str, address: str, price: Decimal | None
     return results
 
 
+def tron_fee_is_paid_by_wallet(raw_contracts, wallet_hex_lower: str | None, fee_sun: int) -> bool:
+    # TRON receipts expose aggregate fees, not a definitive payer split.
+    # Only basic transfers with a matching owner are attributable; smart-contract
+    # calls may use sponsored energy and therefore remain manual-review items.
+    contracts = [item for item in raw_contracts if isinstance(item, dict)]
+    if fee_sun <= 0 or not contracts or wallet_hex_lower is None:
+        return False
+
+    for contract in contracts:
+        if contract.get("type") not in {"TransferContract", "TransferAssetContract"}:
+            return False
+        value = ((contract.get("parameter") or {}).get("value") or {})
+        owner = str(value.get("owner_address") or "")
+        if not owner:
+            return False
+        owner_hex = tron_address_to_hex(owner) if owner.startswith("T") else owner
+        if owner_hex is None or owner_hex.lower() != wallet_hex_lower:
+            return False
+    return True
+
+
 async def tron_transactions(client: httpx.AsyncClient, address: str, limit: int):
     headers = {}
     key = (os.getenv("TRONGRID_API_KEY") or "").strip()
@@ -537,32 +558,8 @@ async def list_wallet_transactions(
                     wallet_hex = tron_address_to_hex(address)
                     wallet_hex_lower = wallet_hex.lower() if wallet_hex else None
 
-                    def contract_owner_matches(contract):
-                        contract_value = ((contract.get("parameter") or {}).get("value") or {})
-                        owner = str(contract_value.get("owner_address") or "")
-                        if not owner or wallet_hex_lower is None:
-                            return False
-                        owner_hex = tron_address_to_hex(owner) if owner.startswith("T") else owner
-                        return owner_hex is not None and owner_hex.lower() == wallet_hex_lower
-
-                    contract_owners = [
-                        contract for contract in raw_contracts
-                        if isinstance(contract, dict)
-                    ]
-                    # TRON receipts expose aggregate fees, not a definitive payer split.
-                    # Smart-contract calls can consume energy sponsored by the contract
-                    # origin, so matching owner_address alone is insufficient evidence.
-                    # Attribute fees only for basic transfer operations where the
-                    # transaction owner is the fee payer and no contract energy sponsor
-                    # can be involved. All other cases remain unassigned for manual review.
-                    fee_paid_by_wallet = (
-                        fee_sun > 0
-                        and bool(contract_owners)
-                        and all(
-                            contract.get("type") in {"TransferContract", "TransferAssetContract"}
-                            and contract_owner_matches(contract)
-                            for contract in contract_owners
-                        )
+                    fee_paid_by_wallet = tron_fee_is_paid_by_wallet(
+                        raw_contracts, wallet_hex_lower, fee_sun
                     )
                     results.append(WalletTransaction(
                         chain="tron", hash=tx_hash, timestamp=timestamp,
