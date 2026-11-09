@@ -6,6 +6,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WalletActivityRepositoryTest {
+    private class FakeLocal : WalletActivityLocalDataSource {
+        val guest = mutableMapOf<String, String>()
+        val account = mutableMapOf<String, String>()
+        override suspend fun read(key: String, guest: Boolean): String? =
+            (if (guest) this.guest else account)[key]
+        override suspend fun write(key: String, value: String, guest: Boolean) {
+            (if (guest) this.guest else account)[key] = value
+        }
+    }
+
     private class FakeRemote : WalletActivityRemoteDataSource {
         var evmCalls = 0
         val chainCalls = mutableListOf<String>()
@@ -83,4 +93,35 @@ class WalletActivityRepositoryTest {
         network_icon = ecosystem,
         address = address
     )
+
+    @Test
+    fun guestRefreshStoresSnapshotOnlyInGuestCacheAndCanReadItImmediately() = runBlocking {
+        val local = FakeLocal()
+        val repository = WalletActivityRepository(FakeRemote(), local)
+        val wallet = wallet("0x" + "1".repeat(40), WalletEcosystem.EVM)
+
+        val refreshed = repository.refresh(wallet, guest = true)
+        val cached = repository.readCached(wallet, guest = true)
+
+        assertEquals(listOf("ethereum", "base"), refreshed.networksChecked)
+        assertTrue(refreshed.fetchedAtEpochMillis > 0L)
+        assertEquals(refreshed.networksChecked, cached?.networksChecked)
+        assertTrue(local.guest.containsKey("wallet_activity:wallet-1"))
+        assertTrue(local.account.isEmpty())
+    }
+
+    @Test
+    fun accountRefreshUsesAccountScopedCacheAndDoesNotTouchGuestCache() = runBlocking {
+        val local = FakeLocal()
+        val repository = WalletActivityRepository(FakeRemote(), local)
+        val wallet = wallet("T" + "1".repeat(33), WalletEcosystem.TRON)
+
+        repository.refresh(wallet, guest = false)
+        val cached = repository.readCached(wallet, guest = false)
+
+        assertEquals(listOf("tron"), cached?.networksChecked)
+        assertTrue(local.account.containsKey("wallet_activity:wallet-1"))
+        assertTrue(local.guest.isEmpty())
+    }
+
 }

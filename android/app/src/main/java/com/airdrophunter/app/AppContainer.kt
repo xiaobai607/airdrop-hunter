@@ -9,6 +9,7 @@ import com.airdrophunter.app.data.RetrofitProjectsRemoteDataSource
 import com.airdrophunter.app.data.WalletRepository
 import com.airdrophunter.app.data.WalletActivityRepository
 import com.airdrophunter.app.data.RetrofitWalletActivityRemoteDataSource
+import com.airdrophunter.app.data.CacheStoreWalletActivityLocalDataSource
 import com.airdrophunter.app.data.RetrofitWalletRemoteDataSource
 import com.airdrophunter.app.data.CacheStoreWalletLocalDataSource
 import com.airdrophunter.app.data.DefaultAssetRepository
@@ -43,7 +44,10 @@ class AppContainer {
     }
 
     val walletActivityRepository: WalletActivityRepository by lazy {
-        WalletActivityRepository(RetrofitWalletActivityRemoteDataSource(apiService))
+        WalletActivityRepository(
+            RetrofitWalletActivityRemoteDataSource(apiService),
+            CacheStoreWalletActivityLocalDataSource()
+        )
     }
 
     val assetRepository: AssetRepository by lazy { DefaultAssetRepository() }
