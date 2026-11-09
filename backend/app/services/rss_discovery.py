@@ -82,6 +82,8 @@ def parse_feed(xml_bytes: bytes, feed_url: str) -> list[dict[str, object]]:
     for item in items[:MAX_ITEMS_PER_FEED]:
         title = _child_text(item, {"title"})[:300]
         raw_link = _child_text(item, {"link"})
+        if not raw_link:
+            continue
         item_url = urljoin(feed_url, raw_link)
         parsed = urlparse(item_url)
         if not title or parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
