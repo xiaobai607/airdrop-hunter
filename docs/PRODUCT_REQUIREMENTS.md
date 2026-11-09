@@ -490,3 +490,11 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - The readiness endpoint already compares the database Alembic revision with the current migration head. Its regression test now derives the expected revision from the repository's real migration directory instead of hard-coding an older migration ID.
 - This keeps the deployment readiness test valid as future migrations are added and continues to assert that a database behind the code head returns HTTP 503.
 - PR #95 added a manual backup/restore drill; actual execution remains pending until the isolated restore database and repository secrets are configured.
+
+
+### Deployment readiness blocks unsafe redirects before following them (PR pending, 2026-11-10)
+
+- Validate every redirect target inside urllib's redirect handler before sending the redirected request.
+- Reject redirects to another hostname, port, or non-HTTPS URL at the redirect boundary; do not wait until after contacting the redirected server.
+- Same-origin HTTPS redirects remain supported. Regression tests cover cross-origin rejection, HTTPS downgrade rejection, same-origin acceptance, and oversized-response rejection through the opener-based request path.
+- The checker remains unauthenticated and accepts only configured public HTTPS base URLs.
