@@ -233,4 +233,79 @@ class ProjectsRepositoryTest {
         }
     }
 
+
+    @Test fun guestProjectCreatePreservesAllFieldsAndNormalizesInput() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            val created = repository.createProject(
+                ProjectWriteRequest(
+                    name = "  Project  ", description = " details ", status = "tracking",
+                    official_url = " https://project.example ", claim_url = "https://project.example/claim",
+                    twitter_url = "https://social.example/project", deadline = "2027-01-01T00:00:00Z",
+                    expected_income = 12.5, gas_cost = 3.25, actual_income = 8.0
+                ), guest = true
+            ).single()
+            assertEquals("Project", created.name)
+            assertEquals("details", created.description)
+            assertEquals("https://project.example", created.official_url)
+            assertEquals("https://social.example/project", created.twitter_url)
+            assertEquals("2027-01-01T00:00:00Z", created.deadline)
+            assertEquals(12.5, created.expected_income, 0.0)
+            assertEquals(3.25, created.gas_cost, 0.0)
+            assertEquals(8.0, created.actual_income, 0.0)
+        }
+    }
+
+    @Test fun guestProjectWritesRejectInvalidStatusAmountsAndUnsafeUrls() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            val invalid = listOf(
+                ProjectWriteRequest(" ", "", "tracking"),
+                ProjectWriteRequest("Name", "", "unknown"),
+                ProjectWriteRequest("Name", "", "tracking", official_url = "http://project.example"),
+                ProjectWriteRequest("Name", "", "tracking", twitter_url = "https://user:pass@social.example"),
+                ProjectWriteRequest("Name", "", "tracking", expected_income = Double.NaN),
+                ProjectWriteRequest("Name", "", "tracking", gas_cost = -1.0)
+            )
+            invalid.forEach { request ->
+                val error = runCatching { repository.createProject(request, guest = true) }.exceptionOrNull()
+                assertTrue(error is IllegalArgumentException)
+            }
+            assertFalse(local.guest.containsKey("projects"))
+        }
+    }
+
+    @Test fun deletingProjectClearsItsTaskCacheButKeepsConfirmedPnlProject() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            val project = project("delete-with-tasks")
+            val task = TaskDto("task-1", project.id, "Do work", false, 1)
+            local.write("projects", com.google.gson.Gson().toJson(listOf(project)), true)
+            local.write("tasks:${project.id}", com.google.gson.Gson().toJson(listOf(task)), true)
+            local.write("pnl_projects", com.google.gson.Gson().toJson(listOf(project("ledger-history"))), true)
+
+            repository.deleteProject(project, guest = true)
+
+            assertTrue(repository.readCachedTasks(project.id, guest = true).isEmpty())
+            assertEquals(listOf("ledger-history"), repository.readCachedProjects(true).map { it.id })
+        }
+    }
+
+    @Test fun guestTaskRenameRejectsNamesLongerThanBackendLimit() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            val task = TaskDto("task-1", "p1", "Original", false, 1)
+            local.write("tasks:p1", com.google.gson.Gson().toJson(listOf(task)), true)
+            val error = runCatching {
+                repository.renameTask("p1", task, "x".repeat(241), true, listOf(task))
+            }.exceptionOrNull()
+            assertTrue(error is IllegalArgumentException)
+            assertEquals("Original", repository.readCachedTasks("p1", true).single().task_name)
+        }
+    }
+
 }

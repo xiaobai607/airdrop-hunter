@@ -3,6 +3,7 @@ package com.airdrophunter.app.data
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.UUID
+import java.net.URI
 
 /**
  * Narrow persistence boundary for the project feature. Guest data and authenticated
@@ -83,21 +84,27 @@ class ProjectsRepository(
     }
 
     suspend fun createProject(request: ProjectWriteRequest, guest: Boolean): List<ProjectDto> {
+        val normalized = normalizeProjectRequest(request)
         if (guest) {
             val current = readCachedProjects(guest = true)
             val created = ProjectDto(
                 id = UUID.randomUUID().toString(),
-                name = request.name,
-                description = request.description,
-                status = request.status,
-                official_url = request.official_url,
-                claim_url = request.claim_url
+                name = normalized.name,
+                description = normalized.description,
+                status = normalized.status,
+                official_url = normalized.official_url,
+                claim_url = normalized.claim_url,
+                twitter_url = normalized.twitter_url,
+                deadline = normalized.deadline,
+                expected_income = normalized.expected_income,
+                gas_cost = normalized.gas_cost,
+                actual_income = normalized.actual_income
             )
             val updated = current + created
             local.write("projects", gson.toJson(updated), guest = true)
             return mergePnlProjects(updated)
         }
-        remote.createProject(request)
+        remote.createProject(normalized)
         return refreshProjects()
     }
 
@@ -106,32 +113,27 @@ class ProjectsRepository(
         request: ProjectWriteRequest,
         guest: Boolean
     ): List<ProjectDto> {
+        val normalized = normalizeProjectRequest(request)
         if (guest) {
             val current = decodeList<ProjectDto>(local.read("projects", true), projectsType)
             require(current.any { it.id == project.id }) { "项目不存在或不是本地自建项目" }
-            val normalizedName = request.name.trim()
-            require(normalizedName.isNotEmpty() && normalizedName.length <= 120) { "项目名称不能为空且不能超过120个字符" }
-            require(request.description.length <= 5000) { "项目说明不能超过5000个字符" }
-            require(request.claim_url.isBlank() || request.claim_url.startsWith("https://", ignoreCase = true)) {
-                "资格查询入口必须是 HTTPS URL"
-            }
             val updatedProject = project.copy(
-                name = normalizedName,
-                description = request.description.trim(),
-                status = request.status,
-                official_url = request.official_url.trim(),
-                claim_url = request.claim_url.trim(),
-                twitter_url = request.twitter_url.trim(),
-                deadline = request.deadline,
-                expected_income = request.expected_income,
-                gas_cost = request.gas_cost,
-                actual_income = request.actual_income
+                name = normalized.name,
+                description = normalized.description,
+                status = normalized.status,
+                official_url = normalized.official_url,
+                claim_url = normalized.claim_url,
+                twitter_url = normalized.twitter_url,
+                deadline = normalized.deadline,
+                expected_income = normalized.expected_income,
+                gas_cost = normalized.gas_cost,
+                actual_income = normalized.actual_income
             )
             val updated = current.map { if (it.id == project.id) updatedProject else it }
             local.write("projects", gson.toJson(updated), guest = true)
             return mergePnlProjects(updated)
         }
-        remote.updateProject(project.id, request)
+        remote.updateProject(project.id, normalized)
         return refreshProjects()
     }
 
@@ -140,6 +142,10 @@ class ProjectsRepository(
         val current = readCachedProjects(guest)
         val updated = current.filterNot { it.id == project.id }
         local.write("projects", gson.toJson(updated), guest)
+        // Project tasks and wallet assignments are project-owned working data. Keep
+        // confirmed P&L and interaction history intact when a project is removed.
+        local.write("tasks:${project.id}", "[]", guest)
+        runCatching { CacheStore.saveProjectWalletAssignments(project.id, emptySet()) }
         return mergePnlProjects(updated)
     }
 
@@ -212,6 +218,35 @@ class ProjectsRepository(
         requireTaskBelongsToProject(projectId, task, current)
         if (!guest) remote.deleteTask(projectId, task.id)
         return current.filterNot { it.id == task.id }.also { saveTasks(projectId, it, guest) }
+    }
+
+    private fun normalizeProjectRequest(request: ProjectWriteRequest): ProjectWriteRequest {
+        val name = request.name.trim()
+        val description = request.description.trim()
+        require(name.isNotEmpty() && name.length <= 120) { "项目名称不能为空且不能超过120个字符" }
+        require(description.length <= 5000) { "项目说明不能超过5000个字符" }
+        require(request.status in setOf("tracking", "upcoming", "completed")) { "项目状态无效" }
+        require(listOf(request.expected_income, request.gas_cost, request.actual_income).all {
+            it.isFinite() && it >= 0.0 && it <= 999_999_999_999.9999
+        }) { "项目金额必须是有效的非负数" }
+        fun validateUrl(value: String, label: String): String {
+            val normalized = value.trim()
+            if (normalized.isEmpty()) return normalized
+            val parsed = runCatching { URI(normalized) }.getOrNull()
+            require(
+                parsed != null && parsed.scheme.equals("https", ignoreCase = true) &&
+                    !parsed.host.isNullOrBlank() && parsed.rawUserInfo == null &&
+                    parsed.port <= 65535
+            ) { "$label必须是有效的 HTTPS URL" }
+            return normalized
+        }
+        return request.copy(
+            name = name,
+            description = description,
+            official_url = validateUrl(request.official_url, "项目官网"),
+            claim_url = validateUrl(request.claim_url, "资格查询入口"),
+            twitter_url = validateUrl(request.twitter_url, "社交链接")
+        )
     }
 
     suspend fun checkWallet(address: String): WalletCheckResponse = remote.checkWallet(address.trim())
