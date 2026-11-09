@@ -160,6 +160,8 @@ interface UserInteractionDao {
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insert(interaction: UserInteractionEntity)
     @Query("SELECT * FROM user_interactions WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope ORDER BY timestamp DESC")
     fun observeByProject(projectLocalId: String, accountScope: String): Flow<List<UserInteractionEntity>>
+    @Query("SELECT * FROM user_interactions WHERE accountScope = :accountScope ORDER BY timestamp DESC")
+    suspend fun getAll(accountScope: String): List<UserInteractionEntity>
     @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND ((LOWER(:network) = 'solana' AND txHash = :txHash) OR (LOWER(:network) != 'solana' AND LOWER(txHash) = LOWER(:txHash))) AND ((LOWER(:network) IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (LOWER(:network) NOT IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND walletAddress = :walletAddress)))")
     suspend fun hasTransaction(accountScope: String, network: String, walletAddress: String, txHash: String): Boolean
 }
@@ -318,6 +320,12 @@ object CacheStore {
 
     suspend fun readUserProjects(): List<UserProjectEntity> = withContext(Dispatchers.IO) {
         database?.userProjectDao()?.getAll(currentAccountScope()).orEmpty()
+    }
+
+    suspend fun getUserStats(): UserStatsDto = withContext(Dispatchers.IO) {
+        val db = database ?: return@withContext UserStatsDto()
+        val scope = currentAccountScope()
+        calculateLocalUserStats(db.userProjectDao().getAll(scope), db.userInteractionDao().getAll(scope))
     }
 
     suspend fun joinCommunityProject(projectOfficialId: String, projectName: String): Boolean =

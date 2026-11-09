@@ -33,5 +33,14 @@ data class UserStatsDto(
     val tracked_projects: Int = 0,
     val completed_projects: Int = 0,
     val total_actual_income: Double = 0.0,
-    val interaction_days: Int = 0
+    val interaction_days: Int = 0,
+    val ledger_project_count: Int = 0,
+    val ledger_total_gas_cost: Double = 0.0,
+    val ledger_total_actual_reward: Double = 0.0,
+    val ledger_net_profit: Double = 0.0,
+    val profitable_projects: Int = 0,
+    val evaluated_projects: Int = 0,
+    val win_rate: Double = 0.0,
+    val ledger_interaction_days: Int = 0,
+    val total_interactions: Int = 0
 )
