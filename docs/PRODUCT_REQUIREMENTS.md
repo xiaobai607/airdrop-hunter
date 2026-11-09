@@ -2,6 +2,18 @@
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
+
+## 0. Mandatory continuation gate — apply whenever the user says “继续”
+
+Before doing any further implementation work:
+1. Re-read this document as the single authoritative requirements and progress ledger; do not rely on a remembered or older summary.
+2. Compare the latest user instructions with this document. The user's latest explicit correction overrides older statements and implementation assumptions; update this document before proceeding if a conflict is found.
+3. Check the actual GitHub main branch, open PRs, latest commit SHA, and CI result. Never treat an older commit's CI result as validation of a newer commit.
+4. Separate requirements into **complete in code**, **partial**, **in progress**, **pending verification**, **deferred**, and **cancelled**. Do not report a feature complete based only on a plan, PR creation, or unverified deployment.
+5. Choose the next task by dependency and user priority. Do not re-open completed work without a demonstrated defect, and never reintroduce cancelled/deferred scope without explicit user approval.
+6. For every implementation PR, update this document's requirements/progress ledger in the same change. Keep GitHub Actions usage low: validate coherent batches and avoid unnecessary duplicate runs.
+7. Before reporting back, state what changed, what was actually verified, what remains, and the next dependency-driven task.
+
 ## 1. Product and engineering boundaries
 
 - Product: Airdrop Hunter, an Android application for airdrop projects, task tracking, wallet-address management, Gas/reward accounting, and community project statistics.
@@ -18,14 +30,14 @@ This policy is authoritative across Android storage, API requests, database mode
 
 | Data layer | Guest | Logged-in user |
 |---|---|---|
-| Detailed personal ledger (wallet addresses, Gas details, rewards, project participation, transaction references, timestamps) | Stored locally AND uploaded to a private anonymous cloud vault; recoverable by the guest's recovery credential | Stored locally and uploaded to the user's private cloud ledger |
-| Private cloud restore | Guest can restore the private anonymous vault on another device using its recovery credential | Account-scoped restore on another device |
+| Detailed personal ledger (wallet addresses, Gas details, rewards, project participation, transaction references, timestamps) | Stored in app-private local storage only | Stored locally and uploaded to the user's private cloud ledger |
+| Private cloud restore | Not available; clearing app data or uninstalling loses guest details | Account-scoped restore on another device |
 | Public community contribution | Valid confirmed Gas, actual rewards, and project participation may contribute | Same |
 | Public contribution storage | Anonymous aggregate only; no wallet address, tx hash, personal ledger row, or account identity | Same; must not be linked to the user's account |
-| Clearing/uninstalling app data | Local copy is lost; private cloud vault remains recoverable with the guest recovery credential | Cloud private ledger remains available to that account |
+| Clearing/uninstalling app data | Local private data is lost; no server copy exists | Cloud private ledger remains available to that account |
 
 Additional rules:
-- Guest does not mean “do not save”: guest personal details MUST be saved in the local app database.
+- Guest personal details are saved in the app-private local database only. They are not uploaded to a private cloud vault. Clearing app data or uninstalling the app loses guest personal details.
 - Public aggregate data is separate from the private ledger. Never expose individual bills, addresses, hashes, or account identifiers in public project statistics.
 - Only user-confirmed actual Gas/reward values are eligible for public totals. Estimates and mock/demo records are excluded.
 - Contributions must be idempotent and retry-safe.
@@ -63,7 +75,7 @@ Additional rules:
 - Link imported chain transactions to a project only with user selection; never infer a project without evidence.
 - Prefill actual Gas only when payer attribution is reliable. Ambiguous/shared fees require manual review.
 - Project-level accounting, cost, actual rewards, net P&L, interaction history, and day/week/month statistics.
-- Guest private accounting syncs to a separate anonymous cloud vault and is recoverable with a guest recovery credential; it must never be attached to another user's account. Logged-in private accounting syncs to the authenticated account-scoped cloud ledger.
+- Guest private accounting remains local-only. Logged-in private accounting syncs to the authenticated account-scoped cloud ledger.
 
 ## 6. Projects and tasks
 
@@ -210,7 +222,7 @@ The main data path is intentionally one-way at each boundary:
 
 1. **Wallet/address layer:** user adds a public address -> account/guest-scoped wallet repository -> read-only chain activity refresh/cache.
 2. **Accounting layer:** user selects a transaction or enters an interaction -> pending bill -> user manually reviews/enters actual Gas and actual reward -> one Room transaction updates the private ledger, project P&L, interaction history, and (only if eligible) public-contribution outbox.
-3. **Private sync layer:** authenticated users sync/restore detailed ledger rows through account-scoped authenticated APIs; guests use only the separate anonymous-vault endpoints and never call authenticated account-ledger endpoints.
+3. **Private sync layer:** authenticated users sync/restore detailed ledger rows through account-scoped authenticated APIs; guests do not sync private ledger details to any cloud endpoint.
 4. **Public contribution layer:** both guest and authenticated sessions may send only project ID + confirmed aggregate Gas/actual reward + event ID/count. The server stores public contribution rows with no account identity; idempotency prevents duplicate retries.
 5. **Community presentation layer:** server-side scheduled jobs aggregate anonymous contributions into static JSON; Android Room cache renders first and CDN revalidation updates silently. Community UI must not bypass this path with live per-project aggregation.
 6. **Project/task layer:** project and task ownership, project-to-wallet assignments, and ledger links are separate from public project metadata. A transaction is linked to a project only by explicit user selection.
@@ -302,15 +314,13 @@ Recommended next implementation order, based on shared-code dependencies:
 - Legacy address-format tests use a checksum-valid Bitcoin Base58Check fixture rather than a shape-only fake address, matching the stricter validator contract.
 - PR #72 follow-up fixes the two Android unit-test regressions found by CI; merge remains blocked until Android build/unit tests and backend tests pass.
 
+### Binding user correction — guest data ownership reaffirmed (2026-11-09)
 
-### Binding user correction — guest private cloud vault (2026-11-09)
+This is the user's latest confirmed rule and overrides any contradictory text introduced in an earlier draft or implementation note:
 
-This correction supersedes every older statement in this document that says guest personal details are local-only, cannot be restored, or must never be uploaded.
-
-- Guests must have full functionality and their detailed personal information/ledger (including wallet addresses, Gas details, rewards, projects, chains, timestamps, and transaction references) must be saved in a private cloud vault as well as locally.
-- Guest private cloud data is for that guest alone and must be recoverable across devices / after reinstall through a secure guest recovery mechanism. Do not require account registration merely to use guest mode.
-- Anonymous guest-vault records are private personal data, NOT public community contributions. They must never be queryable by other users or included in public snapshots.
-- Public community contribution remains a separate, minimal, anonymous aggregate channel containing only eligible confirmed project totals and idempotency metadata. Never send wallet addresses, transaction hashes, or detailed personal ledger rows to this channel.
-- Logged-in users continue to use authenticated account-scoped cloud storage. Guest vault data must not silently merge into a logged-in account; any migration/merge must be explicit and preserve ownership.
-- Engineering status on this date: the current implementation still stores guest private details locally and skips the authenticated private-ledger sync when no account token exists. Therefore guest private cloud vault, recovery, server isolation, migration/merge, and tests are NOT implemented yet.
-- The implementation must define a recoverable credential/key lifecycle before coding the endpoints. The secret must not be stored in plaintext on the server; use secure transport, server-side rate limits, scoped authorization, and encryption for sensitive vault payloads. Do not claim cross-device recovery until verified on two real devices.
+- Guest private details (wallet addresses, Gas records, rewards, projects, chains, timestamps, and transaction records) are stored only in the app-private local database.
+- Guest private details are NOT uploaded to a private cloud vault. Do not design or implement anonymous guest-vault endpoints, recovery credentials, or guest private cloud synchronization.
+- Clearing app data or uninstalling the app removes the guest's private local records; there is no cloud copy to restore.
+- Guest users may still contribute eligible, user-confirmed, anonymous aggregate Gas/reward/project participation data to the public community statistics. This contribution channel is separate from the private ledger and must never contain wallet addresses, transaction hashes, or detailed personal records.
+- Logged-in users' detailed personal ledgers continue to sync to their authenticated, account-scoped cloud storage and can be restored after signing into that account.
+- Never confuse public anonymous aggregate contribution with private personal cloud backup. The former is allowed for guests; the latter is not.
