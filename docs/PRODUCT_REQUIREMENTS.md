@@ -151,6 +151,7 @@ Additional rules:
 - PR #49: rolling 24-hour confirmed community activity and new-star ranking; merged commit 7dcf9fecf41bbb58bda0634a4d6e57599ad21506.
 - PR #50: verified global community star ratings; merged commit 3d8e9dff7db59471f63df4a6b2da9619e0c1efe6.
 - PR #51: internal community project search by name, chain, and tags; merged commit 1902ecc74fc1307c3d6785842f55f6892aa6a3ff.
+- PR #52: project task-name editing for guest-local and authenticated account tasks, with server ownership checks and name validation; merged commit 30b1c58849bbc4606b618cc5c74e0186d9e1892f.
 
 ### Current audit findings
 
@@ -163,7 +164,7 @@ Additional rules:
 - Source audit confirms guest wallet addresses are stored in the guest-scoped app cache and authenticated wallet lists are fetched from the private wallet API and cached by account scope. Device-level app-data clearing and account-switch behavior still require real-device acceptance; production database backup/restore also remains unverified.
 - Community implementation: PR #48 adds guest/account-scoped local favorites; cross-device favorite sync remains pending. PR #49 adds rolling 24-hour confirmed interaction heat and uses it for the new-star ranking. PR #50 adds global 1–5 star aggregates for logged-in accounts after server verification against confirmed private-ledger participation; guest ratings remain local-only. PR #51 adds in-app search over the existing seven-project catalog; this does not search external websites. The catalog is still a fixed seven-project list; dynamic catalog management remains pending. Public metrics count contribution events/interactions, not unique people, to avoid introducing account/device tracking into anonymous public contributions.
 - Personal achievement: implemented in PR #47. Guest metrics read the guest-scoped local ledger; logged-in metrics read the authenticated private cloud ledger. Win rate uses only projects with confirmed ledger interactions.
-- Task management currently supports create, complete, and delete; task-name editing is the next in-progress item in this PR.
+- Task management now supports create, rename/edit, complete, and delete for guest-local and authenticated projects. PR #52 adds the edit flow and backend validation. Reordering tasks and richer task scheduling/reminders are not yet implemented unless separately requested.
 - Real-device acceptance for browser/wallet bridge, Android transaction import, guest data clearing, and cross-device restore remains pending.
 
 ### Status discipline
