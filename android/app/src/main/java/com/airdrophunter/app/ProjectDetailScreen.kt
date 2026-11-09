@@ -823,13 +823,13 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
 }
 
 @Composable
-private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double, color: Color) {
+private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double?, color: Color) {
     Column(
         modifier.background(AppColors.Background, RoundedCornerShape(12.dp)).padding(horizontal = 9.dp, vertical = 11.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(label, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-        Text(String.format(Locale.US, "$%.2f", value), color = color,
+        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: "估值未完整", color = color,
             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
