@@ -1,13 +1,21 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
+import hashlib
+import re
 
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, ConfigDict
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import AirdropDiscoveryCandidate
+from app.models import AirdropDiscoveryCandidate, CommunityProjectCatalogEntry
+from app.api.community_catalog import (
+    normalize_project_url,
+    normalized_identity,
+    ProjectSubmission,
+    require_catalog_admin,
+)
 
 router = APIRouter(prefix="/api/airdrops/discovery", tags=["airdrop-discovery"])
 
@@ -25,13 +33,21 @@ class DiscoveryCandidateResponse(BaseModel):
     last_seen_at: datetime
 
 
+class CandidateReviewResponse(DiscoveryCandidateResponse):
+    review_status: str
+    reviewed_at: datetime | None
+    reviewed_catalog_id: str | None
+
+
 @router.get("/candidates", response_model=list[DiscoveryCandidateResponse])
 async def list_discovery_candidates(
     q: str | None = Query(default=None, max_length=160),
     limit: int = Query(default=100, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ):
-    statement = select(AirdropDiscoveryCandidate)
+    statement = select(AirdropDiscoveryCandidate).where(
+        AirdropDiscoveryCandidate.review_status == "pending"
+    )
     if q and q.strip():
         statement = statement.where(AirdropDiscoveryCandidate.title.ilike(f"%{q.strip()}%"))
     statement = statement.order_by(
@@ -40,3 +56,102 @@ async def list_discovery_candidates(
     ).limit(limit)
     rows = await db.scalars(statement)
     return list(rows)
+
+
+@router.get(
+    "/candidates/review-queue",
+    response_model=list[CandidateReviewResponse],
+    dependencies=[Depends(require_catalog_admin)],
+)
+async def list_candidate_review_queue(
+    status: str = Query(default="pending", pattern="^(pending|approved|rejected|all)$"),
+    limit: int = Query(default=100, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    statement = select(AirdropDiscoveryCandidate)
+    if status != "all":
+        statement = statement.where(AirdropDiscoveryCandidate.review_status == status)
+    statement = statement.order_by(
+        AirdropDiscoveryCandidate.first_seen_at.asc()
+    ).limit(limit)
+    return list(await db.scalars(statement))
+
+
+@router.post(
+    "/candidates/{candidate_id}/approve",
+    dependencies=[Depends(require_catalog_admin)],
+)
+async def approve_discovery_candidate(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    candidate = await db.get(AirdropDiscoveryCandidate, candidate_id)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="待审核项目不存在")
+    if candidate.review_status != "pending":
+        raise HTTPException(status_code=409, detail="该候选项目已经审核，不能重复操作")
+
+    try:
+        submission = ProjectSubmission(name=candidate.title, url=candidate.item_url)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail="项目名称或链接未通过安全校验") from exc
+
+    identity = normalized_identity(submission.name)
+    canonical_url = submission.url
+    projects = list(await db.scalars(select(CommunityProjectCatalogEntry)))
+    for project in projects:
+        same_url = bool(project.website_url) and normalize_project_url(project.website_url) == canonical_url
+        if same_url or normalized_identity(project.name) == identity:
+            candidate.review_status = "approved"
+            candidate.reviewed_catalog_id = project.project_official_id
+            candidate.reviewed_at = datetime.now(timezone.utc)
+            await db.commit()
+            return {
+                "status": "duplicate",
+                "message": "目录中已存在相同项目，已关联现有项目",
+                "project_official_id": project.project_official_id,
+            }
+
+    slug = re.sub(r"[^a-z0-9]+", "-", submission.name.casefold()).strip("-")[:80] or "project"
+    suffix = hashlib.sha256(f"{candidate.id}:{identity}:{canonical_url}".encode()).hexdigest()[:12]
+    project_id = f"{slug}-{suffix}"[:120]
+    entry = CommunityProjectCatalogEntry(
+        project_official_id=project_id,
+        name=submission.name,
+        chain="Unknown",
+        logo="",
+        description=(candidate.summary or "")[:5000],
+        tags=[],
+        website_url=canonical_url,
+        is_active=True,
+        sort_order=100000,
+    )
+    db.add(entry)
+    candidate.review_status = "approved"
+    candidate.reviewed_catalog_id = project_id
+    candidate.reviewed_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {
+        "status": "approved",
+        "message": "审核通过，项目已加入社区目录",
+        "project_official_id": project_id,
+    }
+
+
+@router.post(
+    "/candidates/{candidate_id}/reject",
+    dependencies=[Depends(require_catalog_admin)],
+)
+async def reject_discovery_candidate(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    candidate = await db.get(AirdropDiscoveryCandidate, candidate_id)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="待审核项目不存在")
+    if candidate.review_status != "pending":
+        raise HTTPException(status_code=409, detail="该候选项目已经审核，不能重复操作")
+    candidate.review_status = "rejected"
+    candidate.reviewed_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"status": "rejected", "message": "候选项目已拒绝"}
