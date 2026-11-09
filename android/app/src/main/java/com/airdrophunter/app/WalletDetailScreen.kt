@@ -32,6 +32,7 @@ import java.util.UUID
 fun WalletDetailScreen(
     wallet: WalletDto,
     onBack: () -> Unit,
+    isGuest: Boolean = false,
     vm: WalletDetailViewModel? = null
 ) {
     val context = LocalContext.current
@@ -83,7 +84,7 @@ fun WalletDetailScreen(
                 modifier = Modifier.weight(1f)
             )
         } else {
-            WalletActivityPanel(wallet, Modifier.weight(1f))
+            WalletActivityPanel(wallet, Modifier.weight(1f), isGuest)
         }
     }
 }
@@ -91,7 +92,8 @@ fun WalletDetailScreen(
 @Composable
 private fun WalletActivityPanel(
     wallet: WalletDto,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isGuest: Boolean = false
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -106,11 +108,15 @@ private fun WalletActivityPanel(
     var refreshNonce by remember(wallet.address) { mutableIntStateOf(0) }
     var addingHash by remember(wallet.address) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(wallet.address, refreshNonce) {
+    LaunchedEffect(wallet.address, refreshNonce, isGuest) {
         isLoading = true
         errorMessage = null
         try {
-            val result = activityRepository.load(wallet)
+            activityRepository.readCached(wallet, isGuest)?.let { cached ->
+                transactions = cached.transactions
+                networksUnavailable = cached.networksUnavailable
+            }
+            val result = activityRepository.refresh(wallet, isGuest)
             transactions = result.transactions
             networksUnavailable = result.networksUnavailable
         } catch (error: Exception) {
