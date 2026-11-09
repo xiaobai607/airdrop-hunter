@@ -38,9 +38,9 @@ def test_parse_feed_rejects_non_https_or_missing_links():
 
 
 def test_feed_configuration_requires_exact_allowlisted_https_host(monkeypatch):
-    monkeypatch.setenv("AIRDROP_RSS_FEEDS", "good=https://feeds.example/rss;bad=https://evil.example/rss;plain=http://feeds.example/rss")
+    monkeypatch.setenv("AIRDROP_RSS_FEEDS", "good=https://feeds.example/rss;bad=https://evil.example/rss;plain=http://feeds.example/rss;unapproved=https://feeds.example/other.xml")
     monkeypatch.setenv("AIRDROP_RSS_ALLOWED_HOSTS", "feeds.example")
-    monkeypatch.setenv("AIRDROP_RSS_APPROVED_SOURCES", "good")
+    monkeypatch.setenv("AIRDROP_RSS_APPROVED_SOURCES", "good,bad,plain")
     assert _configured_feeds() == [("good", "https://feeds.example/rss")]
 
 
