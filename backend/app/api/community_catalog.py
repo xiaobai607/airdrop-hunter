@@ -2,6 +2,7 @@ import os
 import re
 import secrets
 from typing import Annotated
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -58,8 +59,10 @@ class CatalogWrite(BaseModel):
     @classmethod
     def https_only(cls, value: str) -> str:
         value = value.strip()
-        if value and not value.startswith("https://"):
-            raise ValueError("项目官网必须使用 HTTPS")
+        if value:
+            parsed = urlparse(value)
+            if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+                raise ValueError("项目官网必须是有效的 HTTPS URL")
         return value
 
 
