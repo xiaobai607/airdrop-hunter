@@ -34,6 +34,12 @@ def test_readiness_manifest_requires_all_four_windows_on_same_cdn_host():
     manifest["snapshots"]["3d"]["url"] = "https://attacker.example/3d.json"
     with pytest.raises(ValueError):
         validate_manifest(manifest, "https://cdn.example.test")
+    manifest["snapshots"]["3d"]["url"] = "https://cdn.example.test:8443/3d.json"
+    with pytest.raises(ValueError):
+        validate_manifest(manifest, "https://cdn.example.test")
+    manifest["snapshots"]["3d"]["url"] = "https://cdn.example.test/3d.json?token=secret"
+    with pytest.raises(ValueError):
+        validate_manifest(manifest, "https://cdn.example.test")
 
 
 def test_readiness_snapshot_requires_matching_window_and_money_metadata():

@@ -63,12 +63,19 @@ def validate_manifest(manifest: dict, cdn_base: str) -> dict[str, str]:
         key = str(reference.get("key") or "").strip()
         snapshot_url = raw_url or (urljoin(cdn_base + "/", key) if key else "")
         parsed = urlsplit(snapshot_url)
+        try:
+            same_port = (parsed.port or 443) == (base.port or 443)
+        except ValueError:
+            same_port = False
         if (
             parsed.scheme.lower() != "https"
             or not parsed.hostname
             or parsed.hostname.lower() != (base.hostname or "").lower()
+            or not same_port
             or parsed.username is not None
             or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
         ):
             raise ValueError(f"Community {window} snapshot URL must stay on the configured HTTPS CDN host")
         urls[window] = snapshot_url
