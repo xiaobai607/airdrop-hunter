@@ -1,11 +1,18 @@
 name: Android debug build and backend tests
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
+
+# Keep only the newest validation for a given PR branch.
+# A merge to main does not repeat the same full build after PR checks pass.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
