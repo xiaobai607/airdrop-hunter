@@ -69,7 +69,7 @@ class WalletActivityRepositoryTest {
     fun bitcoinAddressFormatsAreRecognized() {
         assertEquals(WalletEcosystem.BTC, WalletEcosystem.fromAddress("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"))
         assertEquals(WalletEcosystem.BTC, WalletEcosystem.fromAddress("bc1q" + "a".repeat(38)))
-        assertEquals("OTHER", WalletEcosystem.fromAddress("bc1qMixedCaseAddress"))
+        assertEquals("OTHER", WalletEcosystem.fromAddress("bc1q0MixedCaseAddress"))
         // Legacy wallet rows explicitly marked SOL must not be reclassified as BTC
         // merely because Solana and Bitcoin both use Base58 address alphabets.
         assertEquals(WalletEcosystem.SOL, WalletEcosystem.fromAddress("1".repeat(32), WalletEcosystem.SOL))
