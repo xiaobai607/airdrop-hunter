@@ -155,6 +155,7 @@ Additional rules:
 - PR #53: project edit/status/delete controls for guest-local and authenticated account projects; merged commit 5e4b5ec97d602535bdfd0e20cee857deb45f17c5.
 - PR #54: eight-hour WorkManager refresh for saved wallet activity, guest/account-scoped cache, and cached-first transaction display; merged commit f036e75a2df583cc56d0a5cecdca851adf041945.
 - PR #55: wallet labels, tags, notes, Android edit controls, and owner-scoped private cloud updates; merged commit 5bb7b60083d0204c13b8b8d0a400f8c8aa5ecb1e.
+- PR #56: authenticated private-ledger one-time retry and eight-hour WorkManager fallback; guest accounts are skipped; merged commit d23cca51377c241c05e3dc0fe866f3e9d408c111.
 
 ### Current audit findings
 
@@ -171,7 +172,7 @@ Additional rules:
 - Project management now exposes edit, status changes, and delete in the Android project list. PR #53 preserves confirmed ledger history when removing a project from the list. Ledger-derived project summaries remain read-only.
 - Project-wallet association is currently represented by wallet addresses on confirmed project interactions and the wallet selected for a project claim. A separate persistent project-to-multiple-wallet assignment manager is not yet implemented and remains partial.
 - PR #54 adds manual plus eight-hour background refresh of saved wallet transaction activity. Background snapshots are cached locally by guest/account scope and never auto-create ledger rows or public contributions.
-- Sync is not yet app-wide: community contribution outbox has its own periodic worker; wallet activity has an eight-hour worker. There is no unified refresh coordinator for every data source.
+- Sync is not yet app-wide: community contribution outbox has its own periodic worker; wallet activity has an eight-hour worker; PR #56 adds account-private ledger retry plus an eight-hour fallback. There is no unified refresh coordinator for every data source.
 - The Airdrop Hub currently has a manual refresh path backed by the existing external public data feed. Do not add automatic discovery/crawling or periodic external feed refresh without revisiting the user's cancelled public website-discovery scope.
 - Real-device acceptance for browser/wallet bridge, Android transaction import, guest data clearing, and cross-device restore remains pending.
 
