@@ -249,3 +249,5 @@ Use only these states: **complete in code**, **partial**, **in progress**, **pen
 - Community project metadata and aggregate metrics on the square screen are derived from the overall static snapshot; per-project live stats API calls are removed from that screen.
 - The CDN base URL is an optional build-time `COMMUNITY_SNAPSHOT_BASE_URL`. Until a public CDN URL and production storage/Cron are configured, the app keeps any existing Room copy and otherwise shows an unavailable state; no live database fallback is silently enabled.
 - All four snapshot windows are supported by the repository API for the next detail-screen integration. No Room schema migration is required because public JSON uses the existing cached_payloads table.
+
+- The micro-community project detail now presents the four snapshot windows vertically (overall, 7d, 3d, 1h), with each non-overall bar showing that snapshot’s own update time. The 24-hour heat metric remains separate and is read from the freshest available snapshot; the detail view no longer calls the live per-project stats endpoint.
