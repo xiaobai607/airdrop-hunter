@@ -81,6 +81,18 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
         }
     }
 
+    fun update(wallet: WalletDto, request: WalletWriteRequest, isGuest: Boolean = false) = viewModelScope.launch {
+        _state.value = _state.value.copy(isSaving = true, error = null)
+        try {
+            val wallets = repository.update(wallet, request, isGuest, _state.value.wallets)
+            _state.value = _state.value.copy(wallets = wallets, isSaving = false, error = null)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            _state.value = _state.value.copy(isSaving = false, error = error.message ?: "更新钱包信息失败")
+        }
+    }
+
     fun delete(wallet: WalletDto, isGuest: Boolean = false) = viewModelScope.launch {
         _state.value = _state.value.copy(isSaving = true, error = null)
         try {
