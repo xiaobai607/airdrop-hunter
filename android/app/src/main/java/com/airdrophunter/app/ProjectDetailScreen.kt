@@ -291,7 +291,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
             text = {
                 OutlinedTextField(
                     value = editedTaskName,
-                    onValueChange = { editedTaskName = it },
+                    onValueChange = { if (it.length <= 240) editedTaskName = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     label = { Text("任务名称") }
