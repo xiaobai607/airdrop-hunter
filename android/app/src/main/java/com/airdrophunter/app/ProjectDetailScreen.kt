@@ -26,6 +26,7 @@ import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.UserInteractionEntity
 import com.airdrophunter.app.data.formatLedgerAssetBreakdown
+import com.airdrophunter.app.data.aggregateLedgerAssetPeriodTotals
 import com.airdrophunter.app.data.TaskDto
 import com.airdrophunter.app.data.WalletDto
 import kotlinx.coroutines.launch
@@ -265,6 +266,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
             val periodGas = periodInteractions.sumOf { it.gasCostUsd }
             val periodReward = periodInteractions.sumOf { it.actualRewardUsd }
             val periodNet = periodReward - periodGas
+            val gasAssetTotals = remember(periodInteractions) { aggregateLedgerAssetPeriodTotals(periodInteractions, "gas") }
+            val rewardAssetTotals = remember(periodInteractions) { aggregateLedgerAssetPeriodTotals(periodInteractions, "reward") }
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
@@ -303,6 +306,20 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         LedgerPeriodMetric(Modifier.weight(1f), "净盈亏", periodNet,
                             if (periodNet >= 0.0) AppColors.Success else AppColors.Danger)
                     }
+                    if (gasAssetTotals.isNotEmpty() || rewardAssetTotals.isNotEmpty()) {
+                        Text(
+                            "原生币种明细（按网络分别统计，不跨币种相加）",
+                            color = AppColors.TextSecondary,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        NativeAssetPeriodSection("Gas 原生币种", gasAssetTotals)
+                        NativeAssetPeriodSection("实际奖励原生币种", rewardAssetTotals)
+                    }
+                    Text(
+                        "上方金额为 USD 估值汇总；原生币种数量独立展示，估值不完整时不会显示合计。",
+                        color = AppColors.TextHelper,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
         }
@@ -453,6 +470,34 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
 
 }
 
+
+
+@Composable
+private fun NativeAssetPeriodSection(
+    title: String,
+    totals: List<com.airdrophunter.app.data.LedgerAssetPeriodTotal>
+) {
+    if (totals.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Text(title, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelMedium)
+        totals.forEach { total ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${total.network.uppercase(Locale.US)} · ${total.amountNative.stripTrailingZeros().toPlainString()} ${total.symbol}",
+                    modifier = Modifier.weight(1f),
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    total.usdValuation?.let { "USD估值 $%.2f".format(Locale.US, it) } ?: "USD估值不完整",
+                    color = AppColors.TextHelper,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun InteractionLedgerRow(interaction: UserInteractionEntity) {

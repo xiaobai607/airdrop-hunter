@@ -2,6 +2,7 @@ package com.airdrophunter.app.data
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.math.BigDecimal
 
 data class PersonalLedgerWriteRequest(
     val client_record_id: String,
@@ -67,6 +68,59 @@ data class CommunityTokenAggregateDto(
     val valuation_timestamp: String? = null,
     val valuation_source: String? = null
 )
+
+
+data class LedgerAssetPeriodTotal(
+    val network: String,
+    val kind: String,
+    val symbol: String,
+    val decimals: Int?,
+    val amountNative: BigDecimal,
+    val usdValuation: BigDecimal?
+)
+
+/** Aggregate native units only within the same network, currency, precision and kind. */
+fun aggregateLedgerAssetPeriodTotals(
+    interactions: List<UserInteractionEntity>,
+    kind: String
+): List<LedgerAssetPeriodTotal> {
+    data class Key(val network: String, val symbol: String, val decimals: Int?)
+    class Accumulator {
+        var amount = BigDecimal.ZERO
+        var usd = BigDecimal.ZERO
+        var hasCompleteUsd = true
+    }
+
+    val totals = linkedMapOf<Key, Accumulator>()
+    interactions.forEach { interaction ->
+        LedgerAssetBreakdownCodec.decode(interaction.assetBreakdownJson)
+            .filter { it.kind.equals(kind, ignoreCase = true) }
+            .forEach assetLoop@ { asset ->
+                val amount = asset.amount_native.toBigDecimalOrNull()
+                    ?.takeIf { it.signum() >= 0 } ?: return@assetLoop
+                val symbol = asset.symbol.trim().uppercase(java.util.Locale.US)
+                if (symbol.isBlank()) return@assetLoop
+                val network = interaction.network.trim().lowercase(java.util.Locale.US).ifBlank { "unknown" }
+                val key = Key(network, symbol, asset.decimals)
+                val accumulator = totals.getOrPut(key) { Accumulator() }
+                accumulator.amount = accumulator.amount.add(amount)
+                val valuation = asset.usd_valuation?.takeIf { it.isFinite() && it >= 0.0 }
+                if (valuation == null) accumulator.hasCompleteUsd = false
+                else accumulator.usd = accumulator.usd.add(BigDecimal.valueOf(valuation))
+            }
+    }
+
+    return totals.map { (key, value) ->
+        LedgerAssetPeriodTotal(
+            network = key.network,
+            kind = kind.lowercase(java.util.Locale.US),
+            symbol = key.symbol,
+            decimals = key.decimals,
+            amountNative = value.amount,
+            usdValuation = value.usd.takeIf { value.hasCompleteUsd }
+        )
+    }.sortedWith(compareBy<LedgerAssetPeriodTotal> { it.network }.thenBy { it.symbol }.thenBy { it.decimals ?: -1 })
+}
 
 fun formatLedgerAssetBreakdown(json: String?, kind: String? = null): String =
     LedgerAssetBreakdownCodec.decode(json)
