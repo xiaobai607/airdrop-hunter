@@ -1,6 +1,8 @@
 package com.airdrophunter.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.AccountingRepository
 import com.airdrophunter.app.data.ApiClient
@@ -50,9 +53,11 @@ fun MicroCommunityScreen(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val ratings by CacheStore.observeProjectRatings(projectOfficialId).collectAsStateWithLifecycle(initialValue = emptyList())
     val average by CacheStore.observeProjectRatingAverage(projectOfficialId).collectAsStateWithLifecycle(initialValue = null)
     var communityStats by remember(projectOfficialId) { mutableStateOf<CommunityProjectStatsDto?>(null) }
+    var periodSnapshots by remember(projectOfficialId) { mutableStateOf<Map<String, com.airdrophunter.app.data.CommunitySnapshotDto>>(emptyMap()) }
     var statsLoading by remember(projectOfficialId) { mutableStateOf(true) }
     var statsFailed by remember(projectOfficialId) { mutableStateOf(false) }
     var useDemoStats by remember(projectOfficialId) { mutableStateOf(BuildConfig.DEBUG) }
@@ -73,17 +78,18 @@ fun MicroCommunityScreen(
         "optimism" -> CommunityDemoStats(49.00, 117.00, 1390, 4680, 270, 4.6, 91)
         else -> CommunityDemoStats(18.50, 64.00, 320, 980, 20, 4.0, 1)
     }
-    val displayGasTotal = if (useDemoStats) demoStats.gas else communityStats?.total_gas_cost_usd ?: 0.0
-    val displayRewardTotal = if (useDemoStats) demoStats.reward else communityStats?.total_actual_reward_usd ?: 0.0
-    val displayContributionCount = if (useDemoStats) demoStats.contributions else communityStats?.contribution_count ?: 0L
-    val displayInteractionCount = if (useDemoStats) demoStats.interactions else communityStats?.total_interactions ?: 0L
-    val displayRecentInteractions = if (useDemoStats) demoStats.recentInteractions else communityStats?.interactions_24h ?: 0L
-    val displayAverageRating = if (useDemoStats) demoStats.score else communityStats?.average_rating
-    val displayRatingCount = if (useDemoStats) demoStats.ratingCount else communityStats?.rating_count ?: 0L
-    val combinedTotal = (displayGasTotal + displayRewardTotal).coerceAtLeast(1.0)
-    val rewardWeight = if (displayGasTotal + displayRewardTotal <= 0.0) 0.5f
-        else (displayRewardTotal / combinedTotal).toFloat().coerceIn(0.01f, 0.99f)
-    val gasWeight = 1f - rewardWeight
+    val snapshotProjects = remember(periodSnapshots, projectOfficialId) {
+        periodSnapshots.mapValues { (_, snapshot) ->
+            snapshot.projects.firstOrNull { it.project_official_id == projectOfficialId }
+        }
+    }
+    val overallProject = snapshotProjects["overall"]
+    val displayContributionCount = if (useDemoStats) demoStats.contributions else overallProject?.contribution_count ?: 0L
+    val displayInteractionCount = if (useDemoStats) demoStats.interactions else overallProject?.interaction_count ?: 0L
+    val displayRecentInteractions = if (useDemoStats) demoStats.recentInteractions
+        else snapshotProjects["1h"]?.activity_24h?.interaction_count ?: overallProject?.activity_24h?.interaction_count ?: 0L
+    val displayAverageRating = if (useDemoStats) demoStats.score else communityStats?.average_rating ?: overallProject?.average_rating
+    val displayRatingCount = if (useDemoStats) demoStats.ratingCount else communityStats?.rating_count ?: overallProject?.rating_count ?: 0L
     LaunchedEffect(projectOfficialId, sessionScopeKey) {
         wallet = ""
         canRate = false
@@ -93,11 +99,16 @@ fun MicroCommunityScreen(
         saving = false
         statsLoading = true
         statsFailed = false
-        runCatching {
-            ApiClient.initialize(context)
-            ApiClient.service.getCommunityProjectStats(projectOfficialId)
-        }.onSuccess { communityStats = it }
-            .onFailure { statsFailed = true }
+        ApiClient.initialize(context)
+
+        // Show every available Room snapshot immediately, then silently revalidate the CDN.
+        val cachedSnapshots = listOf("overall", "7d", "3d", "1h").mapNotNull { window ->
+            com.airdrophunter.app.data.CommunitySnapshotRepository.readSnapshot(window)?.let { window to it }
+        }.toMap()
+        periodSnapshots = cachedSnapshots
+        val refreshedSnapshots = com.airdrophunter.app.data.CommunitySnapshotRepository.refreshSnapshots()
+        periodSnapshots = refreshedSnapshots.ifEmpty { cachedSnapshots }
+        statsFailed = periodSnapshots.isEmpty()
         statsLoading = false
 
         val type = object : TypeToken<List<WalletDto>>() {}.type
@@ -114,62 +125,98 @@ fun MicroCommunityScreen(
     }
 
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp),
+        Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(projectName, color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("Steam 式真实参与者评价 · 仅星级评分", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF17251F))) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        if (useDemoStats) "社区大盘（测试演示数据）" else "社区大盘（全网用户确认贡献）",
-                        color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
-                    )
-                    if (BuildConfig.DEBUG) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { useDemoStats = true }, contentPadding = PaddingValues(0.dp)) {
-                                Text(if (useDemoStats) "✓ 测试演示" else "测试演示", color = Color(0xFFFFD08A))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(projectName, color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text(overallProject?.chain ?: "全网公开统计", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    }
+                    overallProject?.logo?.takeIf { it.isNotBlank() }?.let { logo ->
+                        Surface(shape = RoundedCornerShape(12.dp), color = AppColors.Surface) {
+                            Text(logo, Modifier.padding(10.dp), color = AppColors.Primary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                overallProject?.description?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+                overallProject?.website_url?.takeIf { it.startsWith("https://", true) }?.let { url ->
+                    TextButton(onClick = { runCatching { uriHandler.openUri(url) } }) {
+                        Text("官方网站：$url", maxLines = 1)
+                    }
+                }
+
+                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF17251F))) {
+                    Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                        Text(
+                            if (useDemoStats) "社区大盘（测试演示数据）" else "社区大盘（静态快照）",
+                            color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
+                        )
+                        if (BuildConfig.DEBUG) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(onClick = { useDemoStats = true }, contentPadding = PaddingValues(0.dp)) {
+                                    Text(if (useDemoStats) "✓ 测试演示" else "测试演示", color = Color(0xFFFFD08A))
+                                }
+                                TextButton(onClick = { useDemoStats = false }, contentPadding = PaddingValues(0.dp)) {
+                                    Text(if (!useDemoStats) "✓ 全网真实" else "全网真实", color = Color.White)
+                                }
                             }
-                            TextButton(onClick = { useDemoStats = false }, contentPadding = PaddingValues(0.dp)) {
-                                Text(if (!useDemoStats) "✓ 全网真实" else "全网真实", color = Color.White)
-                            }
                         }
-                    }
-                    if (useDemoStats) {
-                        Text("仅用于界面和流程测试，不会上传到公共统计", color = Color(0xFFFFD08A), style = MaterialTheme.typography.labelSmall)
-                    }
-                    Row(Modifier.fillMaxWidth().height(30.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Box(Modifier.weight(rewardWeight).fillMaxHeight().background(Color(0xFF31C48D), RoundedCornerShape(topStart = 9.dp, bottomStart = 9.dp)))
-                        Box(Modifier.weight(gasWeight).fillMaxHeight().background(Color(0xFFEF6262), RoundedCornerShape(topEnd = 9.dp, bottomEnd = 9.dp)))
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
-                            Text("总收益", color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
-                            Text(String.format(java.util.Locale.US, "$%,.2f", displayRewardTotal), color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                        if (useDemoStats) {
+                            Text("仅用于界面和流程测试，不会上传到公共统计", color = Color(0xFFFFD08A), style = MaterialTheme.typography.labelSmall)
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("总花费", color = Color(0xFFFFB0B0), style = MaterialTheme.typography.labelSmall)
-                            Text(String.format(java.util.Locale.US, "$%,.2f", displayGasTotal), color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+
+                        val periodDefinitions = listOf(
+                            Triple("overall", "总体", 1.0),
+                            Triple("7d", "近7天", 0.42),
+                            Triple("3d", "近3天", 0.18),
+                            Triple("1h", "近1小时", 0.008)
+                        )
+                        periodDefinitions.forEach { (window, title, demoScale) ->
+                            val projectSnapshot = snapshotProjects[window]
+                            val gas = if (useDemoStats) demoStats.gas * demoScale else projectSnapshot?.gas_cost_usd_valuation ?: 0.0
+                            val reward = if (useDemoStats) demoStats.reward * demoScale else projectSnapshot?.actual_reward_usd_valuation ?: 0.0
+                            val updateTime = periodSnapshots[window]?.update_time
+                            CommunitySnapshotPeriodMetric(
+                                title = title,
+                                gas = gas,
+                                reward = reward,
+                                updateTime = updateTime,
+                                showUpdateTime = window != "overall",
+                                hasData = useDemoStats || projectSnapshot != null
+                            )
                         }
+
+                        Text(
+                            "24小时热度：$displayRecentInteractions 次交互",
+                            color = Color(0xFFFFD08A),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            if (displayRatingCount > 0 && displayAverageRating != null)
+                                "全网评分 ★ ${String.format(java.util.Locale.US, "%.1f", displayAverageRating)} · ${displayRatingCount} 个账号评分"
+                            else "暂无全网评分",
+                            color = if (displayRatingCount > 0) Color(0xFFFFD08A) else Color(0xFFB9C8C0),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        Text(
+                            when {
+                                useDemoStats -> "测试样本：$displayContributionCount 笔演示贡献 · 不进入全网统计"
+                                statsLoading -> "正在读取本地快照…"
+                                statsFailed -> "暂无快照缓存；联网且 CDN 配置完成后会自动更新"
+                                displayContributionCount == 0L -> "暂无用户确认贡献，统计从真实入账开始累计"
+                                else -> "已确认贡献 $displayContributionCount 笔 · 总交互 $displayInteractionCount 次"
+                            },
+                            color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall
+                        )
                     }
-                    Text(
-                        if (displayRatingCount > 0 && displayAverageRating != null)
-                            "全网评分 ★ ${String.format(java.util.Locale.US, "%.1f", displayAverageRating)} · ${displayRatingCount} 个账号评分"
-                        else "暂无全网评分",
-                        color = if (displayRatingCount > 0) Color(0xFFFFD08A) else Color(0xFFB9C8C0),
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                    Text(
-                        when {
-                            useDemoStats -> "测试样本：$displayContributionCount 笔演示贡献 · 不进入全网统计"
-                            statsLoading -> "正在加载全网统计…"
-                            statsFailed -> "全网统计暂时不可用，请稍后重试"
-                            displayContributionCount == 0L -> "暂无用户确认贡献，统计从真实入账开始累计"
-                            else -> "已确认贡献 $displayContributionCount 笔 · 总交互 $displayInteractionCount 次 · 近24h交互 $displayRecentInteractions 次"
-                        },
-                        color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall
-                    )
                 }
             }
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface)) {
@@ -189,7 +236,6 @@ fun MicroCommunityScreen(
                     }
                 }
             }
-            Spacer(Modifier.weight(1f))
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface)) {
                 Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
@@ -251,6 +297,52 @@ fun MicroCommunityScreen(
                         shape = RoundedCornerShape(13.dp)
                     ) { Text(if (saving) "提交中…" else if (saved) "已评价" else "提交星级评分", fontWeight = FontWeight.Bold) }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommunitySnapshotPeriodMetric(
+    title: String,
+    gas: Double,
+    reward: Double,
+    updateTime: String?,
+    showUpdateTime: Boolean,
+    hasData: Boolean
+) {
+    val total = (gas + reward).coerceAtLeast(0.01)
+    val gasWeight = if (gas + reward <= 0.0) 0.5f else (gas / total).toFloat().coerceIn(0.01f, 0.99f)
+    val rewardWeight = 1f - gasWeight
+    Surface(color = Color(0xFF20352B), shape = RoundedCornerShape(13.dp)) {
+        Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                Text("USD 估值", color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall)
+            }
+            Row(Modifier.fillMaxWidth().height(18.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                Box(Modifier.weight(gasWeight).fillMaxHeight().background(Color(0xFFEF6262), RoundedCornerShape(6.dp)))
+                Box(Modifier.weight(rewardWeight).fillMaxHeight().background(Color(0xFF31C48D), RoundedCornerShape(6.dp)))
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("Gas 消耗", color = Color(0xFFFFB0B0), style = MaterialTheme.typography.labelSmall)
+                    Text(String.format(java.util.Locale.US, "$%,.2f", gas), color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("实际收益", color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
+                    Text(String.format(java.util.Locale.US, "$%,.2f", reward), color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+            if (!hasData) {
+                Text("暂无该时间窗口的快照数据", color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall)
+            }
+            if (showUpdateTime) {
+                Text(
+                    updateTime?.let { "数据更新时间：${it.replace("T", " ")}" } ?: "数据更新时间：暂无快照",
+                    color = Color(0xFFB9C8C0),
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }

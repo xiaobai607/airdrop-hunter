@@ -229,3 +229,33 @@ Use only these states: **complete in code**, **partial**, **in progress**, **pen
 - **Data integrity:** snapshots aggregate only eligible anonymous public contributions and confirmed actual Gas/actual rewards; theoretical estimates, demo fixtures, private user details, and unconfirmed outcomes are excluded. Keep per-token amounts separate and label any USD conversion as an estimate/valuation. Missing data is shown as missing, not fabricated.
 - **Operational boundary:** scheduled aggregation and CDN publication are backend/ops responsibilities. Do not add a public APK secret, do not calculate aggregate snapshots on app-open, and do not claim a production CDN/Cron is configured until the deployment is actually verified.
 - **UI hierarchy:** concise project-list cards show identity, brief rating/reputation, and overall Gas-vs-actual-reward bar. Tapping opens a vertically scrolling detail page with the four windows above simultaneously visible; no tabs. Rating/reputation and rolling 24-hour heat remain distinct metrics.
+
+
+### Static snapshot backend implementation progress (PR #68)
+
+- The first backend slice adds aggregate-only snapshot generation for overall, rolling 7d, rolling 3d, and rolling 1h from the existing anonymous community_contributions table and active project catalog. Each window uses one UTC generation timestamp and a rolling lower boundary; update_time is emitted in Asia/Shanghai.
+- Snapshot rows contain only project catalog metadata (including tags) and aggregate amounts/counts, rating distribution, and a separate rolling 24-hour activity aggregate. Both window metrics and 24-hour heat explicitly include only anonymous contribution rows (`user_id IS NULL`). No wallet address, transaction hash, user ID, or private ledger row is serialized.
+- Current contribution schema stores USD-denominated aggregate values only. These are explicitly labeled as USD valuations; per-token totals are not fabricated and remain pending a future source-schema extension if token-level public contribution data is added.
+- A five-minute dispatcher helper returns the 1-hour snapshot on each invocation, adds the 3-day snapshot at 00:00/06:00/12:00/18:00 UTC+8, and adds overall + 7-day at 08:00 UTC+8. Deployment must invoke the command every five minutes; this PR does not create a production scheduler or claim one is active.
+- Versioned JSON objects are uploaded before the manifest pointer is changed. The S3-compatible publisher supports Cloudflare R2-style endpoints through environment variables; the local atomic publisher is for development/tests only. Production mode fails closed unless a public CDN base URL and object-storage credentials are configured.
+- Android Room caching, static-manifest consumption, removal of existing manual refresh affordances, and production CDN/Cron configuration remain subsequent implementation/acceptance steps.
+
+
+### Android static snapshot cache implementation (PR #69)
+
+- Android reads the public overall snapshot from a shared Room cache before any network request. Public snapshot cache keys are deliberately not scoped to guest/account identity because the data is public and identical for all sessions.
+- CDN manifest revalidation and versioned snapshot downloads use a dedicated unauthenticated OkHttp client; user Authorization tokens are never sent to the public CDN.
+- The client accepts only HTTPS manifest URLs and snapshot object URLs on the configured CDN host. Each downloaded snapshot is schema/window checked and only replaces a cached copy when its generation timestamp is newer.
+- Community project metadata and aggregate metrics on the square screen are derived from the overall static snapshot; per-project live stats API calls are removed from that screen.
+- The CDN base URL is an optional build-time `COMMUNITY_SNAPSHOT_BASE_URL`. Until a public CDN URL and production storage/Cron are configured, the app keeps any existing Room copy and otherwise shows an unavailable state; no live database fallback is silently enabled.
+- All four snapshot windows are supported by the repository API for the next detail-screen integration. No Room schema migration is required because public JSON uses the existing cached_payloads table.
+
+- The micro-community project detail now presents the four snapshot windows vertically (overall, 7d, 3d, 1h), with each non-overall bar showing that snapshot’s own update time. The 24-hour heat metric remains separate and is read from the freshest available snapshot; the detail view no longer calls the live per-project stats endpoint.
+
+
+### Free scheduled snapshot publishing
+
+- A GitHub Actions scheduled workflow invokes the snapshot dispatcher every five minutes. The dispatcher uses Asia/Shanghai internally, so the daily overall/7d and six-hour 3d windows are selected from the required UTC+8 wall clock while 1h refreshes every five minutes.
+- The scheduled workflow is intentionally disabled until the repository variable `COMMUNITY_SNAPSHOT_PUBLISH_ENABLED` is set to `true`; after that, it also requires `DATABASE_URL`, `COMMUNITY_SNAPSHOT_S3_BUCKET`, `COMMUNITY_SNAPSHOT_S3_ENDPOINT_URL`, `COMMUNITY_SNAPSHOT_S3_ACCESS_KEY_ID`, `COMMUNITY_SNAPSHOT_S3_SECRET_ACCESS_KEY`, and `COMMUNITY_SNAPSHOT_PUBLIC_BASE_URL` configured. Missing configuration causes a clean skip and never publishes an empty manifest.
+- Set `COMMUNITY_SNAPSHOT_BASE_URL` as a repository variable for Android builds after the public CDN endpoint is ready. No storage credential is included in the APK.
+- GitHub scheduled jobs are best-effort and can start late under platform load; the dispatcher still computes due windows from Asia/Shanghai at actual execution time. This is not a real-time SLA.

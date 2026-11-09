@@ -13,6 +13,16 @@ val configuredApiBaseUrl = (
         ?: "https://airdrop-hunter-z6qn.onrender.com/"
     ).let { if (it.endsWith("/")) it else "$it/" }
 
+val configuredCommunitySnapshotBaseUrl = providers.environmentVariable("COMMUNITY_SNAPSHOT_BASE_URL").orNull?.trim()?.trimEnd('/').orEmpty()
+if (configuredCommunitySnapshotBaseUrl.isNotEmpty()) {
+    require(configuredCommunitySnapshotBaseUrl.startsWith("https://", ignoreCase = true)) {
+        "COMMUNITY_SNAPSHOT_BASE_URL must use HTTPS."
+    }
+    require(!configuredCommunitySnapshotBaseUrl.contains('"') && !configuredCommunitySnapshotBaseUrl.contains('\\')) {
+        "COMMUNITY_SNAPSHOT_BASE_URL contains invalid characters."
+    }
+}
+
 val apiBaseScheme = configuredApiBaseUrl.substringBefore("://", "")
 val apiBaseHost = configuredApiBaseUrl.substringAfter("://", "").substringBefore("/")
 require(apiBaseScheme in setOf("http", "https") && apiBaseHost.isNotBlank()) {
@@ -29,6 +39,7 @@ android {
         versionCode = 10
         versionName = "0.10.0"
         buildConfigField("String", "REOWN_PROJECT_ID", "\"110ea7e938d97b015f5de7b326e20dd9\"")
+        buildConfigField("String", "COMMUNITY_SNAPSHOT_BASE_URL", "\"${configuredCommunitySnapshotBaseUrl}\"")
         buildConfigField(
             "String",
             "API_BASE_URL",

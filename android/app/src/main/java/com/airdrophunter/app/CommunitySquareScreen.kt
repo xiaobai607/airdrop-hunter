@@ -33,9 +33,6 @@ import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.CommunityProjectSubmissionRequest
 import com.airdrophunter.app.ui.theme.AppColors
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import java.util.Locale
 
 private data class CommunityProject(
@@ -112,19 +109,46 @@ fun CommunitySquareScreen(
 
     LaunchedEffect(Unit) {
         ApiClient.initialize(context)
-        try {
-            catalogEntries = ApiClient.service.getCommunityCatalog()
-            communityStats = coroutineScope {
-                catalogEntries.map { project ->
-                    async {
-                        project.project_official_id to runCatching {
-                            ApiClient.service.getCommunityProjectStats(project.project_official_id)
-                        }.getOrNull()
-                    }
-                }.awaitAll().mapNotNull { (id, stats) -> stats?.let { id to it } }.toMap()
+
+        fun applyOverallSnapshot(snapshot: com.airdrophunter.app.data.CommunitySnapshotDto?) {
+            if (snapshot == null) return
+            catalogEntries = snapshot.projects.map { project ->
+                com.airdrophunter.app.data.CommunityProjectCatalogDto(
+                    project_official_id = project.project_official_id,
+                    name = project.name,
+                    chain = project.chain,
+                    logo = project.logo,
+                    description = project.description,
+                    tags = project.tags,
+                    website_url = project.website_url
+                )
             }
-        } catch (error: Exception) {
-            catalogError = error.message ?: "社区项目目录加载失败"
+            communityStats = snapshot.projects.associate { project ->
+                project.project_official_id to CommunityProjectStatsDto(
+                    project_official_id = project.project_official_id,
+                    total_gas_cost_usd = project.gas_cost_usd_valuation,
+                    total_actual_reward_usd = project.actual_reward_usd_valuation,
+                    total_interactions = project.interaction_count,
+                    contribution_count = project.contribution_count,
+                    data_quality = snapshot.data_quality,
+                    contributions_24h = project.activity_24h.contribution_count,
+                    interactions_24h = project.activity_24h.interaction_count,
+                    average_rating = project.average_rating,
+                    rating_count = project.rating_count
+                )
+            }
+        }
+
+        // Room is the first paint. CDN revalidation happens silently afterwards.
+        val cachedOverall = com.airdrophunter.app.data.CommunitySnapshotRepository.readSnapshot("overall")
+        applyOverallSnapshot(cachedOverall)
+        try {
+            val refreshed = com.airdrophunter.app.data.CommunitySnapshotRepository.refreshSnapshots()
+            applyOverallSnapshot(refreshed["overall"] ?: cachedOverall)
+            if (catalogEntries.isEmpty()) catalogError = "静态社区快照暂不可用，联网后会自动重试"
+        } catch (_: Exception) {
+            // A failed CDN request must never erase the last good Room snapshot.
+            applyOverallSnapshot(cachedOverall)
         } finally {
             statsLoading = false
         }
