@@ -18,8 +18,13 @@ class ProjectWalletAssignmentRepository(private val api: ApiService) {
         require(walletIds.size <= 100 && walletIds.all { it.isNotBlank() && it.length <= 80 }) {
             "钱包关联数量或标识无效"
         }
-        val saved = if (guest) walletIds else
-            api.replaceProjectWalletAssignments(projectKey, ProjectWalletAssignmentDto(projectKey, walletIds.toList())).wallet_ids.toSet()
+        if (guest) {
+            check(CacheStore.saveProjectWalletAssignments(projectKey, walletIds)) { "本地保存项目钱包关联失败" }
+            return walletIds
+        }
+        val saved = api.replaceProjectWalletAssignments(
+            projectKey, ProjectWalletAssignmentDto(projectKey, walletIds.toList())
+        ).wallet_ids.toSet()
         CacheStore.saveProjectWalletAssignments(projectKey, saved)
         return saved
     }
