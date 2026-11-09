@@ -202,6 +202,7 @@ class ProjectsRepository(
         requireTaskBelongsToProject(projectId, task, current)
         val normalizedName = name.trim()
         require(normalizedName.isNotEmpty()) { "任务名称不能为空" }
+        require(normalizedName.length <= 240) { "任务名称不能超过240个字符" }
         val updated = if (guest) task.copy(task_name = normalizedName)
         else remote.updateTask(projectId, task.id, TaskUpdateRequest(task_name = normalizedName))
         require(updated.project_id == projectId) { "服务器返回的任务不属于当前项目" }
