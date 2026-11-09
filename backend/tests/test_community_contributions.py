@@ -1,8 +1,24 @@
-from uuid import uuid4
+import asyncio
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from app.database import AsyncSessionLocal, engine
+from app.models import CommunityContribution
 
 from app.main import app
+
+
+
+async def _stored_contribution_user_id(event_id: str):
+    # Dispose pooled connections before opening the async session on this test loop.
+    await engine.dispose()
+    async with AsyncSessionLocal() as db:
+        row = await db.scalar(
+            select(CommunityContribution).where(CommunityContribution.id == UUID(event_id))
+        )
+        return None if row is None else row.user_id
 
 
 def _headers(client, prefix: str):
@@ -56,6 +72,9 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         public = client.get("/api/community/projects/linea/stats")
         assert public.status_code == 200
         assert public.json()["contribution_count"] == 1
+
+    # Even an authenticated contribution must not be linkable to an account in storage.
+    assert asyncio.run(_stored_contribution_user_id(event_id)) is None
 
 
 def test_guest_can_contribute_to_public_stats_idempotently():
