@@ -173,7 +173,9 @@ Additional rules:
 - PR #64: end-to-end tests for candidate submission, admin review queue, approve/reject, persisted review metadata, duplicate-action conflicts, and admin-token protection; merged commit 0e31b0af2a0c9ab7958c09eba3d13a9f51e07bbb; backend and Android CI passed.
 - PR #65: documented the user-confirmed project card/detail presentation; superseded the earlier five-window detail draft after the user removed the today window.
 - PR #66: compact community project cards with overall Gas/actual-reward comparison, honest empty state, and rating-derived reputation; merged commit 17171c81902dd44502ed3cac2eeba4500754f9e1.
-- PR #68 + #69: backend four-window static snapshot generation, anonymous aggregation, versioned object-storage publisher, Room-first cache, silent CDN revalidation, and waterfall detail integration; PR #69 merged with Android and backend CI green. CDN/R2 and scheduled publisher remain unconfigured.
+- PR #67: documented the static snapshot architecture and user-confirmed four-window update behavior; merged commit b7d41176e56f2a412209f6d8c4db01c3f0edb55c.
+- PR #68: initial backend snapshot-builder PR was closed as superseded; it was not merged separately. Its implementation was carried into PR #69.
+- PR #69: backend four-window snapshot generation, anonymous aggregation, versioned object-storage publisher, Room-first cache, silent CDN revalidation, and waterfall detail integration; merged commit 25035c83e6f69f125d0b336170fdd0e0d5c93316 with Android and backend CI green. CDN/R2 and scheduled publisher remain unconfigured.
 - PR #70: removed fabricated empty/50:50 comparison bars, made data presence depend on confirmed contribution count, corrected the stale five-window requirement to four windows; merged commit 0c57de441fcfb668dbb6e4d639ea68f9e6c443ee; Android and backend CI green.
 
 ### Current audit findings
@@ -266,14 +268,14 @@ Recommended next implementation order, based on shared-code dependencies:
 - **UI hierarchy:** concise project-list cards show identity, brief rating/reputation, and overall Gas-vs-actual-reward bar. Tapping opens a vertically scrolling detail page with the four windows above simultaneously visible; no tabs. Rating/reputation and rolling 24-hour heat remain distinct metrics.
 
 
-### Static community snapshot implementation (PRs #68–#70 merged)
+### Static community snapshot implementation (PRs #67, #69, and #70 merged; #68 superseded)
 
 - Backend precomputes overall, rolling 7d, rolling 3d, and rolling 1h snapshots from eligible anonymous public contribution rows. The rolling 24-hour heat remains a separate metric.
 - The scheduler computes due windows in Asia/Shanghai: overall + 7d daily at 08:00; 3d at 00:00/06:00/12:00/18:00; 1h every five minutes. Timestamps are stored/compared in UTC and presented in UTC+8.
 - Snapshot payloads contain project catalog metadata and aggregate metrics only. They do not contain wallet addresses, transaction hashes, user IDs, or private ledger rows. Current contribution amounts are USD valuations only; per-token public totals are not yet modeled.
 - Versioned JSON objects are uploaded before the manifest is atomically switched. Android reads Room cache first, then silently revalidates the CDN using a dedicated unauthenticated HTTPS client restricted to the configured CDN host. Offline or invalid responses preserve the last good cache.
 - Project list and detail screens use static snapshots rather than per-project live stats calls. The detail screen shows the four windows vertically, with each non-overall window's own update time. There is no manual refresh affordance in the micro-community. Empty/zero-denominator data is not represented by a fabricated balanced bar.
-- PR #69 merged as `25035c83e6f69f125d0b336170fdd0e0d5c93316`; PR #70 merged as `0c57de441fcfb668dbb6e4d639ea68f9e6c443ee`. Both Android and backend CI jobs passed.
+- PR #67 merged the architecture requirement; PR #68 was closed as superseded; PR #69 merged the actual backend and Android implementation as `25035c83e6f69f125d0b336170fdd0e0d5c93316`; PR #70 merged the empty-data correction as `0c57de441fcfb668dbb6e4d639ea68f9e6c443ee`. Android and backend CI passed for the merged implementation and correction.
 - **Not production-complete:** the scheduled workflow is disabled until storage/CDN/database settings are configured. No production R2 bucket, public CDN endpoint, or scheduled publishing activation is claimed.
 
 ### Free scheduled snapshot publishing
