@@ -1,6 +1,13 @@
 package com.airdrophunter.app
 
 import android.widget.Toast
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import kotlinx.coroutines.launch
+import com.airdrophunter.app.data.LocalBackupRepository
+import com.airdrophunter.app.data.LocalBackupSnapshot
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -41,6 +48,42 @@ fun ProfileScreen(
         factory = ProfileViewModelFactory(application.appContainer.profileRepository)
     )
     val state by profileViewModel.uiState.collectAsStateWithLifecycle()
+    val coroutineScope = rememberCoroutineScope()
+    var showBackupPasswordDialog by remember { mutableStateOf(false) }
+    var showImportPasswordDialog by remember { mutableStateOf(false) }
+    var showRestoreConfirmDialog by remember { mutableStateOf(false) }
+    var backupPassword by remember { mutableStateOf("") }
+    var backupPasswordConfirm by remember { mutableStateOf("") }
+    var importPassword by remember { mutableStateOf("") }
+    var selectedBackupUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingBackup by remember { mutableStateOf<LocalBackupSnapshot?>(null) }
+    var backupBusy by remember { mutableStateOf(false) }
+
+    val createBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        if (uri != null) {
+            val password = backupPassword
+            backupPassword = ""
+            backupPasswordConfirm = ""
+            coroutineScope.launch {
+                backupBusy = true
+                runCatching { LocalBackupRepository.writeBackup(context, uri, password) }
+                    .onSuccess { Toast.makeText(context, "备份文件已保存", Toast.LENGTH_LONG).show() }
+                    .onFailure { Toast.makeText(context, it.message ?: "备份失败", Toast.LENGTH_LONG).show() }
+                backupBusy = false
+            }
+        }
+    }
+    val openBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            selectedBackupUri = uri
+            importPassword = ""
+            showImportPasswordDialog = true
+        }
+    }
 
     LaunchedEffect(isGuest, sessionScopeKey) { profileViewModel.load(isGuest) }
     val stats = state.stats
@@ -106,6 +149,34 @@ fun ProfileScreen(
             }
         }
 
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+            border = BorderStroke(1.dp, AppColors.Border),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("数据迁移", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                Button(
+                    onClick = { showBackupPasswordDialog = true },
+                    enabled = !backupBusy,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                ) { Text(if (backupBusy) "正在处理…" else "备份我的数据") }
+                OutlinedButton(
+                    onClick = { openBackupLauncher.launch(arrayOf("*/*")) },
+                    enabled = !backupBusy,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("导入数据") }
+                Text(
+                    "备份文件经过密码加密。换机时选择备份文件并输入相同密码即可恢复；请妥善保存文件和密码。",
+                    color = AppColors.TextHelper,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
         if (isGuest) {
             Text("游客个人账本仅保存在本机；登录后才会启用账号私有云同步", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
             Button(onClick = onRequireAuth, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("登录 / 注册") }
@@ -129,6 +200,108 @@ fun ProfileScreen(
             SettingRow("关于", Icons.Default.Info) {
                 Toast.makeText(context, "关于页面正在开发中", Toast.LENGTH_SHORT).show()
             }
+        }
+        if (showBackupPasswordDialog) {
+            AlertDialog(
+                onDismissRequest = { showBackupPasswordDialog = false; backupPassword = ""; backupPasswordConfirm = "" },
+                title = { Text("设置备份密码") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("备份文件会使用此密码加密。换手机导入时必须输入相同密码，密码不会保存在应用中。")
+                        OutlinedTextField(
+                            value = backupPassword, onValueChange = { backupPassword = it },
+                            label = { Text("备份密码（至少8位）") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = backupPasswordConfirm, onValueChange = { backupPasswordConfirm = it },
+                            label = { Text("再次输入密码") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = backupPassword.length >= 8 && backupPassword == backupPasswordConfirm && !backupBusy,
+                        onClick = {
+                            showBackupPasswordDialog = false
+                            createBackupLauncher.launch("AirdropHunter-backup.ahbackup")
+                        }
+                    ) { Text("继续") }
+                },
+                dismissButton = { TextButton(onClick = { showBackupPasswordDialog = false; backupPassword = ""; backupPasswordConfirm = "" }) { Text("取消") } }
+            )
+        }
+
+        if (showImportPasswordDialog) {
+            AlertDialog(
+                onDismissRequest = { showImportPasswordDialog = false; importPassword = ""; selectedBackupUri = null },
+                title = { Text("输入备份密码") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("请输入创建该备份文件时设置的密码。")
+                        OutlinedTextField(
+                            value = importPassword, onValueChange = { importPassword = it },
+                            label = { Text("备份密码") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = importPassword.length >= 8 && selectedBackupUri != null && !backupBusy,
+                        onClick = {
+                            val uri = selectedBackupUri ?: return@TextButton
+                            val password = importPassword
+                            showImportPasswordDialog = false
+                            coroutineScope.launch {
+                                backupBusy = true
+                                runCatching { LocalBackupRepository.readBackup(context, uri, password) }
+                                    .onSuccess { pendingBackup = it; showRestoreConfirmDialog = true }
+                                    .onFailure { Toast.makeText(context, it.message ?: "备份文件无法读取", Toast.LENGTH_LONG).show() }
+                                backupBusy = false
+                            }
+                            importPassword = ""
+                        }
+                    ) { Text("验证备份") }
+                },
+                dismissButton = { TextButton(onClick = { showImportPasswordDialog = false; importPassword = ""; selectedBackupUri = null }) { Text("取消") } }
+            )
+        }
+
+        if (showRestoreConfirmDialog && pendingBackup != null) {
+            val backup = pendingBackup!!
+            AlertDialog(
+                onDismissRequest = { showRestoreConfirmDialog = false; pendingBackup = null; selectedBackupUri = null },
+                title = { Text("确认导入并替换数据？") },
+                text = {
+                    Text("备份时间：${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(backup.createdAt))}\n包含 ${backup.totalRecords} 条本地记录。导入后将替换当前设备此会话的数据，此操作不能自动撤销。")
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = !backupBusy,
+                        onClick = {
+                            showRestoreConfirmDialog = false
+                            coroutineScope.launch {
+                                backupBusy = true
+                                runCatching { LocalBackupRepository.restore(backup) }
+                                    .onSuccess {
+                                        profileViewModel.load(isGuest)
+                                        Toast.makeText(context, "数据导入成功", Toast.LENGTH_LONG).show()
+                                    }
+                                    .onFailure { Toast.makeText(context, it.message ?: "导入失败，原数据未更改", Toast.LENGTH_LONG).show() }
+                                backupBusy = false
+                                pendingBackup = null
+                                selectedBackupUri = null
+                            }
+                        }
+                    ) { Text("确认导入") }
+                },
+                dismissButton = { TextButton(onClick = { showRestoreConfirmDialog = false; pendingBackup = null; selectedBackupUri = null }) { Text("取消") } }
+            )
         }
     }
 }
