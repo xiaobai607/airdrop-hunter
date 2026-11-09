@@ -312,11 +312,11 @@ fun WalletManagerScreen(
                                         color = AppColors.TextHelper,
                                         style = MaterialTheme.typography.labelSmall
                                     )
-                                    if (wallet.tags.isNotEmpty()) {
-                                        Text(wallet.tags.joinToString(" · "), color = AppColors.Primary,
+                                    if (wallet.tags.orEmpty().isNotEmpty()) {
+                                        Text(wallet.tags.orEmpty().joinToString(" · "), color = AppColors.Primary,
                                             style = MaterialTheme.typography.labelSmall, maxLines = 1)
                                     }
-                                    if (wallet.notes.isNotBlank()) {
+                                    if (wallet.notes.orEmpty().isNotBlank()) {
                                         Text(wallet.notes, color = AppColors.TextHelper,
                                             style = MaterialTheme.typography.labelSmall, maxLines = 2)
                                     }
@@ -324,8 +324,8 @@ fun WalletManagerScreen(
                                 IconButton(
                                     onClick = {
                                         editWalletName = wallet.wallet_name
-                                        editWalletTags = wallet.tags.joinToString(", ")
-                                        editWalletNotes = wallet.notes
+                                        editWalletTags = wallet.tags.orEmpty().joinToString(", ")
+                                        editWalletNotes = wallet.notes.orEmpty()
                                         editingWallet = wallet
                                     },
                                     enabled = !state.isSaving
