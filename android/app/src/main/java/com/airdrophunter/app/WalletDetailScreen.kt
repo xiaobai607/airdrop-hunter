@@ -165,7 +165,8 @@ private fun WalletActivityPanel(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(transactions, key = { "${it.chain}:${it.hash}" }) { tx ->
-                    val txKey = "${tx.chain.lowercase()}:${tx.hash.lowercase()}"
+                    val normalizedHash = if (tx.chain.equals("solana", true)) tx.hash else tx.hash.lowercase()
+                    val txKey = "${tx.chain.lowercase()}:$normalizedHash"
                     val alreadyPending = txKey in pendingKeys
                     val suggestedGas = WalletTransactionAccountingPolicy.suggestedGasCostUsd(tx)
                     Card(
@@ -239,7 +240,7 @@ private fun WalletActivityPanel(
                                                 android.widget.Toast.makeText(context, "这笔交易已经记过账", android.widget.Toast.LENGTH_SHORT).show()
                                             } else {
                                                 val id = UUID.nameUUIDFromBytes(
-                                                    "${tx.chain.lowercase()}|${if (wallet.ecosystem == WalletEcosystem.EVM) wallet.address.lowercase() else wallet.address}|${tx.hash.lowercase()}".toByteArray()
+                                                    "${tx.chain.lowercase()}|${if (wallet.ecosystem == WalletEcosystem.EVM) wallet.address.lowercase() else wallet.address}|${if (tx.chain.equals("solana", true)) tx.hash else tx.hash.lowercase()}".toByteArray()
                                                 ).toString()
                                                 val prefilledGas = suggestedGas.toDoubleOrNull()
                                                     ?.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
