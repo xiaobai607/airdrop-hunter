@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, func, select
