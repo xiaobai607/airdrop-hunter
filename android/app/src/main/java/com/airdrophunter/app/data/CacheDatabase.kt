@@ -22,7 +22,7 @@ import java.time.Instant
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
 
 @Entity(tableName = "pending_bills", primaryKeys = ["accountScope", "id"])
-data class PendingBillEntity(val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest", @ColumnInfo(defaultValue = "'unknown'") val network: String = "unknown")
+data class PendingBillEntity(val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest", @ColumnInfo(defaultValue = "'unknown'") val network: String = "unknown", val assetBreakdownJson: String? = null)
 
 @Entity(
     tableName = "pnl_records",
@@ -65,7 +65,8 @@ data class UserInteractionEntity(
     @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
     val projectLocalId: String, val projectOfficialId: String?, val projectName: String,
     val txHash: String, val walletAddress: String, val network: String,
-    val gasCostUsd: Double, val actualRewardUsd: Double, val interactionMethod: String, val timestamp: Long
+    val gasCostUsd: Double, val actualRewardUsd: Double, val interactionMethod: String, val timestamp: Long,
+    val assetBreakdownJson: String? = null
 )
 
 @Entity(tableName = "community_sync_outbox", primaryKeys = ["accountScope", "id"], indices = [Index(value = ["accountScope", "createdAt"])])
@@ -75,7 +76,8 @@ data class CommunitySyncOutboxEntity(
     val projectOfficialId: String, val gasCostUsd: Double, val actualRewardUsd: Double,
     val createdAt: Long,
     @ColumnInfo(defaultValue = "0") val attemptCount: Int = 0,
-    val lastAttemptAt: Long? = null, val lastError: String? = null
+    val lastAttemptAt: Long? = null, val lastError: String? = null,
+    val assetBreakdownJson: String? = null
 )
 
 @Entity(
@@ -247,7 +249,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 12, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 13, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -462,13 +464,21 @@ object CacheStore {
         }
     }
 
+    private val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE pending_bills ADD COLUMN assetBreakdownJson TEXT")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN assetBreakdownJson TEXT")
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN assetBreakdownJson TEXT")
+        }
+    }
+
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -698,7 +708,8 @@ object CacheStore {
         projectOfficialId: String?,
         projectCustomName: String,
         gas: Double,
-        reward: Double
+        reward: Double,
+        assetBreakdownJson: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         if (projectLocalId.isBlank() || !gas.isFinite() || !reward.isFinite() || gas < 0.0 || reward < 0.0) return@withContext false
         val db = database ?: return@withContext false
@@ -715,6 +726,7 @@ object CacheStore {
                     else -> "unknown"
                 }
             val effectiveBill = bill.copy(network = effectiveNetwork)
+            val effectiveAssetBreakdown = assetBreakdownJson ?: bill.assetBreakdownJson
             if (
                 bill.txHash.isNotBlank() && bill.walletAddress.isNotBlank() &&
                 WalletActivityNetworkPolicy.isSupported(effectiveNetwork) &&
@@ -744,7 +756,7 @@ object CacheStore {
                     "project_official_id" to (canonicalOfficialId ?: ""),
                     // Demo transactions remain available for local UI testing but are never synced.
                     "is_demo" to isDemoAccountingTransaction(bill.txHash, bill.walletAddress, bill.interactionMethod).toString()
-                )
+                ) + (effectiveAssetBreakdown?.let { mapOf("asset_breakdown" to it) } ?: emptyMap())
             )
             val updatedLedger = (existingLedger.filterNot { it.client_record_id == bill.id } + ledgerEntry)
             db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(updatedLedger), System.currentTimeMillis()))
@@ -785,7 +797,8 @@ object CacheStore {
                     gasCostUsd = gas,
                     actualRewardUsd = reward,
                     interactionMethod = bill.interactionMethod,
-                    timestamp = recordedAt
+                    timestamp = recordedAt,
+                    assetBreakdownJson = effectiveAssetBreakdown
                 )
             )
             canonicalOfficialId?.takeIf {
@@ -798,7 +811,8 @@ object CacheStore {
                         projectOfficialId = officialId,
                         gasCostUsd = gas,
                         actualRewardUsd = reward,
-                        createdAt = recordedAt
+                        createdAt = recordedAt,
+                        assetBreakdownJson = effectiveAssetBreakdown
                     )
                 )
             }

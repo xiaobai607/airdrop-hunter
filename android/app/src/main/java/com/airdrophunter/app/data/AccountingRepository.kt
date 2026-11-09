@@ -20,7 +20,8 @@ interface AccountingLocalDataSource {
         projectOfficialId: String?,
         projectCustomName: String,
         gas: Double,
-        reward: Double
+        reward: Double,
+        assetBreakdownJson: String? = null
     ): Boolean
 }
 
@@ -42,9 +43,10 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
         projectOfficialId: String?,
         projectCustomName: String,
         gas: Double,
-        reward: Double
+        reward: Double,
+        assetBreakdownJson: String?
     ): Boolean = CacheStore.confirmPendingBill(
-        id, projectLocalId, projectOfficialId, projectCustomName, gas, reward
+        id, projectLocalId, projectOfficialId, projectCustomName, gas, reward, assetBreakdownJson
     )
 }
 
@@ -91,10 +93,11 @@ class AccountingRepository(
         projectOfficialId: String?,
         projectCustomName: String,
         gas: Double,
-        reward: Double
+        reward: Double,
+        assetBreakdownJson: String? = null
     ): Boolean {
         val confirmed = local.confirmPendingBill(
-            id, projectLocalId, projectOfficialId, projectCustomName, gas, reward
+            id, projectLocalId, projectOfficialId, projectCustomName, gas, reward, assetBreakdownJson
         )
         if (confirmed) syncAndScheduleIfNeeded()
         return confirmed

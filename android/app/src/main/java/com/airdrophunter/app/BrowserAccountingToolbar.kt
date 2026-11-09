@@ -37,6 +37,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import java.time.Instant
 
 @Composable
 fun BrowserAccountingToolbar(
@@ -60,6 +61,15 @@ fun BrowserAccountingToolbar(
     var selectedProjectLocalId by remember { mutableStateOf("") }
     var gas by remember { mutableStateOf("") }
     var reward by remember { mutableStateOf("0.00") }
+    var rewardUsdEdited by remember { mutableStateOf(false) }
+    var gasNative by remember { mutableStateOf("") }
+    var gasSymbol by remember { mutableStateOf("") }
+    var gasDecimals by remember { mutableStateOf("") }
+    var gasValuationTimestamp by remember { mutableStateOf<String?>(null) }
+    var gasValuationSource by remember { mutableStateOf<String?>(null) }
+    var rewardNative by remember { mutableStateOf("") }
+    var rewardSymbol by remember { mutableStateOf("") }
+    var rewardDecimals by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var creatingMockBill by remember { mutableStateOf(false) }
 
@@ -92,6 +102,18 @@ fun BrowserAccountingToolbar(
         activeBill = bill
         gas = String.format(Locale.US, "%.2f", bill.gasCostUsd)
         reward = "0.00"
+        rewardUsdEdited = false
+        val existingAssets = LedgerAssetBreakdownCodec.decode(bill.assetBreakdownJson)
+        val gasAsset = existingAssets.firstOrNull { it.kind == "gas" }
+        val rewardAsset = existingAssets.firstOrNull { it.kind == "reward" }
+        gasNative = gasAsset?.amount_native.orEmpty()
+        gasSymbol = gasAsset?.symbol.orEmpty()
+        gasDecimals = gasAsset?.decimals?.toString().orEmpty()
+        gasValuationTimestamp = gasAsset?.valuation_timestamp
+        gasValuationSource = gasAsset?.valuation_source
+        rewardNative = rewardAsset?.amount_native.orEmpty()
+        rewardSymbol = rewardAsset?.symbol.orEmpty()
+        rewardDecimals = rewardAsset?.decimals?.toString().orEmpty()
         if (selectedProjectLocalId.isBlank()) {
             selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
         }
@@ -134,6 +156,9 @@ fun BrowserAccountingToolbar(
 
     val gasValue = gas.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
     val rewardValue = reward.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
+    val nativeAssetsValid =
+        isValidNativeAssetInput(gasNative, gasSymbol, gasDecimals) &&
+            isValidNativeAssetInput(rewardNative, rewardSymbol, rewardDecimals)
 
     Surface(
         modifier = modifier,
@@ -276,9 +301,9 @@ fun BrowserAccountingToolbar(
                     Text("模拟账单：\${bill.txHash.take(16)}…", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     OutlinedTextField(
                         value = gas,
-                        onValueChange = { gas = it },
+                        onValueChange = { gas = it; gasValuationTimestamp = Instant.now().toString(); gasValuationSource = "user_input" },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Gas 费 (USD)") },
+                        label = { Text("Gas 费（USD估值）") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         shape = RoundedCornerShape(13.dp)
@@ -296,25 +321,88 @@ fun BrowserAccountingToolbar(
                     }
                     OutlinedTextField(
                         value = reward,
-                        onValueChange = { reward = it },
+                        onValueChange = { reward = it; rewardUsdEdited = true },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("实际收益 (USD)") },
+                        label = { Text("实际收益（USD估值）") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         shape = RoundedCornerShape(13.dp)
                     )
+                    Text("原生币种明细（不同币种分别记录，不相加）", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = gasNative, onValueChange = { gasNative = it; gasValuationTimestamp = null; gasValuationSource = null },
+                            label = { Text("Gas 原生金额") }, singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1.2f)
+                        )
+                        OutlinedTextField(
+                            value = gasSymbol, onValueChange = { gasSymbol = it.uppercase(Locale.US); gasValuationTimestamp = null; gasValuationSource = null },
+                            label = { Text("Gas 币种") }, singleLine = true,
+                            modifier = Modifier.weight(0.8f)
+                        )
+                    }
+                    OutlinedTextField(
+                        value = gasDecimals, onValueChange = { gasDecimals = it.filter(Char::isDigit).take(2) },
+                        label = { Text("Gas 精度（可选）") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = rewardNative, onValueChange = { rewardNative = it },
+                            label = { Text("收益原生金额") }, singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1.2f)
+                        )
+                        OutlinedTextField(
+                            value = rewardSymbol, onValueChange = { rewardSymbol = it.uppercase(Locale.US) },
+                            label = { Text("收益币种") }, singleLine = true,
+                            modifier = Modifier.weight(0.8f)
+                        )
+                    }
+                    OutlinedTextField(
+                        value = rewardDecimals, onValueChange = { rewardDecimals = it.filter(Char::isDigit).take(2) },
+                        label = { Text("收益精度（可选）") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     Button(
-                        enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null,
+                        enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null && nativeAssetsValid,
                         onClick = {
                             val project = projects.firstOrNull { it.id == selectedProjectLocalId } ?: return@Button
                             val safeGas = gasValue ?: return@Button
                             val safeReward = rewardValue ?: return@Button
                             if (saving) return@Button
+                            val now = Instant.now().toString()
+                            val assets = buildList {
+                                if (gasNative.isNotBlank()) add(
+                                    LedgerAssetAmount(
+                                        kind = "gas", amount_native = gasNative.trim(),
+                                        symbol = gasSymbol.trim().uppercase(Locale.US),
+                                        decimals = gasDecimals.toIntOrNull(),
+                                        usd_valuation = if (gasValuationSource != null) safeGas else null,
+                                        valuation_timestamp = gasValuationTimestamp,
+                                        valuation_source = gasValuationSource
+                                    )
+                                )
+                                if (rewardNative.isNotBlank()) add(
+                                    LedgerAssetAmount(
+                                        kind = "reward", amount_native = rewardNative.trim(),
+                                        symbol = rewardSymbol.trim().uppercase(Locale.US),
+                                        decimals = rewardDecimals.toIntOrNull(),
+                                        usd_valuation = if (rewardUsdEdited) safeReward else null,
+                                        valuation_timestamp = if (rewardUsdEdited) now else null,
+                                        valuation_source = if (rewardUsdEdited) "user_input" else null
+                                    )
+                                )
+                            }
+                            val assetJson = LedgerAssetBreakdownCodec.encode(assets)
                             saving = true
                             scope.launch {
                                 val ok = runCatching {
                                     accountingRepository.confirmPendingBill(
-                                        bill.id, project.id, project.communityOfficialId, project.name, safeGas, safeReward
+                                        bill.id, project.id, project.communityOfficialId, project.name, safeGas, safeReward, assetJson
                                     )
                                 }.getOrDefault(false)
                                 saving = false
@@ -428,4 +516,11 @@ private fun AccountingCapsuleButton(
     ) {
         Box(contentAlignment = Alignment.Center) { content() }
     }
+}
+
+private fun isValidNativeAssetInput(amount: String, symbol: String, decimals: String): Boolean {
+    if (amount.isBlank()) return true
+    val value = amount.toBigDecimalOrNull() ?: return false
+    if (value.signum() < 0 || symbol.isBlank()) return false
+    return decimals.isBlank() || decimals.toIntOrNull()?.let { it in 0..36 } == true
 }

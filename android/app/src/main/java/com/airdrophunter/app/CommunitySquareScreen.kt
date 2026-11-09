@@ -358,8 +358,8 @@ fun CommunitySquareScreen(
                             Box(Modifier.weight(project.rewardWeight).fillMaxHeight().background(Color(0xFF31B77D), RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)))
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(String.format(Locale.US, "Gas $%,.2f", project.gas), color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                            Text(String.format(Locale.US, "实际收益 $%,.2f", project.reward), color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                            Text(String.format(Locale.US, "Gas USD估值 $%,.2f", project.gas), color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                            Text(String.format(Locale.US, "实际收益 USD估值 $%,.2f", project.reward), color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                         }
                     } else {
                         Text("暂无已确认 Gas / 实际收益数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)

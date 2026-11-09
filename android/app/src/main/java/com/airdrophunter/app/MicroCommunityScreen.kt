@@ -27,6 +27,8 @@ import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CacheStoreAccountingLocalDataSource
 import com.airdrophunter.app.data.CommunityProjectRatingRequest
 import com.airdrophunter.app.data.CommunityProjectStatsDto
+import com.airdrophunter.app.data.CommunityTokenAggregateDto
+import com.airdrophunter.app.data.formatCommunityTokenBreakdown
 import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AppColors
 import com.google.gson.Gson
@@ -182,7 +184,10 @@ fun MicroCommunityScreen(
                                 reward = reward,
                                 updateTime = updateTime,
                                 showUpdateTime = window != "overall",
-                                hasData = useDemoStats || gas > 0.0 || reward > 0.0
+                                gasTokens = if (useDemoStats) emptyList() else projectSnapshot?.gas_by_token.orEmpty(),
+                                rewardTokens = if (useDemoStats) emptyList() else projectSnapshot?.reward_by_token.orEmpty(),
+                                hasData = useDemoStats || gas > 0.0 || reward > 0.0 ||
+                                    !projectSnapshot?.gas_by_token.isNullOrEmpty() || !projectSnapshot?.reward_by_token.isNullOrEmpty()
                             )
                         }
 
@@ -295,6 +300,8 @@ private fun CommunitySnapshotPeriodMetric(
     reward: Double,
     updateTime: String?,
     showUpdateTime: Boolean,
+    gasTokens: List<CommunityTokenAggregateDto>,
+    rewardTokens: List<CommunityTokenAggregateDto>,
     hasData: Boolean
 ) {
     val total = gas + reward
@@ -328,13 +335,21 @@ private fun CommunitySnapshotPeriodMetric(
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    Text("Gas 消耗", color = Color(0xFFFFB0B0), style = MaterialTheme.typography.labelSmall)
+                    Text("Gas USD估值", color = Color(0xFFFFB0B0), style = MaterialTheme.typography.labelSmall)
                     Text(String.format(java.util.Locale.US, "$%,.2f", gas), color = Color.White, fontWeight = FontWeight.Bold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("实际收益", color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
+                    Text("实际收益 USD估值", color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
                     Text(String.format(java.util.Locale.US, "$%,.2f", reward), color = Color.White, fontWeight = FontWeight.Bold)
                 }
+            }
+            if (gasTokens.isNotEmpty()) {
+                Text("Gas 原生币：${formatCommunityTokenBreakdown(gasTokens)}",
+                    color = Color(0xFFFFB0B0), style = MaterialTheme.typography.labelSmall)
+            }
+            if (rewardTokens.isNotEmpty()) {
+                Text("收益代币：${formatCommunityTokenBreakdown(rewardTokens)}",
+                    color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
             }
             if (showUpdateTime) {
                 Text(

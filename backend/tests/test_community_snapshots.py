@@ -34,6 +34,26 @@ def test_snapshot_contains_money_ratings_and_catalog_metadata_only():
     assert project["gas_cost_usd_valuation"] == 2.5
     assert project["actual_reward_usd_valuation"] == 12.0
     assert project["net_result_usd_valuation"] == 9.5
+    asset_rows = [{"project_official_id": "linea", "asset_breakdown": [
+        {"kind": "gas", "amount_native": "0.1", "symbol": "ETH", "decimals": 18,
+         "usd_valuation": "250", "valuation_timestamp": "2026-11-09T08:00:00+00:00", "valuation_source": "coinpaprika"},
+        {"kind": "gas", "amount_native": "1.5", "symbol": "BNB", "decimals": 18,
+         "usd_valuation": "900", "valuation_timestamp": "2026-11-09T08:01:00+00:00", "valuation_source": "coinpaprika"},
+        {"kind": "reward", "amount_native": "100", "symbol": "LINEA", "decimals": 18,
+         "usd_valuation": "12", "valuation_timestamp": "2026-11-09T08:02:00+00:00", "valuation_source": "user_input"},
+    ]}]
+    token_snapshot = assemble_snapshot(
+        "overall", datetime(2026, 11, 9, tzinfo=timezone.utc),
+        [{"project_official_id": "linea", "name": "Linea", "chain": "EVM", "logo": "",
+          "description": "", "website_url": "", "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+          "tags": [], "gas_cost_usd": 2.5, "actual_reward_usd": 12.0}],
+        [], asset_rows,
+    )
+    token_project = token_snapshot["projects"][0]
+    assert [item["symbol"] for item in token_project["gas_by_token"]] == ["BNB", "ETH"]
+    assert token_project["gas_by_token"][0]["amount_native"] == "1.5"
+    assert token_project["gas_by_token"][1]["amount_native"] == "0.1"
+    assert token_project["reward_by_token"][0]["symbol"] == "LINEA"
     assert project["average_rating"] == pytest.approx(13 / 3)
     assert project["rating_distribution"] == {"1": 0, "2": 0, "3": 1, "4": 0, "5": 2}
     assert project["created_at"] == "2026-01-01T00:00:00+00:00"
