@@ -63,6 +63,7 @@ fun HomeScreen(
     onOpenTronEnergy: () -> Unit = {},
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
+    sessionScopeKey: String = "guest",
     vm: HomeViewModel? = null
 ) {
     val context = LocalContext.current
@@ -78,7 +79,7 @@ fun HomeScreen(
     fun closeNavOverlay() { scope.launch { navContentVisible = false; delay(180); showNavOverlay = false } }
     var sites by remember { mutableStateOf(AirdropSiteStore.defaults) }
 
-    LaunchedEffect(isGuest) {
+    LaunchedEffect(isGuest, sessionScopeKey) {
         sites = withContext(Dispatchers.IO) { AirdropSiteStore.load() }
         homeViewModel.load(isGuest)
     }
@@ -244,7 +245,7 @@ fun HomeScreen(
                                                 val updated = withContext(Dispatchers.IO) { AirdropSiteStore.recordClick(site) }
                                                 sites = updated
                                                 val walletRows = withContext(Dispatchers.IO) {
-                                                    val raw = CacheStore.readLocal("wallets")
+                                                    val raw = if (isGuest) CacheStore.readLocal("wallets") else CacheStore.read("wallets")
                                                     val type = object : TypeToken<List<WalletDto>>() {}.type
                                                     raw?.let { runCatching { Gson().fromJson<List<WalletDto>>(it, type) }.getOrNull() }.orEmpty()
                                                 }
