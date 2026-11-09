@@ -7,6 +7,8 @@ import com.airdrophunter.app.data.OkxMarketRepository
 import com.airdrophunter.app.data.ProjectsRepository
 import com.airdrophunter.app.data.RetrofitProjectsRemoteDataSource
 import com.airdrophunter.app.data.WalletRepository
+import com.airdrophunter.app.data.WalletActivityRepository
+import com.airdrophunter.app.data.RetrofitWalletActivityRemoteDataSource
 import com.airdrophunter.app.data.RetrofitWalletRemoteDataSource
 import com.airdrophunter.app.data.CacheStoreWalletLocalDataSource
 import com.airdrophunter.app.data.DefaultAssetRepository
@@ -38,6 +40,10 @@ class AppContainer {
 
     val walletRepository: WalletRepository by lazy {
         WalletRepository(RetrofitWalletRemoteDataSource(apiService), CacheStoreWalletLocalDataSource())
+    }
+
+    val walletActivityRepository: WalletActivityRepository by lazy {
+        WalletActivityRepository(RetrofitWalletActivityRemoteDataSource(apiService))
     }
 
     val assetRepository: AssetRepository by lazy { DefaultAssetRepository() }
