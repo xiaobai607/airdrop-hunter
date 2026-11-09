@@ -19,7 +19,10 @@ class WalletRepositoryTest {
     private class Remote : WalletRemoteDataSource {
         val wallets = mutableListOf<WalletDto>()
         var addCalls = 0
+        var lastAuthorization: String? = null
+        var lastAuthMode: String? = null
         override suspend fun getWallets() = wallets.toList()
+        override suspend fun getWallets(authorizationHeader: String?, authMode: String?) = wallets.toList().also { lastAuthorization = authorizationHeader; lastAuthMode = authMode }
         override suspend fun addWallet(request: WalletWriteRequest) {
             addCalls++
             wallets += WalletDto(
@@ -52,10 +55,17 @@ class WalletRepositoryTest {
         assertFalse(local.account.containsKey("wallets"))
     }
 
+    @Test fun backgroundWalletLoadUsesCapturedBearerToken() = runBlocking {
+        val remote = Remote()
+        WalletRepository(remote, Local()).loadForSession(false, "header.payload.signature")
+        assertEquals("Bearer header.payload.signature", remote.lastAuthorization)
+        assertEquals("captured", remote.lastAuthMode)
+    }
+
     @Test fun authenticatedWalletsUseRemoteAndAccountCache() = runBlocking {
         val local = Local()
         val remote = Remote()
-        val repository = WalletRepository(remote, local)
+        val repository = WalletRepository(remote, local, accessTokenProvider = { "unit-test-session-token" })
         val result = repository.add(WalletWriteRequest("Main", WalletEcosystem.EVM, "0x2222222222222222222222222222222222222222"), false)
         assertEquals(1, result.size)
         assertEquals(1, remote.addCalls)
@@ -102,7 +112,7 @@ class WalletRepositoryTest {
     @Test fun authenticatedWalletMetadataUpdatesThroughOwnerScopedRemoteAndAccountCache() = runBlocking {
         val local = Local()
         val remote = Remote()
-        val repository = WalletRepository(remote, local)
+        val repository = WalletRepository(remote, local, accessTokenProvider = { "unit-test-session-token" })
         val added = repository.add(
             WalletWriteRequest("Main", WalletEcosystem.EVM, "0x" + "4".repeat(40)),
             guest = false

@@ -19,7 +19,11 @@ class WalletActivityRepositoryTest {
     private class FakeRemote : WalletActivityRemoteDataSource {
         var evmCalls = 0
         val chainCalls = mutableListOf<String>()
-        override suspend fun getEvm(address: String): WalletActivityBatchDto {
+        val authorizationHeaders = mutableListOf<String?>()
+        val authModes = mutableListOf<String?>()
+        override suspend fun getEvm(address: String, authorizationHeader: String?, authMode: String?): WalletActivityBatchDto {
+            authorizationHeaders += authorizationHeader
+            authModes += authMode
             evmCalls++
             return WalletActivityBatchDto(
                 transactions = emptyList(),
@@ -27,7 +31,9 @@ class WalletActivityRepositoryTest {
                 networks_unavailable = listOf("polygon")
             )
         }
-        override suspend fun getChain(chain: String, address: String): List<WalletTransactionDto> {
+        override suspend fun getChain(chain: String, address: String, authorizationHeader: String?, authMode: String?): List<WalletTransactionDto> {
+            authorizationHeaders += authorizationHeader
+            authModes += authMode
             chainCalls += chain
             return emptyList()
         }
@@ -93,6 +99,15 @@ class WalletActivityRepositoryTest {
         network_icon = ecosystem,
         address = address
     )
+
+    @Test
+    fun guestRefreshExplicitlySuppressesAnyLaterAccountTokenInjection() = runBlocking {
+        val remote = FakeRemote()
+        val repository = WalletActivityRepository(remote)
+        repository.refresh(wallet("T" + "1".repeat(33), WalletEcosystem.TRON), true, null)
+        assertEquals(listOf(null), remote.authorizationHeaders)
+        assertEquals(listOf("anonymous"), remote.authModes)
+    }
 
     @Test
     fun guestRefreshStoresSnapshotOnlyInGuestCacheAndCanReadItImmediately() = runBlocking {

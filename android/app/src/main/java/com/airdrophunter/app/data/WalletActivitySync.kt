@@ -26,10 +26,12 @@ class WalletActivitySyncWorker(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         ApiClient.initialize(applicationContext)
         val app = applicationContext as? AirdropHunterApplication ?: return@withContext Result.failure()
-        val guest = TokenStore.readTokenBlocking().isNullOrBlank()
+        // Bind API requests and cache writes to the session that started this work.
+        val accessToken = TokenStore.readTokenBlocking()?.takeIf { it.isNotBlank() }
+        val guest = accessToken == null
 
         val wallets = try {
-            app.appContainer.walletRepository.load(guest)
+            app.appContainer.walletRepository.loadForSession(guest, accessToken)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -39,7 +41,7 @@ class WalletActivitySyncWorker(
         var hadFailure = false
         for (wallet in wallets) {
             try {
-                app.appContainer.walletActivityRepository.refresh(wallet, guest)
+                app.appContainer.walletActivityRepository.refresh(wallet, guest, accessToken)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

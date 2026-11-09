@@ -6,6 +6,7 @@ import java.util.UUID
 
 interface WalletRemoteDataSource {
     suspend fun getWallets(): List<WalletDto>
+    suspend fun getWallets(authorizationHeader: String?, authMode: String?): List<WalletDto> = getWallets()
     suspend fun addWallet(request: WalletWriteRequest)
     suspend fun updateWallet(walletId: String, request: WalletWriteRequest)
     suspend fun deleteWallet(walletId: String)
@@ -13,9 +14,12 @@ interface WalletRemoteDataSource {
 interface WalletLocalDataSource {
     suspend fun read(guest: Boolean): String?
     suspend fun write(value: String, guest: Boolean)
+    suspend fun readForSession(guest: Boolean, accessToken: String?): String? = read(guest)
+    suspend fun writeForSession(value: String, guest: Boolean, accessToken: String?) = write(value, guest)
 }
 class RetrofitWalletRemoteDataSource(private val api: ApiService) : WalletRemoteDataSource {
     override suspend fun getWallets() = api.getWallets()
+    override suspend fun getWallets(authorizationHeader: String?, authMode: String?) = api.getWallets(authorizationHeader, authMode)
     override suspend fun addWallet(request: WalletWriteRequest) { api.addWallet(request) }
     override suspend fun updateWallet(walletId: String, request: WalletWriteRequest) { api.updateWallet(walletId, request) }
     override suspend fun deleteWallet(walletId: String) { api.deleteWallet(walletId) }
@@ -25,20 +29,35 @@ class CacheStoreWalletLocalDataSource : WalletLocalDataSource {
     override suspend fun write(value: String, guest: Boolean) {
         if (guest) CacheStore.writeLocal("wallets", value) else CacheStore.write("wallets", value)
     }
+    override suspend fun readForSession(guest: Boolean, accessToken: String?): String? =
+        if (guest) CacheStore.readLocalForToken("wallets", accessToken)
+        else accessToken?.let { CacheStore.readForToken("wallets", it) }
+    override suspend fun writeForSession(value: String, guest: Boolean, accessToken: String?) {
+        if (guest) CacheStore.writeLocalForToken("wallets", value, accessToken)
+        else accessToken?.let { CacheStore.writeForToken("wallets", value, it) }
+    }
 }
 /** Persists public wallet addresses only; signing material is never accessed. */
 class WalletRepository(
     private val remote: WalletRemoteDataSource,
     private val local: WalletLocalDataSource,
-    private val gson: Gson = Gson()
+    private val gson: Gson = Gson(),
+    private val accessTokenProvider: () -> String? = { TokenStore.readTokenBlocking() }
 ) {
     private val listType = object : TypeToken<List<WalletDto>>() {}.type
     private fun decode(raw: String?): List<WalletDto> =
         raw?.let { runCatching { gson.fromJson<List<WalletDto>>(it, listType) }.getOrNull() }.orEmpty()
 
-    suspend fun load(guest: Boolean): List<WalletDto> {
-        if (guest) return decode(local.read(true))
-        return remote.getWallets().also { local.write(gson.toJson(it), false) }
+    suspend fun load(guest: Boolean): List<WalletDto> =
+        loadForSession(guest, accessTokenProvider())
+
+    /** Loads and caches wallet rows against the exact session captured by the caller. */
+    suspend fun loadForSession(guest: Boolean, accessToken: String?): List<WalletDto> {
+        if (guest) return decode(local.readForSession(true, accessToken))
+        val token = accessToken?.takeIf { it.isNotBlank() } ?: return emptyList()
+        val rows = remote.getWallets("Bearer $token", "captured")
+        local.writeForSession(gson.toJson(rows), false, token)
+        return rows
     }
     private fun normalizeRequest(request: WalletWriteRequest): WalletWriteRequest {
         val name = request.wallet_name.trim()
