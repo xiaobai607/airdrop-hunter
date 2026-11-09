@@ -21,7 +21,7 @@ def test_snapshot_uses_only_aggregate_rows_and_keeps_24h_heat_separate():
     snapshot = assemble_snapshot(
         "3d", now,
         [{"project_official_id": "linea", "name": "Linea", "chain": "Ethereum", "logo": "L",
-          "description": "Layer 2", "website_url": "https://linea.build", "gas_cost_usd": 2.5,
+          "description": "Layer 2", "website_url": "https://linea.build", "tags": ["L2"], "gas_cost_usd": 2.5,
           "actual_reward_usd": 12.0, "contribution_count": 2, "interaction_count": 5}],
         [{"project_official_id": "linea", "score": 5, "rating_count": 2},
          {"project_official_id": "linea", "score": 3, "rating_count": 1}],
@@ -37,6 +37,7 @@ def test_snapshot_uses_only_aggregate_rows_and_keeps_24h_heat_separate():
     assert project["average_rating"] == pytest.approx(13 / 3)
     assert project["rating_distribution"] == {"1": 0, "2": 0, "3": 1, "4": 0, "5": 2}
     assert project["activity_24h"]["interaction_count"] == 2
+    assert project["tags"] == ["L2"]
     assert "wallet_address" not in project
     assert "tx_hash" not in project
 

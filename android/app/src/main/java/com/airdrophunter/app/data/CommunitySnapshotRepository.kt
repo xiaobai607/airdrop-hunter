@@ -66,7 +66,8 @@ object CommunitySnapshotRepository {
                     ?: continue
                 val uri = runCatching { URI(snapshotUrl) }.getOrNull() ?: continue
                 // A public manifest may select paths on its own CDN host, never arbitrary hosts.
-                if (!uri.scheme.equals("https", true) || !uri.host.equals(baseUri.host, true) || uri.userInfo != null) continue
+                if (!uri.scheme.equals("https", true) || uri.host.isNullOrBlank() ||
+                    !uri.host.equals(baseUri.host, true) || uri.userInfo != null) continue
 
                 runCatching {
                     val request = Request.Builder().url(snapshotUrl).get().build()
