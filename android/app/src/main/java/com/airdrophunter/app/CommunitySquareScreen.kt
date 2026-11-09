@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
+import com.airdrophunter.app.data.CommunityProjectSubmissionRequest
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -88,6 +89,10 @@ fun CommunitySquareScreen(
     var selectedTag by remember { mutableStateOf<String?>(null) }
     var favoritesOnly by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var showSubmissionDialog by remember { mutableStateOf(false) }
+    var submissionName by remember { mutableStateOf("") }
+    var submissionUrl by remember { mutableStateOf("") }
+    var submittingProject by remember { mutableStateOf(false) }
     val allTags = remember(catalogEntries) { catalogEntries.flatMap { it.tags }.distinct().sorted() }
 
     LaunchedEffect(Unit) {
@@ -155,6 +160,13 @@ fun CommunitySquareScreen(
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("微社区广场", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("像逛 Steam 一样发现空投项目，按收益、风险和标签探索", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(
+                    onClick = { showSubmissionDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("＋ 提交新空投项目")
+                }
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -356,5 +368,77 @@ fun CommunitySquareScreen(
                 }
             }
         }
+    }
+
+    if (showSubmissionDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!submittingProject) showSubmissionDialog = false },
+            title = { Text("提交新空投项目") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("只需填写项目名称和链接。可以是官网，也可以是第三方空投平台的项目详情页。", style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(
+                        value = submissionName,
+                        onValueChange = { submissionName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("项目名称") },
+                        enabled = !submittingProject
+                    )
+                    OutlinedTextField(
+                        value = submissionUrl,
+                        onValueChange = { submissionUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("项目链接（HTTPS）") },
+                        enabled = !submittingProject
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !submittingProject && submissionName.isNotBlank() && submissionUrl.isNotBlank(),
+                    onClick = {
+                        scope.launch {
+                            submittingProject = true
+                            runCatching {
+                                ApiClient.service.submitCommunityProject(
+                                    CommunityProjectSubmissionRequest(
+                                        name = submissionName.trim(),
+                                        url = submissionUrl.trim()
+                                    )
+                                )
+                            }.onSuccess { result ->
+                                Toast.makeText(
+                                    context,
+                                    result.message + (result.existing_project?.let { "：${it.name}" } ?: ""),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                if (result.status == "published") {
+                                    runCatching {
+                                        catalogEntries = ApiClient.service.getCommunityCatalog()
+                                    }
+                                }
+                                submissionName = ""
+                                submissionUrl = ""
+                                showSubmissionDialog = false
+                            }.onFailure {
+                                Toast.makeText(context, "提交失败，请检查名称和 HTTPS 链接后重试", Toast.LENGTH_LONG).show()
+                            }
+                            submittingProject = false
+                        }
+                    }
+                ) {
+                    if (submittingProject) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    else Text("提交")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showSubmissionDialog = false },
+                    enabled = !submittingProject
+                ) { Text("取消") }
+            }
+        )
     }
 }
