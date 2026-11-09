@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -55,6 +56,15 @@ fun ProjectsScreen(
     var newProjectDescription by remember { mutableStateOf("") }
     var newProjectOfficialUrl by remember { mutableStateOf("") }
     var newProjectClaimUrl by remember { mutableStateOf("") }
+    var actionProject by remember { mutableStateOf<ProjectDto?>(null) }
+    var editingProject by remember { mutableStateOf<ProjectDto?>(null) }
+    var deletingProject by remember { mutableStateOf<ProjectDto?>(null) }
+    var editProjectName by remember { mutableStateOf("") }
+    var editProjectDescription by remember { mutableStateOf("") }
+    var editProjectOfficialUrl by remember { mutableStateOf("") }
+    var editProjectClaimUrl by remember { mutableStateOf("") }
+    var editProjectTwitterUrl by remember { mutableStateOf("") }
+    var editProjectStatus by remember { mutableStateOf("tracking") }
 
     LaunchedEffect(isGuest) { projectsViewModel.loadProjects(isGuest) }
 
@@ -68,7 +78,9 @@ fun ProjectsScreen(
             communityOfficialId = saved.projectOfficialId
         )
     }
-    val visibleProjects = (savedProjectDtos + state.projects).distinctBy {
+    // Prefer the full project record over a ledger-derived summary when both refer
+    // to the same community project; ledger-only history remains visible as fallback.
+    val visibleProjects = (state.projects + savedProjectDtos).distinctBy {
         it.communityOfficialId?.let { officialId -> "official:$officialId" } ?: "local:${it.id}"
     }
 
@@ -118,6 +130,11 @@ fun ProjectsScreen(
                     )
                 }
             }
+        }
+
+        state.error?.takeIf { visibleProjects.isNotEmpty() }?.let { error ->
+            Text(error, Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                color = AppColors.Danger, style = MaterialTheme.typography.bodySmall)
         }
 
         when {
@@ -204,6 +221,39 @@ fun ProjectsScreen(
                                 }
                                 Text(communityLabel, color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
                             }
+                            if (state.projects.any { it.id == project.id }) {
+                                Box {
+                                    IconButton(onClick = { actionProject = project }) {
+                                        Icon(Icons.Default.MoreVert, contentDescription = "项目管理",
+                                            tint = AppColors.TextSecondary)
+                                    }
+                                    DropdownMenu(
+                                        expanded = actionProject?.id == project.id,
+                                        onDismissRequest = { actionProject = null }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("编辑项目") },
+                                            onClick = {
+                                                actionProject = null
+                                                editProjectName = project.name
+                                                editProjectDescription = project.description
+                                                editProjectOfficialUrl = project.official_url
+                                                editProjectClaimUrl = project.claim_url
+                                                editProjectTwitterUrl = project.twitter_url
+                                                editProjectStatus = project.status
+                                                editingProject = project
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("删除项目", color = AppColors.Danger) },
+                                            onClick = {
+                                                actionProject = null
+                                                deletingProject = project
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -211,6 +261,93 @@ fun ProjectsScreen(
         }
     }
 
+
+    editingProject?.let { project ->
+        AlertDialog(
+            onDismissRequest = { if (!state.isSaving) editingProject = null },
+            containerColor = AppColors.Surface,
+            title = { Text("编辑项目", color = AppColors.TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = editProjectName, onValueChange = { editProjectName = it },
+                        label = { Text("项目名称") }, singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editProjectDescription, onValueChange = { editProjectDescription = it },
+                        label = { Text("项目说明") }, modifier = Modifier.fillMaxWidth()
+                    )
+                    Text("项目状态", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("tracking" to "进行中", "upcoming" to "待开始", "completed" to "已完成").forEach { (value, label) ->
+                            FilterChip(
+                                selected = editProjectStatus == value,
+                                onClick = { editProjectStatus = value },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = editProjectOfficialUrl, onValueChange = { editProjectOfficialUrl = it },
+                        label = { Text("项目官网 HTTPS 链接") }, singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editProjectClaimUrl, onValueChange = { editProjectClaimUrl = it },
+                        label = { Text("资格查询 HTTPS 链接") }, singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editProjectTwitterUrl, onValueChange = { editProjectTwitterUrl = it },
+                        label = { Text("社交链接 HTTPS") }, singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                    state.error?.let { Text(it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = editProjectName.isNotBlank() && !state.isSaving,
+                    onClick = {
+                        projectsViewModel.updateProject(
+                            project,
+                            com.airdrophunter.app.data.ProjectWriteRequest(
+                                name = editProjectName.trim(),
+                                description = editProjectDescription.trim(),
+                                status = editProjectStatus,
+                                official_url = editProjectOfficialUrl.trim(),
+                                claim_url = editProjectClaimUrl.trim(),
+                                twitter_url = editProjectTwitterUrl.trim(),
+                                deadline = project.deadline,
+                                expected_income = project.expected_income,
+                                gas_cost = project.gas_cost,
+                                actual_income = project.actual_income
+                            ),
+                            isGuest
+                        )
+                        editingProject = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                ) { Text(if (state.isSaving) "保存中…" else "保存修改") }
+            },
+            dismissButton = {
+                TextButton(enabled = !state.isSaving, onClick = { editingProject = null }) { Text("取消") }
+            }
+        )
+    }
+
+    deletingProject?.let { project ->
+        AlertDialog(
+            onDismissRequest = { deletingProject = null },
+            containerColor = AppColors.Surface,
+            title = { Text("删除项目？", color = AppColors.TextPrimary) },
+            text = { Text("将从项目列表中移除“${project.name}”。已确认的 Gas、收益和历史账本不会被删除。", color = AppColors.TextSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    projectsViewModel.deleteProject(project, isGuest)
+                    deletingProject = null
+                }) { Text("确认删除", color = AppColors.Danger) }
+            },
+            dismissButton = { TextButton(onClick = { deletingProject = null }) { Text("取消") } }
+        )
+    }
 
     if (showAddDialog) AlertDialog(
         onDismissRequest = { showAddDialog = false },
