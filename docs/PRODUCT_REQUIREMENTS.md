@@ -508,3 +508,77 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - No submitted URL is fetched, crawled, or resolved through DNS. Manual review is a moderation safeguard, not a claim that the destination has been verified.
 - Regression tests cover malformed domains, IDN review, custom-port review, and preservation of normal submission behavior.
 - PR #101 merged as `e4c63e88b4f6c341d4fe708c83c5374789049b41`; backend CI passed on final head `d6cff05214f0c06755ab4fc56ad73b5e086f41bf` (run `42666994138`), and Android build was correctly skipped.
+
+
+### Removal of the cancelled wallet asset overview (2026-11-10)
+
+- The user had explicitly cancelled an OKX-style wallet asset/portfolio overview. The wallet detail screen no longer exposes an asset tab or requests token balances/asset valuations; it opens directly on read-only chain activity and the existing pending-accounting flow.
+- Remove the unreachable legacy “check wallet” asset lookup screen, automatic address-detection helper, asset aggregation UI/repository, and TRONSCAN token-asset overview adapter. These were not part of the confirmed airdrop-specific wallet-address workflow.
+- Preserve multi-chain address management, explicit chain selection and validation, read-only transaction history, conservative Gas attribution, manual pending-bill confirmation, and wallet-to-project associations. Do not remove or weaken those flows.
+- Code cleanup is subject to Android CI; real-device wallet-detail/transaction-import acceptance remains pending.
+
+
+### Wallet and personal project ledger alignment (PR #103, 2026-11-10)
+
+- Remove the cancelled OKX-style wallet asset/portfolio view and its unreachable legacy asset-query/address-autodetection code. Saved wallet detail opens directly on read-only chain activity and pending accounting.
+- Preserve explicit chain selection/validation, multiple addresses per chain, read-only transaction history, conservative Gas payer attribution, and manual bill confirmation.
+- Project day/week/month summaries retain USD valuation totals and additionally aggregate confirmed native Gas/reward amounts by network, token symbol, and decimals. Native amounts from different networks or currencies are never combined; an incomplete USD valuation group is not displayed as a complete USD total.
+- The first PR #103 Actions run (42671282759, head 8385865269f9c59f8d11f978a3b879ab71aefe69) ended with a workflow-level failure and no reported jobs/check-runs. It is not valid Android verification and must not be merged until a fresh, attributable Android test/build succeeds.
+- Real-device wallet activity, transaction import, account switching, and native-currency display acceptance remain pending.
+
+- Pending-bill confirmation now starts with the actual reward field empty; the user must explicitly enter a finite non-negative amount (including explicitly typing 0 when the realized reward is zero). Gas is prefilled only when a positive, attributable chain valuation exists; otherwise the user must enter the actual amount before confirmation. Input-policy unit tests cover blank, invalid, negative, non-finite, and explicit-zero values.
+
+
+## 13. User-confirmed 15-batch delivery plan (2026-11-10)
+
+The user explicitly requires development to proceed as **15 substantial functional batches**, not hundreds of tiny edits or PRs. Each batch must cover a connected end-to-end capability, compile/test, fix failures in the same batch until successful, then proceed. The user should not be asked to operate GitHub Actions or select workflow inputs. Reuse already completed and verified implementation; do not redo it merely to fill a batch.
+
+1. **Wallet detail and accounting confirmation** — remove cancelled asset overview, preserve multi-chain address management and read-only activity, transaction-to-pending-bill flow, reliable Gas attribution, explicit actual Gas/reward confirmation, native-asset-aware project ledger summaries. Current batch 01 is in progress in PR #103; Android verification is blocked by pull-request workflow runs failing before any job is created.
+2. **Multi-chain wallet and activity lifecycle** — address CRUD/tags/notes/project associations, supported chain queries, transaction normalization/deduplication, pending import and user-selected project association.
+3. **Built-in browser and DApp connection** — WebView navigation/TLS, Reown session lifecycle, origin validation, account/address selection, project association and read-only security boundary.
+4. **Personal accounting end-to-end** — pending/confirmed lifecycle, actual versus theoretical Gas/reward, duplicate prevention, deletion, P&L, native-currency breakdown and day/week/month history.
+5. **Project and task management** — project state, task CRUD/progress/completion, ownership and wallet/ledger associations.
+6. **Guest local and authenticated private cloud data** — local-only guest private data, authenticated cloud ledger, account isolation, restore, offline merge and conflict safety.
+7. **Anonymous public contribution** — eligibility, privacy minimization, idempotency, retries, exclusion of estimates/demo/unconfirmed rows and separation from private ledgers.
+8. **Community snapshot data pipeline** — four windows (overall/7d/3d/1h), scheduled aggregation, static JSON publication, version manifest and cache integrity.
+9. **Community UI and social metrics** — waterfall project detail, rating eligibility/reputation, exact Gas/reward comparison, rankings, favorites and privacy.
+10. **Project discovery and submissions** — safe user submission/deduplication/moderation, approved free data providers only, attribution and source-health reporting; no arbitrary-site crawler or paid source.
+11. **Global search and market** — recoverable search, BTC/ETH/SOL/BNB/XRP market data and coin-detail navigation.
+12. **Background sync and reliability** — WorkManager coordination, source cadence, offline queue, retry/backoff, account switching and recovery.
+13. **Backend/API/data integrity** — authentication/authorization, schema/migrations, idempotency, validation, limits, tests and end-to-end contract consistency.
+14. **Production operations and recovery** — CDN/storage/Cron configuration, readiness/smoke checks, backup/restore drill and rollback evidence.
+15. **Unified UI and final regression** — one consolidated UI refinement after core flows, full Android/backend regression, APK artifact and acceptance checklist.
+
+Batch numbering is a delivery grouping, not permission to reintroduce cancelled scope. Items already complete in code and validated are marked complete and carried forward; production configuration and real-device acceptance remain pending until actually verified. A passing CI run is not a substitute for deployment or device acceptance.
+
+## 14. Batch execution and validation rules (user-confirmed)
+
+- Work in one substantial batch at a time. Do not create a PR or commit for every small code adjustment. Related Android, backend, database, API, UI and tests should be developed together when they form one user workflow.
+- At the end of a batch, run the relevant full compile and automated tests. If they fail, diagnose and repair within the same batch; do not start the next batch while a code failure remains.
+- Minimize free GitHub Actions usage: do not rerun builds just to poll status, do not build Android for docs/backend-only changes, and do not run backend tests for Android-only changes.
+- The user should not be asked to click Actions pages, select workflow scopes, copy logs, or manually manage development steps. Prefer automatic PR validation and report blockers plainly when GitHub itself prevents job creation.
+- Merge only after the latest exact PR head has successful required validation. Never claim compilation or tests succeeded without the corresponding run evidence.
+- Maintain the single source-of-truth progress ledger in this file. Each batch entry records implementation state, exact commit/PR, CI evidence, and any remaining deployment/device acceptance.
+- The 15-batch plan does not imply 15 tiny PRs; use one coherent PR per substantial batch where practical. Existing completed work is reused rather than rebuilt.
+
+### Batch 01 current state — wallet detail and accounting confirmation
+
+- Implementation and validation fixes are on PR #103 branch `cleanup/cancelled-wallet-assets`; current head is tracked by the PR. Initial feature implementation commit: `193db78a92b37a5dd40238819260fe090b16f4f1`.
+- The code removes the cancelled wallet asset overview and unreachable legacy asset lookup/address-autodetection code; it retains read-only wallet activity and pending accounting.
+- Project period summaries now separate native Gas/reward amounts by network, symbol and precision; incomplete USD valuation groups remain explicitly incomplete.
+- Pending bill confirmation requires an explicit finite non-negative actual reward, with zero accepted only when entered; Gas is prefilled only when a positive attributable valuation exists.
+- Unit tests were added for currency/network separation, incomplete USD valuation and explicit actual-amount input.
+- PR #103's earlier pull_request runs (42671282759, 42672851431, 42673160167) failed before jobs were created. A temporary branch-scoped `push` trigger was added to run Android validation automatically.
+- Run `42675076534` created the Android job successfully. Main Kotlin compilation and `:app:assembleDebug` succeeded, but `:app:compileDebugUnitTestKotlin` failed because nullable `Double?` values were passed to a non-null `assertEquals` overload in `AccountingInputPolicyTest.kt` lines 20–21.
+- The test now asserts non-null explicitly and compares the unwrapped numeric values. This fix awaits a fresh full Android unit-test + APK build on the exact updated PR head.
+- **Not yet complete:** fresh passing Android unit tests and debug APK build; merge; real-device wallet activity/import/account switching/native-currency acceptance.
+
+
+### WebView global-search crash and DApp bridge origin rules (fix in PR #103)
+
+- Root cause confirmed in `DappProviderBridge.HTTPS_ORIGIN_RULES`: `https://*` is not a valid AndroidX WebView `allowedOriginRules` entry and can throw when registering the message listener. The global search route opens its result in the built-in browser, so the malformed bridge rule caused the navigation/search crash.
+- Replace it with the WebView-supported single-token wildcard `*`. Do not broaden the bridge's actual authority: every incoming request is still required to originate from the trusted top-level HTTPS page, and the current page host/port must match the message source.
+- Add a top-frame guard to the document-start provider script so it does not install the provider in iframes. The message listener also rejects non-main-frame messages.
+- Keep the existing `WEB_MESSAGE_LISTENER` and `DOCUMENT_START_SCRIPT` feature checks before registering the bridge. On unsupported WebView providers, normal web navigation remains available but the DApp bridge is not installed; never fall back to an unrestricted legacy JavaScript interface.
+- Add Android unit tests for the exact wildcard syntax and iframe exclusion. The existing runtime origin check continues to require the same HTTPS host and port.
+- Validation is pending on the updated PR head; do not call the crash fixed in a released APK until the Android unit tests and debug APK build pass and the updated PR is merged.

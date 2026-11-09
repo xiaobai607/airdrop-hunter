@@ -13,8 +13,6 @@ import com.airdrophunter.app.data.RetrofitWalletActivityRemoteDataSource
 import com.airdrophunter.app.data.CacheStoreWalletActivityLocalDataSource
 import com.airdrophunter.app.data.RetrofitWalletRemoteDataSource
 import com.airdrophunter.app.data.CacheStoreWalletLocalDataSource
-import com.airdrophunter.app.data.DefaultAssetRepository
-import com.airdrophunter.app.data.AssetRepository
 import com.airdrophunter.app.data.ProfileRepository
 import com.airdrophunter.app.data.AuthRepository
 import com.airdrophunter.app.data.RetrofitAuthRemoteDataSource
@@ -54,8 +52,6 @@ class AppContainer {
             CacheStoreWalletActivityLocalDataSource()
         )
     }
-
-    val assetRepository: AssetRepository by lazy { DefaultAssetRepository() }
 
     val authRepository: AuthRepository by lazy {
         AuthRepository(RetrofitAuthRemoteDataSource(apiService))
