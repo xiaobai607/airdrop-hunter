@@ -1,6 +1,6 @@
 import pytest
 
-from scripts.check_deployment_readiness import (
+from app.services.deployment_readiness import (
     https_base,
     validate_manifest,
     validate_snapshot,
