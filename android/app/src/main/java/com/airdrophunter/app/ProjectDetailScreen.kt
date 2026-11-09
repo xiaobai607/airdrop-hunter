@@ -32,6 +32,7 @@ import com.airdrophunter.app.data.aggregateLedgerAssetPeriodTotals
 import com.airdrophunter.app.data.aggregateLedgerEstimatePeriodTotals
 import com.airdrophunter.app.data.TaskDto
 import com.airdrophunter.app.data.WalletDto
+import com.airdrophunter.app.data.WalletEcosystem
 import com.airdrophunter.app.data.ManualProjectAccountingPolicy
 import com.airdrophunter.app.data.ManualWalletAccountingInput
 import com.airdrophunter.app.data.ManualRewardInput
