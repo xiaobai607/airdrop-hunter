@@ -202,6 +202,34 @@ def tron_fee_is_paid_by_wallet(raw_contracts, wallet_hex_lower: str | None, fee_
     return True
 
 
+def normalize_tron_transaction_rows(rows, limit: int):
+    """Validate and deduplicate TRON provider rows before fetching per-tx receipts."""
+    latest_by_hash = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        tx_hash = str(row.get("txID") or "")
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", tx_hash):
+            continue
+        try:
+            timestamp = int(row.get("block_timestamp") or 0)
+        except (TypeError, ValueError):
+            continue
+        if timestamp <= 0:
+            continue
+        key = tx_hash.lower()
+        previous = latest_by_hash.get(key)
+        if previous is None or timestamp > int(previous["block_timestamp"]):
+            latest_by_hash[key] = row
+
+    ordered = sorted(
+        latest_by_hash.values(),
+        key=lambda row: int(row["block_timestamp"]),
+        reverse=True,
+    )
+    return ordered[:limit]
+
+
 async def tron_transactions(client: httpx.AsyncClient, address: str, limit: int):
     headers = {}
     key = (os.getenv("TRONGRID_API_KEY") or "").strip()
@@ -217,7 +245,7 @@ async def tron_transactions(client: httpx.AsyncClient, address: str, limit: int)
     rows = payload.get("data")
     if not isinstance(rows, list):
         raise HTTPException(502, "TRON 交易服务返回无效数据")
-    return rows
+    return normalize_tron_transaction_rows(rows, limit)
 
 
 async def solana_transactions(client: httpx.AsyncClient, address: str, limit: int):

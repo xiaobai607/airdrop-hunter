@@ -533,8 +533,8 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 
 The user explicitly requires development to proceed as **15 substantial functional batches**, not hundreds of tiny edits or PRs. Each batch must cover a connected end-to-end capability, compile/test, fix failures in the same batch until successful, then proceed. The user should not be asked to operate GitHub Actions or select workflow inputs. Reuse already completed and verified implementation; do not redo it merely to fill a batch.
 
-1. **Wallet detail and accounting confirmation** — remove cancelled asset overview, preserve multi-chain address management and read-only activity, transaction-to-pending-bill flow, reliable Gas attribution, explicit actual Gas/reward confirmation, native-asset-aware project ledger summaries. Current batch 01 is in progress in PR #103; Android verification is blocked by pull-request workflow runs failing before any job is created.
-2. **Multi-chain wallet and activity lifecycle** — address CRUD/tags/notes/project associations, supported chain queries, transaction normalization/deduplication, pending import and user-selected project association.
+1. **Wallet detail and accounting confirmation** — remove cancelled asset overview, preserve multi-chain address management and read-only activity, transaction-to-pending-bill flow, reliable Gas attribution, explicit actual Gas/reward confirmation, native-asset-aware project ledger summaries. Implemented and merged in PR #103 (`da5d7a862a067982669f87cf2377aba08b77ce48`); exact-head Android unit tests and debug APK build passed in run `42676514953`. Real-device acceptance remains pending.
+2. **Multi-chain wallet and activity lifecycle** — address CRUD/tags/notes/project associations, supported chain queries, transaction normalization/deduplication, pending import and user-selected project association. Existing CRUD, chain routing, project binding and idempotent pending import are present; PR #104 closes a TRON provider duplicate/order edge case and corrects wallet-list copy.
 3. **Built-in browser and DApp connection** — WebView navigation/TLS, Reown session lifecycle, origin validation, account/address selection, project association and read-only security boundary.
 4. **Personal accounting end-to-end** — pending/confirmed lifecycle, actual versus theoretical Gas/reward, duplicate prevention, deletion, P&L, native-currency breakdown and day/week/month history.
 5. **Project and task management** — project state, task CRUD/progress/completion, ownership and wallet/ledger associations.
@@ -568,10 +568,10 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Project period summaries now separate native Gas/reward amounts by network, symbol and precision; incomplete USD valuation groups remain explicitly incomplete.
 - Pending bill confirmation requires an explicit finite non-negative actual reward, with zero accepted only when entered; Gas is prefilled only when a positive attributable valuation exists.
 - Unit tests were added for currency/network separation, incomplete USD valuation and explicit actual-amount input.
-- PR #103's earlier pull_request runs (42671282759, 42672851431, 42673160167) failed before jobs were created. A temporary branch-scoped `push` trigger was added to run Android validation automatically.
-- Run `42675076534` created the Android job successfully. Main Kotlin compilation and `:app:assembleDebug` succeeded, but `:app:compileDebugUnitTestKotlin` failed because nullable `Double?` values were passed to a non-null `assertEquals` overload in `AccountingInputPolicyTest.kt` lines 20–21.
-- The test now asserts non-null explicitly and compares the unwrapped numeric values. This fix awaits a fresh full Android unit-test + APK build on the exact updated PR head.
-- **Not yet complete:** fresh passing Android unit tests and debug APK build; merge; real-device wallet activity/import/account switching/native-currency acceptance.
+- PR #103's earlier pull_request runs (42671282759, 42672851431, 42673160167) failed before jobs were created. A temporary branch-scoped `push` trigger was used to obtain an attributable Android run; it is removed in the next coherent change.
+- Run `42675076534` created the Android job successfully. Main Kotlin compilation and `:app:assembleDebug` succeeded, but unit-test compilation initially failed because nullable `Double?` values were passed to a non-null `assertEquals` overload in `AccountingInputPolicyTest.kt` lines 20–21; the assertion was corrected.
+- The test now asserts non-null explicitly and compares the unwrapped numeric values. Final exact-head run `42676514953` on PR #103 head `b1e6da022d2d626067f930dd7a097ea99954b18f` passed Android unit tests and debug APK assembly; the PR was squash-merged as `da5d7a862a067982669f87cf2377aba08b77ce48`.
+- **Batch 01 code/CI complete:** PR #103 merged after exact-head Android tests and debug APK build passed. **Still pending:** real-device wallet activity/import/account switching/native-currency acceptance.
 
 
 ### WebView global-search crash and DApp bridge origin rules (fix in PR #103)
@@ -581,4 +581,14 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Add a top-frame guard to the document-start provider script so it does not install the provider in iframes. The message listener also rejects non-main-frame messages.
 - Keep the existing `WEB_MESSAGE_LISTENER` and `DOCUMENT_START_SCRIPT` feature checks before registering the bridge. On unsupported WebView providers, normal web navigation remains available but the DApp bridge is not installed; never fall back to an unrestricted legacy JavaScript interface.
 - Add Android unit tests for the exact wildcard syntax and iframe exclusion. The existing runtime origin check continues to require the same HTTPS host and port.
-- Validation is pending on the updated PR head; do not call the crash fixed in a released APK until the Android unit tests and debug APK build pass and the updated PR is merged.
+- Exact-head Android unit tests and debug APK build passed in run `42676514953`; PR #103 merged as `da5d7a862a067982669f87cf2377aba08b77ce48`. The source-level crash fix is in main; real-device global-search/browser navigation acceptance remains pending.
+
+
+### Batch 02 current state — multi-chain wallet and activity lifecycle
+
+- Audit confirms wallet CRUD, metadata (name/tags/notes), explicit ecosystem validation, multiple saved addresses, EVM multi-network lookup, TRON/Bitcoin/Solana lookup, project-to-wallet assignments, pending-bill import, and transaction identity/idempotency are already implemented and covered by Android/backend tests. Reuse these features; do not recreate them.
+- A concrete gap was found in the TRON activity adapter: raw provider rows were returned without validating, ordering, or deduplicating transaction IDs before receipt lookups. Duplicate rows could waste receipt requests and produce duplicate Compose list keys.
+- PR #104 normalizes TRON provider rows before receipt lookup: validates 64-hex transaction IDs and positive timestamps, deduplicates case-insensitively, retains the newest duplicate, sorts newest-first, and enforces the requested limit. Tests cover duplicate casing, ordering, invalid rows, and limits.
+- Wallet-list copy is corrected to describe public address management and read-only transaction history, not the cancelled token-asset overview.
+- The temporary PR #103 branch-only push trigger is removed; the normal module-scoped pull-request workflow remains.
+- PR #104 Android/backend CI and merge are pending. Real-device checks for all four ecosystems, provider partial outages, project binding, and duplicate imports remain pending.
