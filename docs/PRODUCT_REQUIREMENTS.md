@@ -452,8 +452,17 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - Workflow-only and documentation-only pull requests do not consume the Android/backend build workflow; application/backend changes continue to receive the full PR verification.
 
 
-### Production readiness smoke-check hardening (PR pending, 2026-11-10)
+### Production readiness smoke-check hardening (PR #92 merged, 2026-11-10)
 
 - The manual deployment-readiness smoke check bounds every JSON response to 10 MiB before decoding, preventing a malformed or unexpectedly large API/CDN response from exhausting the runner.
 - The bound is enforced with a read limit of 10 MiB + 1 byte so oversized payloads are rejected deterministically; ordinary API health, manifest, and snapshot checks retain their existing HTTPS-origin, schema, cache-header, timestamp, and privacy validations.
 - Corrected operational documentation: community snapshot and discovery cron triggers are paused, not merely job-gated; their UTC+8 schedules describe intended behavior after explicit configuration and deliberate restoration.
+
+
+### Module-scoped CI to protect free Actions quota (PR pending, 2026-11-10)
+
+- Pull-request changes are classified by module before expensive jobs start.
+- Android/Gradle changes run Android unit tests and debug APK assembly; backend/database/deployment changes run backend tests with PostgreSQL. A change touching both runs both suites.
+- Workflow-only, documentation-only, and unrelated root-file changes do not start either expensive suite automatically.
+- Manual workflow dispatch exposes `both`, `android`, and `backend` scopes for deliberate verification.
+- Concurrency still cancels superseded runs on the same ref; merge pushes do not repeat successful PR builds.
