@@ -217,7 +217,7 @@ private fun WalletActivityPanel(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        tx.gas_cost_usd?.let { "约 $$it" } ?: "美元估值暂不可用",
+                                        tx.gas_cost_usd?.let { "约 \\${it}" } ?: "美元估值暂不可用",
                                         color = AppColors.TextSecondary,
                                         style = MaterialTheme.typography.labelSmall
                                     )
@@ -239,7 +239,7 @@ private fun WalletActivityPanel(
                                                 android.widget.Toast.makeText(context, "这笔交易已经记过账", android.widget.Toast.LENGTH_SHORT).show()
                                             } else {
                                                 val id = UUID.nameUUIDFromBytes(
-                                                    "${tx.chain.lowercase()}|${wallet.address.lowercase()}|${tx.hash.lowercase()}".toByteArray()
+                                                    "${tx.chain.lowercase()}|${if (wallet.ecosystem == WalletEcosystem.EVM) wallet.address.lowercase() else wallet.address}|${tx.hash.lowercase()}".toByteArray()
                                                 ).toString()
                                                 val prefilledGas = suggestedGas.toDoubleOrNull()
                                                     ?.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
