@@ -185,7 +185,7 @@ async def submit_community_project(
             }
 
     hostname = urlparse(canonical_url).hostname or ""
-    is_shortener = hostname in SHORTENER_HOSTS
+    is_shortener = any(hostname == host or hostname.endswith("." + host) for host in SHORTENER_HOSTS)
     if is_shortener:
         source_key = hashlib.sha256(f"user-submission:{canonical_url}".encode()).hexdigest()
         db.add(AirdropDiscoveryCandidate(
