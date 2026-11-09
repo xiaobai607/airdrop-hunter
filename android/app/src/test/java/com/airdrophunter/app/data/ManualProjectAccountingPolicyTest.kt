@@ -63,8 +63,9 @@ class ManualProjectAccountingPolicyTest {
             ManualRewardAllocationMode.EVEN_SPLIT_TOTAL,
             ManualRewardInput(ManualRewardKind.USD, BigDecimal("10.00"))
         )
-        assertEquals(BigDecimal("10.00"), batch.entries.mapNotNull { it.actualRewardUsd }
-            .fold(BigDecimal.ZERO, BigDecimal::add))
+        val allocatedTotal = batch.entries.mapNotNull { it.actualRewardUsd }
+            .fold(BigDecimal.ZERO, BigDecimal::add)
+        assertEquals(0, allocatedTotal.compareTo(BigDecimal("10.00")))
         assertEquals(3, batch.entries.size)
         assertTrue(batch.entries.all { it.netProfitUsd != null })
     }
@@ -79,7 +80,7 @@ class ManualProjectAccountingPolicyTest {
         assertFalse(privateBatch.publicContributionOptIn)
 
         val optedIn = ManualProjectAccountingPolicy.prepare(
-            listOf(wallet("one", hash = "0xabc")),
+            listOf(wallet("one", ManualRewardInput(ManualRewardKind.USD, BigDecimal.ZERO), hash = "0xabc")),
             ManualRewardAllocationMode.PER_WALLET,
             publicContributionOptIn = true
         )
