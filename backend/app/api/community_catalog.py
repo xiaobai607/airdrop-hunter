@@ -155,7 +155,7 @@ async def list_community_catalog(db: Annotated[AsyncSession, Depends(get_db)]):
 
 @router.post("/submit")
 @limiter.limit("10/hour")
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def submit_community_project(
     request: Request,
     payload: ProjectSubmission,
