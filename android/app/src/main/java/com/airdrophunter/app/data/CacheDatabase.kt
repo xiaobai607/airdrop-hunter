@@ -353,7 +353,7 @@ object CacheStore {
                 CREATE TABLE IF NOT EXISTS community_sync_outbox (
                     id TEXT NOT NULL PRIMARY KEY, accountScope TEXT NOT NULL DEFAULT 'guest',
                     projectOfficialId TEXT NOT NULL, gasCostUsd REAL NOT NULL, actualRewardUsd REAL NOT NULL,
-                    createdAt INTEGER NOT NULL,
+                    interactionCount INTEGER NOT NULL, createdAt INTEGER NOT NULL,
                     attemptCount INTEGER NOT NULL DEFAULT 0, lastAttemptAt INTEGER, lastError TEXT
                 )
             """.trimIndent())

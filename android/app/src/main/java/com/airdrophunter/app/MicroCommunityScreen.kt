@@ -36,9 +36,6 @@ import kotlinx.coroutines.launch
 private data class CommunityDemoStats(
     val gas: Double,
     val reward: Double,
-    val contributions: Long,
-    val interactions: Long,
-    val recentInteractions: Long,
     val score: Double,
     val ratingCount: Long
 )
@@ -69,14 +66,14 @@ fun MicroCommunityScreen(
     var saving by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
     val demoStats = when (projectOfficialId.lowercase()) {
-        "linea" -> CommunityDemoStats(42.80, 184.20, 1280, 4320, 310, 4.9, 97)
-        "scroll" -> CommunityDemoStats(38.60, 128.60, 964, 3210, 205, 4.8, 95)
-        "zksync" -> CommunityDemoStats(62.00, 156.00, 1820, 5860, 480, 4.7, 93)
-        "starknet" -> CommunityDemoStats(51.00, 98.00, 1450, 4100, 365, 4.4, 88)
-        "base" -> CommunityDemoStats(73.00, 226.00, 2200, 7240, 520, 4.9, 96)
-        "arbitrum" -> CommunityDemoStats(84.00, 142.00, 1730, 5320, 190, 4.2, 82)
-        "optimism" -> CommunityDemoStats(49.00, 117.00, 1390, 4680, 270, 4.6, 91)
-        else -> CommunityDemoStats(18.50, 64.00, 320, 980, 20, 4.0, 1)
+        "linea" -> CommunityDemoStats(42.80, 184.20, 4.9, 97)
+        "scroll" -> CommunityDemoStats(38.60, 128.60, 4.8, 95)
+        "zksync" -> CommunityDemoStats(62.00, 156.00, 4.7, 93)
+        "starknet" -> CommunityDemoStats(51.00, 98.00, 4.4, 88)
+        "base" -> CommunityDemoStats(73.00, 226.00, 4.9, 96)
+        "arbitrum" -> CommunityDemoStats(84.00, 142.00, 4.2, 82)
+        "optimism" -> CommunityDemoStats(49.00, 117.00, 4.6, 91)
+        else -> CommunityDemoStats(18.50, 64.00, 4.0, 1)
     }
     val snapshotProjects = remember(periodSnapshots, projectOfficialId) {
         periodSnapshots.mapValues { (_, snapshot) ->
@@ -84,10 +81,6 @@ fun MicroCommunityScreen(
         }
     }
     val overallProject = snapshotProjects["overall"]
-    val displayContributionCount = if (useDemoStats) demoStats.contributions else overallProject?.contribution_count ?: 0L
-    val displayInteractionCount = if (useDemoStats) demoStats.interactions else overallProject?.interaction_count ?: 0L
-    val displayRecentInteractions = if (useDemoStats) demoStats.recentInteractions
-        else snapshotProjects["1h"]?.activity_24h?.interaction_count ?: overallProject?.activity_24h?.interaction_count ?: 0L
     val displayAverageRating = if (useDemoStats) demoStats.score else communityStats?.average_rating ?: overallProject?.average_rating
     val displayRatingCount = if (useDemoStats) demoStats.ratingCount else communityStats?.rating_count ?: overallProject?.rating_count ?: 0L
     LaunchedEffect(projectOfficialId, sessionScopeKey) {
@@ -189,16 +182,10 @@ fun MicroCommunityScreen(
                                 reward = reward,
                                 updateTime = updateTime,
                                 showUpdateTime = window != "overall",
-                                hasData = useDemoStats || (projectSnapshot?.contribution_count ?: 0L) > 0L
+                                hasData = useDemoStats || gas > 0.0 || reward > 0.0
                             )
                         }
 
-                        Text(
-                            "24小时热度：$displayRecentInteractions 次交互",
-                            color = Color(0xFFFFD08A),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
                         Text(
                             if (displayRatingCount > 0 && displayAverageRating != null)
                                 "全网评分 ★ ${String.format(java.util.Locale.US, "%.1f", displayAverageRating)} · ${displayRatingCount} 个账号评分"
@@ -208,11 +195,10 @@ fun MicroCommunityScreen(
                         )
                         Text(
                             when {
-                                useDemoStats -> "测试样本：$displayContributionCount 笔演示贡献 · 不进入全网统计"
                                 statsLoading -> "正在读取本地快照…"
                                 statsFailed -> "暂无快照缓存；联网且 CDN 配置完成后会自动更新"
-                                displayContributionCount == 0L -> "暂无用户确认贡献，统计从真实入账开始累计"
-                                else -> "已确认贡献 $displayContributionCount 笔 · 总交互 $displayInteractionCount 次"
+                                useDemoStats -> "测试演示样本仅用于界面验证，不会上传"
+                                else -> "此处展示用户确认的 Gas 和实际收益汇总"
                             },
                             color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall
                         )

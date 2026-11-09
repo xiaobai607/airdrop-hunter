@@ -57,6 +57,8 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
 
         public = client.get("/api/community/projects/linea/stats")
         assert public.status_code == 200
+        assert "total_interactions" not in public.json()
+        assert "contribution_count" not in public.json()
 
 
 def test_guest_can_contribute_to_public_stats_idempotently():
@@ -78,6 +80,8 @@ def test_guest_can_contribute_to_public_stats_idempotently():
 
         public = client.get("/api/community/projects/scroll/stats")
         assert public.status_code == 200
+        assert "total_interactions" not in public.json()
+        assert "contribution_count" not in public.json()
 
 
 def test_authenticated_public_contribution_does_not_persist_account_identity():

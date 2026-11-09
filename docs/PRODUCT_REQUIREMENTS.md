@@ -196,6 +196,7 @@ Additional rules:
 - PR #70: removed fabricated empty/50:50 comparison bars, made data presence depend on confirmed contribution count, corrected the stale five-window requirement to four windows; merged commit 0c57de441fcfb668dbb6e4d639ea68f9e6c443ee; Android and backend CI green.
 - PR #71: consolidated the single-source product requirements, README boundaries, cross-module data-flow map, and dependency-driven roadmap; merged commit 1bc27b7a3ec78b45321891c3f68b82db5b91a1ec; Android and backend CI green.
 - PR #72: explicit chain selection and checksum-aware address validation for EVM/TRON/Solana/Bitcoin; merged commit c4a2092d7a4a52edbd69525e408cade806846f99; Android and backend CI passed.
+- PR #73: community data-contract cleanup across API, database, snapshots, and Android; in progress pending CI.
 
 ### Current audit findings
 
@@ -314,7 +315,6 @@ Recommended next implementation order, based on shared-code dependencies:
 ### Public community metric scope (user-confirmed)
 
 - Public project data shows only the four confirmed Gas-versus-actual-reward windows, per-currency amounts/valuations, and real star-rating aggregates.
-- Do not collect, aggregate, publish, rank by, or display public participation totals or activity signals.
 - The New ranking uses project catalog creation time. Personal ledger history and internal eligibility checks remain intact; they are not public project statistics.
 - Public contribution retries use an opaque event ID for idempotency only.
 

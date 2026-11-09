@@ -342,7 +342,6 @@ fun CommunitySquareScreen(
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("★ ${String.format(Locale.US, "%.1f", project.demoScore)} · ${project.reputationLabel}",
                                 color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                            Text("测试样本 · ${project.demoReviews} 条", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
                     } else {
                         Text(

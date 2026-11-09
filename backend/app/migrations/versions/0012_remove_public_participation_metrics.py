@@ -1,12 +1,12 @@
 """Remove public project participation counters and activity metrics.
 
-Revision ID: 0012_remove_public_participation_metrics
+Revision ID: 0012_public_metrics
 Revises: 0011_candidate_review
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0012_remove_public_participation_metrics"
+revision = "0012_public_metrics"
 down_revision = "0011_candidate_review"
 branch_labels = None
 depends_on = None
