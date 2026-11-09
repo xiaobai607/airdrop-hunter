@@ -28,6 +28,7 @@ import androidx.lifecycle.lifecycleScope
 import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.TokenStore
+import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
@@ -44,6 +45,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             AirdropHunterTheme {
                 val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = null)
+                val sessionScopeKey = remember(token) { CacheStore.accountScopeKey(token) }
                 var showAuth by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(token) { if (!token.isNullOrBlank()) showAuth = false }
                 if (showAuth && token.isNullOrBlank()) {
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     AirdropHunterApp(
                         isGuest = token.isNullOrBlank(),
+                        sessionScopeKey = sessionScopeKey,
                         onRequireAuth = { showAuth = true },
                         onLogout = { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } },
                         onOpenAuth = { showAuth = true }
@@ -67,13 +70,26 @@ private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, WALLET_MANAGER, GLOB
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogout: () -> Unit, onOpenAuth: () -> Unit) {
+private fun AirdropHunterApp(
+    isGuest: Boolean,
+    sessionScopeKey: String,
+    onRequireAuth: () -> Unit,
+    onLogout: () -> Unit,
+    onOpenAuth: () -> Unit
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var activeOverlay by rememberSaveable { mutableStateOf(AppOverlay.NONE) }
     var selectedMarketSymbol by rememberSaveable { mutableStateOf("BTC") }
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
     var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
+
+    // Never leave a previous account's secondary screen or editor alive after a session switch.
+    LaunchedEffect(sessionScopeKey) {
+        activeOverlay = AppOverlay.NONE
+        selectedProject = null
+        selectedCommunityProject = null
+    }
 
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
     val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
@@ -179,6 +195,7 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                 activeOverlay == AppOverlay.WALLET_MANAGER -> WalletManagerScreen(
                     modifier = Modifier.fillMaxSize(),
                     isGuest = isGuest,
+                    sessionScopeKey = sessionScopeKey,
                     onOpenBrowser = { url, selectedWallet, wallets, title ->
                         val walletJson = JSONArray().apply {
                             wallets.forEach { wallet ->
@@ -200,13 +217,16 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                 selectedCommunityProject != null -> MicroCommunityScreen(
                     projectOfficialId = selectedCommunityProject!!.officialIdentifier(),
                     projectName = selectedCommunityProject!!.name,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    isGuest = isGuest,
+                    sessionScopeKey = sessionScopeKey
                 )
                 selectedProject != null -> ProjectDetailScreen(
                     selectedProject!!,
                     Modifier.fillMaxSize(),
                     isGuest,
-                    onOpenCommunity = { selectedCommunityProject = it }
+                    onOpenCommunity = { selectedCommunityProject = it },
+                    sessionScopeKey = sessionScopeKey
                 )
                 tab == 0 -> HomeScreen(
                     modifier = Modifier.fillMaxSize(),
@@ -225,9 +245,10 @@ private fun AirdropHunterApp(isGuest: Boolean, onRequireAuth: () -> Unit, onLogo
                     }
                 )
                 tab == 1 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth,
-                    onOpenCommunity = { selectedCommunityProject = it })
+                    onOpenCommunity = { selectedCommunityProject = it }, sessionScopeKey = sessionScopeKey)
                 else -> ProfileScreen(Modifier.fillMaxSize(), onLogout, isGuest, onRequireAuth,
-                    onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER })
+                    onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER },
+                    sessionScopeKey = sessionScopeKey)
             }
         }
     }
