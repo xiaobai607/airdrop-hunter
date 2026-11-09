@@ -44,7 +44,8 @@ class MainActivity : ComponentActivity() {
         window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         setContent {
             AirdropHunterTheme {
-                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = null)
+                val initialToken = remember { TokenStore.readTokenBlocking() }
+                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = initialToken)
                 val sessionScopeKey = remember(token) { CacheStore.accountScopeKey(token) }
                 var showAuth by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(token) { if (!token.isNullOrBlank()) showAuth = false }
