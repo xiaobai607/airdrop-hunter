@@ -1,6 +1,7 @@
 package com.airdrophunter.app.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -17,7 +18,11 @@ class AccountingInputPolicyTest {
 
     @Test
     fun explicitZeroIsAValidConfirmedAmount() {
-        assertEquals(0.0, parseConfirmedUsdAmount("0"), 0.0)
-        assertEquals(12.34, parseConfirmedUsdAmount(" 12.34 "), 0.0)
+        val zero = parseConfirmedUsdAmount("0")
+        val amount = parseConfirmedUsdAmount(" 12.34 ")
+        assertNotNull(zero)
+        assertNotNull(amount)
+        assertEquals(0.0, zero!!, 0.0)
+        assertEquals(12.34, amount!!, 0.0)
     }
 }

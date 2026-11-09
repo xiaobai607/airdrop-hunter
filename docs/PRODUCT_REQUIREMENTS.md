@@ -563,11 +563,12 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 
 ### Batch 01 current state — wallet detail and accounting confirmation
 
-- Implementation exists on PR #103 branch `cleanup/cancelled-wallet-assets`, head `193db78a92b37a5dd40238819260fe090b16f4f1`.
+- Implementation and validation fixes are on PR #103 branch `cleanup/cancelled-wallet-assets`; current head is tracked by the PR. Initial feature implementation commit: `193db78a92b37a5dd40238819260fe090b16f4f1`.
 - The code removes the cancelled wallet asset overview and unreachable legacy asset lookup/address-autodetection code; it retains read-only wallet activity and pending accounting.
 - Project period summaries now separate native Gas/reward amounts by network, symbol and precision; incomplete USD valuation groups remain explicitly incomplete.
 - Pending bill confirmation requires an explicit finite non-negative actual reward, with zero accepted only when entered; Gas is prefilled only when a positive attributable valuation exists.
 - Unit tests were added for currency/network separation, incomplete USD valuation and explicit actual-amount input.
-- PR #103's three pull_request Actions runs (42671282759, 42672851431, 42673160167) ended at workflow level with failure and returned no jobs/check-runs. This is not a source-code test failure and is not valid build evidence.
-- A temporary branch-scoped `push` trigger is being added to the existing Android/backend workflow so an update to this PR branch automatically runs Android tests and debug APK assembly without requiring the user to dispatch a workflow manually. Remove this temporary trigger after batch 01 validation/merge.
-- **Not yet complete:** Android unit tests and debug APK build on the latest PR head; merge; real-device wallet activity/import/account switching/native-currency acceptance.
+- PR #103's earlier pull_request runs (42671282759, 42672851431, 42673160167) failed before jobs were created. A temporary branch-scoped `push` trigger was added to run Android validation automatically.
+- Run `42675076534` created the Android job successfully. Main Kotlin compilation and `:app:assembleDebug` succeeded, but `:app:compileDebugUnitTestKotlin` failed because nullable `Double?` values were passed to a non-null `assertEquals` overload in `AccountingInputPolicyTest.kt` lines 20–21.
+- The test now asserts non-null explicitly and compares the unwrapped numeric values. This fix awaits a fresh full Android unit-test + APK build on the exact updated PR head.
+- **Not yet complete:** fresh passing Android unit tests and debug APK build; merge; real-device wallet activity/import/account switching/native-currency acceptance.
