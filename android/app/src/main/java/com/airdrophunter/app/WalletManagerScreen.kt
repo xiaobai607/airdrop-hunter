@@ -186,6 +186,12 @@ fun WalletManagerScreen(
         editingWallet = null
         pendingConnectedAccount = null
         showAddDialog = false
+        walletName = ""
+        walletTags = ""
+        walletNotes = ""
+        editWalletName = ""
+        editWalletTags = ""
+        editWalletNotes = ""
         walletViewModel.load(isGuest)
     }
 
