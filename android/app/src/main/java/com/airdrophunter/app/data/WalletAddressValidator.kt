@@ -23,7 +23,7 @@ object WalletAddressValidator {
         val value = address.trim()
         if (value.isEmpty()) return false
         return when (canonicalChain(chain)) {
-            WalletEcosystem.EVM -> Regex("^0x[a-fA-F0-9]{40}$").matches(value)
+            WalletEcosystem.EVM -> Regex("(?i)^0x[a-f0-9]{40}$").matches(value)
             WalletEcosystem.TRON -> isBase58Check(value, setOf(0x41), 21)
             WalletEcosystem.SOL -> decodeBase58(value)?.size == 32
             WalletEcosystem.BTC -> isBase58Check(value, setOf(0x00, 0x05), 21) || isValidSegwit(value)

@@ -293,3 +293,11 @@ Recommended next implementation order, based on shared-code dependencies:
 - The scheduled workflow is intentionally disabled until the repository variable `COMMUNITY_SNAPSHOT_PUBLISH_ENABLED` is set to `true`; after that, it also requires `DATABASE_URL`, `COMMUNITY_SNAPSHOT_S3_BUCKET`, `COMMUNITY_SNAPSHOT_S3_ENDPOINT_URL`, `COMMUNITY_SNAPSHOT_S3_ACCESS_KEY_ID`, `COMMUNITY_SNAPSHOT_S3_SECRET_ACCESS_KEY`, and `COMMUNITY_SNAPSHOT_PUBLIC_BASE_URL` configured. Missing configuration causes a clean skip and never publishes an empty manifest.
 - Set `COMMUNITY_SNAPSHOT_BASE_URL` as a repository variable for Android builds after the public CDN endpoint is ready. No storage credential is included in the APK.
 - GitHub scheduled jobs are best-effort and can start late under platform load; the dispatcher still computes due windows from Asia/Shanghai at actual execution time. This is not a real-time SLA.
+
+
+### Wallet chain selection and validation regression fix (PR #72 follow-up)
+
+- Wallet creation requires explicit EVM / TRON / Solana / Bitcoin selection; no automatic chain guessing is added to the add-wallet flow.
+- EVM hexadecimal address validation accepts either `0x` or `0X` prefix while retaining exactly 40 hexadecimal payload characters. Duplicate EVM addresses remain case-insensitive.
+- Legacy address-format tests use a checksum-valid Bitcoin Base58Check fixture rather than a shape-only fake address, matching the stricter validator contract.
+- PR #72 follow-up fixes the two Android unit-test regressions found by CI; merge remains blocked until Android build/unit tests and backend tests pass.
