@@ -217,7 +217,7 @@ fun WalletManagerScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "管理地址，查看真实链上资产",
+                    "管理公开地址，查看链上交易记录",
                     color = AppColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -287,7 +287,7 @@ fun WalletManagerScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        "添加公开地址后，即可查询对应网络的真实资产",
+                        "添加公开地址后，可查看链上交易记录并导入待确认账单",
                         color = AppColors.TextSecondary
                     )
                 }
