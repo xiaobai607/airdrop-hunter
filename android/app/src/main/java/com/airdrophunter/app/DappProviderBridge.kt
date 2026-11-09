@@ -114,6 +114,24 @@ internal object DappProviderBridge {
 })();
 """
 
+    /**
+     * DApps may read public account information, but this app must not sign messages
+     * or submit transactions in the current product version.
+     */
+    fun isSigningOrTransactionMethod(method: String): Boolean {
+        val normalized = method.trim().lowercase()
+        return normalized.startsWith("eth_sign") ||
+            normalized.startsWith("personal_sign") ||
+            normalized in setOf(
+                "eth_sendtransaction",
+                "eth_sendrawtransaction",
+                "eth_senduseroperation",
+                "wallet_sendcalls",
+                "wallet_sendtransaction",
+                "eth_submittransaction"
+            )
+    }
+
     fun parseRequest(raw: String): DappRpcRequest? = try {
         val json = JSONObject(raw)
         val id = json.optLong("id", -1L)
@@ -167,8 +185,3 @@ internal data class PendingDappConnection(
     val replyProxy: JavaScriptReplyProxy
 )
 
-internal data class PendingDappWalletAction(
-    val request: DappRpcRequest,
-    val origin: String,
-    val replyProxy: JavaScriptReplyProxy
-)

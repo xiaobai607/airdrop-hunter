@@ -46,9 +46,10 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
         publishAccounts(emptyList())
     }
 
-    override fun onSessionRequestResponse(response: Modal.Model.SessionRequestResponse) { DappRpcCoordinator.onWalletResponse(response) }
+    // This app does not relay signing or transaction requests from DApps.
+    override fun onSessionRequestResponse(response: Modal.Model.SessionRequestResponse) = Unit
     override fun onProposalExpired(proposal: Modal.Model.ExpiredProposal) = Unit
-    override fun onRequestExpired(request: Modal.Model.ExpiredRequest) { DappRpcCoordinator.onRequestExpired(request.id) }
+    override fun onRequestExpired(request: Modal.Model.ExpiredRequest) = Unit
     override fun onConnectionStateChange(state: Modal.Model.ConnectionState) = Unit
     override fun onError(error: Modal.Model.Error) = Unit
 
