@@ -429,6 +429,12 @@ object CacheStore {
     suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) {
         database?.pendingBillDao()?.insert(bill.copy(accountScope = currentAccountScope()))
     }
+    suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean =
+        withContext(Dispatchers.IO) {
+            database?.userInteractionDao()?.hasTransaction(
+                currentAccountScope(), network, walletAddress, txHash
+            ) ?: false
+        }
     suspend fun deletePendingBill(id: String) = withContext(Dispatchers.IO) {
         database?.pendingBillDao()?.delete(id, currentAccountScope())
     }
