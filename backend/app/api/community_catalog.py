@@ -112,11 +112,13 @@ class ProjectSubmission(BaseModel):
         parsed = urlparse(value)
         if parsed.scheme.lower() != "https" or not parsed.hostname or parsed.username or parsed.password:
             raise ValueError("项目链接必须是有效的 HTTPS URL，不能包含账号或密码")
+        hostname = parsed.hostname.encode("idna").decode("ascii").lower().rstrip(".")
         try:
-            hostname = parsed.hostname.encode("idna").decode("ascii").lower().rstrip(".")
             ipaddress.ip_address(hostname)
         except ValueError:
-            hostname = parsed.hostname.encode("idna").decode("ascii").lower().rstrip(".")
+            pass
+        else:
+            raise ValueError("项目链接必须使用域名，不能直接填写 IP 地址")
         if "." not in hostname or hostname in {"localhost"} or hostname.endswith((".local", ".internal", ".localhost")):
             raise ValueError("项目链接域名无效")
         return normalize_project_url(value)
