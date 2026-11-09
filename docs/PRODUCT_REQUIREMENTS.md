@@ -492,9 +492,10 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - PR #95 added a manual backup/restore drill; actual execution remains pending until the isolated restore database and repository secrets are configured.
 
 
-### Deployment readiness blocks unsafe redirects before following them (PR pending, 2026-11-10)
+### Deployment readiness blocks unsafe redirects before following them (PR #99 merged, 2026-11-10)
 
 - Validate every redirect target inside urllib's redirect handler before sending the redirected request.
 - Reject redirects to another hostname, port, or non-HTTPS URL at the redirect boundary; do not wait until after contacting the redirected server.
 - Same-origin HTTPS redirects remain supported. Regression tests cover cross-origin rejection, HTTPS downgrade rejection, same-origin acceptance, and oversized-response rejection through the opener-based request path.
 - The checker remains unauthenticated and accepts only configured public HTTPS base URLs.
+- PR #99 merged as `16026d8576b7e807451ee5cab68f698748a75494`; backend CI passed on final head `313db39fef2e664702a47bf78caf6b073a816186` (run `42666329837`), and Android build was correctly skipped.
