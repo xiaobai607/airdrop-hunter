@@ -41,14 +41,15 @@ class CacheStoreWalletLocalDataSource : WalletLocalDataSource {
 class WalletRepository(
     private val remote: WalletRemoteDataSource,
     private val local: WalletLocalDataSource,
-    private val gson: Gson = Gson()
+    private val gson: Gson = Gson(),
+    private val accessTokenProvider: () -> String? = { TokenStore.readTokenBlocking() }
 ) {
     private val listType = object : TypeToken<List<WalletDto>>() {}.type
     private fun decode(raw: String?): List<WalletDto> =
         raw?.let { runCatching { gson.fromJson<List<WalletDto>>(it, listType) }.getOrNull() }.orEmpty()
 
     suspend fun load(guest: Boolean): List<WalletDto> =
-        loadForSession(guest, TokenStore.readTokenBlocking())
+        loadForSession(guest, accessTokenProvider())
 
     /** Loads and caches wallet rows against the exact session captured by the caller. */
     suspend fun loadForSession(guest: Boolean, accessToken: String?): List<WalletDto> {

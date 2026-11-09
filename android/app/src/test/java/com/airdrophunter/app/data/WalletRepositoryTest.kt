@@ -65,7 +65,7 @@ class WalletRepositoryTest {
     @Test fun authenticatedWalletsUseRemoteAndAccountCache() = runBlocking {
         val local = Local()
         val remote = Remote()
-        val repository = WalletRepository(remote, local)
+        val repository = WalletRepository(remote, local, accessTokenProvider = { "unit-test-session-token" })
         val result = repository.add(WalletWriteRequest("Main", WalletEcosystem.EVM, "0x2222222222222222222222222222222222222222"), false)
         assertEquals(1, result.size)
         assertEquals(1, remote.addCalls)
@@ -112,7 +112,7 @@ class WalletRepositoryTest {
     @Test fun authenticatedWalletMetadataUpdatesThroughOwnerScopedRemoteAndAccountCache() = runBlocking {
         val local = Local()
         val remote = Remote()
-        val repository = WalletRepository(remote, local)
+        val repository = WalletRepository(remote, local, accessTokenProvider = { "unit-test-session-token" })
         val added = repository.add(
             WalletWriteRequest("Main", WalletEcosystem.EVM, "0x" + "4".repeat(40)),
             guest = false
