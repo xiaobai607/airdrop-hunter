@@ -234,3 +234,36 @@ def test_solana_rpc_parser_reads_confirmed_fee_and_first_account_fee_payer():
     assert rows[0]["fee_paid_by_wallet"] is False
     assert rows[0]["total_fee_base_unit"] == "5000"
     assert rows[0]["status"] == "failed"
+
+from app.routers.wallet_activity import normalize_tron_transaction_rows
+
+
+def test_tron_provider_rows_are_validated_sorted_and_case_insensitively_deduplicated():
+    older_duplicate = {"txID": "a" * 64, "block_timestamp": 1_700_000_000_000, "marker": "old"}
+    newer_duplicate = {"txID": "A" * 64, "block_timestamp": 1_700_000_100_000, "marker": "new"}
+    newest = {"txID": "b" * 64, "block_timestamp": 1_700_000_200_000}
+    invalid_hash = {"txID": "not-a-transaction", "block_timestamp": 1_700_000_300_000}
+    invalid_time = {"txID": "c" * 64, "block_timestamp": 0}
+
+    rows = normalize_tron_transaction_rows(
+        [older_duplicate, invalid_hash, newer_duplicate, invalid_time, newest],
+        limit=10,
+    )
+
+    assert [row["txID"] for row in rows] == ["b" * 64, "A" * 64]
+    assert rows[1]["marker"] == "new"
+
+
+def test_tron_provider_row_normalization_enforces_requested_limit():
+    rows = [
+        {"txID": f"{index:064x}", "block_timestamp": 1_700_000_000_000 + index}
+        for index in range(5)
+    ]
+
+    normalized = normalize_tron_transaction_rows(rows, limit=2)
+
+    assert len(normalized) == 2
+    assert [row["block_timestamp"] for row in normalized] == [
+        1_700_000_000_004,
+        1_700_000_000_003,
+    ]
