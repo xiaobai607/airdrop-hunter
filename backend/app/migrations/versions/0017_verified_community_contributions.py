@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision = "0017_verified_community_contributions"
+revision = "0017_verified_contrib"
 down_revision = "0016_nullable_expected_gas"
 branch_labels = None
 depends_on = None

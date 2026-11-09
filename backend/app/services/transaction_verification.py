@@ -162,17 +162,22 @@ async def verify_evm_contribution(
         receipt_block = _hex_int(receipt.get("blockNumber"), "回执区块")
         if tx_block != receipt_block:
             raise VerificationPending("交易区块信息尚未一致，等待自动重试")
+        requested_hash = tx_hash.strip().lower()
+        returned_hash = str(tx.get("hash") or requested_hash).lower()
+        receipt_hash = str(receipt.get("transactionHash") or requested_hash).lower()
+        if returned_hash != requested_hash or receipt_hash != requested_hash:
+            raise VerificationPending("链上服务返回的交易标识不一致，等待自动重试")
+
         status = str(receipt.get("status") or "").lower()
-        if status == "0x0":
-            raise VerificationRejected("链上交易执行失败")
-        if status != "0x1":
+        if status not in {"0x0", "0x1"}:
             raise VerificationPending("交易执行状态尚未确认")
+        execution_status = "success" if status == "0x1" else "failed"
 
         latest_hex = await _etherscan_rpc(client, config["chain_id"], api_key, "eth_blockNumber")
         latest_block = _hex_int(latest_hex, "最新区块")
         confirmations = latest_block - receipt_block + 1
         if confirmations < int(config["confirmations"]):
-            raise VerificationRejected("交易确认数不足")
+            raise VerificationPending("交易确认数不足，等待自动重试")
 
         block = await _etherscan_rpc(
             client, config["chain_id"], api_key, "eth_getBlockByNumber",
@@ -199,6 +204,7 @@ async def verify_evm_contribution(
             "block_number": receipt_block,
             "block_timestamp": block_timestamp,
             "confirmations": confirmations,
+            "execution_status": execution_status,
             "native_symbol": config["symbol"],
             "gas_used": str(gas_used),
             "effective_gas_price_wei": str(effective_gas_price),
