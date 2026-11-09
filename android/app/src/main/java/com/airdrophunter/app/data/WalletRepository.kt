@@ -49,7 +49,9 @@ class WalletRepository(
             chain = request.chain, network_icon = when (request.chain) {
                 WalletEcosystem.EVM -> "E"
                 WalletEcosystem.TRON -> "T"
-                else -> "S"
+                WalletEcosystem.BTC -> "B"
+                WalletEcosystem.SOL -> "S"
+                else -> "?"
             }, address = request.address
         )
         val updated = existing.filterNot {

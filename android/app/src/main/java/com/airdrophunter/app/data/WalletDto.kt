@@ -20,26 +20,40 @@ object WalletEcosystem {
     const val EVM = "EVM"
     const val TRON = "TRON"
     const val SOL = "SOL"
+    const val BTC = "BTC"
 
     fun fromAddress(address: String, legacyChain: String = ""): String {
         val value = address.trim()
         return when {
             Regex("^0x[a-fA-F0-9]{40}$").matches(value) -> EVM
             Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$").matches(value) -> TRON
-            Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$").matches(value) -> SOL
+            // Bech32 is unambiguous. Base58 Bitcoin and Solana addresses overlap,
+            // so preserve an explicitly stored ecosystem before classifying Base58.
+            value.startsWith("bc1", ignoreCase = true) && isBitcoinAddress(value) -> BTC
             legacyChain.equals("Ethereum", true) || legacyChain.equals("ERC20", true) ||
                 legacyChain.equals(EVM, true) -> EVM
             legacyChain.equals("Tron", true) || legacyChain.equals("TRC20", true) ||
                 legacyChain.equals(TRON, true) -> TRON
             legacyChain.equals("Solana", true) || legacyChain.equals(SOL, true) -> SOL
+            legacyChain.equals("Bitcoin", true) || legacyChain.equals("BTC", true) -> BTC
+            isBitcoinAddress(value) -> BTC
+            Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$").matches(value) -> SOL
             else -> "OTHER"
         }
+    }
+
+    private fun isBitcoinAddress(value: String): Boolean {
+        val base58 = Regex("^(1|3)[a-km-zA-HJ-NP-Z1-9]{25,34}$")
+        if (base58.matches(value)) return true
+        if (!value.equals(value.lowercase()) && !value.equals(value.uppercase())) return false
+        return Regex("^bc1[ac-hj-np-z02-9]{11,71}$", RegexOption.IGNORE_CASE).matches(value)
     }
 
     fun label(ecosystem: String): String = when (ecosystem) {
         EVM -> "EVM 生态通用"
         TRON -> "TRON 生态"
         SOL -> "Solana 生态"
+        BTC -> "Bitcoin 生态"
         else -> "其他网络"
     }
 }

@@ -40,6 +40,10 @@ class WalletActivityRepository(
                 transactions = remote.getChain("solana", wallet.address),
                 networksChecked = listOf("solana")
             )
+            WalletEcosystem.BTC -> WalletActivitySnapshot(
+                transactions = remote.getChain("bitcoin", wallet.address),
+                networksChecked = listOf("bitcoin")
+            )
             else -> throw IllegalArgumentException("该地址类型暂不支持交易记录查询")
         }
 }
