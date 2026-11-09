@@ -348,7 +348,7 @@ Recommended next implementation order, based on shared-code dependencies:
 ### RSS content-reuse approval gate (PR #78 in progress)
 
 - A feed source must pass both exact HTTPS hostname allowlisting and explicit source-name approval via `AIRDROP_RSS_APPROVED_SOURCES`.
-- The existing `web3-discover.vercel.app` API importer is also disabled by default and requires `AIRDROP_HUB_SOURCE_APPROVED=true`; Vercel's API terms require an active account and make end-user app use conditional on permission. The separate CC0 GitHub mirror currently has an old snapshot timestamp (2026-05-11), so it is not a reliable live substitute.
+- The existing `web3-discover.vercel.app` API importer is also disabled by default and requires `AIRDROP_HUB_SOURCE_APPROVED=true` because its permission for third-party public-catalog republication has not been confirmed. The provider's separate GitHub mirror declares its dataset CC0, but its current snapshot is dated 2026-05-11; it is too stale to use as a live discovery source until freshness is restored.
 - The approval variable must remain empty unless the source terms or written permission explicitly allow the intended public display/reuse of feed content.
 - RSS discovery remains candidate intake only; feed records never become verified projects without admin review.
 - Airdrops.io terms restrict the license to personal, non-commercial transitory viewing and prohibit copying, public display, and mirroring. AirdropAlert advertises an RSS endpoint, but its terms limit content use to personal purposes unless prior written permission is obtained. Neither source is approved for this app's public project catalog without further permission.
