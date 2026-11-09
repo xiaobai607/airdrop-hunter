@@ -313,19 +313,26 @@ private fun CommunitySnapshotPeriodMetric(
 ) {
     val total = gas + reward
     val hasComparableAmounts = hasData && total > 0.0
-    val gasWeight = if (hasComparableAmounts) (gas / total).toFloat().coerceIn(0.01f, 0.99f) else 0f
-    val rewardWeight = if (hasComparableAmounts) 1f - gasWeight else 0f
+    val gasWeight = if (hasComparableAmounts) (gas / total).toFloat() else 0f
+    val rewardWeight = if (hasComparableAmounts) (reward / total).toFloat() else 0f
     Surface(color = Color(0xFF20352B), shape = RoundedCornerShape(13.dp)) {
         Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                 Text("USD 估值", color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall)
             }
-            if (hasComparableAmounts) {
+            if (hasComparableAmounts && gas > 0.0 && reward > 0.0) {
                 Row(Modifier.fillMaxWidth().height(18.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                     Box(Modifier.weight(gasWeight).fillMaxHeight().background(Color(0xFFEF6262), RoundedCornerShape(6.dp)))
                     Box(Modifier.weight(rewardWeight).fillMaxHeight().background(Color(0xFF31C48D), RoundedCornerShape(6.dp)))
                 }
+            } else if (hasComparableAmounts) {
+                Box(
+                    Modifier.fillMaxWidth().height(18.dp).background(
+                        if (gas > 0.0) Color(0xFFEF6262) else Color(0xFF31C48D),
+                        RoundedCornerShape(6.dp)
+                    )
+                )
             } else {
                 Text(
                     if (hasData) "暂无可比较的 Gas / 实际收益金额" else "暂无该时间窗口的确认贡献",
