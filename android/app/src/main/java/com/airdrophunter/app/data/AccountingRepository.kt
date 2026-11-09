@@ -12,6 +12,8 @@ interface AccountingLocalDataSource {
     suspend fun addPendingBill(bill: PendingBillEntity)
     suspend fun deletePendingBill(id: String)
     suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean
+    fun schedulePrivateLedgerSync() {}
+
     suspend fun confirmPendingBill(
         id: String,
         projectLocalId: String,
@@ -33,6 +35,7 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
     override suspend fun deletePendingBill(id: String) { CacheStore.deletePendingBill(id) }
     override suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean =
         CacheStore.hasRecordedTransaction(network, walletAddress, txHash)
+    override fun schedulePrivateLedgerSync() = CacheStore.schedulePrivateLedgerSync()
     override suspend fun confirmPendingBill(
         id: String,
         projectLocalId: String,
@@ -55,7 +58,7 @@ class AccountingRepository(
     fun observePendingBills(): Flow<List<PendingBillEntity>> = local.observePendingBills()
 
     suspend fun loadProjects(): List<ProjectDto> {
-        syncPersonalLedger()
+        syncAndScheduleIfNeeded()
         val sources = listOfNotNull(
             local.readLocal("projects"),
             local.read("projects"),
@@ -93,8 +96,13 @@ class AccountingRepository(
         val confirmed = local.confirmPendingBill(
             id, projectLocalId, projectOfficialId, projectCustomName, gas, reward
         )
-        if (confirmed) syncPersonalLedger()
+        if (confirmed) syncAndScheduleIfNeeded()
         return confirmed
+    }
+
+    private suspend fun syncAndScheduleIfNeeded() {
+        if (TokenStore.readTokenBlocking().isNullOrBlank()) return
+        if (!syncPersonalLedger()) local.schedulePrivateLedgerSync()
     }
 
     /**
