@@ -872,3 +872,14 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - The local profile aggregate now keeps Gas totals, but excludes incomplete-valuation projects from USD reward/profit and win-rate calculations. It carries an explicit `usd_profit_complete` flag; the profile shows “估值未完整” rather than presenting the partial sum as a final USD total. The number of participating projects remains the full ledger project count.
 - Added regression coverage for a mixed complete/incomplete ledger. This is part of the same accounting-domain consistency pass; it does not change historical ledger rows or infer missing reward values.
 - The new follow-up commit requires its own exact-head Android CI run before PR #119 can be considered validated. Backend receipt verification, historical-price quotes, global chain+hash replay protection, and the verified contribution pipeline remain pending.
+
+
+### Cloud/local accounting valuation parity follow-up (2026-11-10; implementation submitted, CI pending)
+
+- A cross-module audit found the guest/local profile now excludes incomplete-valuation projects, while the authenticated `/api/user/stats` endpoint still summed compatibility sentinel values from every private-ledger row.
+- The backend now groups ledger rows by project and applies the same project-level completeness rule as Room: Gas totals remain visible, but reward totals, net P&L, profitable-project count, and win rate exclude a project if any row in that project has an incomplete USD reward valuation.
+- The backend returns `usd_profit_complete`; Android's existing `UserStatsDto` and profile display consume this flag. New direct-accounting rows persist the flag in the private-ledger `extra` metadata so the same meaning survives authenticated sync.
+- Legacy confirmed-bill rows without reward-kind metadata remain backward-compatible. New reward metadata infers POINTS/UNISSUED/UNKNOWN as incomplete and TOKEN as complete only when a persisted USD valuation exists. Explicit completeness metadata takes precedence.
+- Added backend regression tests for unknown, points, unpriced-token, USD, manual USD valuation, and priced-token rows, including project-level aggregation.
+- This is an end-to-end correctness extension of the current accounting integration, not a new public-contribution pipeline. The next dependency remains backend transaction receipt verification and provenance-aware anonymous outbox delivery.
+- Current branch head before this follow-up: `b4a8149b459b464fcbffd9a2972809440a8cc0e5`; this change requires exact-head Android and backend CI before it is considered validated.

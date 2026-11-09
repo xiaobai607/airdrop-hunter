@@ -129,6 +129,60 @@ def test_user_stats_aggregate_confirmed_ledger_gas_rewards_and_win_rate():
         assert result["total_interactions"] == 3
 
 
+def test_user_stats_excludes_incomplete_reward_valuation_from_cloud_totals():
+    with TestClient(app) as client:
+        headers = auth(client)
+        entries = [
+            ("complete-linea", "linea", "5.00", "10.00",
+             {"reward_kind": "USD", "reward_usd_valuation": "10.00"}),
+            ("unknown-scroll", "scroll", "4.00", "0.00",
+             {"reward_kind": "UNKNOWN", "reward_usd_valuation": "", "usd_profit_complete": "false"}),
+            ("points-base", "base", "3.00", "0.00",
+             {"reward_kind": "POINTS", "reward_amount": "100", "reward_unit": "POINTS"}),
+            ("unpriced-token", "optimism", "1.00", "0.00",
+             {"reward_kind": "TOKEN", "reward_amount": "50", "reward_unit": "ABC",
+              "reward_usd_valuation": ""}),
+            ("complete-zksync", "zksync", "2.00", "2.00",
+             {"reward_kind": "MANUAL_USD_VALUATION", "reward_usd_valuation": "2.00"}),
+        ]
+        for record_id, project_id, gas, reward, extra in entries:
+            payload = ledger_payload(
+                record_id, project_id=project_id, actual_gas_cost_usd=gas,
+                actual_reward_usd=reward, extra=extra
+            )
+            saved = client.put(f"/api/personal-ledger/{record_id}", headers=headers, json=payload)
+            assert saved.status_code == 200
+
+        result = client.get("/api/user/stats", headers=headers).json()
+        assert result["ledger_project_count"] == 5
+        assert result["ledger_total_gas_cost"] == 15.0
+        assert result["ledger_total_actual_reward"] == 12.0
+        assert result["ledger_net_profit"] == 5.0
+        assert result["profitable_projects"] == 1
+        assert result["evaluated_projects"] == 2
+        assert result["win_rate"] == 50.0
+        assert result["usd_profit_complete"] is False
+        assert result["total_interactions"] == 5
+
+
+def test_user_stats_accepts_token_reward_only_with_persisted_usd_valuation():
+    with TestClient(app) as client:
+        headers = auth(client)
+        payload = ledger_payload(
+            "priced-token", project_id="linea", actual_gas_cost_usd="1.00",
+            actual_reward_usd="2.50",
+            extra={"reward_kind": "TOKEN", "reward_amount": "10", "reward_unit": "ABC",
+                   "reward_usd_valuation": "2.50", "usd_profit_complete": "true"}
+        )
+        saved = client.put("/api/personal-ledger/priced-token", headers=headers, json=payload)
+        assert saved.status_code == 200
+        result = client.get("/api/user/stats", headers=headers).json()
+        assert result["ledger_total_actual_reward"] == 2.5
+        assert result["ledger_net_profit"] == 1.5
+        assert result["evaluated_projects"] == 1
+        assert result["usd_profit_complete"] is True
+
+
 def test_personal_ledger_preserves_unknown_expected_gas_as_null_and_explicit_zero():
     with TestClient(app) as client:
         headers = auth(client)

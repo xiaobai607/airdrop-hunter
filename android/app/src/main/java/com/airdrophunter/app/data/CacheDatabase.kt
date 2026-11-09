@@ -1012,6 +1012,7 @@ object CacheStore {
                     "reward_usd_valuation" to (rewardUsd?.toString() ?: ""),
                     "reward_quote_source" to (reward.quoteSource ?: ""),
                     "reward_quote_timestamp" to (reward.quoteTimestamp?.toString() ?: ""),
+                    "usd_profit_complete" to complete.toString(),
                     "public_contribution_opt_in" to entry.publicContributionOptIn.toString(),
                     "project_official_id" to (officialId ?: "")
                 )
