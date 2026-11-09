@@ -14,11 +14,12 @@ internal data class DappRpcRequest(
 
 internal object DappProviderBridge {
     const val JS_OBJECT_NAME = "ahWalletBridge"
-    val HTTPS_ORIGIN_RULES = setOf("https://*")
+    val HTTPS_ORIGIN_RULES = setOf("*")
 
     const val PROVIDER_SCRIPT = """
 (function () {
-  if (window.ethereum || !window.ahWalletBridge) return;
+  // The bridge is intended for the trusted top-level page only; do not install it in iframes.
+  if (window.top !== window || window.ethereum || !window.ahWalletBridge) return;
   var pending = new Map();
   var listeners = new Map();
   var nextId = 1;
