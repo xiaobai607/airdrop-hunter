@@ -136,4 +136,4 @@ async def get_community_project_stats(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     row = await db.get(CommunityProjectStats, project_official_id)
-    return serialize_stats(project_official_id, row)
+    return await serialize_stats_with_activity(db, project_official_id, row)
