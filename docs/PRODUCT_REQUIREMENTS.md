@@ -3,16 +3,21 @@
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
 
-## 0. Mandatory continuation gate — apply whenever the user says “继续”
+## 0. Highest-priority continuation rule — mandatory whenever the user says “继续”, including a new chat
 
-Before doing any further implementation work:
-1. Re-read this document as the single authoritative requirements and progress ledger; do not rely on a remembered or older summary.
-2. Compare the latest user instructions with this document. The user's latest explicit correction overrides older statements and implementation assumptions; update this document before proceeding if a conflict is found.
-3. Check the actual GitHub main branch, open PRs, latest commit SHA, and CI result. Never treat an older commit's CI result as validation of a newer commit.
-4. Separate requirements into **complete in code**, **partial**, **in progress**, **pending verification**, **deferred**, and **cancelled**. Do not report a feature complete based only on a plan, PR creation, or unverified deployment.
-5. Choose the next task by dependency and user priority. Do not re-open completed work without a demonstrated defect, and never reintroduce cancelled/deferred scope without explicit user approval.
-6. For every implementation PR, update this document's requirements/progress ledger in the same change. Keep GitHub Actions usage low: validate coherent batches and avoid unnecessary duplicate runs.
-7. Before reporting back, state what changed, what was actually verified, what remains, and the next dependency-driven task.
+This rule has the highest execution priority for this project. It must survive context limits and chat handoffs. The repository copy of this document is the durable source of truth; memory, summaries, and previous assistant messages are never substitutes for re-reading it.
+
+Before any implementation work after “继续”:
+1. **Read this complete requirements document first**, including the progress ledger, code-coupling map, and latest user-confirmed corrections. Do this again in every new chat, even when prior context claims it was already read.
+2. Compare the latest user instructions with the document. The latest explicit user correction wins. If there is a conflict, correct this document before implementation.
+3. Inspect the current GitHub main branch, open PRs, branches, latest commits, diffs, and CI results. Never treat an older commit's CI as validation for a newer commit.
+4. Assess **code fit and feature fit together**: inspect the existing architecture, shared models, data ownership, APIs, persistence, background work, UI, tests, and dependencies alongside the complete user-facing feature flow. Plan implementation around the connected end-to-end capability, not isolated code edits.
+5. **Do not develop in fragmented, piecemeal slices when related requirements share a code path or user workflow.** Group coupled requirements into a coherent implementation batch, preserve cross-module consistency, and validate the complete connected flow. Split work only when a real dependency, risk boundary, or verification constraint requires it; document that reason.
+6. Classify every requirement as **complete in code**, **partial**, **in progress**, **pending verification**, **deferred**, or **cancelled**. A plan, commit, PR, passing CI, deployment, and real-device acceptance are different evidence levels; do not conflate them.
+7. Select the next coherent batch by requirement coverage, code dependencies, and user priority. Do not repeat completed work without a demonstrated defect or reintroduce cancelled/deferred scope without explicit approval.
+8. Update this document's requirements and progress ledger as part of every implementation change. Keep GitHub Actions usage low by validating coherent batches and avoiding unnecessary duplicate runs.
+9. Report actual changes, verification evidence, remaining work, and the next dependency-driven batch.
+10. **Completion declaration:** only after every confirmed requirement in this document has been implemented and the required verification/acceptance is complete, tell the user exactly: **“全部开发完毕，可以进行下一步工作了。”** Do not use this declaration earlier.
 
 ## 1. Product and engineering boundaries
 
