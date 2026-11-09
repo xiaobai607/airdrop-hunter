@@ -13,7 +13,10 @@ def test_wallet_crud_and_project_claim_url_are_user_scoped():
         alice, bob = auth(client), auth(client)
         address = "0x" + "a" * 40
         assert client.get("/api/wallets", headers=alice).json() == []
-        saved = client.post("/api/wallets", headers=alice, json={"wallet_name": "主号", "chain": "EVM", "address": address})
+        saved = client.post("/api/wallets", headers=alice, json={
+            "wallet_name": "主号", "chain": "EVM", "address": address,
+            "tags": ["主钱包", " 空投 ", "主钱包"], "notes": "  主要交互地址  "
+        })
         assert saved.status_code == 201
         wallet = saved.json()
         assert wallet["wallet_name"] == "主号"
@@ -21,7 +24,20 @@ def test_wallet_crud_and_project_claim_url_are_user_scoped():
         assert wallet["ecosystem"] == "EVM"
         assert wallet["network_icon"] == "E"
         assert wallet["address"] == address
+        assert wallet["tags"] == ["主钱包", "空投"]
+        assert wallet["notes"] == "主要交互地址"
         assert client.get("/api/wallets", headers=bob).json() == []
+        updated = client.put(f"/api/wallets/{wallet['id']}", headers=alice, json={
+            "wallet_name": "备用主号", "chain": "EVM", "address": address,
+            "tags": ["长期", "DeFi"], "notes": "更新后的备注"
+        })
+        assert updated.status_code == 200
+        assert updated.json()["wallet_name"] == "备用主号"
+        assert updated.json()["tags"] == ["长期", "DeFi"]
+        assert updated.json()["notes"] == "更新后的备注"
+        assert client.put(f"/api/wallets/{wallet['id']}", headers=bob, json={
+            "wallet_name": "越权", "chain": "EVM", "address": address
+        }).status_code == 404
         project_response = client.post("/api/projects", headers=alice, json={"name": "Linea", "status": "tracking", "claim_url": "https://claim.example/eligibility?campaign=alpha"})
         assert project_response.status_code == 201
         project = project_response.json()
@@ -64,3 +80,19 @@ def test_task_step_order_is_persisted_and_sorted():
         tasks = client.get(f"/api/projects/{project_id}/tasks", headers=headers).json()
         assert [task["id"] for task in tasks] == [first["id"], second["id"]]
         assert [task["step_order"] for task in tasks] == [1, 2]
+
+
+def test_wallet_metadata_rejects_too_many_or_oversized_tags():
+    with TestClient(app) as client:
+        headers = auth(client)
+        address = "0x" + "d" * 40
+        too_many = client.post("/api/wallets", headers=headers, json={
+            "wallet_name": "Wallet", "chain": "EVM", "address": address,
+            "tags": [f"tag-{index}" for index in range(13)]
+        })
+        assert too_many.status_code == 422
+        oversized = client.post("/api/wallets", headers=headers, json={
+            "wallet_name": "Wallet", "chain": "EVM", "address": address,
+            "tags": ["x" * 25]
+        })
+        assert oversized.status_code == 422
