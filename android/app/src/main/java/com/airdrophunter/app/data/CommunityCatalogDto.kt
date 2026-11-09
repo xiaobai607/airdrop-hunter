@@ -7,7 +7,8 @@ data class CommunityProjectCatalogDto(
     val logo: String,
     val description: String,
     val tags: List<String>,
-    val website_url: String
+    val website_url: String,
+    val created_at: String = ""
 )
 
 data class CommunityProjectSubmissionRequest(

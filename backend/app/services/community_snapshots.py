@@ -29,9 +29,8 @@ def assemble_snapshot(
     generated_at: datetime,
     project_rows: list[dict],
     rating_rows: list[dict],
-    heat_rows: list[dict],
 ) -> dict:
-    """Build a privacy-safe, JSON-ready snapshot from already aggregated rows."""
+    """Build a privacy-safe snapshot with only confirmed money aggregates and ratings."""
     if window not in WINDOW_DURATIONS:
         raise ValueError(f"Unsupported community snapshot window: {window}")
 
@@ -45,14 +44,6 @@ def assemble_snapshot(
         score = int(row["score"])
         ratings_by_project.setdefault(project_id, {score: 0 for score in range(1, 6)})[score] = int(row["rating_count"])
 
-    heat_by_project = {
-        row["project_official_id"]: {
-            "contribution_count": int(row["contribution_count"] or 0),
-            "interaction_count": int(row["interaction_count"] or 0),
-        }
-        for row in heat_rows
-    }
-
     projects = []
     for row in project_rows:
         project_id = row["project_official_id"]
@@ -62,7 +53,7 @@ def assemble_snapshot(
         average_rating = weighted_score / rating_count if rating_count else None
         gas = _number(row["gas_cost_usd"])
         reward = _number(row["actual_reward_usd"])
-        heat = heat_by_project.get(project_id, {"contribution_count": 0, "interaction_count": 0})
+        created_at = row["created_at"].astimezone(timezone.utc)
         projects.append({
             "project_official_id": project_id,
             "name": row["name"],
@@ -70,16 +61,14 @@ def assemble_snapshot(
             "logo": row["logo"],
             "description": row["description"],
             "website_url": row["website_url"],
+            "created_at": _iso(created_at),
             "tags": row.get("tags", []),
             "gas_cost_usd_valuation": gas,
             "actual_reward_usd_valuation": reward,
             "net_result_usd_valuation": reward - gas,
-            "contribution_count": int(row["contribution_count"] or 0),
-            "interaction_count": int(row["interaction_count"] or 0),
             "average_rating": average_rating,
             "rating_count": rating_count,
             "rating_distribution": {str(score): distribution.get(score, 0) for score in range(1, 6)},
-            "activity_24h": heat,
         })
 
     return {
@@ -94,7 +83,6 @@ def assemble_snapshot(
         "data_quality": "user_confirmed_actual_contributions_only",
         "projects": projects,
     }
-
 
 async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetime | None = None) -> dict:
     if window not in WINDOW_DURATIONS:
@@ -117,10 +105,9 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
             CommunityProjectCatalogEntry.logo,
             CommunityProjectCatalogEntry.description,
             CommunityProjectCatalogEntry.website_url,
+            CommunityProjectCatalogEntry.created_at.label("created_at"),
             func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_cost_usd"),
             func.coalesce(func.sum(CommunityContribution.actual_reward_usd), 0).label("actual_reward_usd"),
-            func.count(CommunityContribution.id).label("contribution_count"),
-            func.coalesce(func.sum(CommunityContribution.interaction_count), 0).label("interaction_count"),
         )
         .select_from(CommunityProjectCatalogEntry)
         .outerjoin(CommunityContribution, and_(*conditions))
@@ -132,6 +119,7 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
             CommunityProjectCatalogEntry.logo,
             CommunityProjectCatalogEntry.description,
             CommunityProjectCatalogEntry.website_url,
+            CommunityProjectCatalogEntry.created_at,
             CommunityProjectCatalogEntry.sort_order,
         )
         .order_by(CommunityProjectCatalogEntry.sort_order.asc(), CommunityProjectCatalogEntry.name.asc())
@@ -158,18 +146,6 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
     )
     rating_rows = (await db.execute(ratings_stmt)).mappings().all()
 
-    heat_stmt = (
-        select(
-            CommunityContribution.project_official_id,
-            func.count(CommunityContribution.id).label("contribution_count"),
-            func.coalesce(func.sum(CommunityContribution.interaction_count), 0).label("interaction_count"),
-        )
-        .where(
-            CommunityContribution.user_id.is_(None),
-            CommunityContribution.created_at >= now - timedelta(hours=24),
-        )
-        .group_by(CommunityContribution.project_official_id)
-    )
-    heat_rows = (await db.execute(heat_stmt)).mappings().all()
 
-    return assemble_snapshot(window, now, list(metric_rows), list(rating_rows), list(heat_rows))
+
+    return assemble_snapshot(window, now, list(metric_rows), list(rating_rows))

@@ -73,7 +73,7 @@ data class CommunitySyncOutboxEntity(
     @PrimaryKey val id: String,
     @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
     val projectOfficialId: String, val gasCostUsd: Double, val actualRewardUsd: Double,
-    val interactionCount: Int, val createdAt: Long,
+    val createdAt: Long,
     @ColumnInfo(defaultValue = "0") val attemptCount: Int = 0,
     val lastAttemptAt: Long? = null, val lastError: String? = null
 )
@@ -247,7 +247,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 10, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 11, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -353,7 +353,7 @@ object CacheStore {
                 CREATE TABLE IF NOT EXISTS community_sync_outbox (
                     id TEXT NOT NULL PRIMARY KEY, accountScope TEXT NOT NULL DEFAULT 'guest',
                     projectOfficialId TEXT NOT NULL, gasCostUsd REAL NOT NULL, actualRewardUsd REAL NOT NULL,
-                    interactionCount INTEGER NOT NULL, createdAt INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL,
                     attemptCount INTEGER NOT NULL DEFAULT 0, lastAttemptAt INTEGER, lastError TEXT
                 )
             """.trimIndent())
@@ -370,13 +370,38 @@ object CacheStore {
         }
     }
 
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS community_sync_outbox_new (
+                    id TEXT NOT NULL PRIMARY KEY, accountScope TEXT NOT NULL DEFAULT 'guest',
+                    projectOfficialId TEXT NOT NULL, gasCostUsd REAL NOT NULL, actualRewardUsd REAL NOT NULL,
+                    createdAt INTEGER NOT NULL, attemptCount INTEGER NOT NULL DEFAULT 0,
+                    lastAttemptAt INTEGER, lastError TEXT
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO community_sync_outbox_new (
+                    id, accountScope, projectOfficialId, gasCostUsd, actualRewardUsd,
+                    createdAt, attemptCount, lastAttemptAt, lastError
+                )
+                SELECT id, accountScope, projectOfficialId, gasCostUsd, actualRewardUsd,
+                    createdAt, attemptCount, lastAttemptAt, lastError
+                FROM community_sync_outbox
+            """.trimIndent())
+            db.execSQL("DROP TABLE community_sync_outbox")
+            db.execSQL("ALTER TABLE community_sync_outbox_new RENAME TO community_sync_outbox")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_community_sync_outbox_accountScope_createdAt ON community_sync_outbox(accountScope, createdAt)")
+        }
+    }
+
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -706,7 +731,6 @@ object CacheStore {
                         projectOfficialId = officialId,
                         gasCostUsd = gas,
                         actualRewardUsd = reward,
-                        interactionCount = 1,
                         createdAt = recordedAt
                     )
                 )

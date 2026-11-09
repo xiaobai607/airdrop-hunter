@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -21,55 +20,22 @@ class CommunityContributionRequest(BaseModel):
     event_id: UUID
     gas_cost_usd: Decimal = Field(ge=0, le=MAX_AMOUNT)
     actual_reward_usd: Decimal = Field(ge=0, le=MAX_AMOUNT)
-    interaction_count: int = Field(default=1, ge=1, le=1)
 
 
-def serialize_stats(project_official_id: str, row: CommunityProjectStats | None) -> dict:
-    if row is None:
-        return {
-            "project_official_id": project_official_id,
-            "total_gas_cost_usd": 0.0,
-            "total_actual_reward_usd": 0.0,
-            "total_interactions": 0,
-            "contribution_count": 0,
-            "contributions_24h": 0,
-            "interactions_24h": 0,
-            "average_rating": None,
-            "rating_count": 0,
-            "data_quality": "user_confirmed",
-        }
+def serialize_stats(project_official_id: str, row: CommunityProjectStats | None, average_rating=None, rating_count=0) -> dict:
     return {
         "project_official_id": project_official_id,
-        "total_gas_cost_usd": float(row.total_gas_cost_usd or 0),
-        "total_actual_reward_usd": float(row.total_actual_reward_usd or 0),
-        "total_interactions": int(row.total_interactions or 0),
-        "contribution_count": int(row.contribution_count or 0),
-        "contributions_24h": 0,
-        "interactions_24h": 0,
-        "average_rating": None,
-        "rating_count": 0,
+        "total_gas_cost_usd": float(row.total_gas_cost_usd or 0) if row else 0.0,
+        "total_actual_reward_usd": float(row.total_actual_reward_usd or 0) if row else 0.0,
+        "average_rating": float(average_rating) if average_rating is not None else None,
+        "rating_count": int(rating_count or 0),
         "data_quality": "user_confirmed",
     }
 
 
-async def serialize_stats_with_activity(
+async def serialize_stats_with_rating(
     db: AsyncSession, project_official_id: str, row: CommunityProjectStats | None
 ) -> dict:
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-    recent = (
-        await db.execute(
-            select(
-                func.count(CommunityContribution.id).label("contributions"),
-                func.coalesce(func.sum(CommunityContribution.interaction_count), 0).label("interactions"),
-            ).where(
-                CommunityContribution.project_official_id == project_official_id,
-                CommunityContribution.created_at >= cutoff,
-            )
-        )
-    ).one()
-    result = serialize_stats(project_official_id, row)
-    result["contributions_24h"] = int(recent.contributions or 0)
-    result["interactions_24h"] = int(recent.interactions or 0)
     rating = (
         await db.execute(
             select(
@@ -78,9 +44,7 @@ async def serialize_stats_with_activity(
             ).where(CommunityProjectRating.project_official_id == project_official_id)
         )
     ).one()
-    result["average_rating"] = float(rating.average) if rating.average is not None else None
-    result["rating_count"] = int(rating.count or 0)
-    return result
+    return serialize_stats(project_official_id, row, rating.average, rating.count)
 
 
 @router.post("/{project_official_id}/contributions")
@@ -101,7 +65,6 @@ async def add_community_contribution(
         project_official_id=project_official_id,
         gas_cost_usd=payload.gas_cost_usd,
         actual_reward_usd=payload.actual_reward_usd,
-        interaction_count=payload.interaction_count,
     ).on_conflict_do_nothing(index_elements=[CommunityContribution.id]).returning(CommunityContribution.id)
 
     inserted_id = (await db.execute(contribution)).scalar_one_or_none()
@@ -115,7 +78,6 @@ async def add_community_contribution(
             and existing.project_official_id == project_official_id
             and existing.gas_cost_usd == payload.gas_cost_usd
             and existing.actual_reward_usd == payload.actual_reward_usd
-            and existing.interaction_count == payload.interaction_count
         )
         if not same_contribution:
             raise HTTPException(status_code=409, detail="统计流水编号冲突：同一编号不能对应不同的项目或金额")
@@ -124,8 +86,6 @@ async def add_community_contribution(
             project_official_id=project_official_id,
             total_gas_cost_usd=payload.gas_cost_usd,
             total_actual_reward_usd=payload.actual_reward_usd,
-            total_interactions=payload.interaction_count,
-            contribution_count=1,
         )
         excluded = aggregate_insert.excluded
         aggregate_upsert = aggregate_insert.on_conflict_do_update(
@@ -133,15 +93,13 @@ async def add_community_contribution(
             set_={
                 "total_gas_cost_usd": CommunityProjectStats.total_gas_cost_usd + excluded.total_gas_cost_usd,
                 "total_actual_reward_usd": CommunityProjectStats.total_actual_reward_usd + excluded.total_actual_reward_usd,
-                "total_interactions": CommunityProjectStats.total_interactions + excluded.total_interactions,
-                "contribution_count": CommunityProjectStats.contribution_count + 1,
             },
         )
         await db.execute(aggregate_upsert)
 
     await db.commit()
     row = await db.get(CommunityProjectStats, project_official_id)
-    return await serialize_stats_with_activity(db, project_official_id, row)
+    return await serialize_stats_with_rating(db, project_official_id, row)
 
 
 
@@ -187,7 +145,7 @@ async def submit_community_project_rating(
     await db.execute(rating_upsert)
     await db.commit()
     row = await db.get(CommunityProjectStats, project_official_id)
-    return await serialize_stats_with_activity(db, project_official_id, row)
+    return await serialize_stats_with_rating(db, project_official_id, row)
 
 
 @router.get("/{project_official_id}/stats")
@@ -196,4 +154,4 @@ async def get_community_project_stats(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     row = await db.get(CommunityProjectStats, project_official_id)
-    return await serialize_stats_with_activity(db, project_official_id, row)
+    return await serialize_stats_with_rating(db, project_official_id, row)

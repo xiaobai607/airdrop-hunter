@@ -4,6 +4,7 @@ import os
 import re
 import secrets
 from typing import Annotated
+from datetime import datetime
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -133,6 +134,7 @@ class CatalogResponse(BaseModel):
     description: str
     tags: list[str]
     website_url: str
+    created_at: datetime
 
 
 def require_catalog_admin(token: Annotated[str | None, Header(alias="X-Catalog-Admin-Token")] = None) -> None:

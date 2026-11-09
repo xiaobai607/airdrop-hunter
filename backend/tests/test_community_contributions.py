@@ -25,7 +25,6 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
             "event_id": event_id,
             "gas_cost_usd": "2.50",
             "actual_reward_usd": "12.00",
-            "interaction_count": 1,
         }
         first = client.post(
             "/api/community/projects/linea/contributions",
@@ -35,10 +34,9 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert first.status_code == 200
         assert first.json()["total_gas_cost_usd"] == 2.5
         assert first.json()["total_actual_reward_usd"] == 12.0
-        assert first.json()["total_interactions"] == 1
         assert first.json()["data_quality"] == "user_confirmed"
-        assert first.json()["contributions_24h"] == 1
-        assert first.json()["interactions_24h"] == 1
+        assert "total_interactions" not in first.json()
+        assert "contribution_count" not in first.json()
 
         second = client.post(
             "/api/community/projects/linea/contributions",
@@ -48,9 +46,6 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert second.status_code == 200
         assert second.json()["total_gas_cost_usd"] == 2.5
         assert second.json()["total_actual_reward_usd"] == 12.0
-        assert second.json()["total_interactions"] == 1
-        assert second.json()["contributions_24h"] == 1
-        assert second.json()["interactions_24h"] == 1
 
         conflicting_payload = {**payload, "actual_reward_usd": "1200.00"}
         conflict = client.post(
@@ -62,9 +57,6 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
 
         public = client.get("/api/community/projects/linea/stats")
         assert public.status_code == 200
-        assert public.json()["contribution_count"] == 1
-        assert public.json()["contributions_24h"] == 1
-        assert public.json()["interactions_24h"] == 1
 
 
 def test_guest_can_contribute_to_public_stats_idempotently():
@@ -73,27 +65,19 @@ def test_guest_can_contribute_to_public_stats_idempotently():
             "event_id": str(uuid4()),
             "gas_cost_usd": "0.75",
             "actual_reward_usd": "3.25",
-            "interaction_count": 1,
         }
         response = client.post("/api/community/projects/scroll/contributions", json=payload)
         assert response.status_code == 200
         assert response.json()["total_gas_cost_usd"] == 0.75
         assert response.json()["total_actual_reward_usd"] == 3.25
-        assert response.json()["total_interactions"] == 1
-        assert response.json()["contribution_count"] == 1
 
         retry = client.post("/api/community/projects/scroll/contributions", json=payload)
         assert retry.status_code == 200
         assert retry.json()["total_gas_cost_usd"] == 0.75
         assert retry.json()["total_actual_reward_usd"] == 3.25
-        assert retry.json()["total_interactions"] == 1
-        assert retry.json()["contribution_count"] == 1
 
         public = client.get("/api/community/projects/scroll/stats")
         assert public.status_code == 200
-        assert public.json()["contribution_count"] == 1
-        assert public.json()["contributions_24h"] == 1
-        assert public.json()["interactions_24h"] == 1
 
 
 def test_authenticated_public_contribution_does_not_persist_account_identity():
@@ -105,7 +89,7 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
             return event_id
 
         def one(self):
-            return type("RecentStats", (), {"contributions": 0, "interactions": 0, "average": None, "count": 0})()
+            return type("RatingStats", (), {"average": None, "count": 0})()
 
     class FakeDatabase:
         async def execute(self, statement):
@@ -146,7 +130,6 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
                     "event_id": str(event_id),
                     "gas_cost_usd": "1.00",
                     "actual_reward_usd": "4.00",
-                    "interaction_count": 1,
                 },
             )
         assert response.status_code == 200
