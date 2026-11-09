@@ -200,7 +200,6 @@ Additional rules:
 ### Current audit findings
 
 - Confirmed in main source: guest confirmed bills are written to a guest-scoped local personal-ledger cache and guest-scoped local P&L/project/interaction tables.
-- Confirmed in main source: guest community outbox entries contain only project ID, aggregate Gas, aggregate actual reward, interaction count, and sync metadata; the sync request does not send wallet address, transaction hash, or personal ledger fields.
 - Confirmed in main source: guest outbox batches use no Authorization header; logged-in batches use the user's bearer token.
 - Confirmed in main source: guest wallet addresses are saved through the app-local cache; logged-in wallet addresses are loaded from the authenticated wallet API and cached under an account-specific key. Room project, P&L, interaction, pending-bill, and outbox records are scoped by token user ID or guest scope.
 - Confirmed in main source: private personal-ledger endpoint requires authentication and scopes reads/deletes/upserts to the authenticated user. Android AccountingRepository.syncPersonalLedger() returns before any private cloud call when no token exists.
