@@ -591,4 +591,15 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - PR #104 normalizes TRON provider rows before receipt lookup: validates 64-hex transaction IDs and positive timestamps, deduplicates case-insensitively, retains the newest duplicate, sorts newest-first, and enforces the requested limit. Tests cover duplicate casing, ordering, invalid rows, and limits.
 - Wallet-list copy is corrected to describe public address management and read-only transaction history, not the cancelled token-asset overview.
 - The temporary PR #103 branch-only push trigger is removed; the normal module-scoped pull-request workflow remains.
-- PR #104 Android/backend CI and merge are pending. Real-device checks for all four ecosystems, provider partial outages, project binding, and duplicate imports remain pending.
+- PR #104 merged as `981076abd6b3a911524045a0a2d50eabb83db4d1`; exact-head Android unit tests, debug APK assembly, and backend tests all passed in run `42678672848`.
+- **Batch 02 code/CI complete.** Real-device checks for all four ecosystems, provider partial outages, project binding, and duplicate imports remain pending.
+
+
+### Batch 03 current state — built-in browser and DApp connection
+
+- Main-branch audit confirmed the built-in WebView, HTTPS-only navigation, explicit cross-origin confirmation, TLS-error cancellation, JavaScript/file/permission restrictions, AndroidX WebMessageListener origin checks, Reown/AppKit external-wallet connection, account/session generation tracking, and read-only public-address exposure already exist.
+- The audit found a product-boundary violation: the DApp bridge still routed `personal_sign`, typed-data signing, and `eth_sendTransaction` requests to the external wallet. The authoritative product requirement explicitly excludes signing and transaction submission in this app version.
+- This Batch 03 change removes the wallet-action confirmation/relay path and its unused RPC coordinator, explicitly blocks signing and transaction-submission RPC families, and corrects the browser security notice. User-approved external-wallet connection and public account/address reads remain.
+- Regression tests cover blocked signing/transaction methods and ensure account/chain read methods are not classified as prohibited.
+- PR #105 exact-head Android unit tests and debug APK assembly passed in run `42680061675` on `bf22d35fc421984011dcf4f6f5287b6429e5dfab`; backend tests were correctly skipped because this is Android-only.
+- **Batch 03 security-boundary code/CI correction complete** pending merge. Real-device WebView navigation, cross-origin prompts, Reown connection/session expiry, and DApp compatibility remain separate acceptance checks.
