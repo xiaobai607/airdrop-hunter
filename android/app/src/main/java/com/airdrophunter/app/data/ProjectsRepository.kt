@@ -108,12 +108,24 @@ class ProjectsRepository(
     ): List<ProjectDto> {
         if (guest) {
             val current = decodeList<ProjectDto>(local.read("projects", true), projectsType)
+            require(current.any { it.id == project.id }) { "项目不存在或不是本地自建项目" }
+            val normalizedName = request.name.trim()
+            require(normalizedName.isNotEmpty() && normalizedName.length <= 120) { "项目名称不能为空且不能超过120个字符" }
+            require(request.description.length <= 5000) { "项目说明不能超过5000个字符" }
+            require(request.claim_url.isBlank() || request.claim_url.startsWith("https://", ignoreCase = true)) {
+                "资格查询入口必须是 HTTPS URL"
+            }
             val updatedProject = project.copy(
-                name = request.name,
-                description = request.description,
+                name = normalizedName,
+                description = request.description.trim(),
                 status = request.status,
-                official_url = request.official_url,
-                claim_url = request.claim_url
+                official_url = request.official_url.trim(),
+                claim_url = request.claim_url.trim(),
+                twitter_url = request.twitter_url.trim(),
+                deadline = request.deadline,
+                expected_income = request.expected_income,
+                gas_cost = request.gas_cost,
+                actual_income = request.actual_income
             )
             val updated = current.map { if (it.id == project.id) updatedProject else it }
             local.write("projects", gson.toJson(updated), guest = true)
