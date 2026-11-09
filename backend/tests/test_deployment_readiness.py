@@ -159,3 +159,25 @@ def test_readiness_rejects_oversized_json_response(monkeypatch):
     monkeypatch.setattr(readiness, "urlopen", lambda request, timeout: Response())
     with pytest.raises(ValueError, match="safety limit"):
         readiness.fetch_json("https://api.example.test/health/ready")
+
+
+def test_redirect_handler_rejects_cross_origin_and_http_redirect_before_following():
+    from urllib.request import Request
+    from app.services.deployment_readiness import SameOriginHTTPSRedirectHandler
+
+    handler = SameOriginHTTPSRedirectHandler()
+    request = Request("https://cdn.example.test/manifest.json")
+    with pytest.raises(ValueError, match="redirected outside"):
+        handler.redirect_request(request, None, 302, "Found", {}, "https://attacker.example/manifest.json")
+    with pytest.raises(ValueError, match="redirected outside"):
+        handler.redirect_request(request, None, 302, "Found", {}, "http://cdn.example.test/manifest.json")
+
+
+def test_redirect_handler_allows_same_origin_https_redirect():
+    from urllib.request import Request
+    from app.services.deployment_readiness import SameOriginHTTPSRedirectHandler
+
+    handler = SameOriginHTTPSRedirectHandler()
+    request = Request("https://cdn.example.test/manifest.json")
+    redirected = handler.redirect_request(request, None, 302, "Found", {}, "https://cdn.example.test/v1/manifest.json")
+    assert redirected.full_url == "https://cdn.example.test/v1/manifest.json"

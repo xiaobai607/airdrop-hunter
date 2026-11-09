@@ -9,7 +9,7 @@ import json
 import os
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 WINDOWS = ("overall", "7d", "3d", "1h")
 TIMEOUT_SECONDS = 20
@@ -70,10 +70,19 @@ def validate_cache_headers(headers: dict[str, str], *, manifest: bool) -> None:
         raise ValueError("Versioned community snapshots must be immutable and cached for at least one year")
 
 
+class SameOriginHTTPSRedirectHandler(HTTPRedirectHandler):
+    """Reject redirects before urllib sends a request to a new origin."""
+
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        validate_response_origin(request.full_url, new_url)
+        return super().redirect_request(request, response, code, message, headers, new_url)
+
+
 def fetch_json(url: str) -> tuple[dict, dict[str, str]]:
     request = Request(url, headers={"Accept": "application/json", "User-Agent": "AirdropHunter-Readiness/1.0"})
+    opener = build_opener(SameOriginHTTPSRedirectHandler())
     try:
-        with urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+        with opener.open(request, timeout=TIMEOUT_SECONDS) as response:
             if response.status != 200:
                 raise RuntimeError(f"Unexpected HTTP status {response.status} for {urlsplit(url).path}")
             validate_response_origin(url, response.geturl())
