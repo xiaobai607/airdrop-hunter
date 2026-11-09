@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">空投猎人</string>
-    <string name="tab_home">首页</string><string name="tab_profile">我的</string><string name="tab_projects">项目管理</string>
+    <string name="tab_home">首页</string><string name="tab_profile">我的</string><string name="tab_community">空投库</string><string name="tab_projects">库管理</string>
     <string name="home_title">你的空投指挥中心</string><string name="home_subtitle">发现、追踪和管理 Web3 机会。</string>
     <string name="quick_airdrop">空投导航</string><string name="quick_wallet">安全查钱包</string><string name="quick_projects">我的项目</string>
     <string name="market_title">行情看板</string><string name="market_provider">CoinPaprika 实时行情</string><string name="add_coin">添加币种</string><string name="remove_coin">移除</string>

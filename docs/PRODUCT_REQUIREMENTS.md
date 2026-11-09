@@ -19,18 +19,6 @@ Before any implementation work after “继续”:
 9. Report actual changes, verification evidence, remaining work, and the next dependency-driven batch.
 10. **Completion declaration:** only after every confirmed requirement in this document has been implemented and the required verification/acceptance is complete, tell the user exactly: **“全部开发完毕，可以进行下一步工作了。”** Do not use this declaration earlier.
 
-## Document map and current implementation baseline (2026-11-10)
-
-This document remains the complete source of truth. The optimization below adds navigation and status guidance; it does **not** delete, weaken, or silently reinterpret any previously confirmed feature.
-
-- **Product boundaries and privacy:** Sections 1–4 and 10–11.
-- **Personal accounting and project lifecycle:** Sections 5–6, including the new quick-entry and project-library requirements.
-- **Community catalog, metrics, discovery, and search:** Sections 7–8.
-- **Refresh/cache/reliability:** Section 9.
-- **Implementation evidence and 15-batch roadmap:** Sections 12–14.
-- **Naming rule:** the user-facing personal-project destination is named **“库管理”**. “空投库” is the public project-discovery/catalog destination. This is a display/navigation rename only; it does not remove or alter project management, tasks, wallet associations, ledger history, or any other existing capability.
-- **Code status at this baseline:** Batches 01–07 have merged code-level implementations; exact CI evidence is recorded below. Device acceptance, production configuration, and newly captured follow-up flows remain separately tracked. Batches 08–15 have not been declared complete.
-
 ## 1. Product and engineering boundaries
 
 - Product: Airdrop Hunter, an Android application for airdrop projects, task tracking, wallet-address management, Gas/reward accounting, and community project statistics.
@@ -94,24 +82,6 @@ Additional rules:
 - Project-level accounting, cost, actual rewards, net P&L, interaction history, and day/week/month statistics.
 - Guest private accounting remains local-only. Logged-in private accounting syncs to the authenticated account-scoped cloud ledger.
 
-## 5.1 Quick manual accounting and batch wallet entry (new user-confirmed requirements, 2026-11-10)
-
-- From the personal project detail or “库管理” project card, a **“记一笔”** action opens a compact accounting dialog. The selected project name and stable project ID are prefilled and locked; the user cannot accidentally record the entry against another project from that dialog.
-- The dialog loads the user's saved public wallet addresses and presents them as a multi-select checkbox list. The user may select several addresses (for example, ten). Each selected address produces its own independent ledger entry, with its own wallet address, stable record ID, timestamp, and native/network metadata.
-- Gas input is a per-wallet average amount applied to each selected wallet, not a single combined amount. Show quick amount chips such as $0.5, $1, $5, and $10, plus the last successfully used Gas amount. A chip fills the field; it does not submit the form.
-- Reward allocation must be explicit to prevent multiplying a campaign total by the number of wallets: support “每个钱包的收益” and “本次总收益，按所选钱包平均分摊”. In total mode, divide token quantity or USD value across selected wallets before creating rows. Never duplicate a campaign-wide total into every wallet row.
-- Reward entry modes:
-  1. **USD direct entry:** enter the USD valuation directly.
-  2. **Token entry:** enter token symbol and quantity; query a free price source (CoinGecko where available) and show the calculated USD estimate. Persist the quote used at entry time.
-  3. **Manual valuation:** if no reliable quote is available, allow an explicitly user-entered USD valuation.
-  4. **Points / not yet issued:** allow recording the reward as points or an unissued token without inventing a USD price. These rows remain visible in the private ledger but do not become realized USD income or inflate USD P&L/public USD totals.
-- Price lookup is best-effort, bounded, cancellable, and failure-tolerant. Unknown/ambiguous symbols or unavailable quotes return an unknown price; never substitute zero or a similarly named token. Manual valuation and points/unissued modes remain available offline.
-- **Historical quote immutability:** for a priced token entry, persist token symbol, token quantity, unit USD price, total USD valuation, quote source, quote observation timestamp, and record timestamp. Later market-price updates must never rewrite historical entries or previously computed contribution payloads.
-- Batch submission is atomic: either every selected-wallet ledger row and its dependent aggregates/outbox rows are committed, or none are. A partial batch is forbidden. Repeated taps must be idempotent and must not duplicate rows.
-- Keep the existing manual-confirmation boundary: a record is considered realized only when the user explicitly submits the actual result. Estimates, points, and unissued rewards remain separately typed and cannot automatically close a pending event.
-- Preserve the existing guest-local private ledger and authenticated account-scoped cloud ledger rules. Guest private rows never upload to a private vault; logged-in rows retain the existing account isolation and restore behavior. Only eligible confirmed anonymous aggregates may enter the public contribution outbox; no address, transaction hash, account identity, or private ledger row may be sent.
-- For USD totals and net P&L, unknown/unissued/points rewards must be represented as incomplete rather than treated as "$0" realized income. Preserve the native token/points detail even when USD valuation is unknown.
-
 ## 6. Projects and tasks
 
 - Project directory, project details, statuses, personal project tracking, and history.
@@ -119,16 +89,6 @@ Additional rules:
 - Associate projects with wallets/addresses, chains, Gas, rewards, and interaction history.
 - Project totals include Gas, actual rewards, and net P&L.
 - APP 主动发现空投项目仍是正式需求，但必须优先采用零成本、现成且可稳定访问的数据源；不为付费 API、付费订阅或复杂授权投入成本。禁止自建爬虫抓取/解析千奇百怪的网站页面。优先使用免费的公开 API、免费 RSS/Atom、免费第三方空投平台公开页面/订阅源；能稳定取得哪些公开字段就收录哪些，无法取得的字段留空，不做强求。只有在免费且授权/访问条件简单时才接入 Telegram/Discord 等来源；X/Twitter 若需要付费 API 或复杂授权则不接入。若没有合适免费数据源，就不做该来源。内部社区项目目录/搜索持续保留。
-
-### 6.1 Public catalog adoption into the personal project library (new user-confirmed requirements, 2026-11-10)
-
-- The personal-project destination is displayed as **“库管理”** (formerly “项目管理”); the public discovery/catalog destination is displayed as **“空投库”**. These names must be consistent in bottom navigation, page headers, entry points, and user-facing success messages.
-- From an “空投库” project card, provide a compact **“+”** action. The public project detail page also provides an **“添加”** action. Both actions add the canonical public project to the current guest/account-scoped personal project library.
-- Reuse the existing canonical project ID and existing CacheStore.joinCommunityProject / user_projects path where appropriate. Do not create a duplicate private project row or a second membership system. Repeated add attempts are idempotent and show “已添加” state.
-- The personal library displays the added project alongside user-created projects and retains the existing project tasks, wallet associations, accounting history, and day/week/month summaries.
-- A gentle **“待记账”** label appears only when the project has been in the personal library for more than 3 days and has zero associated confirmed accounting entries. The label is a reminder only: it must not create a bill, change project status, or imply the user owes money. It disappears as soon as a qualifying ledger entry is associated with the project.
-- Use the project's persisted createdAt and confirmed interaction count (or an equivalent account-scoped ledger count) as the source of truth. Do not infer from list ordering or public catalog creation time.
-- The personal library and adoption state must respect guest/account isolation. Guest project membership stays local; authenticated membership and private records must follow the existing account-scoped persistence/restore policy.
 
 ## 7. Micro Community
 
@@ -160,7 +120,7 @@ Additional rules:
 
 ### 8.1 Home navigation and market dashboard (new user-confirmed requirements, 2026-11-10)
 
-- Bottom navigation order is exactly: **首页 → 空投库 → 库管理 → 我的**. Rename the existing airdrop discovery/library entry to “空投库”; rename the personal project-management destination to “库管理”; remove redundant subtitle copy. Navigation between destinations must preserve each tab's independent navigation/back-stack state using save/restore state behavior.
+- Bottom navigation order is exactly: **首页 → 空投库 → 项目管理 → 我的**. Rename the existing airdrop discovery/library entry to “空投库”; remove redundant subtitle copy. Navigation between destinations must preserve each tab's independent navigation/back-stack state using save/restore state behavior.
 - Home starts with a compact BTC/ETH market dashboard. Its displayed refresh status must reflect the same underlying cache/network refresh state as the data it displays; do not show a success timestamp when refresh failed.
 - Place the global search entry immediately below the market dashboard. Use a pill-shaped search field and adaptive category tabs: **币种 / DApp**. Tabs must adapt to available width rather than overflow.
 - Search input uses a 300 ms debounce. Search locally against Room first with fuzzy matching, then request remote results as appropriate. Typing must not trigger one network request per keystroke.
@@ -725,15 +685,6 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Regression tests distinguish permanent 409 conflicts from retryable 408/429/5xx responses; existing backend idempotency and anonymous-storage tests remain in the same validation suite.
 - PR #109 merged as **0b131113113d6299e5a80724bec06c6e0cd4cf54**; exact-head Android unit tests and Debug APK assembly passed in Actions run **42688621980** on head **103e7638f9d171a12fa8559dbce239d27197744a**. Backend tests were correctly skipped because this batch changed Android only.
 - **Batch 07 code/CI complete.** Real-device guest/account outbox retry, offline recovery, and public aggregate visibility remain required.
-
-### Priority follow-up discovered during the 2026-11-10 code audit — requirements captured, implementation partial/pending
-
-- Public-to-personal adoption is **partially implemented**: CacheStore.joinCommunityProject already creates an account-scope UserProjectEntity, and the personal project screen already reads those rows. The community list currently has a full-width add action, but the requested compact card “+” affordance, project-detail add affordance, unified “已添加” feedback, and “待记账” reminder need end-to-end completion. Reuse the existing join path.
-- The Room project model already records createdAt and interactionCount; use these for the three-day reminder. Do not add a duplicate project membership table.
-- A batch accounting dialog and atomic direct-entry path are **not yet implemented**. Existing confirmPendingBill already atomically updates the private ledger, P&L, user-project totals, interaction history, public outbox, and pending-bill deletion for one row. Extend/reuse this transaction boundary for multi-wallet entry rather than inserting rows one by one.
-- Existing LedgerAssetAmount JSON and private-ledger extra can preserve native asset details, but the current USD reward fields are non-null. Before enabling points/unissued/unpriced reward modes, change the completeness representation so unknown USD value is not counted as a real zero-valued reward or complete net P&L. Keep existing historical values intact through additive migrations and backward-compatible API/cloud serialization.
-- Existing CoinGeckoPriceRepository is limited to TRX/USDT. Extend it conservatively for supported unambiguous token IDs, with nullable quote results, explicit source/time, and manual fallback. Never resolve ambiguous symbols by guessing.
-- The next user-priority implementation work is this cross-module project-library/accounting follow-up. It is an integration extension to the already completed project/accounting batches, not a new numbered batch and not a reason to redo those batches. After it is validated, resume the existing Batch 08–15 order.
 
 ### New cross-module requirements captured — 2026-11-10 (requirements only; not yet implemented)
 

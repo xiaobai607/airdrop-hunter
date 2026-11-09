@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -103,6 +105,7 @@ fun CommunitySquareScreen(
     var submissionName by remember { mutableStateOf("") }
     var submissionUrl by remember { mutableStateOf("") }
     var submittingProject by remember { mutableStateOf(false) }
+    var addingProjectIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val allTags = remember(catalogEntries) { catalogEntries.flatMap { it.tags }.distinct().sorted() }
 
     LaunchedEffect(activeToken) {
@@ -331,6 +334,29 @@ fun CommunitySquareScreen(
                                 )
                             }
                         }
+                        IconButton(
+                            enabled = project.id in joinedOfficialIds || project.id !in addingProjectIds,
+                            onClick = {
+                                if (project.id !in joinedOfficialIds) scope.launch {
+                                    addingProjectIds = addingProjectIds + project.id
+                                    val added = runCatching {
+                                        CacheStore.joinCommunityProject(project.id, project.name)
+                                    }.getOrDefault(false)
+                                    addingProjectIds = addingProjectIds - project.id
+                                    Toast.makeText(
+                                        context,
+                                        if (added) "${project.name} 已加入库管理" else "添加失败，请稍后重试",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (project.id in joinedOfficialIds) Icons.Default.Check else Icons.Default.Add,
+                                contentDescription = if (project.id in joinedOfficialIds) "已添加到库管理" else "添加到库管理",
+                                tint = if (project.id in joinedOfficialIds) AppColors.Success else AppColors.Primary
+                            )
+                        }
                         IconButton(onClick = {
                             scope.launch {
                                 if (CacheStore.toggleCommunityFavorite(project.id, project.name)) {
@@ -410,23 +436,7 @@ fun CommunitySquareScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         Text("查看评价  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     }
-                    OutlinedButton(
-                        onClick = {
-                            scope.launch {
-                                val success = CacheStore.joinCommunityProject(project.id, project.name)
-                                Toast.makeText(
-                                    context,
-                                    if (success) "${project.name} 已加入我的项目" else "加入失败，请稍后重试",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        },
-                        enabled = project.id !in joinedOfficialIds,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(if (project.id in joinedOfficialIds) "已加入我的项目" else "＋ 加入我的项目")
-                    }
+
                 }
             }
         }

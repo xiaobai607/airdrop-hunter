@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -80,6 +81,7 @@ private fun AirdropHunterApp(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    val tabStateHolder = rememberSaveableStateHolder()
     var activeOverlay by rememberSaveable { mutableStateOf(AppOverlay.NONE) }
     var selectedMarketSymbol by rememberSaveable { mutableStateOf("BTC") }
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
@@ -103,8 +105,8 @@ private fun AirdropHunterApp(
 
     val destinations = listOf(
         Destination(R.string.tab_home, Icons.Default.Home),
-        Destination(R.string.tab_projects, Icons.Default.GridView),
         Destination(R.string.tab_community, Icons.Default.Public),
+        Destination(R.string.tab_projects, Icons.Default.GridView),
         Destination(R.string.tab_profile, Icons.Default.Person)
     )
     val secondaryTitle = when {
@@ -234,23 +236,27 @@ private fun AirdropHunterApp(
                     onOpenSources = { activeOverlay = AppOverlay.SOURCES },
                     onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
                     onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
-                    onOpenProjects = { tab = 1 },
+                    onOpenProjects = { tab = 2 },
                     onOpenAirdropHub = { activeOverlay = AppOverlay.AIRDROP_HUB },
                     onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
                     isGuest = isGuest, onRequireAuth = onRequireAuth,
                     sessionScopeKey = sessionScopeKey
                 )
-                tab == 2 -> CommunitySquareScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    onProjectSelected = { id, name, description ->
-                        selectedCommunityProject = ProjectDto("community:$id", name, description, "tracking", communityOfficialId = id)
+                else -> tabStateHolder.SaveableStateProvider("bottom-tab-$tab") {
+                    when (tab) {
+                        1 -> CommunitySquareScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            onProjectSelected = { id, name, description ->
+                                selectedCommunityProject = ProjectDto("community:$id", name, description, "tracking", communityOfficialId = id)
+                            }
+                        )
+                        2 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth,
+                            onOpenCommunity = { selectedCommunityProject = it }, sessionScopeKey = sessionScopeKey)
+                        else -> ProfileScreen(Modifier.fillMaxSize(), onLogout, isGuest, onRequireAuth,
+                            onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER },
+                            sessionScopeKey = sessionScopeKey)
                     }
-                )
-                tab == 1 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth,
-                    onOpenCommunity = { selectedCommunityProject = it }, sessionScopeKey = sessionScopeKey)
-                else -> ProfileScreen(Modifier.fillMaxSize(), onLogout, isGuest, onRequireAuth,
-                    onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER },
-                    sessionScopeKey = sessionScopeKey)
+                }
             }
         }
     }
