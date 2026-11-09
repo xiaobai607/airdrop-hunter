@@ -123,21 +123,15 @@ object ManualProjectAccountingPolicy {
 
     fun isTransactionHashFormatValid(network: String, hash: String): Boolean = isSupportedHash(network, hash)
 
+    fun isTransactionVerificationNetworkSupported(network: String): Boolean =
+        network.trim().lowercase() in setOf("ethereum", "eth", "erc20", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche")
+
     private fun isSupportedHash(network: String, hash: String): Boolean {
         val normalized = network.trim().lowercase()
-        val value = hash.trim()
-        return when (normalized) {
-            "ethereum", "eth", "evm", "erc20", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" ->
-                EVM_HASH.matches(value)
-            "tron", "trc20", "bitcoin", "btc" -> HEX_HASH.matches(value)
-            "solana", "sol" -> SOLANA_SIGNATURE.matches(value)
-            else -> false
-        }
+        return isTransactionVerificationNetworkSupported(normalized) && EVM_HASH.matches(hash.trim())
     }
 
     private val EVM_HASH = Regex("^0x[a-fA-F0-9]{64}$")
-    private val HEX_HASH = Regex("^[a-fA-F0-9]{64}$")
-    private val SOLANA_SIGNATURE = Regex("^[1-9A-HJ-NP-Za-km-z]{87,88}$")
 
     private fun validateReward(reward: ManualRewardInput): ManualRewardInput {
         val amount = reward.amount

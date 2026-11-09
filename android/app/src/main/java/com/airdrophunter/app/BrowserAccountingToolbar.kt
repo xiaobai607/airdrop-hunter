@@ -270,6 +270,7 @@ fun BrowserAccountingToolbar(
 
     if (showConfirm && activeBill != null) {
         val bill = activeBill!!
+        val selectedProject = projects.firstOrNull { it.id == selectedProjectLocalId }
         val contributionNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
             ?: bill.chain.trim().lowercase(Locale.US)
         val contributionHashValid = ManualProjectAccountingPolicy.isTransactionHashFormatValid(contributionNetwork, bill.txHash)
@@ -338,13 +339,19 @@ fun BrowserAccountingToolbar(
                         Checkbox(
                             checked = publicContributionOptIn,
                             onCheckedChange = { publicContributionOptIn = it },
-                            enabled = !saving
+                            enabled = !saving && selectedProject?.communityOfficialId != null &&
+                                ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(contributionNetwork) &&
+                                contributionHashValid
                         )
                         Text("将本笔数据匿名贡献至全网大盘（需链上核验）", color = AppColors.TextSecondary,
                             style = MaterialTheme.typography.bodySmall)
                     }
-                    if (publicContributionOptIn && !contributionHashValid) {
-                        Text("当前网络或 Tx Hash 格式暂不支持链上核验；取消授权仍可正常保存个人账本。",
+                    if (selectedProject?.communityOfficialId == null ||
+                        !ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(contributionNetwork)) {
+                        Text("该项目或网络暂不支持公共链上核验；个人账本仍可正常保存。", color = AppColors.TextHelper,
+                            style = MaterialTheme.typography.labelSmall)
+                    } else if (!contributionHashValid) {
+                        Text("当前 Tx Hash 格式无效；取消授权仍可正常保存个人账本。",
                             color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
                     }
                     Text("原生币种明细（不同币种分别记录，不相加）", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)

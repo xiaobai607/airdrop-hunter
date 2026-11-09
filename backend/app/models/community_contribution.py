@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,9 +23,12 @@ class CommunityProjectStats(Base):
 
 
 class CommunityContribution(Base):
-    """One idempotent, user-confirmed contribution to public project aggregates."""
+    """One verified, anonymous, idempotent contribution to public project aggregates."""
 
     __tablename__ = "community_contributions"
+    __table_args__ = (
+        Index("uq_community_contributions_tx_fingerprint", "tx_fingerprint", unique=True),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -35,6 +38,9 @@ class CommunityContribution(Base):
     gas_cost_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
     actual_reward_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
     asset_breakdown: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    tx_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    verification_tier: Mapped[str] = mapped_column(String(32), nullable=False, default="user_reported")
+    verification_metadata: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

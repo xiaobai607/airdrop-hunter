@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CommunityContribution, CommunityProjectCatalogEntry, CommunityProjectRating
@@ -93,6 +93,11 @@ def assemble_snapshot(
         average_rating = weighted_score / rating_count if rating_count else None
         gas = _number(row["gas_cost_usd"])
         reward = _number(row["actual_reward_usd"])
+        gas_by_verification_tier = {
+            "user_reported": _number(row.get("gas_user_reported_usd")),
+            "transaction_linked": _number(row.get("gas_transaction_linked_usd")),
+            "amount_verified": _number(row.get("gas_amount_verified_usd")),
+        }
         created_at = row["created_at"].astimezone(timezone.utc)
         token_groups = token_totals.get(project_id, {})
 
@@ -122,6 +127,7 @@ def assemble_snapshot(
             "tags": row.get("tags", []),
             "gas_cost_usd_valuation": gas,
             "actual_reward_usd_valuation": reward,
+            "gas_by_verification_tier": gas_by_verification_tier,
             "net_result_usd_valuation": reward - gas,
             "gas_by_token": token_rows("gas"),
             "reward_by_token": token_rows("reward"),
@@ -167,6 +173,9 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
             CommunityProjectCatalogEntry.created_at.label("created_at"),
             func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_cost_usd"),
             func.coalesce(func.sum(CommunityContribution.actual_reward_usd), 0).label("actual_reward_usd"),
+            func.coalesce(func.sum(case((CommunityContribution.verification_tier == "user_reported", CommunityContribution.gas_cost_usd), else_=0)), 0).label("gas_user_reported_usd"),
+            func.coalesce(func.sum(case((CommunityContribution.verification_tier == "transaction_linked", CommunityContribution.gas_cost_usd), else_=0)), 0).label("gas_transaction_linked_usd"),
+            func.coalesce(func.sum(case((CommunityContribution.verification_tier == "amount_verified", CommunityContribution.gas_cost_usd), else_=0)), 0).label("gas_amount_verified_usd"),
         )
         .select_from(CommunityProjectCatalogEntry)
         .outerjoin(CommunityContribution, and_(*conditions))

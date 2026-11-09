@@ -203,6 +203,9 @@ fun MicroCommunityScreen(
                             val gas = if (useDemoStats) demoStats.gas * demoScale else projectSnapshot?.gas_cost_usd_valuation ?: 0.0
                             val reward = if (useDemoStats) demoStats.reward * demoScale else projectSnapshot?.actual_reward_usd_valuation ?: 0.0
                             val updateTime = periodSnapshots[window]?.update_time
+                            val verificationTiers = if (useDemoStats) emptyMap() else
+                                projectSnapshot?.gas_by_verification_tier?.takeIf { it.isNotEmpty() }
+                                    ?: if (window == "overall") communityStats?.gas_by_verification_tier.orEmpty() else emptyMap()
                             CommunitySnapshotPeriodMetric(
                                 title = title,
                                 gas = gas,
@@ -211,6 +214,7 @@ fun MicroCommunityScreen(
                                 showUpdateTime = window != "overall",
                                 gasTokens = if (useDemoStats) emptyList() else projectSnapshot?.gas_by_token.orEmpty(),
                                 rewardTokens = if (useDemoStats) emptyList() else projectSnapshot?.reward_by_token.orEmpty(),
+                                gasByVerificationTier = verificationTiers,
                                 hasData = useDemoStats || gas > 0.0 || reward > 0.0 ||
                                     !projectSnapshot?.gas_by_token.isNullOrEmpty() || !projectSnapshot?.reward_by_token.isNullOrEmpty()
                             )
@@ -228,7 +232,7 @@ fun MicroCommunityScreen(
                                 statsLoading -> "正在读取本地快照…"
                                 statsFailed -> "暂无快照缓存；联网且 CDN 配置完成后会自动更新"
                                 useDemoStats -> "测试演示样本仅用于界面验证，不会上传"
-                                else -> "此处展示用户确认的 Gas 和实际收益汇总"
+                                else -> "Gas 按用户自报、链上已确认、链上精确核验分级展示；实际收益由用户确认"
                             },
                             color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall
                         )
@@ -327,6 +331,7 @@ private fun CommunitySnapshotPeriodMetric(
     showUpdateTime: Boolean,
     gasTokens: List<CommunityTokenAggregateDto>,
     rewardTokens: List<CommunityTokenAggregateDto>,
+    gasByVerificationTier: Map<String, Double>,
     hasData: Boolean
 ) {
     val total = gas + reward
@@ -375,6 +380,20 @@ private fun CommunitySnapshotPeriodMetric(
             if (rewardTokens.isNotEmpty()) {
                 Text("收益代币：${formatCommunityTokenBreakdown(rewardTokens)}",
                     color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
+            }
+            val verificationLabels = listOf(
+                "user_reported" to "用户自报",
+                "transaction_linked" to "链上已确认",
+                "amount_verified" to "链上精确核验"
+            )
+            val verificationSummary = verificationLabels.mapNotNull { (key, label) ->
+                gasByVerificationTier[key]?.takeIf { it > 0.0 }?.let {
+                    "$label ${String.format(java.util.Locale.US, "$%.2f", it)}"
+                }
+            }
+            if (verificationSummary.isNotEmpty()) {
+                Text("Gas 核验等级：${verificationSummary.joinToString(" · ")}",
+                    color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall)
             }
             if (showUpdateTime) {
                 Text(

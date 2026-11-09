@@ -90,7 +90,11 @@ data class CommunitySyncOutboxEntity(
     @ColumnInfo(defaultValue = "0") val attemptCount: Int = 0,
     val lastAttemptAt: Long? = null, val lastError: String? = null,
     val assetBreakdownJson: String? = null,
-    @ColumnInfo(defaultValue = "0") val terminalFailure: Boolean = false
+    @ColumnInfo(defaultValue = "0") val terminalFailure: Boolean = false,
+    val network: String? = null,
+    val walletAddress: String? = null,
+    val txHash: String? = null,
+    val occurredAt: Long? = null
 )
 
 @Entity(
@@ -300,7 +304,7 @@ interface LocalBackupDao {
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectWalletAssignments(rows:List<ProjectWalletAssignmentEntity>)
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 17, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 18, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -562,13 +566,22 @@ object CacheStore {
         }
     }
 
+    private val MIGRATION_17_18 = object : Migration(17, 18) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN network TEXT")
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN walletAddress TEXT")
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN txHash TEXT")
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN occurredAt INTEGER")
+        }
+    }
+
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -792,8 +805,43 @@ object CacheStore {
             result
         }
 
-    suspend fun completeCommunitySync(id: String, accountScope: String) = withContext(Dispatchers.IO) {
+    private suspend fun updatePublicContributionLedgerStatus(
+        id: String,
+        accountScope: String,
+        status: String,
+        verificationTier: String? = null,
+        error: String? = null
+    ) {
+        val db = database ?: return
+        val ledgerKey = "$accountScope:local:personal_ledger"
+        val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+        val gson = Gson()
+        val existing = db.cacheDao().read(ledgerKey)?.let { raw ->
+            runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }.getOrNull()
+        }.orEmpty()
+        var changed = false
+        val updated = existing.map { entry ->
+            if (entry.client_record_id != id) return@map entry
+            changed = true
+            val metadata = entry.extra.toMutableMap()
+            metadata["public_contribution_status"] = status
+            verificationTier?.let { metadata["public_contribution_tier"] = it }
+            error?.takeIf { it.isNotBlank() }?.let { metadata["public_contribution_error"] = it.take(240) }
+            entry.copy(extra = metadata)
+        }
+        if (changed) {
+            db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(updated), System.currentTimeMillis()))
+            if (accountScope.startsWith("user:")) schedulePrivateLedgerSync()
+        }
+    }
+
+    suspend fun completeCommunitySync(
+        id: String,
+        accountScope: String,
+        verificationTier: String
+    ) = withContext(Dispatchers.IO) {
         database?.communitySyncOutboxDao()?.deleteById(id, accountScope)
+        updatePublicContributionLedgerStatus(id, accountScope, "verified", verificationTier)
     }
 
     suspend fun markCommunitySyncAttempt(
@@ -814,6 +862,7 @@ object CacheStore {
         database?.communitySyncOutboxDao()?.markTerminalFailureById(
             id, accountScope, System.currentTimeMillis(), error.take(500)
         )
+        updatePublicContributionLedgerStatus(id, accountScope, "rejected", error = error)
     }
 
     fun observeProjectRatings(projectOfficialId: String): Flow<List<ProjectRatingEntity>> =
@@ -869,13 +918,16 @@ object CacheStore {
             val canonicalOfficialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
             val effectiveNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
                 ?: when (bill.chain.trim().lowercase()) {
-                    "ethereum", "erc20", "evm" -> "ethereum"
+                    "ethereum", "erc20" -> "ethereum"
                     "tron", "trc20" -> "tron"
                     "bitcoin", "btc" -> "bitcoin"
                     "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" -> bill.chain.trim().lowercase()
                     else -> "unknown"
                 }
-            val effectiveBill = bill.copy(network = effectiveNetwork)
+            if (publicContributionOptIn && (
+                    canonicalOfficialId == null ||
+                    !ManualProjectAccountingPolicy.isTransactionHashFormatValid(effectiveNetwork, bill.txHash)
+                )) return@withTransaction false
             val effectiveAssetBreakdown = assetBreakdownJson ?: bill.assetBreakdownJson
             if (
                 bill.txHash.isNotBlank() && bill.walletAddress.isNotBlank() &&
@@ -956,9 +1008,23 @@ object CacheStore {
                     publicContributionOptIn = publicContributionOptIn
                 )
             )
-            // Public contributions are intentionally not enqueued here. Opted-in rows
-            // remain private and pending until the backend verifies the chain receipt,
-            // payer identity, finality, fee amount, historical quote, and replay key.
+            if (publicContributionOptIn) {
+                db.communitySyncOutboxDao().insert(
+                    CommunitySyncOutboxEntity(
+                        id = bill.id,
+                        accountScope = scope,
+                        projectOfficialId = canonicalOfficialId!!,
+                        gasCostUsd = gas,
+                        actualRewardUsd = reward,
+                        createdAt = recordedAt,
+                        assetBreakdownJson = effectiveAssetBreakdown,
+                        network = effectiveNetwork,
+                        walletAddress = bill.walletAddress,
+                        txHash = bill.txHash,
+                        occurredAt = recordedAt
+                    )
+                )
+            }
             db.pendingBillDao().delete(id, scope)
             true
         }
@@ -978,6 +1044,7 @@ object CacheStore {
         val scope = currentAccountScope()
         if (scope == "invalid-session") return@withContext false
         val officialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
+        if (batch.entries.any { it.publicContributionOptIn } && officialId == null) return@withContext false
         val timestamp = System.currentTimeMillis()
         val rowIds = batch.entries.map { entry ->
             java.util.UUID.nameUUIDFromBytes("$batchId:${entry.walletId}".toByteArray(Charsets.UTF_8)).toString()
@@ -1005,6 +1072,26 @@ object CacheStore {
                 val rewardValue = rewardUsd ?: 0.0
                 val recordedAt = timestamp + index
                 val id = rowIds[index]
+                val recordedAtIso = Instant.ofEpochMilli(recordedAt).toString()
+                val assetRows = buildList {
+                    add(LedgerAssetAmount(
+                        kind = "gas", amount_native = entry.gasCostUsd.toPlainString(), symbol = "USD",
+                        decimals = 2, usd_valuation = gas, valuation_timestamp = recordedAtIso,
+                        valuation_source = "manual_usd_entry"
+                    ))
+                    reward.amount?.let { amount ->
+                        add(LedgerAssetAmount(
+                            kind = "reward", amount_native = amount.toPlainString(),
+                            symbol = reward.unit?.takeIf { it.isNotBlank() } ?: "USD",
+                            decimals = if (reward.unit.equals("USD", true)) 2 else null,
+                            usd_valuation = rewardUsd,
+                            valuation_timestamp = reward.quoteTimestamp?.let { Instant.ofEpochMilli(it).toString() }
+                                ?: recordedAtIso.takeIf { rewardUsd != null },
+                            valuation_source = reward.quoteSource ?: if (rewardUsd != null) "manual_usd_entry" else null
+                        ))
+                    }
+                }
+                val assetJson = LedgerAssetBreakdownCodec.encode(assetRows)
                 val metadata = mapOf(
                     "reward_kind" to reward.kind.name,
                     "reward_amount" to (reward.amount?.toPlainString() ?: ""),
@@ -1014,7 +1101,9 @@ object CacheStore {
                     "reward_quote_timestamp" to (reward.quoteTimestamp?.toString() ?: ""),
                     "usd_profit_complete" to complete.toString(),
                     "public_contribution_opt_in" to entry.publicContributionOptIn.toString(),
-                    "project_official_id" to (officialId ?: "")
+                    "public_contribution_status" to if (entry.publicContributionOptIn && complete && officialId != null) "pending_verification" else if (entry.publicContributionOptIn) "not_eligible" else "private",
+                    "project_official_id" to (officialId ?: ""),
+                    "asset_breakdown" to (assetJson ?: "")
                 )
                 ledgerRows.removeAll { it.client_record_id == id }
                 ledgerRows += PersonalLedgerWriteRequest(
@@ -1042,17 +1131,37 @@ object CacheStore {
                     projectOfficialId = officialId, projectName = projectName,
                     txHash = entry.txHash, walletAddress = entry.walletAddress, network = entry.network,
                     gasCostUsd = gas, actualRewardUsd = rewardValue, interactionMethod = "manual_project_entry",
-                    timestamp = recordedAt, rewardKind = reward.kind.name,
+                    timestamp = recordedAt, assetBreakdownJson = assetJson, rewardKind = reward.kind.name,
                     rewardAmount = reward.amount?.toDouble(), rewardUnit = reward.unit,
                     rewardUsdValuation = rewardUsd, rewardQuoteSource = reward.quoteSource,
                     rewardQuoteTimestamp = reward.quoteTimestamp, usdProfitComplete = complete,
                     publicContributionOptIn = entry.publicContributionOptIn
                 ))
+                if (entry.publicContributionOptIn && complete) {
+                    db.communitySyncOutboxDao().insert(
+                        CommunitySyncOutboxEntity(
+                            id = id,
+                            accountScope = scope,
+                            projectOfficialId = officialId!!,
+                            gasCostUsd = gas,
+                            actualRewardUsd = rewardValue,
+                            createdAt = recordedAt,
+                            assetBreakdownJson = assetJson,
+                            network = entry.network,
+                            walletAddress = entry.walletAddress,
+                            txHash = entry.txHash,
+                            occurredAt = recordedAt
+                        )
+                    )
+                }
             }
             db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(ledgerRows), System.currentTimeMillis()))
             true
         }
         if (saved && scope.startsWith("user:")) schedulePrivateLedgerSync()
+        if (saved && batch.entries.any { it.publicContributionOptIn && it.actualRewardUsd != null }) {
+            appContext?.let { CommunityContributionSyncScheduler.enqueue(it) }
+        }
         saved
     }
 

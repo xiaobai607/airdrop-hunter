@@ -100,25 +100,24 @@ class ManualProjectAccountingPolicyTest {
     }
 
     @Test
-    fun validatesTransactionHashSyntaxByChain() {
+    fun onlyEvmNetworksAreEligibleForCurrentBackendVerification() {
         val evmHash = "0x" + "b".repeat(64)
-        val tronHash = "c".repeat(64)
-        val solanaSignature = "1".repeat(88)
-        listOf(
-            wallet("eth", ManualRewardInput(ManualRewardKind.UNKNOWN), hash = evmHash, optIn = true),
-            wallet("tron", ManualRewardInput(ManualRewardKind.UNKNOWN), hash = tronHash, network = "tron", optIn = true),
-            wallet("sol", ManualRewardInput(ManualRewardKind.UNKNOWN), hash = solanaSignature, network = "solana", optIn = true)
-        ).forEach { row ->
-            assertTrue(ManualProjectAccountingPolicy.prepare(
-                listOf(row), ManualRewardAllocationMode.PER_WALLET
-            ).entries.single().publicContributionOptIn)
-        }
+        val evm = ManualProjectAccountingPolicy.prepare(
+            listOf(wallet("eth", ManualRewardInput(ManualRewardKind.UNKNOWN), hash = evmHash, optIn = true)),
+            ManualRewardAllocationMode.PER_WALLET
+        ).entries.single()
+        assertTrue(evm.publicContributionOptIn)
+        assertFalse(ManualProjectAccountingPolicy.isTransactionHashFormatValid("tron", "c".repeat(64)))
+        assertFalse(ManualProjectAccountingPolicy.isTransactionHashFormatValid("solana", "1".repeat(88)))
+        assertTrue(ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported("bsc"))
+        assertFalse(ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported("EVM"))
+        assertFalse(ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported("tron"))
     }
 
     @Test
     fun publicHashFormatValidatorRecognizesSupportedNetworkAliases() {
         assertTrue(ManualProjectAccountingPolicy.isTransactionHashFormatValid("erc20", "0x" + "a".repeat(64)))
-        assertTrue(ManualProjectAccountingPolicy.isTransactionHashFormatValid("trc20", "b".repeat(64)))
+        assertFalse(ManualProjectAccountingPolicy.isTransactionHashFormatValid("trc20", "b".repeat(64)))
         assertFalse(ManualProjectAccountingPolicy.isTransactionHashFormatValid("unknown", "b".repeat(64)))
     }
 

@@ -90,6 +90,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     var accountingRewardKind by remember(project.id, sessionScopeKey) { mutableStateOf(ManualRewardKind.USD) }
     var accountingAllocationMode by remember(project.id, sessionScopeKey) { mutableStateOf(ManualRewardAllocationMode.PER_WALLET) }
     var accountingWalletPublicOptIns by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var accountingWalletNetworks by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var accountingTxHashes by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isSavingAccounting by remember(project.id, sessionScopeKey) { mutableStateOf(false) }
     var isLoadingAccountingWallets by remember(project.id, sessionScopeKey) { mutableStateOf(false) }
@@ -560,7 +561,13 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             ManualRewardKind.values().forEach { kind ->
                                 DropdownMenuItem(
                                     text = { Text(kind.name) },
-                                    onClick = { accountingRewardKind = kind; rewardMenuExpanded = false }
+                                    onClick = {
+                                    accountingRewardKind = kind
+                                    if (kind !in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION)) {
+                                        accountingWalletPublicOptIns = emptyMap()
+                                    }
+                                    rewardMenuExpanded = false
+                                }
                                 )
                             }
                         }
@@ -588,16 +595,66 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             enabled = !isSavingAccounting
                         )
                     }
-                    Text("匿名贡献授权按钱包分别设置；每个已授权钱包必须填写该钱包自己的 Tx Hash。链上核验完成前不会进入公共大盘。",
+                    Text("匿名贡献需选择每个钱包实际发生交易的 EVM 网络，并填写该钱包自己的 Tx Hash；仅公共项目和完整 USD 奖励可参与。",
                         color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
                     selectedWallets.forEach { wallet ->
+                        val selectedNetwork = accountingWalletNetworks[wallet.id].orEmpty()
+                        var networkMenuExpanded by remember(wallet.id) { mutableStateOf(false) }
+                        if (wallet.ecosystem == WalletEcosystem.EVM) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("核验网络", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Spacer(Modifier.width(8.dp))
+                                Box {
+                                    TextButton(onClick = { networkMenuExpanded = true }, enabled = !isSavingAccounting) {
+                                        Text(
+                                            when (selectedNetwork) {
+                                                "ethereum" -> "Ethereum"
+                                                "bsc" -> "BNB Chain"
+                                                "polygon" -> "Polygon"
+                                                "arbitrum" -> "Arbitrum"
+                                                "optimism" -> "Optimism"
+                                                "base" -> "Base"
+                                                "avalanche" -> "Avalanche"
+                                                else -> "请选择网络"
+                                            }
+                                        )
+                                    }
+                                    DropdownMenu(expanded = networkMenuExpanded, onDismissRequest = { networkMenuExpanded = false }) {
+                                        listOf(
+                                            "ethereum" to "Ethereum",
+                                            "bsc" to "BNB Chain",
+                                            "polygon" to "Polygon",
+                                            "arbitrum" to "Arbitrum",
+                                            "optimism" to "Optimism",
+                                            "base" to "Base",
+                                            "avalanche" to "Avalanche"
+                                        ).forEach { (network, label) ->
+                                            DropdownMenuItem(
+                                                text = { Text(label) },
+                                                onClick = {
+                                                    accountingWalletNetworks = accountingWalletNetworks + (wallet.id to network)
+                                                    accountingWalletPublicOptIns = accountingWalletPublicOptIns + (wallet.id to false)
+                                                    networkMenuExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Text("该钱包网络暂不支持公共链上核验，仍可保存个人账本。",
+                                color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
                                 checked = accountingWalletPublicOptIns[wallet.id] == true,
                                 onCheckedChange = { checked ->
                                     accountingWalletPublicOptIns = accountingWalletPublicOptIns + (wallet.id to checked)
                                 },
-                                enabled = !isSavingAccounting
+                                enabled = !isSavingAccounting &&
+                                    project.communityOfficialId != null &&
+                                    accountingRewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION) &&
+                                    ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)
                             )
                             Text("授权 " + wallet.wallet_name.ifBlank { "该钱包" } + " 匿名贡献",
                                 color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
@@ -637,11 +694,16 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 ManualWalletAccountingInput(
                                     walletId = wallet.id,
                                     walletAddress = wallet.address,
-                                    network = wallet.chain.trim().lowercase(),
+                                    network = accountingWalletNetworks[wallet.id].orEmpty().ifBlank { wallet.chain.trim().lowercase() },
                                     gasCostUsd = gas,
                                     txHash = accountingTxHashes[wallet.id].orEmpty(),
                                     reward = if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET) reward else null,
-                                    publicContributionOptIn = accountingWalletPublicOptIns[wallet.id] == true
+                                    publicContributionOptIn = accountingWalletPublicOptIns[wallet.id] == true &&
+                                        project.communityOfficialId != null &&
+                                        accountingRewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION) &&
+                                        ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(
+                                            accountingWalletNetworks[wallet.id].orEmpty()
+                                        )
                                 )
                             }
                             val totalReward = if (accountingAllocationMode == ManualRewardAllocationMode.EVEN_SPLIT_TOTAL) {

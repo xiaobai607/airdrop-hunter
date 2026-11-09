@@ -883,3 +883,24 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Added backend regression tests for unknown, points, unpriced-token, USD, manual USD valuation, and priced-token rows, including project-level aggregation.
 - This is an end-to-end correctness extension of the current accounting integration, not a new public-contribution pipeline. The next dependency remains backend transaction receipt verification and provenance-aware anonymous outbox delivery.
 - Current branch head before this follow-up: `b4a8149b459b464fcbffd9a2972809440a8cc0e5`; this change requires exact-head Android and backend CI before it is considered validated.
+
+
+## 2026-11-10 链上核验与公共贡献闭环进展
+
+本轮在原有多钱包记账基础上补齐公共贡献核验链路，以下内容已进入本次开发分支，仍需 CI 验证及部署配置确认：
+
+1. **后端先验后收**：公共贡献接口现在要求网络、钱包地址、Tx Hash、Gas 金额和实际收益。没有通过服务端核验不会写入公共统计；仅有客户端金额或哈希格式不再足够。
+2. **EVM 核验范围**：当前适配 Ethereum、BNB Smart Chain、Polygon、Arbitrum、Optimism、Base、Avalanche。服务端通过 Etherscan V2 读取交易、回执、发送方、执行状态、区块和确认数；发送钱包不匹配、交易执行失败、确认数不足、金额超出 ±20% 容差时拒绝公共贡献。
+3. **历史价格与 Gas**：Tier 3 使用交易区块时点的 Chainlink 原生币/USD Feed 历史状态，按实际 gasUsed × effectiveGasPrice（并计入服务端可读取的 L1 fee）计算 Gas USD。若 L2 的 L1 数据费未能完整读取，只标记为 Tier 2“链上已确认”，不冒充精确核验；不完整或限流的服务响应返回可重试状态。
+4. **三级来源标识**：历史旧数据保留为“用户自报”；交易发送方、成功状态和确认数核验通过但费用组件不完整的记录标记为“链上已确认”；费用组件和历史报价完整且金额通过容差检查的记录标记为“链上精确核验”。快照和项目详情接口输出各等级 Gas 汇总，详情页展示分级金额。
+5. **防重与隐私**：服务端只保存由 `COMMUNITY_TX_FINGERPRINT_SECRET` 生成的链+Tx Hash HMAC 指纹，以及不含原始钱包地址/Tx Hash 的核验元数据；数据库唯一约束执行全局防重复。原始钱包地址和 Tx Hash 仅作为核验请求输入，不写入公共贡献表。用户私账仍按原有私有账本路径保存。
+6. **Android 待处理队列**：Room 升级到 18，待核验队列在本机保存网络、钱包、Tx Hash 和发生时间；多钱包手工记账要求逐钱包明确选择实际 EVM 网络（不把通用“EVM”生态标签猜成 Ethereum），逐笔授权后才入队。浏览器待确认账单和项目多钱包记账均接入队列；仅开放当前 EVM 核验网络、公共项目及完整 USD 奖励估值。游客队列留在本地，登录用户的详细账本仍走私有云端账本。
+7. **失败处理**：服务不可用、限流、回执未就绪等返回 503 并自动重试；金额不符、钱包不匹配、网络不支持和全局 Hash 重复等返回终态拒绝；成功或终态拒绝会更新私账中的贡献状态元数据。任何公共核验失败都不回滚或删除用户私账。
+8. **奖励边界**：链上核验只核验交易与 Gas，不证明空投奖励或利润。实际奖励仍是用户明确确认的金额；不完整 USD 估值的记录不会进入公共贡献队列。
+
+**发布前仍需完成**：
+- Render 后端配置服务端专用 `ETHERSCAN_API_KEY` 和至少 32 字节随机 `COMMUNITY_TX_FINGERPRINT_SECRET`；不得把密钥放进 APK、仓库或日志。指纹密钥必须长期稳定保存，轮换前要先设计历史指纹迁移，否则全局防重复会失效。
+- 完成当前分支 Android 单元测试/Debug APK 与后端 pytest 的最新 CI 验证；失败必须在同一 PR 修复。
+- 进行真实 EVM 交易的部署后验证，确认各网络 Etherscan V2 与历史 Chainlink `eth_call` 的实际可用性；服务商不支持历史区块读取时保持待处理，不得降级伪造 Tier 3。
+- 补齐私账界面对“等待核验 / 已核验 / 核验拒绝”的可见状态展示和用户可理解的错误提示。
+- TRON、Bitcoin、Solana 暂不接入公共链上核验；这些网络仍可使用个人账本，不能显示为链上核验通过。

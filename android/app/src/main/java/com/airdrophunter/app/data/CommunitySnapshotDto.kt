@@ -37,6 +37,7 @@ data class CommunitySnapshotProjectDto(
     val gas_cost_usd_valuation: Double = 0.0,
     val actual_reward_usd_valuation: Double = 0.0,
     val net_result_usd_valuation: Double = 0.0,
+    val gas_by_verification_tier: Map<String, Double> = emptyMap(),
     val average_rating: Double? = null,
     val rating_count: Long = 0,
     val rating_distribution: Map<String, Long> = emptyMap(),
