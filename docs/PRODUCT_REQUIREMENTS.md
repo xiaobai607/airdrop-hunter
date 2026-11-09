@@ -274,7 +274,7 @@ Recommended next implementation order, based on shared-code dependencies:
 
 ### User-confirmed community static-newspaper snapshot mechanism (2026-11-09)
 
-- **Only four public project-stat windows:** overall, rolling last 7 days, rolling last 3 days, and rolling last 1 hour. The "today" window is removed and must not appear in cards, details, APIs, or snapshot manifests.
+- **Public project-stat windows:** overall, rolling last 7 days, rolling last 3 days, and rolling last 1 hour.
 - **Read-only UI:** community list and project detail have no pull-to-refresh, refresh button, swipe-triggered request, or other manual refresh affordance. Pull gestures only use normal elastic scroll/bounce behavior. The app reads cached snapshots and may perform a silent background network revalidation; users do not initiate it.
 - **Server-side scheduled aggregation (Asia/Shanghai, UTC+8):**
   - Overall + last 7 days: once daily at 08:00.
