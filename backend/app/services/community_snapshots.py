@@ -70,6 +70,7 @@ def assemble_snapshot(
             "logo": row["logo"],
             "description": row["description"],
             "website_url": row["website_url"],
+            "tags": row.get("tags", []),
             "gas_cost_usd_valuation": gas,
             "actual_reward_usd_valuation": reward,
             "net_result_usd_valuation": reward - gas,
@@ -101,7 +102,10 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
 
     now = (generated_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
     duration = WINDOW_DURATIONS[window]
-    conditions = [CommunityContribution.project_official_id == CommunityProjectCatalogEntry.project_official_id]
+    conditions = [
+        CommunityContribution.project_official_id == CommunityProjectCatalogEntry.project_official_id,
+        CommunityContribution.user_id.is_(None),
+    ]
     if duration is not None:
         conditions.append(CommunityContribution.created_at >= now - duration)
 
@@ -133,6 +137,16 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
         .order_by(CommunityProjectCatalogEntry.sort_order.asc(), CommunityProjectCatalogEntry.name.asc())
     )
     metric_rows = (await db.execute(metrics_stmt)).mappings().all()
+    tags_stmt = select(
+        CommunityProjectCatalogEntry.project_official_id,
+        CommunityProjectCatalogEntry.tags,
+    ).where(CommunityProjectCatalogEntry.is_active.is_(True))
+    tags_rows = (await db.execute(tags_stmt)).mappings().all()
+    tags_by_project = {row["project_official_id"]: row["tags"] or [] for row in tags_rows}
+    metric_rows = [
+        {**dict(row), "tags": tags_by_project.get(row["project_official_id"], [])}
+        for row in metric_rows
+    ]
 
     ratings_stmt = (
         select(
@@ -150,7 +164,10 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
             func.count(CommunityContribution.id).label("contribution_count"),
             func.coalesce(func.sum(CommunityContribution.interaction_count), 0).label("interaction_count"),
         )
-        .where(CommunityContribution.created_at >= now - timedelta(hours=24))
+        .where(
+            CommunityContribution.user_id.is_(None),
+            CommunityContribution.created_at >= now - timedelta(hours=24),
+        )
         .group_by(CommunityContribution.project_official_id)
     )
     heat_rows = (await db.execute(heat_stmt)).mappings().all()

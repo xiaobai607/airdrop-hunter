@@ -239,3 +239,13 @@ Use only these states: **complete in code**, **partial**, **in progress**, **pen
 - A five-minute dispatcher helper returns the 1-hour snapshot on each invocation, adds the 3-day snapshot at 00:00/06:00/12:00/18:00 UTC+8, and adds overall + 7-day at 08:00 UTC+8. Deployment must invoke the command every five minutes; this PR does not create a production scheduler or claim one is active.
 - Versioned JSON objects are uploaded before the manifest pointer is changed. The S3-compatible publisher supports Cloudflare R2-style endpoints through environment variables; the local atomic publisher is for development/tests only. Production mode fails closed unless a public CDN base URL and object-storage credentials are configured.
 - Android Room caching, static-manifest consumption, removal of existing manual refresh affordances, and production CDN/Cron configuration remain subsequent implementation/acceptance steps.
+
+
+### Android static snapshot cache implementation (PR #69)
+
+- Android reads the public overall snapshot from a shared Room cache before any network request. Public snapshot cache keys are deliberately not scoped to guest/account identity because the data is public and identical for all sessions.
+- CDN manifest revalidation and versioned snapshot downloads use a dedicated unauthenticated OkHttp client; user Authorization tokens are never sent to the public CDN.
+- The client accepts only HTTPS manifest URLs and snapshot object URLs on the configured CDN host. Each downloaded snapshot is schema/window checked and only replaces a cached copy when its generation timestamp is newer.
+- Community project metadata and aggregate metrics on the square screen are derived from the overall static snapshot; per-project live stats API calls are removed from that screen.
+- The CDN base URL is an optional build-time `COMMUNITY_SNAPSHOT_BASE_URL`. Until a public CDN URL and production storage/Cron are configured, the app keeps any existing Room copy and otherwise shows an unavailable state; no live database fallback is silently enabled.
+- All four snapshot windows are supported by the repository API for the next detail-screen integration. No Room schema migration is required because public JSON uses the existing cached_payloads table.

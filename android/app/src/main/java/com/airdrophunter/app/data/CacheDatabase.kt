@@ -780,4 +780,11 @@ object CacheStore {
     suspend fun writeLocal(key: String, payload: String) = withContext(Dispatchers.IO) {
         runCatching { database?.cacheDao()?.write(CachedPayload("${currentAccountScope()}:local:$key", payload, System.currentTimeMillis())) }; Unit
     }
+    // Public community snapshots are shared across guest and signed-in sessions.
+    suspend fun readPublic(key: String): String? = withContext(Dispatchers.IO) {
+        runCatching { database?.cacheDao()?.read("public:community:$key") }.getOrNull()
+    }
+    suspend fun writePublic(key: String, payload: String) = withContext(Dispatchers.IO) {
+        runCatching { database?.cacheDao()?.write(CachedPayload("public:community:$key", payload, System.currentTimeMillis())) }; Unit
+    }
 }
