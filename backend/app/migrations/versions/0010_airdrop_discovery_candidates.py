@@ -1,13 +1,13 @@
 """Store normalized RSS/Atom discovery candidates separately from verified projects.
 
-Revision ID: 0010_airdrop_discovery_candidates
+Revision ID: 0010_rss_candidates
 Revises: 0009_dynamic_community_catalog
 """
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0010_airdrop_discovery_candidates"
+revision = "0010_rss_candidates"
 down_revision = "0009_dynamic_community_catalog"
 branch_labels = None
 depends_on = None
