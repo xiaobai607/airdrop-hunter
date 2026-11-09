@@ -580,5 +580,5 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Replace it with the WebView-supported single-token wildcard `*`. Do not broaden the bridge's actual authority: every incoming request is still required to originate from the trusted top-level HTTPS page, and the current page host/port must match the message source.
 - Add a top-frame guard to the document-start provider script so it does not install the provider in iframes. The message listener also rejects non-main-frame messages.
 - Keep the existing `WEB_MESSAGE_LISTENER` and `DOCUMENT_START_SCRIPT` feature checks before registering the bridge. On unsupported WebView providers, normal web navigation remains available but the DApp bridge is not installed; never fall back to an unrestricted legacy JavaScript interface.
-- Add Android unit tests for the exact wildcard syntax, iframe exclusion, and same-origin HTTPS/host/port checks.
+- Add Android unit tests for the exact wildcard syntax and iframe exclusion. The existing runtime origin check continues to require the same HTTPS host and port.
 - Validation is pending on the updated PR head; do not call the crash fixed in a released APK until the Android unit tests and debug APK build pass and the updated PR is merged.
