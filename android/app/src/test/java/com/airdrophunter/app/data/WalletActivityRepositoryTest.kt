@@ -60,6 +60,10 @@ class WalletActivityRepositoryTest {
         assertEquals(WalletEcosystem.BTC, WalletEcosystem.fromAddress("1" + "A".repeat(25)))
         assertEquals(WalletEcosystem.BTC, WalletEcosystem.fromAddress("bc1q" + "a".repeat(38)))
         assertEquals("OTHER", WalletEcosystem.fromAddress("bc1qMixedCaseAddress"))
+        // Legacy wallet rows explicitly marked SOL must not be reclassified as BTC
+        // merely because Solana and Bitcoin both use Base58 address alphabets.
+        assertEquals(WalletEcosystem.SOL, WalletEcosystem.fromAddress("1".repeat(32), WalletEcosystem.SOL))
+        assertEquals(WalletEcosystem.BTC, WalletEcosystem.fromAddress("1" + "A".repeat(25), WalletEcosystem.BTC))
     }
 
     @Test
