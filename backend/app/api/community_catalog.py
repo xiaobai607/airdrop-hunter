@@ -35,7 +35,7 @@ def normalize_project_url(value: str) -> str:
 
 
 def normalized_identity(value: str) -> str:
-    return re.sub(r"[\\W_]+", "", value.casefold())
+    return re.sub(r"[\W_]+", "", value.casefold())
 
 
 class CatalogWrite(BaseModel):
