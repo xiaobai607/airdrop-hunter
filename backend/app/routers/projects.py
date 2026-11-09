@@ -4,12 +4,12 @@ from typing import Annotated, Literal
 from uuid import UUID
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.routers.auth import get_current_user
 from app.database import get_db
-from app.models import Project, User, Wallet
+from app.models import Project, ProjectWalletAssignment, User, Wallet
 
 router = APIRouter(prefix="/api", tags=["projects"])
 ProjectStatus = Literal["tracking", "upcoming", "completed"]
@@ -26,6 +26,27 @@ class ProjectWrite(BaseModel):
     expected_income: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
     gas_cost: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
     actual_income: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
+
+    @field_validator("official_url", "claim_url", "twitter_url")
+    @classmethod
+    def validate_https_project_links(cls, value: str) -> str:
+        normalized = (value or "").strip()
+        if not normalized:
+            return ""
+        parsed = urlparse(normalized)
+        try:
+            valid_port = parsed.port is None or 1 <= parsed.port <= 65535
+        except ValueError:
+            valid_port = False
+        if (
+            parsed.scheme.lower() != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or not valid_port
+        ):
+            raise ValueError("项目链接必须是有效的 HTTPS URL")
+        return normalized
 
 class ProjectResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -97,4 +118,11 @@ async def update_project(project_id: UUID, payload: ProjectWrite, db: Annotated[
 
 @router.delete("/projects/{project_id}", status_code=204)
 async def delete_project(project_id: UUID, db: Annotated[AsyncSession, Depends(get_db)], user: User = Depends(get_current_user)):
-    p = await owned_project(project_id, user, db); await db.delete(p); await db.commit(); return Response(status_code=204)
+    p = await owned_project(project_id, user, db)
+    await db.execute(delete(ProjectWalletAssignment).where(
+        ProjectWalletAssignment.user_id == user.id,
+        ProjectWalletAssignment.project_key == str(project_id),
+    ))
+    await db.delete(p)
+    await db.commit()
+    return Response(status_code=204)
