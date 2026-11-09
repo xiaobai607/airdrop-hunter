@@ -29,18 +29,63 @@ def https_base(value: str, label: str) -> str:
     return value.strip().rstrip("/")
 
 
-def fetch_json(url: str) -> dict:
+def validate_response_origin(requested_url: str, final_url: str) -> None:
+    requested = urlsplit(requested_url)
+    final = urlsplit(final_url)
+    try:
+        same_port = (requested.port or 443) == (final.port or 443)
+    except ValueError:
+        same_port = False
+    if (
+        final.scheme.lower() != "https"
+        or requested.scheme.lower() != "https"
+        or (requested.hostname or "").lower() != (final.hostname or "").lower()
+        or not same_port
+        or final.username is not None
+        or final.password is not None
+    ):
+        raise ValueError("Readiness request redirected outside its configured HTTPS origin")
+
+
+def validate_cache_headers(headers: dict[str, str], *, manifest: bool) -> None:
+    cache_control = headers.get("cache-control", "")
+    directives = {
+        item.strip().lower().split("=", 1)[0]: item.strip().lower().split("=", 1)[1]
+        if "=" in item else None
+        for item in cache_control.split(",") if item.strip()
+    }
+    try:
+        max_age = int(directives.get("max-age") or "")
+    except (TypeError, ValueError):
+        max_age = -1
+    if "public" not in directives:
+        raise ValueError("Community CDN response must be publicly cacheable")
+    if manifest:
+        if "must-revalidate" not in directives or not 0 <= max_age <= 300:
+            raise ValueError("Community manifest must use a short public cache lifetime and must-revalidate")
+        if not (headers.get("etag") or headers.get("last-modified")):
+            raise ValueError("Community manifest must expose ETag or Last-Modified for conditional requests")
+    elif "immutable" not in directives or max_age < 31536000:
+        raise ValueError("Versioned community snapshots must be immutable and cached for at least one year")
+
+
+def fetch_json(url: str) -> tuple[dict, dict[str, str]]:
     request = Request(url, headers={"Accept": "application/json", "User-Agent": "AirdropHunter-Readiness/1.0"})
     try:
         with urlopen(request, timeout=TIMEOUT_SECONDS) as response:
             if response.status != 200:
                 raise RuntimeError(f"Unexpected HTTP status {response.status} for {urlsplit(url).path}")
+            validate_response_origin(url, response.geturl())
+            content_type = response.headers.get_content_type()
+            if content_type != "application/json":
+                raise ValueError(f"Expected application/json at {urlsplit(url).path}")
             value = json.loads(response.read().decode("utf-8"))
+            headers = {key.lower(): val for key, val in response.headers.items()}
     except (HTTPError, URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Readiness request failed for {urlsplit(url).path}: {type(exc).__name__}") from exc
     if not isinstance(value, dict):
         raise ValueError(f"Expected a JSON object at {urlsplit(url).path}")
-    return value
+    return value, headers
 
 
 def validate_manifest(manifest: dict, cdn_base: str) -> dict[str, str]:
@@ -96,19 +141,22 @@ def validate_snapshot(payload: dict, window: str, expected_update_time: str) -> 
 
 
 def run_readiness(api_base: str, cdn_base: str) -> list[str]:
-    api = fetch_json(api_base + "/health/ready")
+    api, _ = fetch_json(api_base + "/health/ready")
     if api.get("status") != "ready" or not str(api.get("schema_revision") or "").strip():
         raise RuntimeError("API database/migration readiness check did not return ready")
-    manifest = fetch_json(cdn_base + "/manifest.json")
+    manifest, manifest_headers = fetch_json(cdn_base + "/manifest.json")
+    validate_cache_headers(manifest_headers, manifest=True)
     urls = validate_manifest(manifest, cdn_base)
     for window, snapshot_url in urls.items():
-        payload = fetch_json(snapshot_url)
+        payload, snapshot_headers = fetch_json(snapshot_url)
+        validate_cache_headers(snapshot_headers, manifest=False)
         reference = manifest["snapshots"][window]
         validate_snapshot(payload, window, str(reference["update_time"]))
     return [
         "API database and migration readiness: OK",
         "Static CDN manifest and four snapshot windows: OK",
         "Snapshot schema, update timestamps, HTTPS host and USD metadata: OK",
+        "CDN manifest validators and immutable snapshot cache headers: OK",
     ]
 
 

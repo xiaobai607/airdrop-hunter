@@ -2,7 +2,9 @@ import pytest
 
 from app.services.deployment_readiness import (
     https_base,
+    validate_cache_headers,
     validate_manifest,
+    validate_response_origin,
     validate_snapshot,
 )
 
@@ -55,3 +57,46 @@ def test_readiness_snapshot_requires_matching_window_and_money_metadata():
     validate_snapshot(payload, "1h", "2026-11-09T16:00:00+08:00")
     with pytest.raises(ValueError):
         validate_snapshot(payload, "3d", "2026-11-09T16:00:00+08:00")
+
+
+def test_readiness_requires_short_lived_revalidating_manifest_and_validators():
+    validate_cache_headers(
+        {"cache-control": "public, max-age=60, must-revalidate", "etag": '"abc123"'},
+        manifest=True,
+    )
+    with pytest.raises(ValueError):
+        validate_cache_headers({"cache-control": "public, max-age=3600"}, manifest=True)
+    with pytest.raises(ValueError):
+        validate_cache_headers(
+            {"cache-control": "public, max-age=60, must-revalidate"},
+            manifest=True,
+        )
+
+
+def test_readiness_requires_immutable_long_lived_snapshot_cache():
+    validate_cache_headers(
+        {"cache-control": "public, max-age=31536000, immutable"},
+        manifest=False,
+    )
+    with pytest.raises(ValueError):
+        validate_cache_headers(
+            {"cache-control": "public, max-age=60, must-revalidate"},
+            manifest=False,
+        )
+
+
+def test_readiness_rejects_cross_origin_or_downgrade_redirects():
+    validate_response_origin(
+        "https://cdn.example.test/manifest.json",
+        "https://cdn.example.test/manifest.json",
+    )
+    with pytest.raises(ValueError):
+        validate_response_origin(
+            "https://cdn.example.test/manifest.json",
+            "https://attacker.example/manifest.json",
+        )
+    with pytest.raises(ValueError):
+        validate_response_origin(
+            "https://cdn.example.test/manifest.json",
+            "http://cdn.example.test/manifest.json",
+        )
