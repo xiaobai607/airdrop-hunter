@@ -9,7 +9,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     config = Config(str(backend_dir / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0010_airdrop_discovery_candidates"
+    assert scripts.get_current_head() == "0010_rss_candidates"
     bootstrap = scripts.get_revision("0001_bootstrap")
     ledger = scripts.get_revision("0002_personal_ledger")
     nullable_reward = scripts.get_revision("0003_nullable_expected_reward")
@@ -19,7 +19,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     wallet_metadata = scripts.get_revision("0007_wallet_metadata")
     project_wallet_assignments = scripts.get_revision("0008_project_wallet_assignments")
     dynamic_catalog = scripts.get_revision("0009_dynamic_community_catalog")
-    discovery_candidates = scripts.get_revision("0010_airdrop_discovery_candidates")
+    discovery_candidates = scripts.get_revision("0010_rss_candidates")
     assert bootstrap is not None and bootstrap.down_revision is None
     assert ledger is not None and ledger.down_revision == "0001_bootstrap"
     assert nullable_reward is not None and nullable_reward.down_revision == "0002_personal_ledger"
