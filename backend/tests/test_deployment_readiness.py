@@ -139,6 +139,7 @@ def test_readiness_rejects_oversized_json_response(monkeypatch):
 
     class Response:
         status = 200
+        headers = headers
 
         def __enter__(self):
             return self
