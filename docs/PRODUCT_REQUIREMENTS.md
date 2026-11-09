@@ -71,11 +71,11 @@ Additional rules:
 - Create/edit/complete/delete tasks with progress tracking and project ownership checks.
 - Associate projects with wallets/addresses, chains, Gas, rewards, and interaction history.
 - Project totals include Gas, actual rewards, and net P&L.
-- Public project directory and internal project search remain active; this is distinct from the cancelled public website-discovery search.
+- APP 主动发现空投项目仍是正式需求，但禁止自建爬虫抓取/解析千奇百怪的网站页面。发现渠道改为可插拔的现成数据源 API、合法可用的 RSS/官方订阅源，以及用户提交。内部社区项目目录/搜索持续保留。
 
 ## 7. Micro Community
 
-- Public project directory/cards, categories, tags, and project details.
+- Public project directory/cards, categories, tags, and project details. Project metadata may be populated from approved external APIs/RSS and user submissions; project skeleton (name, logo, official links, funding/tokenomics metadata) is distinct from community-generated participation metrics.
 - Public aggregate Gas, actual rewards, participation count, and net P&L presentation.
 - Rankings: 吸金榜、避坑榜、新星榜.
 - Categories/tags may include L2, zero-cost, testnet-required, high-Gas, confirmed airdrop, and similar classifications.
@@ -85,13 +85,17 @@ Additional rules:
 - Ratings are 1–5 stars only; only actual participants with qualifying confirmed accounting may rate. No text reviews/comments.
 - Abuse prevention, event idempotency, and validation of eligible participation.
 - Public views must only use aggregate contribution data and must never expose personal addresses or transaction-level records.
+- Home screen must provide a prominent “+ Submit New Airdrop Project” entry. Submission accepts project name, official website/link, and available metadata; backend normalizes and deduplicates by canonical URL/domain, slug, and other identifiers. Existing matches are reported as duplicates and linked to the existing project rather than creating another row. New submissions enter validation/moderation or an explicit safe-to-publish state; never auto-trust arbitrary user URLs.
+- APP-side discovery uses provider adapters, not bespoke website crawlers: (a) verified DefiLlama public airdrop/project data where a stable supported endpoint is confirmed; (b) optional DropsTab API for funding rounds, crypto activities, and token/unlock context, subject to API-key and plan limits; (c) allowlisted RSS/Atom feeds polled by a backend scheduled job and stored as normalized feed items. RSS availability and licensing/terms must be verified per source; do not assume every site exposes a usable feed.
+- Keep source attribution, source URL, first/last seen timestamps, and sync status for imported metadata. Failed/limited providers must not block user submissions or the rest of the catalog.
+- Users supply community “blood”: Gas/reward/盈亏 data and 1–5 star ratings remain grounded in confirmed participant ledgers and user-entered records. External metadata must never fabricate Gas, rewards, P&L, ratings, or participation.
 
 ## 8. Search and market
 
 - Existing global search and public market data for BTC, ETH, SOL, BNB, and XRP.
 - Tapping a coin opens its market detail page, not a search-field autofill.
 - Search failures must show a recoverable error/retry state and must not crash the app.
-- Public automatic discovery/search of airdrop websites is cancelled for now as unreliable.
+- Self-written crawlers/scrapers that parse arbitrary airdrop websites are prohibited. APP-side discovery via verified third-party APIs, allowlisted RSS/Atom feeds, and user submissions is required; provider coverage/availability is validated before implementation.
 - Internal community project directory/search remains required.
 
 ## 9. Refresh, sync, and reliability
@@ -158,6 +162,7 @@ Additional rules:
 - PR #56: authenticated private-ledger one-time retry and eight-hour WorkManager fallback; guest accounts are skipped; merged commit d23cca51377c241c05e3dc0fe866f3e9d408c111.
 - PR #57: account identity changes trigger account-scoped screen reloads; stale requests are cancelled and account-specific editors/selections are cleared; merged commit c8545c70029f4ef82baf65b9ad231a4d432c1359.
 - PR #58: persistent many-to-many project-to-wallet assignments; guests store assignments in account-scoped Room tables, logged-in users sync assignments to account-private API storage; project detail supports selecting multiple public addresses and prioritizes assigned addresses in the claim wallet picker; backend enforces project and wallet ownership; merged commit 3c8ffbf8731ca3c9c6f10095099840e45e477932.
+- PR #59: dynamic community project catalog; backend PostgreSQL catalog seeded with the original seven entries, public active-project API, token-protected catalog management, Android dynamic catalog loading and tag derivation; CI passed and merged commit 066703ad4e7bbf176435fd8f1aac814bea60cc12. External source ingestion, RSS scheduling, and user project submission/deduplication are not yet implemented.
 
 ### Current audit findings
 
@@ -168,14 +173,14 @@ Additional rules:
 - Confirmed in main source: private personal-ledger endpoint requires authentication and scopes reads/deletes/upserts to the authenticated user. Android AccountingRepository.syncPersonalLedger() returns before any private cloud call when no token exists.
 - PR #46 and PR #47 are merged: new public contribution rows store user_id as null; migration 0005 clears historical account links while preserving aggregate totals.
 - Source audit confirms guest wallet addresses are stored in the guest-scoped app cache and authenticated wallet lists are fetched from the private wallet API and cached by account scope. Device-level app-data clearing and account-switch behavior still require real-device acceptance; production database backup/restore also remains unverified.
-- Community implementation: PR #48 adds guest/account-scoped local favorites; cross-device favorite sync remains pending. PR #49 adds rolling 24-hour confirmed interaction heat and uses it for the new-star ranking. PR #50 adds global 1–5 star aggregates for logged-in accounts after server verification against confirmed private-ledger participation; guest ratings remain local-only. PR #51 adds in-app search over the existing seven-project catalog; this does not search external websites. The catalog is still a fixed seven-project list; dynamic catalog management remains pending. Public metrics count contribution events/interactions, not unique people, to avoid introducing account/device tracking into anonymous public contributions.
+- Community implementation: PR #48 adds guest/account-scoped local favorites; cross-device favorite sync remains pending. PR #49 adds rolling 24-hour confirmed interaction heat and uses it for the new-star ranking. PR #50 adds global 1–5 star aggregates for logged-in accounts after server verification against confirmed private-ledger participation; guest ratings remain local-only. PR #51 adds in-app search over the existing seven-project catalog; this does not search external websites. PR #59 has replaced the fixed seven-project list with a dynamic backend catalog and Android API loading. External provider ingestion, RSS scheduled imports, and user project submission/deduplication remain pending. Public metrics count contribution events/interactions, not unique people, to avoid introducing account/device tracking into anonymous public contributions.
 - Personal achievement: implemented in PR #47. Guest metrics read the guest-scoped local ledger; logged-in metrics read the authenticated private cloud ledger. Win rate uses only projects with confirmed ledger interactions.
 - Task management now supports create, rename/edit, complete, and delete for guest-local and authenticated projects. PR #52 adds the edit flow and backend validation.
 - Project management now exposes edit, status changes, and delete in the Android project list. PR #53 preserves confirmed ledger history when removing a project from the list. Ledger-derived project summaries remain read-only.
 - PR #58 implements a separate persistent project-to-multiple-wallet assignment manager. Guest assignments are stored locally in Room under guest scope; logged-in assignments are stored in account-private backend records and cached locally under account scope. Project detail exposes multi-select controls, and the claim wallet picker prioritizes assigned addresses. Backend checks that private projects and all selected wallets belong to the authenticated user. This is complete in code; real-device verification of persistence, account switching, and claim-wallet ordering remains pending.
 - PR #54 adds manual plus eight-hour background refresh of saved wallet transaction activity. Background snapshots are cached locally by guest/account scope and never auto-create ledger rows or public contributions.
 - Sync is not yet app-wide: community contribution outbox has its own periodic worker; wallet activity has an eight-hour worker; PR #56 adds account-private ledger retry plus an eight-hour fallback. There is no unified refresh coordinator for every data source.
-- The Airdrop Hub currently has a manual refresh path backed by the existing external public data feed. Do not add automatic discovery/crawling or periodic external feed refresh without revisiting the user's cancelled public website-discovery scope.
+- The Airdrop Hub now has a dynamic backend catalog (PR #59). New requirement supersedes the earlier cancellation of all automatic discovery: implement provider API adapters and allowlisted RSS scheduled ingestion, but do NOT write arbitrary-site crawlers. The user-submission flow and deduplication remain pending. Verify provider endpoint availability, API keys, licensing, rate limits, and failure isolation before enabling each source.
 - Real-device acceptance for browser/wallet bridge, Android transaction import, guest data clearing, and cross-device restore remains pending.
 
 ### Status discipline
