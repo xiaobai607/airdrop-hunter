@@ -71,7 +71,7 @@ data class UserInteractionEntity(
     val assetBreakdownJson: String? = null,
     val expectedGasCostUsd: Double? = null,
     val expectedRewardUsd: Double? = null,
-    val rewardKind: String = "USD",
+    @ColumnInfo(defaultValue = "'USD'") val rewardKind: String = "USD",
     val rewardAmount: Double? = null,
     val rewardUnit: String? = null,
     val rewardUsdValuation: Double? = null,
