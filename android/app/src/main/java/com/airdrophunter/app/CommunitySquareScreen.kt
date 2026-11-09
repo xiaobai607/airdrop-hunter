@@ -85,6 +85,7 @@ fun CommunitySquareScreen(
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
+    val activeToken by TokenStore.observeToken(context).collectAsStateWithLifecycle(initialValue = TokenStore.readTokenBlocking())
     val joinedIds by CacheStore.observeUserProjects().collectAsStateWithLifecycle(initialValue = emptyList())
     val favorites by CacheStore.observeCommunityFavorites().collectAsStateWithLifecycle(initialValue = emptyList())
     val favoriteIds = remember(favorites) { favorites.map { it.projectOfficialId }.toSet() }
@@ -104,8 +105,10 @@ fun CommunitySquareScreen(
     var submittingProject by remember { mutableStateOf(false) }
     val allTags = remember(catalogEntries) { catalogEntries.flatMap { it.tags }.distinct().sorted() }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(activeToken) {
         ApiClient.initialize(context)
+        // Guest state remains local; signed-in favorites merge with the account cloud.
+        CacheStore.syncCommunityFavorites()
 
         fun applyOverallSnapshot(snapshot: com.airdrophunter.app.data.CommunitySnapshotDto?) {
             if (snapshot == null) return
@@ -329,7 +332,11 @@ fun CommunitySquareScreen(
                             }
                         }
                         IconButton(onClick = {
-                            scope.launch { CacheStore.toggleCommunityFavorite(project.id, project.name) }
+                            scope.launch {
+                                if (CacheStore.toggleCommunityFavorite(project.id, project.name)) {
+                                    CacheStore.syncCommunityFavorites()
+                                }
+                            }
                         }) {
                             Icon(
                                 imageVector = if (project.id in favoriteIds) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,

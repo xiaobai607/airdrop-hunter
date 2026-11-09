@@ -89,7 +89,9 @@ data class CommunityFavoriteEntity(
     @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
     val projectOfficialId: String,
     val projectName: String,
-    val createdAt: Long
+    val createdAt: Long,
+    @ColumnInfo(defaultValue = "1") val isFavorite: Boolean = true,
+    @ColumnInfo(defaultValue = "0") val updatedAt: Long = createdAt
 )
 
 @Entity(
@@ -207,17 +209,17 @@ interface CommunitySyncOutboxDao {
 
 @Dao
 interface CommunityFavoriteDao {
-    @Query("SELECT * FROM community_favorites WHERE accountScope = :accountScope ORDER BY createdAt DESC")
+    @Query("SELECT * FROM community_favorites WHERE accountScope = :accountScope AND isFavorite = 1 ORDER BY createdAt DESC")
     fun observeAll(accountScope: String): Flow<List<CommunityFavoriteEntity>>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM community_favorites WHERE accountScope = :accountScope AND projectOfficialId = :projectOfficialId)")
-    suspend fun exists(accountScope: String, projectOfficialId: String): Boolean
+    @Query("SELECT * FROM community_favorites WHERE accountScope = :accountScope ORDER BY updatedAt ASC")
+    suspend fun getAll(accountScope: String): List<CommunityFavoriteEntity>
+
+    @Query("SELECT * FROM community_favorites WHERE accountScope = :accountScope AND projectOfficialId = :projectOfficialId LIMIT 1")
+    suspend fun find(accountScope: String, projectOfficialId: String): CommunityFavoriteEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(favorite: CommunityFavoriteEntity)
-
-    @Query("DELETE FROM community_favorites WHERE accountScope = :accountScope AND projectOfficialId = :projectOfficialId")
-    suspend fun delete(accountScope: String, projectOfficialId: String)
 }
 
 @Dao
@@ -249,7 +251,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 13, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 14, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -472,13 +474,21 @@ object CacheStore {
         }
     }
 
+    private val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE community_favorites ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE community_favorites ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("UPDATE community_favorites SET updatedAt = createdAt WHERE updatedAt = 0")
+        }
+    }
+
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -588,19 +598,68 @@ object CacheStore {
             if (scope == "invalid-session") return@withContext false
             db.withTransaction {
                 val dao = db.communityFavoriteDao()
-                if (dao.exists(scope, officialId)) {
-                    dao.delete(scope, officialId)
-                } else {
-                    dao.upsert(CommunityFavoriteEntity(
+                val existing = dao.find(scope, officialId)
+                val now = maxOf(System.currentTimeMillis(), (existing?.updatedAt ?: 0L) + 1L)
+                dao.upsert(
+                    if (existing == null) CommunityFavoriteEntity(
                         accountScope = scope,
                         projectOfficialId = officialId,
                         projectName = name,
-                        createdAt = System.currentTimeMillis()
-                    ))
-                }
+                        createdAt = now,
+                        isFavorite = true,
+                        updatedAt = now
+                    ) else existing.copy(
+                        projectName = if (existing.isFavorite) existing.projectName else name,
+                        isFavorite = !existing.isFavorite,
+                        updatedAt = now
+                    )
+                )
             }
             true
         }
+
+    /**
+     * Merge account favorites by their per-project timestamp, then upload the merged state.
+     * Guest favorites never enter this path. The captured bearer token and account scope
+     * remain fixed for the entire operation, including a concurrent account switch.
+     */
+    suspend fun syncCommunityFavorites(): Boolean = withContext(Dispatchers.IO) {
+        val token = TokenStore.readTokenBlocking()
+        val scope = accountScopeFromToken(token)
+        if (token.isNullOrBlank() || scope == "guest" || scope == "invalid-session") return@withContext false
+        val db = database ?: return@withContext false
+        val dao = db.communityFavoriteDao()
+        val authorization = "Bearer $token"
+        val local = dao.getAll(scope)
+        val remote = runCatching { ApiClient.service.getCommunityFavorites(authorization) }.getOrElse {
+            return@withContext false
+        }
+        val merged = mergeCommunityFavoriteStates(
+            local.map { CommunityFavoriteStateDto(it.projectOfficialId, it.projectName, it.isFavorite, it.updatedAt) },
+            remote
+        )
+        val saved = runCatching {
+            ApiClient.service.syncCommunityFavorites(authorization, CommunityFavoriteSyncRequest(merged))
+        }.getOrElse {
+            return@withContext false
+        }
+        db.withTransaction {
+            saved.forEach { state ->
+                val current = dao.find(scope, state.project_official_id)
+                if (current == null || current.updatedAt <= state.updated_at) {
+                    dao.upsert(CommunityFavoriteEntity(
+                        accountScope = scope,
+                        projectOfficialId = state.project_official_id,
+                        projectName = state.project_name,
+                        createdAt = current?.createdAt ?: state.updated_at,
+                        isFavorite = state.is_favorite,
+                        updatedAt = state.updated_at
+                    ))
+                }
+            }
+        }
+        true
+    }
 
     fun observeProjectWalletAssignments(projectKey: String): Flow<List<String>> =
         observeAccountScope().flatMapLatest { scope ->

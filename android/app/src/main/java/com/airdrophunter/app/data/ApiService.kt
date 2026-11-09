@@ -74,6 +74,14 @@ interface ApiService {
         @Body request: CommunityProjectRatingRequest
     ): CommunityProjectStatsDto
 
+    @GET("api/community/favorites")
+    suspend fun getCommunityFavorites(@Header("Authorization") authorizationHeader: String): List<CommunityFavoriteStateDto>
+    @PUT("api/community/favorites/sync")
+    suspend fun syncCommunityFavorites(
+        @Header("Authorization") authorizationHeader: String,
+        @Body request: CommunityFavoriteSyncRequest
+    ): List<CommunityFavoriteStateDto>
+
     @GET("api/community/catalog") suspend fun getCommunityCatalog(): List<CommunityProjectCatalogDto>
     @POST("api/community/catalog/submit")
     suspend fun submitCommunityProject(@Body request: CommunityProjectSubmissionRequest): CommunityProjectSubmissionResponse
