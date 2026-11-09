@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 
 WINDOWS = ("overall", "7d", "3d", "1h")
 TIMEOUT_SECONDS = 20
+MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 
 
 def https_base(value: str, label: str) -> str:
@@ -79,7 +80,10 @@ def fetch_json(url: str) -> tuple[dict, dict[str, str]]:
             content_type = response.headers.get_content_type()
             if content_type != "application/json":
                 raise ValueError(f"Expected application/json at {urlsplit(url).path}")
-            value = json.loads(response.read().decode("utf-8"))
+            body = response.read(MAX_RESPONSE_BYTES + 1)
+            if len(body) > MAX_RESPONSE_BYTES:
+                raise ValueError(f"Readiness JSON exceeds the {MAX_RESPONSE_BYTES}-byte safety limit")
+            value = json.loads(body.decode("utf-8"))
             headers = {key.lower(): val for key, val in response.headers.items()}
     except (HTTPError, URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Readiness request failed for {urlsplit(url).path}: {type(exc).__name__}") from exc

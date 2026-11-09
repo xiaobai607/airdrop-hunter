@@ -127,3 +127,35 @@ def test_readiness_rejects_private_wallet_and_transaction_fields_recursively():
         validate_snapshot_privacy({
             "projects": [{"stats": {"userIdentifier": "user-123"}}],
         })
+
+
+
+def test_readiness_rejects_oversized_json_response(monkeypatch):
+    from email.message import Message
+    import app.services.deployment_readiness as readiness
+
+    headers = Message()
+    headers["Content-Type"] = "application/json"
+
+    class Response:
+        status = 200
+
+        def __init__(self):
+            self.headers = headers
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return None
+
+        def geturl(self):
+            return "https://api.example.test/health/ready"
+
+        def read(self, limit):
+            assert limit == readiness.MAX_RESPONSE_BYTES + 1
+            return b"x" * limit
+
+    monkeypatch.setattr(readiness, "urlopen", lambda request, timeout: Response())
+    with pytest.raises(ValueError, match="safety limit"):
+        readiness.fetch_json("https://api.example.test/health/ready")

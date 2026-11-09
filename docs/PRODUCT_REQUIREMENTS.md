@@ -326,10 +326,10 @@ Recommended next implementation order, based on shared-code dependencies:
 
 ### Free scheduled snapshot publishing
 
-- A GitHub Actions scheduled workflow invokes the snapshot dispatcher every five minutes. The dispatcher uses Asia/Shanghai internally, so the daily overall/7d and six-hour 3d windows are selected from the required UTC+8 wall clock while 1h refreshes every five minutes.
-- The scheduled workflow is intentionally disabled until the repository variable `COMMUNITY_SNAPSHOT_PUBLISH_ENABLED` is set to `true`; after that, it also requires `DATABASE_URL`, `COMMUNITY_SNAPSHOT_S3_BUCKET`, `COMMUNITY_SNAPSHOT_S3_ENDPOINT_URL`, `COMMUNITY_SNAPSHOT_S3_ACCESS_KEY_ID`, `COMMUNITY_SNAPSHOT_S3_SECRET_ACCESS_KEY`, and `COMMUNITY_SNAPSHOT_PUBLIC_BASE_URL` configured. Missing configuration causes a clean skip and never publishes an empty manifest.
+- The snapshot dispatcher computes due windows in Asia/Shanghai: overall + 7d daily at 08:00, 3d at 00:00/06:00/12:00/18:00, and 1h every five minutes. The GitHub Actions cron trigger is currently paused; the schedule is not running until production configuration is verified and the cron is deliberately restored.
+- Before restoring the GitHub Actions cron, configure repository variable `COMMUNITY_SNAPSHOT_PUBLISH_ENABLED=true` plus `DATABASE_URL`, `COMMUNITY_SNAPSHOT_S3_BUCKET`, `COMMUNITY_SNAPSHOT_S3_ENDPOINT_URL`, `COMMUNITY_SNAPSHOT_S3_ACCESS_KEY_ID`, `COMMUNITY_SNAPSHOT_S3_SECRET_ACCESS_KEY`, and `COMMUNITY_SNAPSHOT_PUBLIC_BASE_URL`. Until then only deliberate manual dispatch is available; missing configuration must never publish an empty manifest.
 - Set `COMMUNITY_SNAPSHOT_BASE_URL` as a repository variable for Android builds after the public CDN endpoint is ready. No storage credential is included in the APK.
-- GitHub scheduled jobs are best-effort and can start late under platform load; the dispatcher still computes due windows from Asia/Shanghai at actual execution time. This is not a real-time SLA.
+- Once restored, GitHub scheduled jobs are best-effort and can start late under platform load; the dispatcher computes due windows from Asia/Shanghai at actual execution time. This is not a real-time SLA.
 
 
 ### Transaction-to-ledger reliability (PR #74 merged)
@@ -379,7 +379,7 @@ Recommended next implementation order, based on shared-code dependencies:
 - A failed attempt updates failure status but preserves the last known successful timestamp and item count.
 - Strip query strings/fragments from source URLs before storing or exposing source health metadata.
 - Expose source health only through the admin-token-protected `GET /api/airdrops/discovery/sources/status` endpoint. Never embed the admin token in the Android APK.
-- Add a GitHub Actions daily sync at 08:17 Asia/Shanghai. The workflow is disabled unless repository variable `AIRDROP_DISCOVERY_SYNC_ENABLED=true` and a database secret are configured.
+- The intended daily sync time is 08:17 Asia/Shanghai. Its GitHub Actions cron trigger is currently paused; restore it only after repository variable `AIRDROP_DISCOVERY_SYNC_ENABLED=true`, a database secret, and at least one explicitly approved source are configured.
 - Feed/API source approval gates from PR #78 remain mandatory; no source is enabled by this workflow automatically. User project submissions continue independently.
 - PR #79 merged as `140166bf11be5215643291c102444dc43b278ee2`; backend tests and Android build passed (Actions run 42590876793 and main validation run 42591279205). Real production workflow activation and approved source setup remain pending.
 
@@ -450,3 +450,10 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - Restore the community five-minute schedule only after `COMMUNITY_SNAPSHOT_PUBLISH_ENABLED=true` and all database/object-storage/public-CDN settings are configured and verified.
 - Restore the discovery daily schedule only after an approved source with explicit content-reuse permission is configured and the database secret is present. Never enable sources based only on a publicly reachable feed.
 - Workflow-only and documentation-only pull requests do not consume the Android/backend build workflow; application/backend changes continue to receive the full PR verification.
+
+
+### Production readiness smoke-check hardening (PR pending, 2026-11-10)
+
+- The manual deployment-readiness smoke check bounds every JSON response to 10 MiB before decoding, preventing a malformed or unexpectedly large API/CDN response from exhausting the runner.
+- The bound is enforced with a read limit of 10 MiB + 1 byte so oversized payloads are rejected deterministically; ordinary API health, manifest, and snapshot checks retain their existing HTTPS-origin, schema, cache-header, timestamp, and privacy validations.
+- Corrected operational documentation: community snapshot and discovery cron triggers are paused, not merely job-gated; their UTC+8 schedules describe intended behavior after explicit configuration and deliberate restoration.
