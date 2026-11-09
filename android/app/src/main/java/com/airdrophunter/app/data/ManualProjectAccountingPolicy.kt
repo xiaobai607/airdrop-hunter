@@ -144,7 +144,7 @@ object ManualProjectAccountingPolicy {
     }
 
     private fun splitReward(total: ManualRewardInput, count: Int): List<ManualRewardInput> {
-        if (total.kind == ManualRewardKind.UNKNOWN || total.kind == ManualRewardKind.UNISSUED) {
+        if (total.kind == ManualRewardKind.UNKNOWN) {
             return List(count) { total }
         }
         val amount = total.amount ?: return List(count) { total }
