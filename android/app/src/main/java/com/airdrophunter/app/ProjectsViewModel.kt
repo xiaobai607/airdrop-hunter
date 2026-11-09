@@ -26,7 +26,7 @@ class ProjectsViewModel(private val repository: ProjectsRepository) : ViewModel(
 
     fun loadProjects(isGuest: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.value = ProjectsUiState(isLoading = true)
             try {
                 val cached = repository.readCachedProjects(isGuest)
                 if (cached.isNotEmpty() || isGuest) {
