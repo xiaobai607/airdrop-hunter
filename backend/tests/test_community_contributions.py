@@ -1,24 +1,11 @@
-import asyncio
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
 
-from app.database import AsyncSessionLocal, engine
-from app.models import CommunityContribution
-
+from app.database import get_db
 from app.main import app
-
-
-
-async def _stored_contribution_user_id(event_id: str):
-    # Dispose pooled connections before opening the async session on this test loop.
-    await engine.dispose()
-    async with AsyncSessionLocal() as db:
-        row = await db.scalar(
-            select(CommunityContribution).where(CommunityContribution.id == UUID(event_id))
-        )
-        return None if row is None else row.user_id
+from app.models import CommunityProjectStats, User
+from app.routers.auth import get_optional_current_user
 
 
 def _headers(client, prefix: str):
@@ -73,9 +60,6 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert public.status_code == 200
         assert public.json()["contribution_count"] == 1
 
-    # Even an authenticated contribution must not be linkable to an account in storage.
-    assert asyncio.run(_stored_contribution_user_id(event_id)) is None
-
 
 def test_guest_can_contribute_to_public_stats_idempotently():
     with TestClient(app) as client:
@@ -102,3 +86,59 @@ def test_guest_can_contribute_to_public_stats_idempotently():
         public = client.get("/api/community/projects/scroll/stats")
         assert public.status_code == 200
         assert public.json()["contribution_count"] == 1
+
+
+def test_authenticated_public_contribution_does_not_persist_account_identity():
+    event_id = uuid4()
+    captured = {}
+
+    class FakeResult:
+        def scalar_one_or_none(self):
+            return event_id
+
+    class FakeDatabase:
+        async def execute(self, statement):
+            captured.update(statement.compile().params)
+            return FakeResult()
+
+        async def commit(self):
+            return None
+
+        async def get(self, model, key):
+            assert model is CommunityProjectStats
+            return None
+
+    fake_db = FakeDatabase()
+    fake_user = User(
+        id=uuid4(),
+        username="testuser",
+        uid="123456",
+        email=None,
+        password_hash=None,
+        display_name="Test User",
+    )
+
+    async def override_db():
+        yield fake_db
+
+    async def override_user():
+        return fake_user
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_optional_current_user] = override_user
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/community/projects/anonymous-test/contributions",
+                json={
+                    "event_id": str(event_id),
+                    "gas_cost_usd": "1.00",
+                    "actual_reward_usd": "4.00",
+                    "interaction_count": 1,
+                },
+            )
+        assert response.status_code == 200
+        assert captured["user_id"] is None
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_optional_current_user, None)
