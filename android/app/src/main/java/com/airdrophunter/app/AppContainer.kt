@@ -5,6 +5,7 @@ import com.airdrophunter.app.data.ApiService
 import com.airdrophunter.app.data.CacheStoreProjectsLocalDataSource
 import com.airdrophunter.app.data.OkxMarketRepository
 import com.airdrophunter.app.data.ProjectsRepository
+import com.airdrophunter.app.data.ProjectWalletAssignmentRepository
 import com.airdrophunter.app.data.RetrofitProjectsRemoteDataSource
 import com.airdrophunter.app.data.WalletRepository
 import com.airdrophunter.app.data.WalletActivityRepository
@@ -37,6 +38,10 @@ class AppContainer {
             remote = RetrofitProjectsRemoteDataSource(apiService),
             local = CacheStoreProjectsLocalDataSource()
         )
+    }
+
+    val projectWalletAssignmentRepository: ProjectWalletAssignmentRepository by lazy {
+        ProjectWalletAssignmentRepository(apiService)
     }
 
     val walletRepository: WalletRepository by lazy {

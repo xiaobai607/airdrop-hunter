@@ -91,6 +91,18 @@ data class CommunityFavoriteEntity(
 )
 
 @Entity(
+    tableName = "project_wallet_assignments",
+    primaryKeys = ["accountScope", "projectKey", "walletId"],
+    indices = [Index(value = ["accountScope", "projectKey", "createdAt"])]
+)
+data class ProjectWalletAssignmentEntity(
+    @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
+    val projectKey: String,
+    val walletId: String,
+    val createdAt: Long
+)
+
+@Entity(
     tableName = "project_ratings",
     indices = [Index(value = ["accountScope", "projectOfficialId", "walletAddress"], unique = true)]
 )
@@ -207,6 +219,21 @@ interface CommunityFavoriteDao {
 }
 
 @Dao
+interface ProjectWalletAssignmentDao {
+    @Query("SELECT walletId FROM project_wallet_assignments WHERE accountScope = :accountScope AND projectKey = :projectKey ORDER BY createdAt ASC")
+    fun observeWalletIds(accountScope: String, projectKey: String): Flow<List<String>>
+
+    @Query("SELECT walletId FROM project_wallet_assignments WHERE accountScope = :accountScope AND projectKey = :projectKey ORDER BY createdAt ASC")
+    suspend fun getWalletIds(accountScope: String, projectKey: String): List<String>
+
+    @Query("DELETE FROM project_wallet_assignments WHERE accountScope = :accountScope AND projectKey = :projectKey")
+    suspend fun deleteForProject(accountScope: String, projectKey: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(assignments: List<ProjectWalletAssignmentEntity>)
+}
+
+@Dao
 interface ProjectRatingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(rating: ProjectRatingEntity)
@@ -220,13 +247,14 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class], version = 9, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 10, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
     abstract fun pnlRecordDao(): PnlRecordDao
     abstract fun projectRatingDao(): ProjectRatingDao
     abstract fun communityFavoriteDao(): CommunityFavoriteDao
+    abstract fun projectWalletAssignmentDao(): ProjectWalletAssignmentDao
     abstract fun userProjectDao(): UserProjectDao
     abstract fun userInteractionDao(): UserInteractionDao
     abstract fun communitySyncOutboxDao(): CommunitySyncOutboxDao
@@ -263,6 +291,21 @@ object CacheStore {
     private val MIGRATION_6_7 = object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE pending_bills ADD COLUMN chain TEXT NOT NULL DEFAULT 'unknown'")
+        }
+    }
+
+    private val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS project_wallet_assignments (
+                    accountScope TEXT NOT NULL DEFAULT 'guest',
+                    projectKey TEXT NOT NULL,
+                    walletId TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    PRIMARY KEY(accountScope, projectKey, walletId)
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_project_wallet_assignments_accountScope_projectKey_createdAt ON project_wallet_assignments(accountScope, projectKey, createdAt)")
         }
     }
 
@@ -333,7 +376,7 @@ object CacheStore {
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -453,6 +496,40 @@ object CacheStore {
                         createdAt = System.currentTimeMillis()
                     ))
                 }
+            }
+            true
+        }
+
+    fun observeProjectWalletAssignments(projectKey: String): Flow<List<String>> =
+        observeAccountScope().flatMapLatest { scope ->
+            database?.projectWalletAssignmentDao()?.observeWalletIds(scope, projectKey) ?: flowOf(emptyList())
+        }
+
+    suspend fun readProjectWalletAssignments(projectKey: String): Set<String> = withContext(Dispatchers.IO) {
+        if (projectKey.isBlank() || projectKey.length > 160) return@withContext emptySet()
+        val scope = currentAccountScope()
+        if (scope == "invalid-session") return@withContext emptySet()
+        database?.projectWalletAssignmentDao()?.getWalletIds(scope, projectKey)?.toSet().orEmpty()
+    }
+
+    suspend fun saveProjectWalletAssignments(projectKey: String, walletIds: Set<String>): Boolean =
+        withContext(Dispatchers.IO) {
+            if (projectKey.isBlank() || projectKey.length > 160 || walletIds.size > 100 ||
+                walletIds.any { it.isBlank() || it.length > 80 }) return@withContext false
+            val db = database ?: return@withContext false
+            val scope = currentAccountScope()
+            if (scope == "invalid-session") return@withContext false
+            db.withTransaction {
+                val dao = db.projectWalletAssignmentDao()
+                dao.deleteForProject(scope, projectKey)
+                dao.insertAll(walletIds.map { walletId ->
+                    ProjectWalletAssignmentEntity(
+                        accountScope = scope,
+                        projectKey = projectKey,
+                        walletId = walletId,
+                        createdAt = System.currentTimeMillis()
+                    )
+                })
             }
             true
         }
