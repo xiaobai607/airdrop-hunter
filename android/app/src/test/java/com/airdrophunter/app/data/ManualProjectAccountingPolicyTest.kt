@@ -105,9 +105,9 @@ class ManualProjectAccountingPolicyTest {
         val tronHash = "c".repeat(64)
         val solanaSignature = "1".repeat(88)
         listOf(
-            wallet("eth", hash = evmHash, optIn = true),
-            wallet("tron", hash = tronHash, network = "tron", optIn = true),
-            wallet("sol", hash = solanaSignature, network = "solana", optIn = true)
+            wallet("eth", ManualRewardInput(ManualRewardKind.UNKNOWN), hash = evmHash, optIn = true),
+            wallet("tron", ManualRewardInput(ManualRewardKind.UNKNOWN), hash = tronHash, network = "tron", optIn = true),
+            wallet("sol", ManualRewardInput(ManualRewardKind.UNKNOWN), hash = solanaSignature, network = "solana", optIn = true)
         ).forEach { row ->
             assertTrue(ManualProjectAccountingPolicy.prepare(
                 listOf(row), ManualRewardAllocationMode.PER_WALLET
