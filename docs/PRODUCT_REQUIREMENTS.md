@@ -21,7 +21,7 @@ Before any implementation work after “继续”:
 
 ## Document map and current implementation baseline (2026-11-10)
 
-This document remains the complete source of truth. The optimization below adds navigation and status guidance; it does **not** delete, weaken, or silently reinterpret any previously confirmed feature.
+This document remains the complete source of truth. The optimization below adds navigation and status guidance; it does **not** delete, weaken, or silently reinterpret any previously confirmed feature. The latest account-scope correction explicitly defers new registration and user-facing cross-device private-ledger restore; see Section 1.
 
 - **Product boundaries and privacy:** Sections 1–4 and 10–11.
 - **Personal accounting and project lifecycle:** Sections 5–6, including the new quick-entry and project-library requirements.
@@ -33,10 +33,19 @@ This document remains the complete source of truth. The optimization below adds 
 
 ## 1. Product and engineering boundaries
 
+### Current-release account and recovery scope (user-confirmed, 2026-11-10)
+
+- Do not allow new users to register in the current release. Hide or disable registration entry points; if a user reaches one, show **“注册功能开发中，请等待后续更新”** and do not start an account-creation request.
+- Keep guest mode fully available for the app's core functions. Guest personal ledger, wallets, and project data remain app-private/local; clearing app data or uninstalling loses those details.
+- Defer user-facing cross-device private-cloud restore. Do not advertise cloud recovery, show a restore entry point, or make cross-device recovery a release acceptance condition.
+- Do not delete already-implemented authentication, account-isolation, or sync code merely because registration/restore is deferred. Preserve it for a later phase; any existing account flow must not be expanded or described as offering cross-device restore.
+- This deferral applies to private user data recovery only. It does not cancel the separate PostgreSQL backup/restore drill for production operations, nor anonymous public aggregate contribution.
+
+
 - Product: Airdrop Hunter, an Android application for airdrop projects, task tracking, wallet-address management, Gas/reward accounting, and community project statistics.
 - Stack: Android Kotlin + Jetpack Compose, FastAPI, PostgreSQL/Neon, Render, and GitHub Actions APK builds.
 - Keep the project affordable for a solo developer. Prefer free tiers, cache responsibly, batch coherent changes, and avoid unnecessary CI runs.
-- Guest use is supported; account creation is optional for guest workflows.
+- Guest use is the primary experience. **New-user registration is disabled for the current release**; if a registration entry is reached, show exactly: “注册功能开发中，请等待后续更新”. Do not submit registration requests or imply that account creation is available. Keep the existing guest experience fully usable. Existing authentication/backend code is retained, but registration and cross-device cloud recovery are deferred.
 - No custody, seed phrase/private-key collection, signing, transfers, swaps, or approvals.
 - Public wallet addresses and read-only public chain data only.
 - Test data must never contaminate real private ledgers or public statistics.
@@ -48,10 +57,10 @@ This policy is authoritative across Android storage, API requests, database mode
 | Data layer | Guest | Logged-in user |
 |---|---|---|
 | Detailed personal ledger (wallet addresses, Gas details, rewards, project participation, transaction references, timestamps) | Stored in app-private local storage only | Stored locally and uploaded to the user's private cloud ledger |
-| Private cloud restore | Not available; clearing app data or uninstalling loses guest details | Account-scoped restore on another device |
+| Private cloud restore | Not available; clearing app data or uninstalling loses guest details | Cross-device restore is deferred and must not be offered or promised in the current release |
 | Public community contribution | Valid confirmed Gas, actual rewards, and project participation may contribute | Same |
 | Public contribution storage | Anonymous aggregate only; no wallet address, tx hash, personal ledger row, or account identity | Same; must not be linked to the user's account |
-| Clearing/uninstalling app data | Local private data is lost; no server copy exists | Cloud private ledger remains available to that account |
+| Clearing/uninstalling app data | Local private data is lost; no server copy exists | Do not promise cross-device recovery in the current release; explain that this capability is deferred |
 
 Additional rules:
 - Guest personal details are saved in the app-private local database only. They are not uploaded to a private cloud vault. Clearing app data or uninstalling the app loses guest personal details.
@@ -109,7 +118,7 @@ Additional rules:
 - **Historical quote immutability:** for a priced token entry, persist token symbol, token quantity, unit USD price, total USD valuation, quote source, quote observation timestamp, and record timestamp. Later market-price updates must never rewrite historical entries or previously computed contribution payloads.
 - Batch submission is atomic: either every selected-wallet ledger row and its dependent aggregates/outbox rows are committed, or none are. A partial batch is forbidden. Repeated taps must be idempotent and must not duplicate rows.
 - Keep the existing manual-confirmation boundary: a record is considered realized only when the user explicitly submits the actual result. Estimates, points, and unissued rewards remain separately typed and cannot automatically close a pending event.
-- Preserve the existing guest-local private ledger and authenticated account-scoped cloud ledger rules. Guest private rows never upload to a private vault; logged-in rows retain the existing account isolation and restore behavior. Only eligible confirmed anonymous aggregates may enter the public contribution outbox; no address, transaction hash, account identity, or private ledger row may be sent.
+- Preserve guest-local private ledger behavior and existing account isolation. Guest private rows never upload to a private vault. Cross-device private-ledger restore is deferred for the current release; do not expose or promise it. Retain existing authentication/cloud code without expanding this feature until registration and recovery are deliberately resumed. Only eligible confirmed anonymous aggregates may enter the public contribution outbox; no address, transaction hash, account identity, or private ledger row may be sent.
 - For USD totals and net P&L, unknown/unissued/points rewards must be represented as incomplete rather than treated as "$0" realized income. Preserve the native token/points detail even when USD valuation is unknown.
 
 ## 6. Projects and tasks
@@ -128,7 +137,7 @@ Additional rules:
 - The personal library displays the added project alongside user-created projects and retains the existing project tasks, wallet associations, accounting history, and day/week/month summaries.
 - A gentle **“待记账”** label appears only when the project has been in the personal library for more than 3 days and has zero associated confirmed accounting entries. The label is a reminder only: it must not create a bill, change project status, or imply the user owes money. It disappears as soon as a qualifying ledger entry is associated with the project.
 - Use the project's persisted createdAt and confirmed interaction count (or an equivalent account-scoped ledger count) as the source of truth. Do not infer from list ordering or public catalog creation time.
-- The personal library and adoption state must respect guest/account isolation. Guest project membership stays local; authenticated membership and private records must follow the existing account-scoped persistence/restore policy.
+- The personal library and adoption state must respect guest/account isolation. Guest project membership stays local; any existing authenticated membership remains account-scoped. Cross-device restoration is deferred and must not be promised in the current release.
 
 ## 7. Micro Community
 
@@ -215,7 +224,7 @@ Additional rules:
 - Verify database backup/restore and deployment rollback.
 - Validate imported content, URLs, contract/address inputs, and WebView navigation boundaries.
 - Meaningful Android and backend tests; run CI once per coherent ready-to-validate change set.
-- Real-device acceptance is required for browser/wallet connection, cross-device cloud restore, data correctness, and end-to-end app flows.
+- Real-device acceptance is required for browser/wallet connection, data correctness, and end-to-end app flows. Cross-device cloud restore is explicitly deferred and is not a current-release acceptance gate.
 - A merged PR or passing CI does not by itself prove real-device completion.
 - Freeze broad UI redesign until core feature chains are complete; then perform one unified UI refinement and full regression.
 
@@ -319,7 +328,7 @@ The main data path is intentionally one-way at each boundary:
 
 1. **Wallet/address layer:** user adds a public address -> account/guest-scoped wallet repository -> read-only chain activity refresh/cache.
 2. **Accounting layer:** user selects a transaction or enters an interaction -> pending bill -> user manually reviews/enters actual Gas and actual reward -> one Room transaction updates the private ledger, project P&L, interaction history, and (only if eligible) public-contribution outbox.
-3. **Private sync layer:** authenticated users sync/restore detailed ledger rows through account-scoped authenticated APIs; guests do not sync private ledger details to any cloud endpoint.
+3. **Private sync layer:** existing authenticated API and account-isolation code is retained; guests do not sync private ledger details to any cloud endpoint. New-user registration and cross-device restore are deferred from the current release and must not be surfaced as available.
 4. **Public contribution layer:** both guest and authenticated sessions may send only project ID + confirmed aggregate Gas/actual reward + an opaque event ID for idempotency. The server stores public contribution rows with no account identity; idempotency prevents duplicate retries.
 5. **Community presentation layer:** server-side scheduled jobs aggregate anonymous contributions into static JSON; Android Room cache renders first and CDN revalidation updates silently. Community UI must not bypass this path with live per-project aggregation.
 6. **Project/task layer:** project and task ownership, project-to-wallet assignments, and ledger links are separate from public project metadata. A transaction is linked to a project only by explicit user selection.
@@ -330,7 +339,7 @@ Recommended next implementation order, based on shared-code dependencies:
 1. **Public metric cleanup (PR #73 merged):** backend, snapshot, and Android public data contracts now expose confirmed monetary aggregates, star ratings, and catalog metadata. The New ranking sorts by catalog creation time.
 2. **Transaction-to-ledger reliability (PR #74 merged):** duplicate transaction identities are isolated by account scope, public event IDs remain stable for server idempotency, demo rows are excluded from sync/contribution, fee-payer attribution is conservative, and manual confirmation is required.
 3. **Currency-aware accounting (PR #75 merged):** native token amount/symbol/decimals and valuation timestamp/source now flow through chain activity, pending bills, private ledger, anonymous public contributions, and per-token static snapshots. USD valuations remain separate and unlike native units are never added together.
-4. **Sync/restore hardening (PR #77 merged):** bind each private-ledger sync to the token/account that started it, use explicit Authorization headers and token-scoped local cache access, atomically merge cloud rows with local rows, and reject cloud restores beyond the 10,000-row safety cap without overwriting local data. Real-device cross-device and app-data-clear acceptance remains pending.
+4. **Existing sync/restore hardening (PR #77 merged):** retain the token/account binding, explicit Authorization headers, token-scoped local cache access, atomic merge, and 10,000-row safety cap in the existing code. However, new-user registration and user-facing cross-device restore are deferred; do not advertise or rely on cross-device recovery in the current release.
 5. **Discovery rights and operations (PR #78 merged):** require explicit source-level content-reuse approval for RSS and provider APIs, in addition to HTTPS host allowlisting. Do not enable feeds/APIs based only on public availability; keep sources disabled until their terms or written permission permit public display. PR #79 adds persistent source sync status, an admin-only status endpoint, and a daily scheduled workflow disabled by default.
    **PR #80 (merged):** bind wallet-list/activity requests and cache reads/writes to the captured guest/account session; guest requests suppress token injection after a session switch. Regression tests verify captured bearer and anonymous modes. PR #80 merged as `db24bcc8209acfa11305c91884b98551d6444131`; Android and backend CI passed (Actions runs 42594835182 and 42594866610).
    **PR #81 (merged):** apply captured-session handling to foreground wallet activity and test cache isolation across session identities.
@@ -439,7 +448,7 @@ Recommended next implementation order, based on shared-code dependencies:
 - Refuse cloud restore when more than 10,000 rows are present, before uploading or replacing local data.
 - Unit tests cover guest no-cloud behavior, account switching during sync, concurrent local additions, canonical cloud conflicts, demo exclusion, and oversized cloud restore.
 - PR #77 merged as `ebdd5a2c344b31522387e5c00234e246f27b3819`; Android debug build/unit tests and backend tests passed (Actions run 42587439108).
-- Real-device cross-device restore, account switching, app-data clearing, and offline retry acceptance remain pending.
+- Real-device account switching and offline retry acceptance remain pending. Cross-device restore is deferred from the current release, not an outstanding launch requirement.
 
 ### RSS content-reuse approval gate (PR #78 merged)
 
@@ -490,7 +499,7 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - Guest private details are NOT uploaded to a private cloud vault. Do not design or implement anonymous guest-vault endpoints, recovery credentials, or guest private cloud synchronization.
 - Clearing app data or uninstalling the app removes the guest's private local records; there is no cloud copy to restore.
 - Guest users may still contribute eligible, user-confirmed, anonymous aggregate Gas/reward/project participation data to the public community statistics. This contribution channel is separate from the private ledger and must never contain wallet addresses, transaction hashes, or detailed personal records.
-- Logged-in users' detailed personal ledgers continue to sync to their authenticated, account-scoped cloud storage and can be restored after signing into that account.
+- Existing authenticated ledger-sync code remains in the repository and account-scoped. Cross-device restore is deferred for the current release; do not promise that signing in on another device will recover private records.
 - Never confuse public anonymous aggregate contribution with private personal cloud backup. The former is allowed for guests; the latter is not.
 
 
@@ -617,13 +626,13 @@ The user explicitly requires development to proceed as **15 substantial function
 3. **Built-in browser and DApp connection** — WebView navigation/TLS, Reown session lifecycle, origin validation, account/address selection, project association and read-only security boundary.
 4. **Personal accounting end-to-end** — pending/confirmed lifecycle, actual versus theoretical Gas/reward, duplicate prevention, deletion, P&L, native-currency breakdown and day/week/month history.
 5. **Project and task management** — project state, task CRUD/progress/completion, ownership and wallet/ledger associations.
-6. **Guest local and authenticated private cloud data** — local-only guest private data, authenticated cloud ledger, account isolation, restore, offline merge and conflict safety.
+6. **Guest local data and retained account infrastructure** — local-only guest private data and existing account isolation/sync code. New registration and cross-device restore are deferred from the current release; retain the existing code without presenting those capabilities as available.
 7. **Anonymous public contribution** — eligibility, privacy minimization, idempotency, retries, exclusion of estimates/demo/unconfirmed rows and separation from private ledgers.
 8. **Community snapshot data pipeline** — four windows (overall/7d/3d/1h), scheduled aggregation, static JSON publication, version manifest and cache integrity.
 9. **Community UI and social metrics** — waterfall project detail, rating eligibility/reputation, exact Gas/reward comparison, rankings, favorites and privacy.
 10. **Project discovery and submissions** — safe user submission/deduplication/moderation, approved free data providers only, attribution and source-health reporting; no arbitrary-site crawler or paid source.
 11. **Global search, market dashboard, and unified asset detail** — BTC/ETH dashboard, BTC/ETH/SOL/BNB/XRP market data, 300 ms local-first search across coin/DApp categories, hot-coin cache, search history, unified EVM/Solana/Bitcoin asset model and limited asset-detail presentation.
-12. **Background sync, Room cache, and reliability** — WorkManager coordination, 15-minute SWR for market/search/asset query data, 30-second per-key manual refresh throttle, cache metadata/updated labels, provider node rotation, bounded exponential backoff, offline queue, account switching and recovery. Community snapshot schedules remain independent.
+12. **Background sync, Room cache, and reliability** — WorkManager coordination, 15-minute SWR for market/search/asset query data, 30-second per-key manual refresh throttle, cache metadata/updated labels, provider node rotation, bounded exponential backoff, offline queue and account-scope safety. Cross-device private-ledger recovery is deferred. Community snapshot schedules remain independent.
 13. **Backend/API/data integrity** — authentication/authorization, schema/migrations, idempotency, validation, limits, tests and end-to-end contract consistency.
 14. **Production operations and recovery** — CDN/storage/Cron configuration, readiness/smoke checks, backup/restore drill and rollback evidence.
 15. **Unified navigation/UI and final regression** — bottom navigation order/state restoration, home dashboard/search integration, unified asset cards and chart behavior, one consolidated UI refinement after core flows, full Android/backend regression, APK artifact and acceptance checklist.
@@ -714,7 +723,7 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Additive migration `0016_nullable_expected_gas` drops the database NOT NULL/default-zero constraint without rewriting historical rows. Existing stored zero values are preserved because their original meaning cannot be reliably reconstructed; new records no longer fabricate zero for unknown estimates.
 - Regression tests cover null-versus-explicit-zero API round trips, Android cloud upload/merge preserving null, and multi-page cloud restore with 501 records. Existing guest/account isolation and conflict-safety tests remain part of the same validation run.
 - PR #108 merged as `f440919848aa26986bf9468dd80afbe296c34270`; exact-head Android unit tests, Debug APK assembly, backend PostgreSQL tests, and migration-chain validation passed in Actions run `42687551643` on head `d1be458a2f7267ae671feb8cf0650966a05a1e62`.
-- **Batch 06 code/CI complete.** Real-device guest data clearing, two-account switching, and cross-device restore remain required.
+- **Batch 06 existing code/CI complete; product scope narrowed for current release.** Guest local data and existing account-isolation infrastructure remain. New-user registration and cross-device private-ledger restore are deferred; do not treat restore as a current-release acceptance requirement. Real-device guest data clearing and any retained account-switching flow still require acceptance.
 
 ### Batch 07 current state — anonymous public contribution
 
