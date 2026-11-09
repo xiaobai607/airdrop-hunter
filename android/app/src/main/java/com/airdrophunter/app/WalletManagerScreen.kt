@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.rememberModalBottomSheetState
@@ -81,6 +82,18 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
         }
     }
 
+    fun update(wallet: WalletDto, request: WalletWriteRequest, isGuest: Boolean = false) = viewModelScope.launch {
+        _state.value = _state.value.copy(isSaving = true, error = null)
+        try {
+            val wallets = repository.update(wallet, request, isGuest, _state.value.wallets)
+            _state.value = _state.value.copy(wallets = wallets, isSaving = false, error = null)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            _state.value = _state.value.copy(isSaving = false, error = error.message ?: "更新钱包信息失败")
+        }
+    }
+
     fun delete(wallet: WalletDto, isGuest: Boolean = false) = viewModelScope.launch {
         _state.value = _state.value.copy(isSaving = true, error = null)
         try {
@@ -125,6 +138,12 @@ fun WalletManagerScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var address by remember { mutableStateOf("") }
     var walletName by remember { mutableStateOf("") }
+    var walletTags by remember { mutableStateOf("") }
+    var walletNotes by remember { mutableStateOf("") }
+    var editingWallet by remember { mutableStateOf<WalletDto?>(null) }
+    var editWalletName by remember { mutableStateOf("") }
+    var editWalletTags by remember { mutableStateOf("") }
+    var editWalletNotes by remember { mutableStateOf("") }
     var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
     val ecosystem = remember(address) { detectEcosystem(address.trim()) }
     val connectedAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
@@ -189,6 +208,8 @@ fun WalletManagerScreen(
                 onClick = {
                     address = ""
                     walletName = ""
+                    walletTags = ""
+                    walletNotes = ""
                     showAddDialog = true
                 },
                 enabled = !state.isSaving,
@@ -291,6 +312,25 @@ fun WalletManagerScreen(
                                         color = AppColors.TextHelper,
                                         style = MaterialTheme.typography.labelSmall
                                     )
+                                    if (wallet.tags.orEmpty().isNotEmpty()) {
+                                        Text(wallet.tags.orEmpty().joinToString(" · "), color = AppColors.Primary,
+                                            style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                    }
+                                    if (wallet.notes.orEmpty().isNotBlank()) {
+                                        Text(wallet.notes, color = AppColors.TextHelper,
+                                            style = MaterialTheme.typography.labelSmall, maxLines = 2)
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        editWalletName = wallet.wallet_name
+                                        editWalletTags = wallet.tags.orEmpty().joinToString(", ")
+                                        editWalletNotes = wallet.notes.orEmpty()
+                                        editingWallet = wallet
+                                    },
+                                    enabled = !state.isSaving
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = "编辑钱包信息", tint = AppColors.Primary)
                                 }
                                 IconButton(
                                     onClick = { walletViewModel.delete(wallet, isGuest) },
@@ -308,6 +348,69 @@ fun WalletManagerScreen(
                 }
             }
         }
+    }
+
+    editingWallet?.let { wallet ->
+        AlertDialog(
+            onDismissRequest = { if (!state.isSaving) editingWallet = null },
+            containerColor = AppColors.Surface,
+            title = { Text("编辑钱包信息", color = AppColors.TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(shortAddress(wallet.address), color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.labelSmall)
+                    OutlinedTextField(
+                        value = editWalletName,
+                        onValueChange = { editWalletName = it },
+                        label = { Text("钱包名称") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editWalletTags,
+                        onValueChange = { editWalletTags = it },
+                        label = { Text("标签（逗号分隔，最多12个）") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editWalletNotes,
+                        onValueChange = { editWalletNotes = it },
+                        label = { Text("备注") },
+                        minLines = 2,
+                        maxLines = 4,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    state.error?.let { Text(it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = editWalletName.isNotBlank() && !state.isSaving &&
+                        parseWalletTags(editWalletTags).size <= 12 &&
+                        parseWalletTags(editWalletTags).all { it.length <= 24 } &&
+                        editWalletNotes.length <= 500,
+                    onClick = {
+                        walletViewModel.update(
+                            wallet,
+                            WalletWriteRequest(
+                                wallet_name = editWalletName.trim(),
+                                chain = wallet.chain,
+                                address = wallet.address,
+                                tags = parseWalletTags(editWalletTags),
+                                notes = editWalletNotes.trim()
+                            ),
+                            isGuest
+                        )
+                        editingWallet = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                ) { Text("保存修改") }
+            },
+            dismissButton = {
+                TextButton(enabled = !state.isSaving, onClick = { editingWallet = null }) { Text("取消") }
+            }
+        )
     }
 
     if (showAddDialog) {
@@ -343,6 +446,19 @@ fun WalletManagerScreen(
                         label = { Text("备注名称（可选）") },
                         singleLine = true
                     )
+                    OutlinedTextField(
+                        value = walletTags,
+                        onValueChange = { walletTags = it },
+                        label = { Text("标签（逗号分隔，最多12个）") },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = walletNotes,
+                        onValueChange = { walletNotes = it },
+                        label = { Text("钱包备注（可选）") },
+                        minLines = 2,
+                        maxLines = 3
+                    )
                     Text(
                         when (ecosystem) {
                             WalletEcosystem.TRON -> "TRON：第一版支持真实余额查询"
@@ -370,7 +486,9 @@ fun WalletManagerScreen(
                             WalletWriteRequest(
                                 wallet_name = walletName.trim().ifBlank { "$detectedEcosystem Wallet" },
                                 chain = detectedEcosystem,
-                                address = address.trim()
+                                address = address.trim(),
+                                tags = parseWalletTags(walletTags),
+                                notes = walletNotes.trim()
                             ),
                             isGuest
                         )
@@ -441,6 +559,9 @@ fun WalletManagerScreen(
     }
     }
 }
+
+private fun parseWalletTags(raw: String): List<String> =
+    raw.split(",", "，").map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.take(12)
 
 internal fun shortAddress(address: String): String =
     if (address.length > 13) {

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Index, JSON, Numeric, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -20,6 +20,8 @@ class Wallet(Base):
     chain: Mapped[str] = mapped_column(String(24), nullable=False, default="unknown")
     network_icon: Mapped[str] = mapped_column(String(24), nullable=False, default="?")
     wallet_name: Mapped[str] = mapped_column(String(80), nullable=False, default="Wallet")
+    tags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    notes: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     daily_gas_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)
     recent_airdrop_income_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

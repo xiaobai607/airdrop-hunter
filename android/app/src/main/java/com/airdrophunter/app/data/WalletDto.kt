@@ -9,7 +9,9 @@ data class WalletDto(
     val public_key: String = address,
     val daily_gas_usd: Double = 0.0,
     val recent_airdrop_income_usd: Double = 0.0,
-    val last_synced_at: String? = null
+    val last_synced_at: String? = null,
+    val tags: List<String> = emptyList(),
+    val notes: String = ""
 ) {
     // The address determines the ecosystem. An EVM address is shared by all EVM networks.
     val ecosystem: String
@@ -61,7 +63,9 @@ object WalletEcosystem {
 data class WalletWriteRequest(
     val wallet_name: String,
     val chain: String,
-    val address: String
+    val address: String,
+    val tags: List<String> = emptyList(),
+    val notes: String = ""
 )
 
 data class WalletCheckResponse(

@@ -3,7 +3,7 @@ import httpx
 from decimal import Decimal
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.routers.auth import get_current_user, limiter
@@ -25,6 +25,38 @@ class WalletWrite(BaseModel):
     wallet_name: str = Field(min_length=1, max_length=80)
     chain: str = Field(min_length=1, max_length=24)
     address: str = Field(min_length=21, max_length=120)
+    tags: list[str] = Field(default_factory=list, max_length=12)
+    notes: str = Field(default="", max_length=500)
+
+    @field_validator("wallet_name")
+    @classmethod
+    def normalize_wallet_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("钱包名称不能为空")
+        return normalized
+
+    @field_validator("tags")
+    @classmethod
+    def normalize_tags(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for tag in values:
+            value = tag.strip()
+            if not value:
+                continue
+            if len(value) > 24:
+                raise ValueError("每个标签不能超过24个字符")
+            key = value.casefold()
+            if key not in seen:
+                normalized.append(value)
+                seen.add(key)
+        return normalized
+
+    @field_validator("notes")
+    @classmethod
+    def normalize_notes(cls, value: str) -> str:
+        return value.strip()
 
 def identify_chain(address: str) -> str | None:
     value = address.strip()
@@ -42,6 +74,7 @@ def _serialize(w: Wallet) -> dict:
         "ecosystem": canonical, "address": w.address or w.public_key,
         "public_key": w.address or w.public_key, "daily_gas_usd": float(w.daily_gas_usd or 0),
         "recent_airdrop_income_usd": float(w.recent_airdrop_income_usd or 0),
+        "tags": list(w.tags or []), "notes": w.notes or "",
         "last_synced_at": w.last_synced_at}
 
 async def _list_wallets(db: AsyncSession, user: User):
@@ -67,13 +100,52 @@ async def add_wallet(payload: WalletWrite, db: AsyncSession = Depends(get_db), u
         existing.chain = db_chain
         existing.network_icon = icon
         existing.public_key = address
+        existing.tags = payload.tags
+        existing.notes = payload.notes
         await db.commit(); await db.refresh(existing)
         return _serialize(existing)
     wallet = Wallet(user_id=user.id, wallet_name=payload.wallet_name.strip() or "Wallet",
         chain=db_chain, network_icon=icon, address=address, public_key=address,
+        tags=payload.tags, notes=payload.notes,
         daily_gas_usd=Decimal("0"), recent_airdrop_income_usd=Decimal("0"))
     db.add(wallet); await db.commit(); await db.refresh(wallet)
     return _serialize(wallet)
+
+@wallets_router.put("/{wallet_id}")
+async def update_wallet(
+    wallet_id: UUID,
+    payload: WalletWrite,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    wallet = await db.scalar(select(Wallet).where(Wallet.id == wallet_id, Wallet.user_id == user.id))
+    if wallet is None:
+        raise HTTPException(404, "钱包不存在")
+    chain = payload.chain.strip()
+    if chain not in NETWORKS:
+        raise HTTPException(422, "暂不支持该生态")
+    address = payload.address.strip()
+    detected = identify_chain(address)
+    expected = {"Ethereum": "EVM", "ERC20": "EVM", "Tron": "TRON", "TRC20": "TRON", "Solana": "SOL"}.get(chain, chain)
+    if detected != expected:
+        raise HTTPException(422, "钱包地址格式与所选生态不匹配")
+    duplicate = await db.scalar(select(Wallet).where(
+        Wallet.user_id == user.id, Wallet.address == address, Wallet.id != wallet_id
+    ))
+    if duplicate is not None:
+        raise HTTPException(409, "该地址已经添加到钱包列表")
+    db_chain, icon = NETWORKS[chain]
+    wallet.wallet_name = payload.wallet_name.strip()
+    wallet.chain = db_chain
+    wallet.network_icon = icon
+    wallet.address = address
+    wallet.public_key = address
+    wallet.tags = payload.tags
+    wallet.notes = payload.notes
+    await db.commit()
+    await db.refresh(wallet)
+    return _serialize(wallet)
+
 
 @wallets_router.delete("/{wallet_id}", status_code=204)
 async def delete_wallet(wallet_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
