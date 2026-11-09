@@ -19,7 +19,10 @@ class WalletRepositoryTest {
     private class Remote : WalletRemoteDataSource {
         val wallets = mutableListOf<WalletDto>()
         var addCalls = 0
+        var lastAuthorization: String? = null
+        var lastAuthMode: String? = null
         override suspend fun getWallets() = wallets.toList()
+        override suspend fun getWallets(authorizationHeader: String?, authMode: String?) = wallets.toList().also { lastAuthorization = authorizationHeader; lastAuthMode = authMode }
         override suspend fun addWallet(request: WalletWriteRequest) {
             addCalls++
             wallets += WalletDto(
@@ -50,6 +53,13 @@ class WalletRepositoryTest {
         assertEquals(0, remote.addCalls)
         assertTrue(local.guest.containsKey("wallets"))
         assertFalse(local.account.containsKey("wallets"))
+    }
+
+    @Test fun backgroundWalletLoadUsesCapturedBearerToken() = runBlocking {
+        val remote = Remote()
+        WalletRepository(remote, Local()).loadForSession(false, "header.payload.signature")
+        assertEquals("Bearer header.payload.signature", remote.lastAuthorization)
+        assertEquals("captured", remote.lastAuthMode)
     }
 
     @Test fun authenticatedWalletsUseRemoteAndAccountCache() = runBlocking {

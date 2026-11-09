@@ -886,10 +886,30 @@ object CacheStore {
         runCatching { database?.cacheDao()?.write(CachedPayload("${currentAccountScope()}:local:$key", payload, System.currentTimeMillis())) }; Unit
     }
     /** Read from the account that initiated sync, even if another account is now active. */
-    suspend fun readLocalForToken(key: String, accessToken: String): String? = withContext(Dispatchers.IO) {
+    suspend fun readForToken(key: String, accessToken: String): String? = withContext(Dispatchers.IO) {
+        val scope = accountScopeFromToken(accessToken)
+        if (scope == "invalid-session" || scope == "guest") return@withContext null
+        runCatching { database?.cacheDao()?.read("${scope.removePrefix("user:")}:$key") }.getOrNull()
+    }
+    suspend fun writeForToken(key: String, payload: String, accessToken: String): Boolean = withContext(Dispatchers.IO) {
+        val scope = accountScopeFromToken(accessToken)
+        if (scope == "invalid-session" || scope == "guest") return@withContext false
+        val db = database ?: return@withContext false
+        db.cacheDao().write(CachedPayload("${scope.removePrefix("user:")}:$key", payload, System.currentTimeMillis()))
+        true
+    }
+    /** Read/write local cache rows for the exact guest or account session that started background work. */
+    suspend fun readLocalForToken(key: String, accessToken: String?): String? = withContext(Dispatchers.IO) {
         val scope = accountScopeFromToken(accessToken)
         if (scope == "invalid-session") return@withContext null
         runCatching { database?.cacheDao()?.read("$scope:local:$key") }.getOrNull()
+    }
+    suspend fun writeLocalForToken(key: String, payload: String, accessToken: String?): Boolean = withContext(Dispatchers.IO) {
+        val scope = accountScopeFromToken(accessToken)
+        if (scope == "invalid-session") return@withContext false
+        val db = database ?: return@withContext false
+        db.cacheDao().write(CachedPayload("$scope:local:$key", payload, System.currentTimeMillis()))
+        true
     }
     /**
      * Atomically merge canonical cloud rows with local-only rows for the captured account.

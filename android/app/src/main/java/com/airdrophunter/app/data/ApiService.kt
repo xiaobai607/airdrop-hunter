@@ -40,16 +40,20 @@ interface ApiService {
     @GET("api/wallet-activity/evm/{address}/transactions")
     suspend fun getEvmWalletTransactions(
         @Path("address") address: String,
-        @Query("limit") limit: Int = 50
+        @Query("limit") limit: Int = 50,
+        @Header("Authorization") authorizationHeader: String? = null,
+        @Header("X-Airdrop-Auth-Mode") authMode: String? = null
     ): WalletActivityBatchDto
     @GET("api/wallet-activity/{chain}/{address}/transactions")
     suspend fun getWalletTransactions(
         @Path("chain") chain: String,
         @Path("address") address: String,
-        @Query("limit") limit: Int = 50
+        @Query("limit") limit: Int = 50,
+        @Header("Authorization") authorizationHeader: String? = null,
+        @Header("X-Airdrop-Auth-Mode") authMode: String? = null
     ): List<WalletTransactionDto>
     @GET("api/wallet/check") suspend fun checkWallet(@Query("address") address: String): WalletCheckResponse
-    @GET("api/wallets") suspend fun getWallets(): List<WalletDto>
+    @GET("api/wallets") suspend fun getWallets(@Header("Authorization") authorizationHeader: String? = null, @Header("X-Airdrop-Auth-Mode") authMode: String? = null): List<WalletDto>
     @POST("api/wallets") suspend fun addWallet(@Body request: WalletWriteRequest): WalletDto
     @PUT("api/wallets/{walletId}") suspend fun updateWallet(@Path("walletId") walletId: String, @Body request: WalletWriteRequest): WalletDto
     @DELETE("api/wallets/{walletId}") suspend fun deleteWallet(@Path("walletId") walletId: String)

@@ -18,8 +18,19 @@ object ApiClient {
             .addInterceptor { chain ->
                 val original = chain.request()
                 val token = TokenStore.readTokenBlocking()
-                val request = if (original.header("Authorization") != null || token.isNullOrBlank()) original else original.newBuilder()
-                    .header("Authorization", "Bearer $token").build()
+                val authMode = original.header("X-Airdrop-Auth-Mode")
+                val request = when (authMode) {
+                    // Internal marker prevents a guest request from inheriting a later account token.
+                    "anonymous" -> original.newBuilder()
+                        .removeHeader("X-Airdrop-Auth-Mode")
+                        .removeHeader("Authorization")
+                        .build()
+                    "captured" -> original.newBuilder()
+                        .removeHeader("X-Airdrop-Auth-Mode")
+                        .build()
+                    else -> if (original.header("Authorization") != null || token.isNullOrBlank()) original
+                        else original.newBuilder().header("Authorization", "Bearer $token").build()
+                }
                 chain.proceed(request)
             }
             .connectTimeout(70, TimeUnit.SECONDS)
