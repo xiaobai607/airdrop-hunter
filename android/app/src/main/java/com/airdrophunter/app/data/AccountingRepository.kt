@@ -2,6 +2,7 @@ package com.airdrophunter.app.data
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 
 interface AccountingLocalDataSource {
@@ -9,6 +10,12 @@ interface AccountingLocalDataSource {
     suspend fun readLocal(key: String): String?
     suspend fun read(key: String): String?
     suspend fun writeLocal(key: String, payload: String)
+    suspend fun readLocalForToken(key: String, accessToken: String): String? = readLocal(key)
+    suspend fun mergePersonalLedgerForToken(
+        key: String,
+        cloudEntries: List<PersonalLedgerWriteRequest>,
+        accessToken: String
+    ): Boolean
     suspend fun addPendingBill(bill: PendingBillEntity)
     suspend fun deletePendingBill(id: String)
     suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean
@@ -30,6 +37,13 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
     override suspend fun readLocal(key: String): String? = CacheStore.readLocal(key)
     override suspend fun read(key: String): String? = CacheStore.read(key)
     override suspend fun writeLocal(key: String, payload: String) = CacheStore.writeLocal(key, payload)
+    override suspend fun readLocalForToken(key: String, accessToken: String): String? =
+        CacheStore.readLocalForToken(key, accessToken)
+    override suspend fun mergePersonalLedgerForToken(
+        key: String,
+        cloudEntries: List<PersonalLedgerWriteRequest>,
+        accessToken: String
+    ): Boolean = CacheStore.mergePersonalLedgerForToken(key, cloudEntries, accessToken)
     override suspend fun addPendingBill(bill: PendingBillEntity) {
         CacheStore.addPendingBill(bill)
     }
@@ -50,11 +64,39 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
     )
 }
 
+interface PersonalLedgerRemoteDataSource {
+    suspend fun getPersonalLedger(authorizationHeader: String, limit: Int, offset: Int): List<PersonalLedgerEntryDto>
+    suspend fun upsertPersonalLedger(
+        authorizationHeader: String,
+        clientRecordId: String,
+        request: PersonalLedgerWriteRequest
+    ): PersonalLedgerEntryDto
+}
+
+class ApiPersonalLedgerRemoteDataSource(private val api: ApiService) : PersonalLedgerRemoteDataSource {
+    override suspend fun getPersonalLedger(
+        authorizationHeader: String,
+        limit: Int,
+        offset: Int
+    ): List<PersonalLedgerEntryDto> =
+        api.getPersonalLedger(limit = limit, offset = offset, authorizationHeader = authorizationHeader)
+
+    override suspend fun upsertPersonalLedger(
+        authorizationHeader: String,
+        clientRecordId: String,
+        request: PersonalLedgerWriteRequest
+    ): PersonalLedgerEntryDto =
+        api.upsertPersonalLedger(clientRecordId, request, authorizationHeader)
+}
+
 class AccountingRepository(
     private val local: AccountingLocalDataSource,
     private val api: ApiService? = null,
-    private val gson: Gson = Gson()
+    private val gson: Gson = Gson(),
+    private val accessTokenProvider: () -> String? = { TokenStore.readTokenBlocking() },
+    personalLedgerRemote: PersonalLedgerRemoteDataSource? = null
 ) {
+    private val ledgerRemote = personalLedgerRemote ?: api?.let(::ApiPersonalLedgerRemoteDataSource)
     private val projectsType = object : TypeToken<List<ProjectDto>>() {}.type
 
     fun observePendingBills(): Flow<List<PendingBillEntity>> = local.observePendingBills()
@@ -104,7 +146,7 @@ class AccountingRepository(
     }
 
     private suspend fun syncAndScheduleIfNeeded() {
-        if (TokenStore.readTokenBlocking().isNullOrBlank()) return
+        if (accessTokenProvider().isNullOrBlank()) return
         if (!syncPersonalLedger()) local.schedulePrivateLedgerSync()
     }
 
@@ -113,26 +155,30 @@ class AccountingRepository(
      * the guest-local cache and never call the private account endpoint.
      */
     suspend fun syncPersonalLedger(): Boolean {
-        if (TokenStore.readTokenBlocking().isNullOrBlank()) return false
-        val remote = api ?: return false
+        // Bind every request and local-cache operation to the session that started
+        // this sync. An account switch during network work cannot redirect records.
+        val accessToken = accessTokenProvider()?.takeIf { it.isNotBlank() } ?: return false
+        val authorizationHeader = "Bearer $accessToken"
+        val remote = ledgerRemote ?: return false
         val localKey = "personal_ledger"
         val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
-        val localEntries = local.readLocal(localKey)?.let { raw ->
+        val localEntries = local.readLocalForToken(localKey, accessToken)?.let { raw ->
             runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }.getOrNull()
         }.orEmpty()
-        return runCatching {
-            // Pull the account's canonical cloud copy before uploading. Ledger rows are
-            // append-only after confirmation; never let an older device cache overwrite
-            // a record that has already reached the account cloud from another device.
+
+        return try {
             val cloudEntries = mutableListOf<PersonalLedgerEntryDto>()
             var offset = 0
             var pageCount = 0
             var reachedEnd = false
-            // Read one final page at the 10,000-row boundary so an exact-cap ledger
-            // is accepted only after the API confirms there are no more rows.
+            // Fetch one final page at offset 10,000 to distinguish an exact-cap
+            // ledger from an oversized ledger before changing local data.
             while (pageCount <= 20) {
-                val page = remote.getPersonalLedger(limit = 500, offset = offset)
+                val page = remote.getPersonalLedger(authorizationHeader, limit = 500, offset = offset)
                 cloudEntries += page
+                check(cloudEntries.size <= MAX_PERSONAL_LEDGER_SYNC_ROWS) {
+                    "个人账本超过当前单次恢复上限，已保留本地数据"
+                }
                 if (page.size < 500) {
                     reachedEnd = true
                     break
@@ -140,21 +186,17 @@ class AccountingRepository(
                 offset += page.size
                 pageCount++
             }
-            // Never replace a device cache with a silently truncated cloud copy.
-            // A larger ledger can be handled by increasing the explicit safety cap.
             check(reachedEnd) { "个人账本超过当前单次恢复上限，已保留本地数据" }
 
             val cloudRecordIds = cloudEntries.mapTo(mutableSetOf()) { it.client_record_id }
-            // Simulated toolbar bills are retained on this device for testing, but
-            // must never be uploaded to the account's real personal ledger.
-            val demoLocalEntries = localEntries.filter(::isDemoPersonalLedgerEntry)
-                .filterNot { it.client_record_id in cloudRecordIds }
-            val syncableLocalEntries = localEntries.filterNot(::isDemoPersonalLedgerEntry)
-            syncableLocalEntries.filterNot { it.client_record_id in cloudRecordIds }.forEach { entry ->
-                cloudEntries += remote.upsertPersonalLedger(entry.client_record_id, entry)
+            for (entry in localEntries.filterNot(::isDemoPersonalLedgerEntry).distinctBy { it.client_record_id }) {
+                if (entry.client_record_id in cloudRecordIds) continue
+                val saved = remote.upsertPersonalLedger(authorizationHeader, entry.client_record_id, entry)
+                cloudEntries += saved
+                cloudRecordIds += saved.client_record_id
             }
 
-            val restored = cloudEntries.distinctBy { it.client_record_id }.map { entry ->
+            val canonicalCloudEntries = cloudEntries.distinctBy { it.client_record_id }.map { entry ->
                 PersonalLedgerWriteRequest(
                     client_record_id = entry.client_record_id,
                     project_id = entry.project_id,
@@ -171,16 +213,20 @@ class AccountingRepository(
                     extra = entry.extra
                 )
             }
-            // Cloud entries are authoritative; this also recovers rows created on
-            // another device and prevents stale local values from winning a merge.
-            local.writeLocal(
-                localKey,
-                gson.toJson(restored + demoLocalEntries)
-            )
-            true
-        }.getOrDefault(false)
+
+            // The local adapter merges inside the same Room transaction used by
+            // bill confirmation. Rows added during network work cannot be lost.
+            local.mergePersonalLedgerForToken(localKey, canonicalCloudEntries, accessToken)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
     }
+
 }
+
+private const val MAX_PERSONAL_LEDGER_SYNC_ROWS = 10_000
 
 internal fun isDemoPersonalLedgerEntry(entry: PersonalLedgerWriteRequest): Boolean =
     entry.extra["is_demo"] == "true" ||
