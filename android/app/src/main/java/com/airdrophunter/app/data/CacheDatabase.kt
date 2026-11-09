@@ -79,6 +79,18 @@ data class CommunitySyncOutboxEntity(
 )
 
 @Entity(
+    tableName = "community_favorites",
+    primaryKeys = ["accountScope", "projectOfficialId"],
+    indices = [Index(value = ["accountScope", "createdAt"])]
+)
+data class CommunityFavoriteEntity(
+    @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
+    val projectOfficialId: String,
+    val projectName: String,
+    val createdAt: Long
+)
+
+@Entity(
     tableName = "project_ratings",
     indices = [Index(value = ["accountScope", "projectOfficialId", "walletAddress"], unique = true)]
 )
@@ -180,6 +192,21 @@ interface CommunitySyncOutboxDao {
 }
 
 @Dao
+interface CommunityFavoriteDao {
+    @Query("SELECT * FROM community_favorites WHERE accountScope = :accountScope ORDER BY createdAt DESC")
+    fun observeAll(accountScope: String): Flow<List<CommunityFavoriteEntity>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM community_favorites WHERE accountScope = :accountScope AND projectOfficialId = :projectOfficialId)")
+    suspend fun exists(accountScope: String, projectOfficialId: String): Boolean
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(favorite: CommunityFavoriteEntity)
+
+    @Query("DELETE FROM community_favorites WHERE accountScope = :accountScope AND projectOfficialId = :projectOfficialId")
+    suspend fun delete(accountScope: String, projectOfficialId: String)
+}
+
+@Dao
 interface ProjectRatingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(rating: ProjectRatingEntity)
@@ -193,12 +220,13 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class], version = 8, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class], version = 9, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
     abstract fun pnlRecordDao(): PnlRecordDao
     abstract fun projectRatingDao(): ProjectRatingDao
+    abstract fun communityFavoriteDao(): CommunityFavoriteDao
     abstract fun userProjectDao(): UserProjectDao
     abstract fun userInteractionDao(): UserInteractionDao
     abstract fun communitySyncOutboxDao(): CommunitySyncOutboxDao
@@ -235,6 +263,21 @@ object CacheStore {
     private val MIGRATION_6_7 = object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE pending_bills ADD COLUMN chain TEXT NOT NULL DEFAULT 'unknown'")
+        }
+    }
+
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS community_favorites (
+                    accountScope TEXT NOT NULL DEFAULT 'guest',
+                    projectOfficialId TEXT NOT NULL,
+                    projectName TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    PRIMARY KEY(accountScope, projectOfficialId)
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_community_favorites_accountScope_createdAt ON community_favorites(accountScope, createdAt)")
         }
     }
 
@@ -290,7 +333,7 @@ object CacheStore {
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build()
         }
     }
     private fun accountScopeFromToken(token: String?): String {
@@ -378,6 +421,35 @@ object CacheStore {
     fun observeCommunitySyncOutbox(): Flow<List<CommunitySyncOutboxEntity>> =
         observeAccountScope().flatMapLatest { scope ->
             database?.communitySyncOutboxDao()?.observeAll(scope) ?: flowOf(emptyList())
+        }
+
+    fun observeCommunityFavorites(): Flow<List<CommunityFavoriteEntity>> =
+        observeAccountScope().flatMapLatest { scope ->
+            database?.communityFavoriteDao()?.observeAll(scope) ?: flowOf(emptyList())
+        }
+
+    suspend fun toggleCommunityFavorite(projectOfficialId: String, projectName: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val officialId = projectOfficialId.trim()
+            val name = projectName.trim()
+            if (officialId.isEmpty() || officialId.length > 120 || name.isEmpty()) return@withContext false
+            val db = database ?: return@withContext false
+            val scope = currentAccountScope()
+            if (scope == "invalid-session") return@withContext false
+            db.withTransaction {
+                val dao = db.communityFavoriteDao()
+                if (dao.exists(scope, officialId)) {
+                    dao.delete(scope, officialId)
+                } else {
+                    dao.upsert(CommunityFavoriteEntity(
+                        accountScope = scope,
+                        projectOfficialId = officialId,
+                        projectName = name,
+                        createdAt = System.currentTimeMillis()
+                    ))
+                }
+            }
+            true
         }
 
     suspend fun getPendingCommunitySyncBatches(limit: Int = 50): List<CommunitySyncBatch> =

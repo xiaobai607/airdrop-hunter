@@ -10,6 +10,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.runtime.*
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
@@ -64,12 +67,15 @@ fun CommunitySquareScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val joinedIds by CacheStore.observeUserProjects().collectAsStateWithLifecycle(initialValue = emptyList())
+    val favorites by CacheStore.observeCommunityFavorites().collectAsStateWithLifecycle(initialValue = emptyList())
+    val favoriteIds = remember(favorites) { favorites.map { it.projectOfficialId }.toSet() }
     val joinedOfficialIds = remember(joinedIds) { joinedIds.mapNotNull { it.projectOfficialId }.toSet() }
     var communityStats by remember { mutableStateOf<Map<String, CommunityProjectStatsDto>>(emptyMap()) }
     var statsLoading by remember { mutableStateOf(true) }
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
     var useDemoData by remember { mutableStateOf(BuildConfig.DEBUG) }
     var selectedTag by remember { mutableStateOf<String?>(null) }
+    var favoritesOnly by remember { mutableStateOf(false) }
     val allTags = listOf("L2", "零撸", "需测试网", "高Gas", "明牌空投")
 
     LaunchedEffect(Unit) {
@@ -97,7 +103,10 @@ fun CommunitySquareScreen(
             )
         }
     }
-    val displayedProjects = combinedProjects.filter { selectedTag == null || selectedTag in it.tags }
+    val displayedProjects = combinedProjects.filter {
+        (selectedTag == null || selectedTag in it.tags) &&
+            (!favoritesOnly || it.id in favoriteIds)
+    }
         .let { filtered ->
             when (ranking) {
                 CommunityRanking.REWARD -> filtered.sortedByDescending { it.reward }
@@ -158,6 +167,9 @@ fun CommunitySquareScreen(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("项目标签", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly },
+                        label = { Text("我的收藏") }, shape = RoundedCornerShape(999.dp),
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary))
                     FilterChip(selected = selectedTag == null, onClick = { selectedTag = null },
                         label = { Text("全部") }, shape = RoundedCornerShape(999.dp),
                         colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary))
@@ -171,6 +183,16 @@ fun CommunitySquareScreen(
         }
         item { Text("发现 ${displayedProjects.size} 个项目" + if (statsLoading) " · 统计加载中" else "",
             color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall) }
+        if (displayedProjects.isEmpty()) {
+            item {
+                Text(
+                    if (favoritesOnly) "还没有收藏项目，点击项目卡片上的爱心即可收藏" else "暂无符合条件的项目",
+                    Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                    color = AppColors.TextHelper,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
         items(displayedProjects, key = { it.id }) { project ->
             Card(
                 modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(project.id, project.name, project.chain) },
@@ -204,6 +226,15 @@ fun CommunitySquareScreen(
                                     style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
                                 )
                             }
+                        }
+                        IconButton(onClick = {
+                            scope.launch { CacheStore.toggleCommunityFavorite(project.id, project.name) }
+                        }) {
+                            Icon(
+                                imageVector = if (project.id in favoriteIds) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = if (project.id in favoriteIds) "取消收藏" else "收藏项目",
+                                tint = if (project.id in favoriteIds) Color(0xFFE65B75) else AppColors.TextHelper
+                            )
                         }
                     }
                     if (project.isDemo) {
