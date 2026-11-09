@@ -60,7 +60,7 @@ fun BrowserAccountingToolbar(
     var newProjectName by remember { mutableStateOf("") }
     var selectedProjectLocalId by remember { mutableStateOf("") }
     var gas by remember { mutableStateOf("") }
-    var reward by remember { mutableStateOf("0.00") }
+    var reward by remember { mutableStateOf("") }
     var rewardUsdEdited by remember { mutableStateOf(false) }
     var gasNative by remember { mutableStateOf("") }
     var gasSymbol by remember { mutableStateOf("") }
@@ -100,8 +100,8 @@ fun BrowserAccountingToolbar(
 
     fun openBill(bill: PendingBillEntity) {
         activeBill = bill
-        gas = String.format(Locale.US, "%.2f", bill.gasCostUsd)
-        reward = "0.00"
+        gas = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 }?.let { String.format(Locale.US, "%.2f", it) }.orEmpty()
+        reward = ""
         rewardUsdEdited = false
         val existingAssets = LedgerAssetBreakdownCodec.decode(bill.assetBreakdownJson)
         val gasAsset = existingAssets.firstOrNull { it.kind == "gas" }
@@ -154,8 +154,8 @@ fun BrowserAccountingToolbar(
         }
     }
 
-    val gasValue = gas.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
-    val rewardValue = reward.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
+    val gasValue = parseConfirmedUsdAmount(gas)
+    val rewardValue = parseConfirmedUsdAmount(reward)
     val nativeAssetsValid =
         isValidNativeAssetInput(gasNative, gasSymbol, gasDecimals) &&
             isValidNativeAssetInput(rewardNative, rewardSymbol, rewardDecimals)
@@ -328,6 +328,7 @@ fun BrowserAccountingToolbar(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         shape = RoundedCornerShape(13.dp)
                     )
+                    Text("请手动填写最终实际收益；如果实际为零，也请明确输入 0。未填写不能确认入账。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     Text("原生币种明细（不同币种分别记录，不相加）", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
