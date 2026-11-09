@@ -96,3 +96,50 @@ def test_wallet_metadata_rejects_too_many_or_oversized_tags():
             "tags": ["x" * 25]
         })
         assert oversized.status_code == 422
+
+
+def test_wallet_creation_validates_selected_chain_and_preserves_base58_ecosystem():
+    with TestClient(app) as client:
+        headers = auth(client)
+        cases = [
+            ("EVM", "0x1111111111111111111111111111111111111111", "EVM"),
+            ("TRON", "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb", "TRON"),
+            ("SOL", "11111111111111111111111111111111", "SOL"),
+            ("BTC", "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "Bitcoin"),
+        ]
+        for chain, address, expected in cases:
+            response = client.post("/api/wallets", headers=headers, json={
+                "wallet_name": chain, "chain": chain, "address": address
+            })
+            assert response.status_code == 201, response.text
+            assert response.json()["ecosystem"] == expected
+            assert response.json()["chain"] == expected
+
+def test_wallet_rejects_bad_checksum_and_cross_chain_selection():
+    with TestClient(app) as client:
+        headers = auth(client)
+        cases = [
+            ("TRON", "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwa"),
+            ("BTC", "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNb"),
+            ("BTC", "11111111111111111111111111111111"),
+            ("SOL", "0x1111111111111111111111111111111111111111"),
+        ]
+        for chain, address in cases:
+            response = client.post("/api/wallets", headers=headers, json={
+                "wallet_name": "invalid", "chain": chain, "address": address
+            })
+            assert response.status_code == 422
+
+def test_wallet_update_rejects_wrong_selected_chain():
+    with TestClient(app) as client:
+        headers = auth(client)
+        created = client.post("/api/wallets", headers=headers, json={
+            "wallet_name": "Solana", "chain": "SOL",
+            "address": "11111111111111111111111111111111"
+        })
+        assert created.status_code == 201
+        updated = client.put(f"/api/wallets/{created.json()['id']}", headers=headers, json={
+            "wallet_name": "Solana", "chain": "BTC",
+            "address": "11111111111111111111111111111111"
+        })
+        assert updated.status_code == 422
