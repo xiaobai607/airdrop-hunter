@@ -19,6 +19,25 @@ MAX_FEED_BYTES = 2_000_000
 MAX_ITEMS_PER_FEED = 200
 
 
+async def _read_limited_response(response) -> bytes:
+    """Read a streamed feed without buffering an untrusted response past the limit."""
+    declared_length = response.headers.get("content-length")
+    if declared_length is not None:
+        try:
+            parsed_length = int(declared_length)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("RSS feed has an invalid Content-Length") from exc
+        if parsed_length < 0 or parsed_length > MAX_FEED_BYTES:
+            raise ValueError("RSS feed exceeds size limit")
+
+    body = bytearray()
+    async for chunk in response.aiter_bytes():
+        if len(body) + len(chunk) > MAX_FEED_BYTES:
+            raise ValueError("RSS feed exceeds size limit")
+        body.extend(chunk)
+    return bytes(body)
+
+
 def _configured_feeds() -> list[tuple[str, str]]:
     """AIRDROP_RSS_FEEDS format: name=https://host/feed.xml;other=https://host/rss"""
     configured = os.getenv("AIRDROP_RSS_FEEDS", "")
@@ -87,6 +106,8 @@ def _parse_date(value: str) -> datetime | None:
 
 def parse_feed(xml_bytes: bytes, feed_url: str) -> list[dict[str, object]]:
     """Parse common RSS 2.0 and Atom feeds without executing or rendering markup."""
+    if len(xml_bytes) > MAX_FEED_BYTES:
+        raise ValueError("RSS feed exceeds size limit")
     root = ET.fromstring(xml_bytes)
     items = [node for node in root.iter() if _local_name(node.tag) in {"item", "entry"}]
     results: list[dict[str, object]] = []
@@ -123,11 +144,10 @@ async def sync_rss_discovery_candidates(db: AsyncSession) -> int:
     ) as client:
         for source_name, source_url in feeds:
             try:
-                response = await client.get(source_url)
-                response.raise_for_status()
-                if len(response.content) > MAX_FEED_BYTES:
-                    raise ValueError("RSS feed exceeds size limit")
-                records = parse_feed(response.content, source_url)
+                async with client.stream("GET", source_url) as response:
+                    response.raise_for_status()
+                    feed_bytes = await _read_limited_response(response)
+                records = parse_feed(feed_bytes, source_url)
                 await record_discovery_source_status(
                     db, source_name, source_url, now, "success", item_count=len(records)
                 )

@@ -55,3 +55,56 @@ def test_feed_configuration_requires_explicit_content_reuse_approval(monkeypatch
 
     monkeypatch.setenv("AIRDROP_RSS_APPROVED_SOURCES", "airdropalert")
     assert _configured_feeds() == [("AirdropAlert", "https://airdropalert.com/feed/rssfeed")]
+
+
+def test_feed_stream_reader_stops_at_size_limit():
+    import asyncio
+    from app.services.rss_discovery import MAX_FEED_BYTES, _read_limited_response
+
+    class FakeResponse:
+        headers = {}
+
+        def __init__(self):
+            self.read_chunks = 0
+
+        async def aiter_bytes(self):
+            self.read_chunks += 1
+            yield b"x" * (MAX_FEED_BYTES // 2)
+            self.read_chunks += 1
+            yield b"x" * (MAX_FEED_BYTES // 2)
+            self.read_chunks += 1
+            yield b"x"
+
+    response = FakeResponse()
+    try:
+        asyncio.run(_read_limited_response(response))
+        assert False, "oversized streamed body must be rejected"
+    except ValueError as exc:
+        assert "size limit" in str(exc)
+    assert response.read_chunks == 3
+
+
+def test_feed_stream_reader_rejects_oversized_content_length_before_reading():
+    import asyncio
+    from app.services.rss_discovery import MAX_FEED_BYTES, _read_limited_response
+
+    class FakeResponse:
+        headers = {"content-length": str(MAX_FEED_BYTES + 1)}
+
+        async def aiter_bytes(self):
+            raise AssertionError("body must not be read when Content-Length is oversized")
+            yield b""
+
+    try:
+        asyncio.run(_read_limited_response(FakeResponse()))
+        assert False, "oversized Content-Length must be rejected"
+    except ValueError as exc:
+        assert "size limit" in str(exc)
+
+
+def test_parse_feed_enforces_size_limit_for_direct_call():
+    import pytest
+    from app.services.rss_discovery import MAX_FEED_BYTES
+
+    with pytest.raises(ValueError, match="size limit"):
+        parse_feed(b"x" * (MAX_FEED_BYTES + 1), "https://feeds.example/rss")

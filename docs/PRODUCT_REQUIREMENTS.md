@@ -459,10 +459,18 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - Corrected operational documentation: community snapshot and discovery cron triggers are paused, not merely job-gated; their UTC+8 schedules describe intended behavior after explicit configuration and deliberate restoration.
 
 
-### Module-scoped CI to protect free Actions quota (PR pending, 2026-11-10)
+### Module-scoped CI to protect free Actions quota (PR #93 merged, 2026-11-10)
 
 - Pull-request changes are classified by module before expensive jobs start.
 - Android/Gradle changes run Android unit tests and debug APK assembly; backend/database/deployment changes run backend tests with PostgreSQL. A change touching both runs both suites.
 - Workflow-only, documentation-only, and unrelated root-file changes do not start either expensive suite automatically.
 - Manual workflow dispatch exposes `both`, `android`, and `backend` scopes for deliberate verification.
 - Concurrency still cancels superseded runs on the same ref; merge pushes do not repeat successful PR builds.
+
+
+### RSS discovery bounded streaming (PR pending, 2026-11-10)
+
+- Approved RSS/Atom feeds are fetched with redirects disabled and streamed in chunks. Enforce the 2 MB cap while receiving bytes, rather than buffering the full untrusted response and checking size afterward.
+- Reject an oversized declared Content-Length before reading the body, enforce the same cap during streamed reads, and keep a parser-level cap for direct callers.
+- A feed exceeding the limit is recorded as a failed source attempt; it cannot block other approved sources or create partial candidates.
+- This does not enable any feed. Source allowlisting and explicit content-reuse approval remain mandatory; feeds stay disabled until production configuration and rights review are complete.
