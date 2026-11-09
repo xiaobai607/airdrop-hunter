@@ -148,6 +148,46 @@ class AccountingRepositoryTest {
         assertTrue(remote.uploaded.isEmpty())
     }
 
+
+    @Test
+    fun unknownExpectedGasRemainsNullDuringCloudUploadAndLocalMerge() = runBlocking {
+        val source = FakeAccountingLocalDataSource()
+        val unknownEstimate = ledgerWrite("unknown-gas").copy(expected_gas_cost_usd = null)
+        source.sessionLocal["token-account-A"] = mutableMapOf(
+            "personal_ledger" to Gson().toJson(listOf(unknownEstimate))
+        )
+        val remote = FakePersonalLedgerRemoteDataSource()
+        val repository = AccountingRepository(source, accessTokenProvider = { "token-account-A" }, personalLedgerRemote = remote)
+
+        assertTrue(repository.syncPersonalLedger())
+        assertEquals(null, remote.uploaded.single().expected_gas_cost_usd)
+        val restored = Gson().fromJson<List<PersonalLedgerWriteRequest>>(
+            source.sessionLocal.getValue("token-account-A").getValue("personal_ledger"),
+            object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+        )
+        assertEquals(null, restored.single().expected_gas_cost_usd)
+    }
+
+    @Test
+    fun cloudRestorePaginatesAndPreservesUnknownExpectedGas() = runBlocking {
+        val source = FakeAccountingLocalDataSource()
+        val cloudRows = (0 until 501).map { index ->
+            val request = ledgerWrite("cloud-$index").copy(expected_gas_cost_usd = if (index == 0) null else 1.0)
+            ledgerEntry("cloud-$index", request = request)
+        }.toMutableList()
+        val remote = FakePersonalLedgerRemoteDataSource(cloudEntries = cloudRows)
+        val repository = AccountingRepository(source, accessTokenProvider = { "token-account-A" }, personalLedgerRemote = remote)
+
+        assertTrue(repository.syncPersonalLedger())
+        assertEquals(2, remote.getCalls)
+        val restored = Gson().fromJson<List<PersonalLedgerWriteRequest>>(
+            source.sessionLocal.getValue("token-account-A").getValue("personal_ledger"),
+            object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+        )
+        assertEquals(501, restored.size)
+        assertEquals(null, restored.single { it.client_record_id == "cloud-0" }.expected_gas_cost_usd)
+    }
+
     @Test
     fun pendingBillOperationsAreDelegatedToLocalDataSource() = runBlocking {
         val source = FakeAccountingLocalDataSource()
@@ -271,7 +311,7 @@ private fun ledgerEntry(
     wallet_address = request?.wallet_address ?: "0x" + "2".repeat(40),
     tx_hash = request?.tx_hash ?: "0x" + "b".repeat(64),
     interaction_method = request?.interaction_method ?: "chain import",
-    expected_gas_cost_usd = request?.expected_gas_cost_usd ?: 1.0,
+    expected_gas_cost_usd = request?.expected_gas_cost_usd ?: if (request == null) 1.0 else null,
     expected_reward_usd = request?.expected_reward_usd,
     actual_gas_cost_usd = request?.actual_gas_cost_usd ?: 0.5,
     actual_reward_usd = request?.actual_reward_usd ?: 2.0,

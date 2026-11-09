@@ -815,7 +815,7 @@ object CacheStore {
                 wallet_address = bill.walletAddress,
                 tx_hash = bill.txHash,
                 interaction_method = bill.interactionMethod,
-                expected_gas_cost_usd = bill.gasCostUsd,
+                expected_gas_cost_usd = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 },
                 // No reliable reward estimate exists at confirmation time; keep it unknown.
                 expected_reward_usd = null,
                 actual_gas_cost_usd = gas,
