@@ -602,7 +602,7 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - This Batch 03 change removes the wallet-action confirmation/relay path and its unused RPC coordinator, explicitly blocks signing and transaction-submission RPC families, and corrects the browser security notice. User-approved external-wallet connection and public account/address reads remain.
 - Regression tests cover blocked signing/transaction methods and ensure account/chain read methods are not classified as prohibited.
 - PR #105 merged as `8a2dbf5ed9c4b07d752d323189b6e6acf1b2dd4f`; exact latest-head Android unit tests and debug APK assembly passed in run `42680554041` on `cb0da93b005ff79583474c947d5676f1e9156fb1`; backend tests were correctly skipped because this was Android-only.
-- **Batch 03 code/CI complete.** Real-device WebView navigation, cross-origin prompts, Reown connection/session expiry, and DApp compatibility remain separate acceptance checks. Real-device WebView navigation, cross-origin prompts, Reown connection/session expiry, and DApp compatibility remain separate acceptance checks.
+- **Batch 03 code/CI complete.** Real-device WebView navigation, cross-origin prompts, Reown connection/session expiry, and DApp compatibility remain separate acceptance checks.
 
 
 ### Batch 04 current state — personal accounting end-to-end
