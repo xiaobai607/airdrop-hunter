@@ -22,7 +22,21 @@ class WalletRepositoryTest {
         override suspend fun getWallets() = wallets.toList()
         override suspend fun addWallet(request: WalletWriteRequest) {
             addCalls++
-            wallets += WalletDto("remote-$addCalls", request.wallet_name, request.chain, "E", request.address)
+            wallets += WalletDto(
+                "remote-$addCalls", request.wallet_name, request.chain, "E", request.address,
+                tags = request.tags, notes = request.notes
+            )
+        }
+        override suspend fun updateWallet(walletId: String, request: WalletWriteRequest) {
+            val index = wallets.indexOfFirst { it.id == walletId }
+            if (index >= 0) wallets[index] = wallets[index].copy(
+                wallet_name = request.wallet_name,
+                chain = request.chain,
+                address = request.address,
+                public_key = request.address,
+                tags = request.tags,
+                notes = request.notes
+            )
         }
         override suspend fun deleteWallet(walletId: String) { wallets.removeAll { it.id == walletId } }
     }
@@ -58,4 +72,56 @@ class WalletRepositoryTest {
         assertEquals(1, result.size)
         assertEquals("B", result.single().wallet_name)
     }
+
+    @Test fun guestWalletMetadataUpdatesLocallyWithoutRemoteCalls() = runBlocking {
+        val local = Local()
+        val remote = Remote()
+        val repository = WalletRepository(remote, local)
+        val added = repository.add(
+            WalletWriteRequest("Main", WalletEcosystem.EVM, "0x" + "3".repeat(40)),
+            guest = true
+        )
+        val wallet = added.single()
+        val updated = repository.update(
+            wallet,
+            WalletWriteRequest(
+                "Main vault", WalletEcosystem.EVM, wallet.address,
+                tags = listOf("Airdrop", "Long-term"), notes = "Primary interaction address"
+            ),
+            guest = true,
+            current = added
+        )
+        assertEquals("Main vault", updated.single().wallet_name)
+        assertEquals(listOf("Airdrop", "Long-term"), updated.single().tags)
+        assertEquals("Primary interaction address", updated.single().notes)
+        assertEquals(0, remote.addCalls)
+        assertTrue(local.guest.containsKey("wallets"))
+        assertFalse(local.account.containsKey("wallets"))
+    }
+
+    @Test fun authenticatedWalletMetadataUpdatesThroughOwnerScopedRemoteAndAccountCache() = runBlocking {
+        val local = Local()
+        val remote = Remote()
+        val repository = WalletRepository(remote, local)
+        val added = repository.add(
+            WalletWriteRequest("Main", WalletEcosystem.EVM, "0x" + "4".repeat(40)),
+            guest = false
+        )
+        val wallet = added.single()
+        val updated = repository.update(
+            wallet,
+            WalletWriteRequest(
+                "Trading", WalletEcosystem.EVM, wallet.address,
+                tags = listOf("DeFi"), notes = "Managed account wallet"
+            ),
+            guest = false,
+            current = added
+        )
+        assertEquals("Trading", updated.single().wallet_name)
+        assertEquals(listOf("DeFi"), updated.single().tags)
+        assertEquals("Managed account wallet", updated.single().notes)
+        assertTrue(local.account.containsKey("wallets"))
+        assertFalse(local.guest.containsKey("wallets"))
+    }
+
 }
