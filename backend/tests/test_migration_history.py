@@ -9,7 +9,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     config = Config(str(backend_dir / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0011_candidate_review"
+    assert scripts.get_current_head() == "0012_public_metrics"
     bootstrap = scripts.get_revision("0001_bootstrap")
     ledger = scripts.get_revision("0002_personal_ledger")
     nullable_reward = scripts.get_revision("0003_nullable_expected_reward")
@@ -21,6 +21,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     dynamic_catalog = scripts.get_revision("0009_dynamic_community_catalog")
     discovery_candidates = scripts.get_revision("0010_rss_candidates")
     candidate_review = scripts.get_revision("0011_candidate_review")
+    public_metrics = scripts.get_revision("0012_public_metrics")
     assert bootstrap is not None and bootstrap.down_revision is None
     assert ledger is not None and ledger.down_revision == "0001_bootstrap"
     assert nullable_reward is not None and nullable_reward.down_revision == "0002_personal_ledger"
@@ -32,3 +33,4 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     assert dynamic_catalog is not None and dynamic_catalog.down_revision == "0008_project_wallet_assignments"
     assert discovery_candidates is not None and discovery_candidates.down_revision == "0009_dynamic_community_catalog"
     assert candidate_review is not None and candidate_review.down_revision == "0010_rss_candidates"
+    assert public_metrics is not None and public_metrics.down_revision == "0011_candidate_review"
