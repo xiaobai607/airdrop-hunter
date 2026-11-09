@@ -1,6 +1,6 @@
 import pytest
 
-from scripts.verify_database_backup import _connection_options, _validate_restore_target
+from app.services.database_backup import _connection_options, _validate_restore_target
 
 
 def test_backup_connection_options_accept_postgres_and_asyncpg_urls_without_echoing_password():
