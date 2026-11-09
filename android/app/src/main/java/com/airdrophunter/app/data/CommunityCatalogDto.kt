@@ -9,3 +9,15 @@ data class CommunityProjectCatalogDto(
     val tags: List<String>,
     val website_url: String
 )
+
+data class CommunityProjectSubmissionRequest(
+    val name: String,
+    val url: String,
+    val logo: String = ""
+)
+
+data class CommunityProjectSubmissionResponse(
+    val status: String,
+    val message: String,
+    val existing_project: CommunityProjectCatalogDto? = null
+)
