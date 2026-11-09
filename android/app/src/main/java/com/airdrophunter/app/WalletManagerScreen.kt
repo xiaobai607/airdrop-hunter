@@ -152,7 +152,7 @@ fun WalletManagerScreen(
     }
 
     selectedWallet?.let { wallet ->
-        WalletDetailScreen(wallet, onBack = { selectedWallet = null })
+        WalletDetailScreen(wallet, onBack = { selectedWallet = null }, isGuest = isGuest)
         return
     }
 
