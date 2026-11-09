@@ -28,6 +28,14 @@ class WalletWrite(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=12)
     notes: str = Field(default="", max_length=500)
 
+    @field_validator("wallet_name")
+    @classmethod
+    def normalize_wallet_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("钱包名称不能为空")
+        return normalized
+
     @field_validator("tags")
     @classmethod
     def normalize_tags(cls, values: list[str]) -> list[str]:
