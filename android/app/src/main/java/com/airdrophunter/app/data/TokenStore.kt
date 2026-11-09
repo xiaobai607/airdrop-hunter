@@ -49,12 +49,14 @@ object TokenStore {
         context.applicationContext.authDataStore.edit { it[key] = encrypted }
         cachedToken = token
         tokenLoaded = true
+        GlobalSyncScheduler.enqueueNow(context, forceCommunityContribution = true, forceWalletActivity = true, forcePersonalLedger = true, forceFavorites = true)
     }
 
     suspend fun clearToken(context: Context) = withContext(Dispatchers.IO) {
         context.applicationContext.authDataStore.edit { it.remove(key) }
         cachedToken = null
         tokenLoaded = true
+        GlobalSyncScheduler.enqueueNow(context, forceCommunityContribution = true, forceWalletActivity = true)
     }
 
     @Synchronized

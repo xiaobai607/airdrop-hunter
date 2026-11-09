@@ -19,7 +19,8 @@ class WalletActivitySyncWorker(
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        if (!SyncCadence.isDue(applicationContext, SyncCadence.WALLET_ACTIVITY_KEY, 8, TimeUnit.HOURS)) {
+        if (!inputData.getBoolean(GlobalSyncScheduler.FORCE_KEY, false) &&
+            !SyncCadence.isDue(applicationContext, SyncCadence.WALLET_ACTIVITY_KEY, 8, TimeUnit.HOURS)) {
             return@withContext Result.success()
         }
         ApiClient.initialize(applicationContext)

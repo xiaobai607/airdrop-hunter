@@ -13,7 +13,8 @@ class CommunityFavoriteSyncWorker(appContext: Context, params: WorkerParameters)
     CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         if (TokenStore.readTokenBlocking().isNullOrBlank()) return@withContext Result.success()
-        if (!SyncCadence.isDue(applicationContext, SyncCadence.COMMUNITY_FAVORITES_KEY, 8, TimeUnit.HOURS)) {
+        if (!inputData.getBoolean(GlobalSyncScheduler.FORCE_KEY, false) &&
+            !SyncCadence.isDue(applicationContext, SyncCadence.COMMUNITY_FAVORITES_KEY, 8, TimeUnit.HOURS)) {
             return@withContext Result.success()
         }
         ApiClient.initialize(applicationContext)

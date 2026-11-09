@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
 
 /**
@@ -44,24 +45,42 @@ object GlobalSyncScheduler {
             .enqueueUniquePeriodicWork(PERIODIC_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
     }
 
-    fun enqueueNow(context: Context) = enqueueSyncChain(context.applicationContext)
+    internal const val FORCE_KEY = "force_sync"
 
-    internal fun enqueueSyncChain(context: Context) {
+    fun enqueueNow(
+        context: Context,
+        forceCommunityContribution: Boolean = false,
+        forceWalletActivity: Boolean = false,
+        forcePersonalLedger: Boolean = false,
+        forceFavorites: Boolean = false
+    ) = enqueueSyncChain(context.applicationContext, forceCommunityContribution, forceWalletActivity, forcePersonalLedger, forceFavorites)
+
+    internal fun enqueueSyncChain(
+        context: Context,
+        forceCommunityContribution: Boolean = false,
+        forceWalletActivity: Boolean = false,
+        forcePersonalLedger: Boolean = false,
+        forceFavorites: Boolean = false
+    ) {
         val workManager = WorkManager.getInstance(context.applicationContext)
         val network = constraints()
         val contribution = OneTimeWorkRequestBuilder<CommunityContributionSyncWorker>()
+            .setInputData(workDataOf(FORCE_KEY to forceCommunityContribution))
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
         val walletActivity = OneTimeWorkRequestBuilder<WalletActivitySyncWorker>()
+            .setInputData(workDataOf(FORCE_KEY to forceWalletActivity))
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
         val personalLedger = OneTimeWorkRequestBuilder<PersonalLedgerSyncWorker>()
+            .setInputData(workDataOf(FORCE_KEY to forcePersonalLedger))
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
         val favorites = OneTimeWorkRequestBuilder<CommunityFavoriteSyncWorker>()
+            .setInputData(workDataOf(FORCE_KEY to forceFavorites))
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()

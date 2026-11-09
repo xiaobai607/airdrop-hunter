@@ -13,7 +13,8 @@ import java.util.concurrent.TimeUnit
 class CommunityContributionSyncWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        if (!SyncCadence.isDue(applicationContext, SyncCadence.COMMUNITY_KEY, 15, TimeUnit.MINUTES)) {
+        if (!inputData.getBoolean(GlobalSyncScheduler.FORCE_KEY, false) &&
+            !SyncCadence.isDue(applicationContext, SyncCadence.COMMUNITY_KEY, 15, TimeUnit.MINUTES)) {
             return@withContext Result.success()
         }
         ApiClient.initialize(applicationContext)
@@ -52,6 +53,6 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
 }
 
 object CommunityContributionSyncScheduler {
-    fun enqueue(context: Context) = GlobalSyncScheduler.enqueueNow(context)
+    fun enqueue(context: Context) = GlobalSyncScheduler.enqueueNow(context, forceCommunityContribution = true)
     fun ensurePeriodic(context: Context) = GlobalSyncScheduler.ensurePeriodic(context)
 }
