@@ -66,7 +66,9 @@ data class UserInteractionEntity(
     val projectLocalId: String, val projectOfficialId: String?, val projectName: String,
     val txHash: String, val walletAddress: String, val network: String,
     val gasCostUsd: Double, val actualRewardUsd: Double, val interactionMethod: String, val timestamp: Long,
-    val assetBreakdownJson: String? = null
+    val assetBreakdownJson: String? = null,
+    val expectedGasCostUsd: Double? = null,
+    val expectedRewardUsd: Double? = null
 )
 
 @Entity(tableName = "community_sync_outbox", primaryKeys = ["accountScope", "id"], indices = [Index(value = ["accountScope", "createdAt"])])
@@ -251,7 +253,7 @@ interface ProjectRatingDao {
     fun observeAll(accountScope: String): Flow<List<ProjectRatingEntity>>
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 14, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 15, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -482,13 +484,21 @@ object CacheStore {
         }
     }
 
+    private val MIGRATION_14_15 = object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // NULL means unknown for historical rows; never fabricate a zero estimate.
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN expectedGasCostUsd REAL")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN expectedRewardUsd REAL")
+        }
+    }
+
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -857,7 +867,9 @@ object CacheStore {
                     actualRewardUsd = reward,
                     interactionMethod = bill.interactionMethod,
                     timestamp = recordedAt,
-                    assetBreakdownJson = effectiveAssetBreakdown
+                    assetBreakdownJson = effectiveAssetBreakdown,
+                    expectedGasCostUsd = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 },
+                    expectedRewardUsd = null
                 )
             )
             canonicalOfficialId?.takeIf {

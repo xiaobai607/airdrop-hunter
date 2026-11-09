@@ -79,6 +79,25 @@ data class LedgerAssetPeriodTotal(
     val usdValuation: BigDecimal?
 )
 
+data class LedgerEstimatePeriodTotal(
+    val expectedGasCostUsd: BigDecimal?,
+    val expectedRewardUsd: BigDecimal?
+)
+
+/** Unknown estimates remain null; totals are shown only when every row is known. */
+fun aggregateLedgerEstimatePeriodTotals(
+    interactions: List<UserInteractionEntity>
+): LedgerEstimatePeriodTotal {
+    fun sumIfComplete(values: List<Double?>): BigDecimal? {
+        if (values.isEmpty() || values.any { it == null || !it.isFinite() || it < 0.0 }) return null
+        return values.filterNotNull().fold(BigDecimal.ZERO) { total, value -> total.add(BigDecimal.valueOf(value)) }
+    }
+    return LedgerEstimatePeriodTotal(
+        expectedGasCostUsd = sumIfComplete(interactions.map { it.expectedGasCostUsd }),
+        expectedRewardUsd = sumIfComplete(interactions.map { it.expectedRewardUsd })
+    )
+}
+
 /** Aggregate native units only within the same network, currency, precision and kind. */
 fun aggregateLedgerAssetPeriodTotals(
     interactions: List<UserInteractionEntity>,

@@ -80,4 +80,25 @@ class LedgerAssetBreakdownCodecTest {
         assertEquals(null, reward.single().usdValuation)
     }
 
+    @Test
+    fun estimateTotalsStaySeparateAndUnknownValuesAreNotTreatedAsZero() {
+        fun interaction(id: String, expectedGas: Double?, expectedReward: Double?) =
+            UserInteractionEntity(
+                id = id, projectLocalId = "project", projectOfficialId = null, projectName = "Project",
+                txHash = id, walletAddress = "wallet", network = "ethereum",
+                gasCostUsd = 1.5, actualRewardUsd = 4.0, interactionMethod = "manual confirmation", timestamp = 1L,
+                expectedGasCostUsd = expectedGas, expectedRewardUsd = expectedReward
+            )
+        val complete = aggregateLedgerEstimatePeriodTotals(
+            listOf(interaction("one", 1.25, 8.0), interaction("two", 2.75, 12.0))
+        )
+        assertEquals("4", complete.expectedGasCostUsd?.stripTrailingZeros()?.toPlainString())
+        assertEquals("20", complete.expectedRewardUsd?.stripTrailingZeros()?.toPlainString())
+        val incomplete = aggregateLedgerEstimatePeriodTotals(
+            listOf(interaction("one", 1.25, null), interaction("two", null, 12.0))
+        )
+        assertEquals(null, incomplete.expectedGasCostUsd)
+        assertEquals(null, incomplete.expectedRewardUsd)
+        assertEquals(null, aggregateLedgerEstimatePeriodTotals(emptyList()).expectedGasCostUsd)
+    }
 }
