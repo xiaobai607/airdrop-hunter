@@ -27,6 +27,8 @@ interface ApiService {
     @PUT("api/projects/{projectId}") suspend fun updateProject(@Path("projectId") projectId: String, @Body request: ProjectWriteRequest): ProjectDto
     @DELETE("api/projects/{projectId}") suspend fun deleteProject(@Path("projectId") projectId: String)
     @GET("api/projects/{projectId}/claim-url") suspend fun getClaimUrl(@Path("projectId") projectId: String, @Query("wallet_id") walletId: String): ClaimUrlResponse
+    @GET("api/project-wallet-assignments/{projectKey}") suspend fun getProjectWalletAssignments(@Path("projectKey") projectKey: String): ProjectWalletAssignmentDto
+    @PUT("api/project-wallet-assignments/{projectKey}") suspend fun replaceProjectWalletAssignments(@Path("projectKey") projectKey: String, @Body request: ProjectWalletAssignmentDto): ProjectWalletAssignmentDto
     @GET("api/projects/{projectId}/tasks") suspend fun getTasks(@Path("projectId") projectId: String): List<TaskDto>
     @POST("api/projects/{projectId}/tasks") suspend fun createTask(@Path("projectId") projectId: String, @Body request: TaskCreateRequest): TaskDto
     @PATCH("api/projects/{projectId}/tasks/{taskId}") suspend fun updateTask(@Path("projectId") projectId: String, @Path("taskId") taskId: String, @Body request: TaskUpdateRequest): TaskDto
