@@ -132,7 +132,6 @@ def test_readiness_rejects_private_wallet_and_transaction_fields_recursively():
 
 def test_readiness_rejects_oversized_json_response(monkeypatch):
     from email.message import Message
-    from types import SimpleNamespace
     import app.services.deployment_readiness as readiness
 
     headers = Message()
@@ -154,11 +153,6 @@ def test_readiness_rejects_oversized_json_response(monkeypatch):
             assert limit == readiness.MAX_RESPONSE_BYTES + 1
             return b"x" * limit
 
-    monkeypatch.setattr(readiness, "urlopen", lambda request, timeout: SimpleNamespace(
-        __enter__=Response().__enter__,
-        __exit__=Response().__exit__,
-    ))
-    # Use a real context-manager response so the bounded read path is exercised.
     monkeypatch.setattr(readiness, "urlopen", lambda request, timeout: Response())
     with pytest.raises(ValueError, match="safety limit"):
         readiness.fetch_json("https://api.example.test/health/ready")
