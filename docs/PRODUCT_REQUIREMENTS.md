@@ -39,7 +39,7 @@ This document remains the complete source of truth. The optimization below adds 
 - Keep guest mode fully available for the app's core functions. Guest personal ledger, wallets, and project data remain app-private/local; clearing app data or uninstalling loses those details.
 - Defer user-facing cross-device private-cloud restore. Do not advertise cloud recovery, show a restore entry point, or make cross-device recovery a release acceptance condition.
 - Do not delete already-implemented authentication, account-isolation, or sync code merely because registration/restore is deferred. Preserve it for a later phase; any existing account flow must not be expanded or described as offering cross-device restore.
-- This deferral applies to private user data recovery only. It does not cancel the separate PostgreSQL backup/restore drill for production operations, nor anonymous public aggregate contribution.
+- This deferral applies to cloud-based private user data recovery only. Offline encrypted file backup/import is separately approved below. It does not cancel the separate PostgreSQL backup/restore drill for production operations, nor anonymous public aggregate contribution.
 
 
 - Product: Airdrop Hunter, an Android application for airdrop projects, task tracking, wallet-address management, Gas/reward accounting, and community project statistics.
@@ -50,6 +50,20 @@ This document remains the complete source of truth. The optimization below adds 
 - Public wallet addresses and read-only public chain data only.
 - Test data must never contaminate real private ledgers or public statistics.
 
+### Offline encrypted backup and device migration (user-confirmed, 2026-11-10)
+
+- Add two prominent actions to the “我的” page: **“备份我的数据”** and **“导入数据”**. This is a local-file workflow and does not require registration, login, a cloud vault, or network access.
+- Backup exports the active local session's personal data into one portable .ahbackup file using Android's system file picker. Include wallet address records and metadata, user-created/adopted projects, tasks and project-wallet associations, pending bills, confirmed ledger rows, P&L/history, favorites/ratings, pending anonymous contribution outbox entries, and all account-scoped/local cached payloads required to reconstruct those records.
+- Do not export access tokens, passwords, Android Keystore keys, Reown sessions, signing material, private keys, seed phrases, unrelated users' rows, or shared public/CDN caches.
+- Encrypt the portable file with AES-256-GCM using a password-derived key (PBKDF2-HMAC-SHA256 with a random per-file salt and fresh nonce). The password is entered for backup and again on import; it is never stored or embedded in the file. Include a version/magic header, integrity protection, bounded file size/record counts, and clear invalid-password/corrupt/unsupported-version errors.
+- Import validates the complete file, schema version, source scope, record limits, and authentication tag **before changing any local data**. Restore all included tables and cache payloads atomically into the currently active guest/account scope, remapping scope keys without importing credentials. A failed import leaves existing data untouched.
+- Before import, explain that the current active session's local data will be replaced by the selected backup. Require explicit confirmation. Do not silently merge aggregate totals or duplicate ledger rows. Re-importing the same backup is deterministic and must not double-count P&L or create duplicate bills/interactions/outbox entries.
+- Preserve stable record IDs, project IDs, wallet IDs, timestamps, native-asset breakdowns, historical quote snapshots, and pending/confirmed state. Never regenerate IDs or recalculate historical amounts during restore.
+- Show completion feedback with backup creation time and restored record summary. Cancelling the picker/password/confirmation makes no changes.
+- This is **offline file backup/restore**, not cloud recovery. Cloud-based cross-device restore and new-user registration remain deferred. The backup file and password remain under the user's control.
+- The workflow must work offline. Backup/import never triggers public contribution or private cloud sync as a side effect; restored pending outbox rows retain their idempotency IDs and retry rules.
+
+
 ## 2. Mandatory data ownership and privacy policy
 
 This policy is authoritative across Android storage, API requests, database models, sync workers, tests, and UI explanations.
@@ -58,6 +72,7 @@ This policy is authoritative across Android storage, API requests, database mode
 |---|---|---|
 | Detailed personal ledger (wallet addresses, Gas details, rewards, project participation, transaction references, timestamps) | Stored in app-private local storage only | Stored locally and uploaded to the user's private cloud ledger |
 | Private cloud restore | Not available; clearing app data or uninstalling loses guest details | Cross-device restore is deferred and must not be offered or promised in the current release |
+| Portable local backup | User can export an encrypted backup file and import it on another device; file/password remain under the user's control | Same, scoped to the active session; no credentials are exported |
 | Public community contribution | Valid confirmed Gas, actual rewards, and project participation may contribute | Same |
 | Public contribution storage | Anonymous aggregate only; no wallet address, tx hash, personal ledger row, or account identity | Same; must not be linked to the user's account |
 | Clearing/uninstalling app data | Local private data is lost; no server copy exists | Do not promise cross-device recovery in the current release; explain that this capability is deferred |
@@ -751,3 +766,15 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Added bounded exponential backoff, retryable-status policy, provider node rotation/health handling, and TLS-safe failover requirements.
 - Added limited unified asset-detail presentation: EVM/Solana/Bitcoin normalization, $0.10 dust folding, spam/unpriced asset filtering without data deletion, top-five-plus-Others chart, no Bitcoin pie chart, and reuse of TRON card styling. This does not restore the cancelled full portfolio dashboard.
 - **Documentation only:** these are now part of the project-wide source of truth and are not claimed as implemented. They must be integrated into the existing 15-batch plan by code fit and feature fit; no duplicate Room entities, cache layers, navigation destinations, or market APIs should be created if equivalent implementations already exist.
+
+
+### New user-confirmed feature — offline encrypted backup/import (2026-11-10; implementation pending)
+
+- The user approved portable local backup as the alternative to deferred cloud-based cross-device restore.
+- “我的” page must provide “备份我的数据” and “导入数据”. Backup creates one encrypted, versioned file; import restores on a new device without registration or network.
+- Include all current-session personal records and required local cache payloads. Exclude access tokens, passwords, Keystore keys, Reown sessions, signing material, other account scopes, and shared public caches.
+- AES-256-GCM + PBKDF2-HMAC-SHA256, random salt/nonce, password prompt on export/import, integrity validation, strict file/record limits.
+- Import is validate-first and atomic; explicit replace confirmation; remap data to the active session; preserve stable IDs/timestamps and pending outbox idempotency; no double counting.
+- Cloud recovery remains deferred. This file workflow is user-mediated offline portability, not cloud backup.
+- Code audit: Room database version 16 contains nine entities; wallet/project/ledger JSON and other session-specific payloads are also stored in cached_payloads. Backup must cover both active-session Room rows and scoped cache payloads. Auth DataStore and Android Keystore material are excluded.
+- Status: requirements captured; implementation and Android tests pending. This is a cross-module follow-up, not a new numbered batch.
