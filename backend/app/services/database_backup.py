@@ -13,8 +13,11 @@ from sqlalchemy.engine import make_url
 
 
 def _connection_options(raw: str, label: str) -> tuple[list[str], dict[str, str], tuple[str, int, str]]:
+    normalized = raw.strip()
+    if normalized.lower().startswith("postgres://"):
+        normalized = "postgresql://" + normalized[len("postgres://"):]
     try:
-        url = make_url(raw.strip())
+        url = make_url(normalized)
     except Exception as exc:
         raise ValueError(f"{label} is not a valid PostgreSQL URL") from exc
 

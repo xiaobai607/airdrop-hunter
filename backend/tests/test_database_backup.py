@@ -27,3 +27,12 @@ def test_backup_connection_rejects_non_postgresql_or_incomplete_urls():
         _connection_options("https://example.test/database", "BACKUP_SOURCE_DATABASE_URL")
     with pytest.raises(ValueError):
         _connection_options("postgresql://", "BACKUP_SOURCE_DATABASE_URL")
+
+
+def test_backup_connection_accepts_render_postgres_scheme():
+    args, env, identity = _connection_options(
+        "postgres://backup_user:secret@db.example.test:5432/airdrop_hunter",
+        "BACKUP_SOURCE_DATABASE_URL",
+    )
+    assert identity == ("db.example.test", 5432, "airdrop_hunter")
+    assert env["PGPASSWORD"] == "secret"
