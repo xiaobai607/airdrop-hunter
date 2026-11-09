@@ -11,6 +11,7 @@ interface AccountingLocalDataSource {
     suspend fun writeLocal(key: String, payload: String)
     suspend fun addPendingBill(bill: PendingBillEntity)
     suspend fun deletePendingBill(id: String)
+    suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean
     suspend fun confirmPendingBill(
         id: String,
         projectLocalId: String,
@@ -30,6 +31,8 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
         CacheStore.addPendingBill(bill)
     }
     override suspend fun deletePendingBill(id: String) { CacheStore.deletePendingBill(id) }
+    override suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean =
+        CacheStore.hasRecordedTransaction(network, walletAddress, txHash)
     override suspend fun confirmPendingBill(
         id: String,
         projectLocalId: String,
@@ -75,6 +78,9 @@ class AccountingRepository(
     suspend fun addPendingBill(bill: PendingBillEntity) = local.addPendingBill(bill)
 
     suspend fun deletePendingBill(id: String) = local.deletePendingBill(id)
+
+    suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean =
+        local.hasRecordedTransaction(network, walletAddress, txHash)
 
     suspend fun confirmPendingBill(
         id: String,
