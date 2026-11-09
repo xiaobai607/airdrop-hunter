@@ -13,5 +13,7 @@ data class CommunityProjectStatsDto(
     val total_actual_reward_usd: Double,
     val total_interactions: Long,
     val contribution_count: Long,
-    val data_quality: String = "user_confirmed"
+    val data_quality: String = "user_confirmed",
+    val contributions_24h: Long = 0,
+    val interactions_24h: Long = 0
 )

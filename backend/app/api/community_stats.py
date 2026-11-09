@@ -1,10 +1,11 @@
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,6 +32,8 @@ def serialize_stats(project_official_id: str, row: CommunityProjectStats | None)
             "total_actual_reward_usd": 0.0,
             "total_interactions": 0,
             "contribution_count": 0,
+            "contributions_24h": 0,
+            "interactions_24h": 0,
             "data_quality": "user_confirmed",
         }
     return {
@@ -39,8 +42,31 @@ def serialize_stats(project_official_id: str, row: CommunityProjectStats | None)
         "total_actual_reward_usd": float(row.total_actual_reward_usd or 0),
         "total_interactions": int(row.total_interactions or 0),
         "contribution_count": int(row.contribution_count or 0),
+        "contributions_24h": 0,
+        "interactions_24h": 0,
         "data_quality": "user_confirmed",
     }
+
+
+async def serialize_stats_with_activity(
+    db: AsyncSession, project_official_id: str, row: CommunityProjectStats | None
+) -> dict:
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    recent = (
+        await db.execute(
+            select(
+                func.count(CommunityContribution.id).label("contributions"),
+                func.coalesce(func.sum(CommunityContribution.interaction_count), 0).label("interactions"),
+            ).where(
+                CommunityContribution.project_official_id == project_official_id,
+                CommunityContribution.created_at >= cutoff,
+            )
+        )
+    ).one()
+    result = serialize_stats(project_official_id, row)
+    result["contributions_24h"] = int(recent.contributions or 0)
+    result["interactions_24h"] = int(recent.interactions or 0)
+    return result
 
 
 @router.post("/{project_official_id}/contributions")
@@ -101,7 +127,7 @@ async def add_community_contribution(
 
     await db.commit()
     row = await db.get(CommunityProjectStats, project_official_id)
-    return serialize_stats(project_official_id, row)
+    return await serialize_stats_with_activity(db, project_official_id, row)
 
 
 @router.get("/{project_official_id}/stats")
@@ -110,4 +136,4 @@ async def get_community_project_stats(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     row = await db.get(CommunityProjectStats, project_official_id)
-    return serialize_stats(project_official_id, row)
+    return await serialize_stats_with_activity(db, project_official_id, row)
