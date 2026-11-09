@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -99,25 +100,35 @@ private fun WalletActivityPanel(
     val activityRepository = remember(application) { application.appContainer.walletActivityRepository }
     val accountingRepository = remember(application) { application.appContainer.accountingRepository }
     val pendingBills by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
+    // Observe token identity, not only guest/account status: A -> B must restart this request.
+    val observedToken by TokenStore.observeToken(context).collectAsStateWithLifecycle(
+        initialValue = if (isGuest) null else TokenStore.readTokenBlocking()
+    )
+    val sessionToken = observedToken?.takeIf { it.isNotBlank() }
+    val sessionIsGuest = sessionToken == null
     val scope = rememberCoroutineScope()
-    var transactions by remember(wallet.address) { mutableStateOf<List<WalletTransactionDto>>(emptyList()) }
-    var networksUnavailable by remember(wallet.address) { mutableStateOf<List<String>>(emptyList()) }
-    var isLoading by remember(wallet.address) { mutableStateOf(false) }
-    var errorMessage by remember(wallet.address) { mutableStateOf<String?>(null) }
-    var refreshNonce by remember(wallet.address) { mutableIntStateOf(0) }
-    var addingHash by remember(wallet.address) { mutableStateOf<String?>(null) }
+    var transactions by remember(wallet.address, sessionToken) { mutableStateOf<List<WalletTransactionDto>>(emptyList()) }
+    var networksUnavailable by remember(wallet.address, sessionToken) { mutableStateOf<List<String>>(emptyList()) }
+    var isLoading by remember(wallet.address, sessionToken) { mutableStateOf(false) }
+    var errorMessage by remember(wallet.address, sessionToken) { mutableStateOf<String?>(null) }
+    var refreshNonce by remember(wallet.address, sessionToken) { mutableIntStateOf(0) }
+    var addingHash by remember(wallet.address, sessionToken) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(wallet.address, refreshNonce, isGuest) {
+    LaunchedEffect(wallet.address, refreshNonce, sessionToken) {
         isLoading = true
+        transactions = emptyList()
+        networksUnavailable = emptyList()
         errorMessage = null
         try {
-            activityRepository.readCached(wallet, isGuest)?.let { cached ->
+            activityRepository.readCached(wallet, sessionIsGuest, sessionToken)?.let { cached ->
                 transactions = cached.transactions
                 networksUnavailable = cached.networksUnavailable
             }
-            val result = activityRepository.refresh(wallet, isGuest)
+            val result = activityRepository.refresh(wallet, sessionIsGuest, sessionToken)
             transactions = result.transactions
             networksUnavailable = result.networksUnavailable
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Exception) {
             errorMessage = error.message ?: "读取交易记录失败，请稍后重试"
         } finally {

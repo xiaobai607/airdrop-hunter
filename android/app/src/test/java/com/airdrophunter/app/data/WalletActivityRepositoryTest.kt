@@ -9,10 +9,16 @@ class WalletActivityRepositoryTest {
     private class FakeLocal : WalletActivityLocalDataSource {
         val guest = mutableMapOf<String, String>()
         val account = mutableMapOf<String, String>()
+        val sessionRows = mutableMapOf<String, String>()
         override suspend fun read(key: String, guest: Boolean): String? =
             (if (guest) this.guest else account)[key]
         override suspend fun write(key: String, value: String, guest: Boolean) {
             (if (guest) this.guest else account)[key] = value
+        }
+        override suspend fun readForSession(key: String, guest: Boolean, accessToken: String?): String? =
+            sessionRows["${if (guest) "guest" else accessToken}:$key"]
+        override suspend fun writeForSession(key: String, value: String, guest: Boolean, accessToken: String?) {
+            sessionRows["${if (guest) "guest" else accessToken}:$key"] = value
         }
     }
 
@@ -121,8 +127,8 @@ class WalletActivityRepositoryTest {
         assertEquals(listOf("ethereum", "base"), refreshed.networksChecked)
         assertTrue(refreshed.fetchedAtEpochMillis > 0L)
         assertEquals(refreshed.networksChecked, cached?.networksChecked)
-        assertTrue(local.guest.containsKey("wallet_activity:wallet-1"))
-        assertTrue(local.account.isEmpty())
+        assertTrue(local.sessionRows.containsKey("guest:wallet_activity:wallet-1"))
+        assertTrue(local.sessionRows.keys.none { it.startsWith("account-") })
     }
 
     @Test
@@ -131,12 +137,12 @@ class WalletActivityRepositoryTest {
         val repository = WalletActivityRepository(FakeRemote(), local)
         val wallet = wallet("T" + "1".repeat(33), WalletEcosystem.TRON)
 
-        repository.refresh(wallet, guest = false)
-        val cached = repository.readCached(wallet, guest = false)
+        repository.refresh(wallet, guest = false, accessToken = "account-test")
+        val cached = repository.readCached(wallet, guest = false, accessToken = "account-test")
 
         assertEquals(listOf("tron"), cached?.networksChecked)
-        assertTrue(local.account.containsKey("wallet_activity:wallet-1"))
-        assertTrue(local.guest.isEmpty())
+        assertTrue(local.sessionRows.containsKey("account-test:wallet_activity:wallet-1"))
+        assertTrue(local.sessionRows.keys.none { it.startsWith("guest:") })
     }
 
 }
