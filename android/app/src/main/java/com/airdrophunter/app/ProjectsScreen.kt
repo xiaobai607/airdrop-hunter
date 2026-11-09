@@ -72,6 +72,15 @@ fun ProjectsScreen(
         editingProject = null
         deletingProject = null
         showAddDialog = false
+        newProjectName = ""
+        newProjectDescription = ""
+        newProjectOfficialUrl = ""
+        newProjectClaimUrl = ""
+        editProjectName = ""
+        editProjectDescription = ""
+        editProjectOfficialUrl = ""
+        editProjectClaimUrl = ""
+        editProjectTwitterUrl = ""
         projectsViewModel.loadProjects(isGuest)
     }
 
