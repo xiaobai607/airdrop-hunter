@@ -61,6 +61,11 @@ interface ApiService {
         @Body request: CommunityContributionRequest,
         @Header("Authorization") authorizationHeader: String? = null
     ): CommunityProjectStatsDto
+    @POST("api/community/projects/{projectOfficialId}/ratings")
+    suspend fun submitCommunityProjectRating(
+        @Path("projectOfficialId") projectOfficialId: String,
+        @Body request: CommunityProjectRatingRequest
+    ): CommunityProjectStatsDto
     @GET("api/community/projects/{projectOfficialId}/stats")
     suspend fun getCommunityProjectStats(@Path("projectOfficialId") projectOfficialId: String): CommunityProjectStatsDto
 }

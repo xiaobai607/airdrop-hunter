@@ -5,13 +5,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import CommunityContribution, CommunityProjectStats, User
-from app.routers.auth import get_optional_current_user, limiter
+from app.models import CommunityContribution, CommunityProjectRating, CommunityProjectStats, PersonalLedgerEntry, User
+from app.routers.auth import get_current_user, get_optional_current_user, limiter
 
 router = APIRouter(prefix="/api/community/projects", tags=["community"])
 MAX_AMOUNT = Decimal("999999999999.99999999")
@@ -34,6 +34,8 @@ def serialize_stats(project_official_id: str, row: CommunityProjectStats | None)
             "contribution_count": 0,
             "contributions_24h": 0,
             "interactions_24h": 0,
+            "average_rating": None,
+            "rating_count": 0,
             "data_quality": "user_confirmed",
         }
     return {
@@ -44,6 +46,8 @@ def serialize_stats(project_official_id: str, row: CommunityProjectStats | None)
         "contribution_count": int(row.contribution_count or 0),
         "contributions_24h": 0,
         "interactions_24h": 0,
+        "average_rating": None,
+        "rating_count": 0,
         "data_quality": "user_confirmed",
     }
 
@@ -66,6 +70,16 @@ async def serialize_stats_with_activity(
     result = serialize_stats(project_official_id, row)
     result["contributions_24h"] = int(recent.contributions or 0)
     result["interactions_24h"] = int(recent.interactions or 0)
+    rating = (
+        await db.execute(
+            select(
+                func.avg(CommunityProjectRating.score).label("average"),
+                func.count(CommunityProjectRating.id).label("count"),
+            ).where(CommunityProjectRating.project_official_id == project_official_id)
+        )
+    ).one()
+    result["average_rating"] = float(rating.average) if rating.average is not None else None
+    result["rating_count"] = int(rating.count or 0)
     return result
 
 
@@ -125,6 +139,52 @@ async def add_community_contribution(
         )
         await db.execute(aggregate_upsert)
 
+    await db.commit()
+    row = await db.get(CommunityProjectStats, project_official_id)
+    return await serialize_stats_with_activity(db, project_official_id, row)
+
+
+
+
+class CommunityProjectRatingRequest(BaseModel):
+    score: int = Field(ge=1, le=5)
+
+
+@router.post("/{project_official_id}/ratings")
+async def submit_community_project_rating(
+    payload: CommunityProjectRatingRequest,
+    project_official_id: Annotated[str, Path(min_length=1, max_length=120)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    project_id = PersonalLedgerEntry.extra["project_official_id"].as_string()
+    demo_flag = PersonalLedgerEntry.extra["is_demo"].as_string()
+    participation_id = await db.scalar(
+        select(PersonalLedgerEntry.id)
+        .where(
+            PersonalLedgerEntry.user_id == user.id,
+            project_id == project_official_id,
+            or_(demo_flag.is_(None), demo_flag != "true"),
+            ~PersonalLedgerEntry.tx_hash.like("MOCK-%"),
+        )
+        .limit(1)
+    )
+    if participation_id is None:
+        raise HTTPException(status_code=403, detail="只有已确认参与该项目的账号才能评分")
+
+    rating_insert = pg_insert(CommunityProjectRating).values(
+        user_id=user.id,
+        project_official_id=project_official_id,
+        score=payload.score,
+    )
+    rating_upsert = rating_insert.on_conflict_do_update(
+        index_elements=[
+            CommunityProjectRating.user_id,
+            CommunityProjectRating.project_official_id,
+        ],
+        set_={"score": rating_insert.excluded.score, "updated_at": func.now()},
+    )
+    await db.execute(rating_upsert)
     await db.commit()
     row = await db.get(CommunityProjectStats, project_official_id)
     return await serialize_stats_with_activity(db, project_official_id, row)

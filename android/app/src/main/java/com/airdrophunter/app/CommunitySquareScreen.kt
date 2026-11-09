@@ -38,7 +38,8 @@ private data class CommunityProject(
     val reward: Double, val gas: Double, val contributionCount: Long,
     val tags: List<String>, val isDemo: Boolean = false,
     val demoScore: Double = 0.0, val demoPositive: Int = 0, val demoReviews: Int = 0,
-    val demoRecentInteractions: Long = 0, val recentInteractions24h: Long = 0
+    val demoRecentInteractions: Long = 0, val recentInteractions24h: Long = 0,
+    val averageRating: Double? = null, val ratingCount: Long = 0
 ) {
     val label: String get() = if (isDemo) "测试演示" else if (contributionCount > 0) "真实贡献" else "暂无贡献"
     val rewardWeight: Float get() =
@@ -101,6 +102,8 @@ fun CommunitySquareScreen(
                 gas = stats?.total_gas_cost_usd ?: 0.0,
                 contributionCount = stats?.contribution_count ?: 0L,
                 recentInteractions24h = stats?.interactions_24h ?: 0L,
+                averageRating = stats?.average_rating,
+                ratingCount = stats?.rating_count ?: 0L,
                 isDemo = false
             )
         }
@@ -247,6 +250,14 @@ fun CommunitySquareScreen(
                                 color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                             Text("${project.demoReviews} 条模拟评价", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
+                    } else {
+                        Text(
+                            if (project.ratingCount > 0 && project.averageRating != null)
+                                "★ ${String.format(Locale.US, "%.1f", project.averageRating)} · ${project.ratingCount} 个账号评分"
+                            else "暂无全网评分",
+                            color = if (project.ratingCount > 0) Color(0xFFB7791F) else AppColors.TextHelper,
+                            style = MaterialTheme.typography.labelSmall
+                        )
                     }
                     Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         Box(Modifier.weight(project.rewardWeight).fillMaxHeight().background(Color(0xFF31B77D), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))

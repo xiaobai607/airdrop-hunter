@@ -154,3 +154,60 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
     finally:
         app.dependency_overrides.pop(get_db, None)
         app.dependency_overrides.pop(get_optional_current_user, None)
+
+
+def test_global_rating_requires_verified_participation_and_upserts_per_account():
+    with TestClient(app) as client:
+        headers = _headers(client, "rating")
+        rejected = client.post(
+            "/api/community/projects/linea/ratings",
+            headers=headers,
+            json={"score": 5},
+        )
+        assert rejected.status_code == 403
+
+        ledger_payload = {
+            "client_record_id": "rating-participation",
+            "project_id": "community:linea",
+            "project_name": "Linea",
+            "chain": "ethereum",
+            "wallet_address": "0x1234567890abcdef",
+            "tx_hash": "0xconfirmed",
+            "interaction_method": "web",
+            "expected_gas_cost_usd": "1.00",
+            "expected_reward_usd": None,
+            "actual_gas_cost_usd": "1.00",
+            "actual_reward_usd": "2.00",
+            "occurred_at": "2026-11-09T01:00:00+00:00",
+            "extra": {"project_official_id": "linea", "is_demo": "false"},
+        }
+        saved = client.put(
+            "/api/personal-ledger/rating-participation",
+            headers=headers,
+            json=ledger_payload,
+        )
+        assert saved.status_code == 200
+
+        first = client.post(
+            "/api/community/projects/linea/ratings",
+            headers=headers,
+            json={"score": 5},
+        )
+        assert first.status_code == 200
+        assert first.json()["average_rating"] == 5.0
+        assert first.json()["rating_count"] == 1
+
+        updated = client.post(
+            "/api/community/projects/linea/ratings",
+            headers=headers,
+            json={"score": 4},
+        )
+        assert updated.status_code == 200
+        assert updated.json()["average_rating"] == 4.0
+        assert updated.json()["rating_count"] == 1
+
+        public = client.get("/api/community/projects/linea/stats")
+        assert public.status_code == 200
+        assert public.json()["average_rating"] == 4.0
+        assert public.json()["rating_count"] == 1
+        assert "user_id" not in public.json()
