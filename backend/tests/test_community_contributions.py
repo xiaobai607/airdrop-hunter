@@ -2,7 +2,10 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+from app.database import get_db
 from app.main import app
+from app.models import CommunityProjectStats, User
+from app.routers.auth import get_optional_current_user
 
 
 def _headers(client, prefix: str):
@@ -83,3 +86,60 @@ def test_guest_can_contribute_to_public_stats_idempotently():
         public = client.get("/api/community/projects/scroll/stats")
         assert public.status_code == 200
         assert public.json()["contribution_count"] == 1
+
+
+def test_authenticated_public_contribution_does_not_persist_account_identity():
+    event_id = uuid4()
+    captured = {}
+
+    class FakeResult:
+        def scalar_one_or_none(self):
+            return event_id
+
+    class FakeDatabase:
+        async def execute(self, statement):
+            if not captured:
+                captured.update(statement.compile().params)
+            return FakeResult()
+
+        async def commit(self):
+            return None
+
+        async def get(self, model, key):
+            assert model is CommunityProjectStats
+            return None
+
+    fake_db = FakeDatabase()
+    fake_user = User(
+        id=uuid4(),
+        username="testuser",
+        uid="123456",
+        email=None,
+        password_hash=None,
+        display_name="Test User",
+    )
+
+    async def override_db():
+        yield fake_db
+
+    async def override_user():
+        return fake_user
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_optional_current_user] = override_user
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/community/projects/anonymous-test/contributions",
+                json={
+                    "event_id": str(event_id),
+                    "gas_cost_usd": "1.00",
+                    "actual_reward_usd": "4.00",
+                    "interaction_count": 1,
+                },
+            )
+        assert response.status_code == 200
+        assert captured["user_id"] is None
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_optional_current_user, None)

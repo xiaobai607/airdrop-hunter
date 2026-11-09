@@ -54,7 +54,10 @@ async def add_community_contribution(
 ):
     contribution = pg_insert(CommunityContribution).values(
         id=payload.event_id,
-        user_id=user.id if user is not None else None,
+        # Public dashboard contributions are deliberately unlinkable to an account.
+        # Authentication may validate a request, but no user ID or private ledger
+        # identity is persisted with an aggregate contribution.
+        user_id=None,
         project_official_id=project_official_id,
         gas_cost_usd=payload.gas_cost_usd,
         actual_reward_usd=payload.actual_reward_usd,
@@ -68,7 +71,7 @@ async def add_community_contribution(
         )
         same_contribution = (
             existing is not None
-            and existing.user_id == (user.id if user is not None else None)
+            and existing.user_id is None
             and existing.project_official_id == project_official_id
             and existing.gas_cost_usd == payload.gas_cost_usd
             and existing.actual_reward_usd == payload.actual_reward_usd
