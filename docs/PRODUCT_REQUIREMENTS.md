@@ -71,7 +71,7 @@ Additional rules:
 - Create/edit/complete/delete tasks with progress tracking and project ownership checks.
 - Associate projects with wallets/addresses, chains, Gas, rewards, and interaction history.
 - Project totals include Gas, actual rewards, and net P&L.
-- APP 主动发现空投项目仍是正式需求，但禁止自建爬虫抓取/解析千奇百怪的网站页面。发现渠道改为可插拔的现成数据源 API、合法可用的 RSS/官方订阅源，以及用户提交。内部社区项目目录/搜索持续保留。
+- APP 主动发现空投项目仍是正式需求，但必须优先采用零成本、现成且可稳定访问的数据源；不为付费 API、付费订阅或复杂授权投入成本。禁止自建爬虫抓取/解析千奇百怪的网站页面。优先使用免费的公开 API、免费 RSS/Atom、免费第三方空投平台公开页面/订阅源；能稳定取得哪些公开字段就收录哪些，无法取得的字段留空，不做强求。只有在免费且授权/访问条件简单时才接入 Telegram/Discord 等来源；X/Twitter 若需要付费 API 或复杂授权则不接入。若没有合适免费数据源，就不做该来源。内部社区项目目录/搜索持续保留。
 
 ## 7. Micro Community
 
@@ -85,8 +85,8 @@ Additional rules:
 - Ratings are 1–5 stars only; only actual participants with qualifying confirmed accounting may rate. No text reviews/comments.
 - Abuse prevention, event idempotency, and validation of eligible participation.
 - Public views must only use aggregate contribution data and must never expose personal addresses or transaction-level records.
-- Home screen must provide a prominent “+ Submit New Airdrop Project” entry. Submission accepts project name, official website/link, and available metadata; backend normalizes and deduplicates by canonical URL/domain, slug, and other identifiers. Existing matches are reported as duplicates and linked to the existing project rather than creating another row. After submission, the backend automatically checks the project against the existing catalog and supported provider APIs. Duplicate matches return a clear “already exists” result and point to the existing project. A non-duplicate project that passes basic safety checks (HTTPS, valid domain, no deceptive URL/userinfo, normalized identity) is published to the dynamic catalog; suspicious or unverifiable submissions are held for review. Never auto-trust arbitrary user URLs.
-- On user submission, run the same provider lookup/enrichment pipeline to fill available project metadata and verify identity; this is API lookup, not crawling the submitted website. APP-side discovery uses provider adapters, not bespoke website crawlers: (a) verified DefiLlama public airdrop/project data where a stable supported endpoint is confirmed; (b) optional DropsTab API for funding rounds, crypto activities, and token/unlock context, subject to API-key and plan limits; (c) allowlisted RSS/Atom feeds polled by a backend scheduled job and stored as normalized feed items. RSS availability and licensing/terms must be verified per source; do not assume every site exposes a usable feed.
+- Home screen must provide a prominent “+ Submit New Airdrop Project” entry. Submission accepts project name and any usable project/listing URL (official website is optional); a third-party airdrop platform listing URL is acceptable. The project card's minimum required fields are avatar/logo (optional/fallback allowed), display name, and a URL. Backend normalizes and deduplicates by canonical URL/domain, slug, and other identifiers. Existing matches are reported as duplicates and linked to the existing project rather than creating another row. After submission, the backend automatically checks the project against the existing catalog and supported provider APIs. Duplicate matches return a clear “already exists” result and point to the existing project. A non-duplicate project that passes basic safety checks (HTTPS, valid domain, no deceptive URL/userinfo, normalized identity) is published to the dynamic catalog; suspicious or unverifiable submissions are held for review. Never auto-trust arbitrary user URLs.
+- On user submission, run low-cost/free provider lookups to enrich whatever metadata is available; this is API/feed lookup, not crawling the submitted website. Discovery source priority: (a) free, stable public APIs such as supported DefiLlama endpoints where verified; (b) free public RSS/Atom feeds from established third-party airdrop platforms such as Airdrops.io where a usable feed is available; (c) public pages/listing URLs from third-party airdrop platforms when their content can be obtained through an allowed public feed/API or other permitted stable interface; (d) optional DropsTab or similar provider only when a genuinely free tier is sufficient; (e) Telegram/Discord only when public/authorized access is free and straightforward. X/Twitter is out of scope when it requires paid API access or complex authorization. Do not subscribe to paid APIs or paid RSS services. RSSHub may be used only as a free, trusted endpoint after checking route availability and terms; it is not a universal converter. Preserve source attribution and sync health. If a source cannot be accessed reliably and permissibly at no cost, skip it.
 - Keep source attribution, source URL, first/last seen timestamps, and sync status for imported metadata. Failed/limited providers must not block user submissions or the rest of the catalog.
 - Users supply community “blood”: Gas/reward/盈亏 data and 1–5 star ratings remain grounded in confirmed participant ledgers and user-entered records. External metadata must never fabricate Gas, rewards, P&L, ratings, or participation.
 
@@ -95,7 +95,7 @@ Additional rules:
 - Existing global search and public market data for BTC, ETH, SOL, BNB, and XRP.
 - Tapping a coin opens its market detail page, not a search-field autofill.
 - Search failures must show a recoverable error/retry state and must not crash the app.
-- Self-written crawlers/scrapers that parse arbitrary airdrop websites are prohibited. APP-side discovery via verified third-party APIs, allowlisted RSS/Atom feeds, and user submissions is required; provider coverage/availability is validated before implementation.
+- Self-written crawlers/scrapers that parse arbitrary airdrop websites are prohibited. APP-side discovery prioritizes free, stable third-party APIs and allowlisted RSS/Atom feeds from airdrop platforms, plus user submissions. Use public third-party listing URLs as project links when official websites are unavailable or unnecessary. Paid data sources are not required; skip any source that cannot be accessed reliably and permissibly for free.
 - Internal community project directory/search remains required.
 
 ## 9. Refresh, sync, and reliability
@@ -124,7 +124,7 @@ Additional rules:
 
 - Full OKX-style portfolio/dashboard.
 - Seed phrase/private-key wallet creation, custody, signing, transfers, swaps, and approvals.
-- Automatic public discovery/search of airdrop websites.
+- Self-written arbitrary-site crawling/scraping is cancelled. Free verified provider APIs, free allowlisted RSS/Atom feeds, freely accessible third-party airdrop platform listings, and user submissions are preferred discovery channels. Telegram/Discord are optional only when free and authorized. Paid X/API integrations and paid data services are out of scope unless the user explicitly changes the zero-cost rule.
 - Automatic address recognition (deferred).
 - Community chat, groups, DMs, mentoring, and teaching/social features (deferred).
 - AI analysis is not a confirmed requirement.
@@ -162,7 +162,7 @@ Additional rules:
 - PR #56: authenticated private-ledger one-time retry and eight-hour WorkManager fallback; guest accounts are skipped; merged commit d23cca51377c241c05e3dc0fe866f3e9d408c111.
 - PR #57: account identity changes trigger account-scoped screen reloads; stale requests are cancelled and account-specific editors/selections are cleared; merged commit c8545c70029f4ef82baf65b9ad231a4d432c1359.
 - PR #58: persistent many-to-many project-to-wallet assignments; guests store assignments in account-scoped Room tables, logged-in users sync assignments to account-private API storage; project detail supports selecting multiple public addresses and prioritizes assigned addresses in the claim wallet picker; backend enforces project and wallet ownership; merged commit 3c8ffbf8731ca3c9c6f10095099840e45e477932.
-- PR #59: dynamic community project catalog; backend PostgreSQL catalog seeded with the original seven entries, public active-project API, token-protected catalog management, Android dynamic catalog loading and tag derivation; CI passed and merged commit 066703ad4e7bbf176435fd8f1aac814bea60cc12. External source ingestion, RSS scheduling, and user project submission/deduplication are not yet implemented.
+- PR #59: dynamic community project catalog; backend PostgreSQL catalog seeded with the original seven entries, public active-project API, token-protected catalog management, Android dynamic catalog loading and tag derivation; CI passed and merged commit 066703ad4e7bbf176435fd8f1aac814bea60cc12. External provider ingestion and user project submission/deduplication remain pending. RSS candidate intake is being added separately and is not yet merged.
 
 ### Current audit findings
 
@@ -180,9 +180,28 @@ Additional rules:
 - PR #58 implements a separate persistent project-to-multiple-wallet assignment manager. Guest assignments are stored locally in Room under guest scope; logged-in assignments are stored in account-private backend records and cached locally under account scope. Project detail exposes multi-select controls, and the claim wallet picker prioritizes assigned addresses. Backend checks that private projects and all selected wallets belong to the authenticated user. This is complete in code; real-device verification of persistence, account switching, and claim-wallet ordering remains pending.
 - PR #54 adds manual plus eight-hour background refresh of saved wallet transaction activity. Background snapshots are cached locally by guest/account scope and never auto-create ledger rows or public contributions.
 - Sync is not yet app-wide: community contribution outbox has its own periodic worker; wallet activity has an eight-hour worker; PR #56 adds account-private ledger retry plus an eight-hour fallback. There is no unified refresh coordinator for every data source.
-- The Airdrop Hub now has a dynamic backend catalog (PR #59). New requirement supersedes the earlier cancellation of all automatic discovery: implement provider API adapters and allowlisted RSS scheduled ingestion, but do NOT write arbitrary-site crawlers. The user-submission flow and deduplication remain pending. Verify provider endpoint availability, API keys, licensing, rate limits, and failure isolation before enabling each source.
+- The Airdrop Hub now has a dynamic backend catalog (PR #59). The active discovery direction is free-first multi-source intake, not arbitrary scraping: free verified APIs, free allowlisted RSS/Atom, accessible third-party airdrop platform listings, and user submissions. Telegram/Discord are optional only when free and authorized; paid X/API and paid data sources are out of scope. Telegram/Discord access must respect bot membership and platform permissions; never bypass private-channel access. X must not be assumed free. Provider endpoint availability, API keys, licensing, rate limits, and failure isolation must be checked before enabling each source. User submission/deduplication remains pending.
 - Real-device acceptance for browser/wallet bridge, Android transaction import, guest data clearing, and cross-device restore remains pending.
 
 ### Status discipline
 
 Use only these states: **complete in code**, **partial**, **in progress**, **pending verification**, **deferred**, **cancelled**. A PR merge/CI pass is code-level evidence only; device and production checks remain separate.
+
+
+### Current in-progress discovery work (PR #60 branch; not merged)
+
+- Added a separate RSS/Atom candidate model and migration so feed headlines are not confused with verified community catalog projects.
+- Added an RSS/Atom parser and candidate read API. It uses explicitly configured HTTPS feeds, exact hostname allowlisting, disabled redirects, response-size/item limits, and per-feed failure isolation. Feed records preserve source attribution and first/last-seen timestamps; they are candidates only and do not create project Gas/reward/ratings/participation.
+- Added scheduled-script integration. RSS feeds are configured through Render environment variables and are polled by the existing backend Cron Job script; no feeds are enabled by default.
+- Pending validation: backend CI, production migration review, Render environment configuration, real feed/license checks, and Android candidate UI integration.
+- Still pending after this slice: user submission CTA/API, canonical project-level deduplication and safety review, DefiLlama/DropsTab provider adapters, Telegram/Discord bot adapters, and an X adapter only if access/cost is acceptable.
+
+
+### User-confirmed zero-cost discovery refinement (2026-11-09)
+
+- Use only genuinely free, stable, and permitted discovery sources. No paid APIs, paid RSS services, or paid platform plans. If no usable free source exists, skip that source rather than spending money or building brittle workarounds.
+- Prefer free public APIs and free RSS/Atom feeds from established airdrop platforms (for example, Airdrops.io if its feed is available), and use third-party airdrop listing pages as project URLs when useful. Capture only fields that are actually available; missing metadata is acceptable.
+- The project directory's minimum card identity is display name + URL. Avatar/logo is optional and may use an available platform image or fallback. An official project website is NOT mandatory: a third-party airdrop platform listing URL may be the project's link.
+- User submissions may provide a project name and any usable URL, including a third-party listing URL. Duplicate and URL-safety checks still apply.
+- Telegram/Discord are optional, only if free and access is explicitly authorized/simple. X/Twitter is skipped if it requires paid API access or complex authorization.
+- This supersedes any earlier assumption that every provider (Telegram, Discord, X, DropsTab) must be implemented. Source integration is conditional on free availability and practical reliability.
