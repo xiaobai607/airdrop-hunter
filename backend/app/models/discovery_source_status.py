@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, UniqueConstraint, func
+from sqlalchemy import DateTime, Index, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,6 +14,7 @@ class AirdropDiscoverySourceStatus(Base):
     __tablename__ = "airdrop_discovery_source_status"
     __table_args__ = (
         UniqueConstraint("source_key", name="uq_airdrop_discovery_source_status_key"),
+        Index("ix_airdrop_discovery_source_status_source_name", "source_name"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
