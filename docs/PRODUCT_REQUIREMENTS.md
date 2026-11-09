@@ -152,7 +152,7 @@ Additional rules:
 - Confirmed in main source: guest community outbox entries contain only project ID, aggregate Gas, aggregate actual reward, interaction count, and sync metadata; the sync request does not send wallet address, transaction hash, or personal ledger fields.
 - Confirmed in main source: guest outbox batches use no Authorization header; logged-in batches use the user's bearer token.
 - Confirmed in main source: private personal-ledger endpoint requires authentication and scopes reads/deletes/upserts to the authenticated user. Android AccountingRepository.syncPersonalLedger() returns before any private cloud call when no token exists.
-- Issue found in audit: public contribution endpoint was persisting the authenticated user's user_id on contribution rows. This links a supposedly anonymous public contribution back to an account. A focused correction is being prepared so public contributions are not associated with any user ID, regardless of login state.
+- Issue found and corrected on the current development branch: the public contribution endpoint previously persisted the authenticated user's user_id. The endpoint now stores user_id as null for both guest and logged-in submissions; a backend regression test checks that an authenticated public contribution is not linked to an account. This correction is pending CI and merge.
 - Not yet proven by code inspection in this audit: guest wallet-address persistence end-to-end, Android account-switch edge cases, production database backup/restore, and real-device cross-device restoration.
 - Real-device acceptance for browser/wallet bridge, Android transaction import, guest data clearing, and cross-device restore remains pending.
 
