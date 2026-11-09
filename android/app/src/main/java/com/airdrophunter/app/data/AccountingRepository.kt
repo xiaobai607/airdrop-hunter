@@ -138,7 +138,8 @@ class AccountingRepository(
         projectCustomName: String,
         gas: Double,
         reward: Double,
-        assetBreakdownJson: String? = null
+        assetBreakdownJson: String? = null,
+        publicContributionOptIn: Boolean = false
     ): Boolean {
         val confirmed = local.confirmPendingBill(
             id, projectLocalId, projectOfficialId, projectCustomName, gas, reward, assetBreakdownJson, publicContributionOptIn
