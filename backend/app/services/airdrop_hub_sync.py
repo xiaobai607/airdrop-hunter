@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 from datetime import datetime, timezone
 from typing import Any
@@ -152,6 +153,12 @@ def _extract_json(text: str) -> Any:
 async def sync_airdrop_hub(db: AsyncSession) -> int:
     now = datetime.now(timezone.utc)
     _sync_status.update({"last_attempt_at": now.isoformat(), "error": None})
+    # This upstream Vercel API has no confirmed permission for third-party
+    # public-catalog republication. Keep it disabled until explicitly approved.
+    if os.getenv("AIRDROP_HUB_SOURCE_APPROVED", "").strip().lower() != "true":
+        _sync_status.update({"imported_count": 0, "error": "source_not_approved"})
+        logger.info("Skipped web3-discover import: source reuse is not approved")
+        return 0
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(15.0), headers={"User-Agent": "AirdropHunter/1.0"}) as client:
             records, source = await _fetch_source(client)
