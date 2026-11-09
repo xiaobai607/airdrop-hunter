@@ -485,7 +485,7 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 - Code and tests are complete only after CI; a real restore drill remains pending until the two secrets and isolated restore database are configured and the manual workflow succeeds.
 
 
-### Readiness test follows the actual migration head (PR pending, 2026-11-10)
+### Readiness test follows the actual migration head (PR #96 merged, 2026-11-10)
 
 - The readiness endpoint already compares the database Alembic revision with the current migration head. Its regression test now derives the expected revision from the repository's real migration directory instead of hard-coding an older migration ID.
 - This keeps the deployment readiness test valid as future migrations are added and continues to assert that a database behind the code head returns HTTP 503.
