@@ -3,6 +3,7 @@ import re
 import hashlib
 import asyncio
 import time
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Literal
 
@@ -79,6 +80,9 @@ class WalletTransaction(BaseModel):
     gas_cost_native: str
     native_symbol: str
     native_price_usd: str | None = None
+    native_decimals: int
+    native_price_timestamp: str | None = None
+    native_price_source: str | None = None
     gas_cost_usd: str | None = None
     fee_paid_by_wallet: bool
     status: str
@@ -165,6 +169,9 @@ def build_evm_transactions(rows, chain: str, address: str, price: Decimal | None
                 ),
                 gas_cost_native=decimal_text(native_cost), native_symbol=network["native_symbol"],
                 native_price_usd=decimal_text(price) if price is not None else None,
+                native_decimals=18,
+                native_price_timestamp=datetime.now(timezone.utc).isoformat() if price is not None else None,
+                native_price_source="coinpaprika" if price is not None else None,
                 gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
                 fee_paid_by_wallet=str(row.get("from") or "").lower() == address.lower(),
                 status="success" if str(row.get("isError", "0")) == "0" else "failed",
@@ -316,6 +323,9 @@ def build_solana_transactions(rows, address: str, price: Decimal | None, limit: 
                 gas_cost_native=decimal_text(native_cost),
                 native_symbol="SOL",
                 native_price_usd=decimal_text(price) if price is not None else None,
+                native_decimals=9,
+                native_price_timestamp=datetime.now(timezone.utc).isoformat() if price is not None else None,
+                native_price_source="coinpaprika" if price is not None else None,
                 gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
                 fee_paid_by_wallet=str(row.get("from_address") or "") == address,
                 status=str(row.get("status") or "failed"),
@@ -409,6 +419,9 @@ def build_bitcoin_transactions(rows, address: str, price: Decimal | None, limit:
                 fee_type="bitcoin_fee_sat_shared_inputs" if shared_input_fee else "bitcoin_fee_sat",
                 gas_cost_native=decimal_text(native_cost), native_symbol="BTC",
                 native_price_usd=decimal_text(price) if price is not None else None,
+                native_decimals=8,
+                native_price_timestamp=datetime.now(timezone.utc).isoformat() if price is not None else None,
+                native_price_source="coinpaprika" if price is not None else None,
                 gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
                 fee_paid_by_wallet=fee_paid_by_wallet,
                 status="success" if confirmed else "pending",
@@ -571,6 +584,9 @@ async def list_wallet_transactions(
                         energy_fee_base_unit=str(energy_fee_sun), bandwidth_fee_base_unit=str(net_fee_sun),
                         gas_cost_native=decimal_text(native_cost), native_symbol="TRX",
                         native_price_usd=decimal_text(price) if price is not None else None,
+                        native_decimals=6,
+                        native_price_timestamp=datetime.now(timezone.utc).isoformat() if price is not None else None,
+                        native_price_source="coinpaprika" if price is not None else None,
                         gas_cost_usd=decimal_text(native_cost * price) if price is not None else None,
                         fee_paid_by_wallet=fee_paid_by_wallet,
                         status="success" if receipt.get("result", "SUCCESS") == "SUCCESS" else "failed",

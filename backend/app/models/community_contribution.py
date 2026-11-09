@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import DateTime, ForeignKey, Numeric, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -34,6 +34,7 @@ class CommunityContribution(Base):
     project_official_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     gas_cost_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
     actual_reward_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    asset_breakdown: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

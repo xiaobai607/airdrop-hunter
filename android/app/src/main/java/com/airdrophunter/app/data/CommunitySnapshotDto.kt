@@ -39,5 +39,7 @@ data class CommunitySnapshotProjectDto(
     val net_result_usd_valuation: Double = 0.0,
     val average_rating: Double? = null,
     val rating_count: Long = 0,
-    val rating_distribution: Map<String, Long> = emptyMap()
+    val rating_distribution: Map<String, Long> = emptyMap(),
+    val gas_by_token: List<CommunityTokenAggregateDto> = emptyList(),
+    val reward_by_token: List<CommunityTokenAggregateDto> = emptyList()
 )

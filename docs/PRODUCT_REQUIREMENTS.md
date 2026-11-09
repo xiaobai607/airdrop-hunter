@@ -93,7 +93,7 @@ Additional rules:
 ## 7. Micro Community
 
 - Public project directory/cards, categories, tags, and project details. Project metadata may be populated from approved external APIs/RSS and user submissions; project skeleton (name, logo, official links, funding/tokenomics metadata) is distinct from community-generated participation metrics.
-- **Project list card UI (user-confirmed):** keep cards concise for browsing, showing project avatar/logo, name, brief 1–5-star rating and reputation label (for example, “好评如潮” / “褒贬不一”), plus an **overall Gas cost vs actual reward** summary with both amounts and a red/green comparison bar (red = Gas cost, green = actual reward). Tapping a card opens the full project detail page. List and detail must use the same overall aggregation and currency/valuation rules.
+- **Project list card UI (user-confirmed):** keep cards concise for browsing, showing project avatar/logo, name, brief 1–5-star rating and reputation label (for example, “好评如潮” / “褒贬不一”), plus an **overall Gas cost vs actual reward** summary with separate USD valuations and a red/green comparison bar (red = Gas cost, green = actual reward). Tapping a card opens the full project detail page. The detail page exposes the underlying per-token amounts; native units are never added across different symbols.
 - **Project detail UI (user-confirmed):** use a single vertically scrolling waterfall/stacked layout, not tabs. From top to bottom show project avatar, name, URL, and description; overall star rating and derived reputation wording; then four simultaneously visible Gas-vs-actual-reward comparison rows: overall, last 7 days, last 3 days, and last 1 hour. Each row shows per-currency amounts and comparable USD valuation where available, plus a red/green proportional bar only when there are comparable non-zero amounts; never render a fabricated 50/50 bar for missing or zero-denominator data.
 - **Metric integrity:** public project metrics use only eligible, user-confirmed actual Gas and actual rewards from anonymous aggregate contributions; theoretical/estimated rewards remain separate and are never displayed as realized rewards. Do not add unlike tokens together without per-token breakdown; USD estimates must be labeled as valuations. Missing/zero-denominator data must be represented honestly, not fabricated as a balanced bar or positive outcome. Reputation labels are derived from real rating aggregates and distribution, never hard-coded.
 - Public aggregate Gas, actual rewards, and net P&L presentation.
@@ -197,7 +197,8 @@ Additional rules:
 - PR #71: consolidated the single-source product requirements, README boundaries, cross-module data-flow map, and dependency-driven roadmap; merged commit 1bc27b7a3ec78b45321891c3f68b82db5b91a1ec; Android and backend CI green.
 - PR #72: explicit chain selection and checksum-aware address validation for EVM/TRON/Solana/Bitcoin; merged commit c4a2092d7a4a52edbd69525e408cade806846f99; Android and backend CI passed.
 - PR #73: community data-contract cleanup across API, database, snapshots, and Android; merged commit bdca459794aced3c2ff39622b39222f26c0fb1ff; Android and backend CI passed.
-- PR #74: transaction identity and account-scoped ledger storage hardening; in progress pending CI.
+- PR #74: transaction identity and account-scoped ledger storage hardening; merged commit 0574789e07176c3d7635e2445eccf53c686076ea; Android and backend CI passed.
+- PR #75: currency-aware private ledger and public per-token snapshots; in progress pending CI.
 
 ### Current audit findings
 
@@ -237,8 +238,8 @@ The main data path is intentionally one-way at each boundary:
 Recommended next implementation order, based on shared-code dependencies:
 
 1. **Public metric cleanup (PR #73 merged):** backend, snapshot, and Android public data contracts now expose confirmed monetary aggregates, star ratings, and catalog metadata. The New ranking sorts by catalog creation time.
-2. **Transaction-to-ledger reliability (PR #74):** harden duplicate transaction identity across guest/account scopes, preserve stable public event IDs, and ensure test/demo rows never sync or contribute. Fee-payer attribution remains conservative, and no transaction or estimated reward is auto-confirmed.
-3. **Currency-aware accounting:** extend the private ledger and anonymous public contribution model to retain native token amount/symbol/decimals and valuation timestamp/source. Keep USD valuation separate and never sum unlike tokens. Update snapshots only after the source model is correct.
+2. **Transaction-to-ledger reliability (PR #74 merged):** duplicate transaction identities are isolated by account scope, public event IDs remain stable for server idempotency, demo rows are excluded from sync/contribution, fee-payer attribution is conservative, and manual confirmation is required.
+3. **Currency-aware accounting (PR #75 in progress):** retain native token amount/symbol/decimals and valuation timestamp/source in private ledger records and anonymous public contributions. Keep USD valuations separate, never sum unlike native tokens, and publish per-token snapshot aggregates only after the source records are confirmed.
 4. **Sync/restore acceptance:** verify guest data survives normal app restarts but is lost on app-data clearing; verify account data restores on another device and cannot leak across account switches. Add conflict/retry handling only where tests demonstrate a gap.
 5. **Discovery operations:** verify source terms/access, enable only feeds that are genuinely free and stable, and configure review/Cron without blocking user submissions.
 6. **Production and device acceptance:** configure database backups, CDN/R2, scheduled publishing, and end-to-end phone tests before claiming production readiness.
@@ -299,7 +300,7 @@ Recommended next implementation order, based on shared-code dependencies:
 
 - Backend precomputes overall, rolling 7d, rolling 3d, and rolling 1h snapshots from eligible anonymous public contribution rows.
 - The scheduler computes due windows in Asia/Shanghai: overall + 7d daily at 08:00; 3d at 00:00/06:00/12:00/18:00; 1h every five minutes. Timestamps are stored/compared in UTC and presented in UTC+8.
-- Snapshot payloads contain project catalog metadata and aggregate metrics only. They do not contain wallet addresses, transaction hashes, user IDs, or private ledger rows. Current contribution amounts are USD valuations only; per-token public totals are not yet modeled.
+- Snapshot payloads contain project catalog metadata, confirmed USD valuations, and token-separated native aggregates only. They do not contain wallet addresses, transaction hashes, user IDs, or private ledger rows. Gas and reward token amounts are grouped independently by token symbol and decimals; unlike native units are never added together.
 - Versioned JSON objects are uploaded before the manifest is atomically switched. Android reads Room cache first, then silently revalidates the CDN using a dedicated unauthenticated HTTPS client restricted to the configured CDN host. Offline or invalid responses preserve the last good cache.
 - Project list and detail screens use static snapshots rather than per-project live stats calls. The detail screen shows the four windows vertically, with each non-overall window's own update time. There is no manual refresh affordance in the micro-community. Empty/zero-denominator data is not represented by a fabricated balanced bar.
 - PR #67 merged the architecture requirement; PR #68 was closed as superseded; PR #69 merged the actual backend and Android implementation as `25035c83e6f69f125d0b336170fdd0e0d5c93316`; PR #70 merged the empty-data correction as `0c57de441fcfb668dbb6e4d639ea68f9e6c443ee`. Android and backend CI passed for the merged implementation and correction.
@@ -313,13 +314,22 @@ Recommended next implementation order, based on shared-code dependencies:
 - GitHub scheduled jobs are best-effort and can start late under platform load; the dispatcher still computes due windows from Asia/Shanghai at actual execution time. This is not a real-time SLA.
 
 
-### Transaction-to-ledger reliability (PR #74 in progress)
+### Transaction-to-ledger reliability (PR #74 merged)
 
 - Pending bills, private interaction history, and public contribution outbox rows use account-scoped composite primary keys so the same chain transaction can exist independently in guest and authenticated scopes.
 - Transaction identity remains stable across account scopes; the public event ID remains idempotent at the server boundary.
 - Confirmed transaction imports are atomic: duplicate checks, private ledger updates, project totals, interaction history, outbox enqueue, and pending-bill deletion occur in one Room transaction.
 - Only supported networks and non-demo transactions may enter the public contribution outbox. Demo/mock classification is shared by contribution eligibility and private cloud sync filtering.
 - Chain fee attribution remains conservative: prefill only when chain data proves this wallet paid the complete fee; uncertain/shared fees stay blank for manual review.
+
+### Currency-aware accounting (PR #75 in progress)
+
+- Each confirmed accounting event may retain a structured asset breakdown: kind (gas or reward), native amount, token symbol, token decimals, USD valuation (nullable), valuation timestamp, and valuation source.
+- Imported Gas amounts use chain-native precision metadata (EVM 18, TRON 6, Bitcoin 8, Solana 9); a current USD quote is explicitly labelled with its provider and observation timestamp.
+- Reward token amounts and symbols are entered or confirmed by the user. Unknown token precision or unavailable USD valuation remains null; never fabricate either.
+- Private ledger asset detail is retained locally and in the authenticated account's cloud ledger. Guest details remain local; only confirmed anonymous aggregates enter public contribution rows.
+- Public snapshots group native amounts by kind, symbol, and decimals. ETH, BNB, BTC, TRX, SOL, and project tokens remain separate; USD valuations may be summed only as labelled USD estimates.
+- Project detail displays native token breakdowns for each confirmed time window; project list cards retain concise USD-valuation summaries.
 
 ### Public community metric scope (user-confirmed)
 

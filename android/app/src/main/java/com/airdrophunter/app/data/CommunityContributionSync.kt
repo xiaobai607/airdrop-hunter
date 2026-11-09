@@ -29,7 +29,8 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
                         CommunityContributionRequest(
                             event_id = entry.id,
                             gas_cost_usd = entry.gasCostUsd,
-                            actual_reward_usd = entry.actualRewardUsd
+                            actual_reward_usd = entry.actualRewardUsd,
+                            asset_breakdown = LedgerAssetBreakdownCodec.decode(entry.assetBreakdownJson)
                         ),
                         batch.authorizationHeader
                     )

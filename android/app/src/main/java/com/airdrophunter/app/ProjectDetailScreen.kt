@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.UserInteractionEntity
+import com.airdrophunter.app.data.formatLedgerAssetBreakdown
 import com.airdrophunter.app.data.TaskDto
 import com.airdrophunter.app.data.WalletDto
 import kotlinx.coroutines.launch
@@ -472,10 +473,13 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                 Text(interaction.network, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Gas $%.2f".format(Locale.US, interaction.gasCostUsd),
+                Text("Gas USD估值 $%.2f".format(Locale.US, interaction.gasCostUsd),
                     color = AppColors.Danger, style = MaterialTheme.typography.bodySmall)
-                Text("实际收益 +$%.2f".format(Locale.US, interaction.actualRewardUsd),
+                Text("实际收益 USD估值 +$%.2f".format(Locale.US, interaction.actualRewardUsd),
                     color = AppColors.Success, style = MaterialTheme.typography.bodySmall)
+            }
+            formatLedgerAssetBreakdown(interaction.assetBreakdownJson).takeIf { it.isNotBlank() }?.let {
+                Text("币种明细：$it", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
             if (interaction.txHash.isNotBlank()) {
                 Text("交易：${interaction.txHash.take(10)}…",

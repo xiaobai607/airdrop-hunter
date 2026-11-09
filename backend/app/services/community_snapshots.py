@@ -29,8 +29,9 @@ def assemble_snapshot(
     generated_at: datetime,
     project_rows: list[dict],
     rating_rows: list[dict],
+    asset_rows: list[dict] | None = None,
 ) -> dict:
-    """Build a privacy-safe snapshot with only confirmed money aggregates and ratings."""
+    """Build a privacy-safe snapshot with USD valuations and token-separated native totals."""
     if window not in WINDOW_DURATIONS:
         raise ValueError(f"Unsupported community snapshot window: {window}")
 
@@ -44,6 +45,36 @@ def assemble_snapshot(
         score = int(row["score"])
         ratings_by_project.setdefault(project_id, {score: 0 for score in range(1, 6)})[score] = int(row["rating_count"])
 
+    token_totals: dict[str, dict[tuple, dict]] = {}
+    for row in asset_rows or []:
+        project_id = row["project_official_id"]
+        for asset in row.get("asset_breakdown") or []:
+            if not isinstance(asset, dict):
+                continue
+            kind = asset.get("kind")
+            symbol = str(asset.get("symbol") or "").strip().upper()
+            if kind not in {"gas", "reward"} or not symbol:
+                continue
+            decimals = asset.get("decimals")
+            key = (kind, symbol, decimals)
+            total = token_totals.setdefault(project_id, {}).setdefault(key, {
+                "amount": Decimal("0"), "usd": Decimal("0"), "has_usd": False,
+                "latest_timestamp": None, "sources": set(),
+            })
+            try:
+                total["amount"] += Decimal(str(asset.get("amount_native") or "0"))
+                if asset.get("usd_valuation") is not None:
+                    total["usd"] += Decimal(str(asset["usd_valuation"]))
+                    total["has_usd"] = True
+            except (InvalidOperation, TypeError, ValueError):
+                continue
+            stamp = asset.get("valuation_timestamp")
+            if stamp and (total["latest_timestamp"] is None or str(stamp) > total["latest_timestamp"]):
+                total["latest_timestamp"] = str(stamp)
+            source = str(asset.get("valuation_source") or "").strip()
+            if source:
+                total["sources"].add(source)
+
     projects = []
     for row in project_rows:
         project_id = row["project_official_id"]
@@ -54,6 +85,23 @@ def assemble_snapshot(
         gas = _number(row["gas_cost_usd"])
         reward = _number(row["actual_reward_usd"])
         created_at = row["created_at"].astimezone(timezone.utc)
+        token_groups = token_totals.get(project_id, {})
+
+        def token_rows(kind: str) -> list[dict]:
+            values = []
+            for (asset_kind, symbol, decimals), total in token_groups.items():
+                if asset_kind != kind:
+                    continue
+                values.append({
+                    "symbol": symbol,
+                    "decimals": decimals,
+                    "amount_native": format(total["amount"].normalize(), "f"),
+                    "usd_valuation": float(total["usd"]) if total["has_usd"] else None,
+                    "valuation_timestamp": total["latest_timestamp"],
+                    "valuation_source": next(iter(total["sources"])) if len(total["sources"]) == 1 else ("mixed" if total["sources"] else None),
+                })
+            return sorted(values, key=lambda item: item["symbol"])
+
         projects.append({
             "project_official_id": project_id,
             "name": row["name"],
@@ -66,6 +114,8 @@ def assemble_snapshot(
             "gas_cost_usd_valuation": gas,
             "actual_reward_usd_valuation": reward,
             "net_result_usd_valuation": reward - gas,
+            "gas_by_token": token_rows("gas"),
+            "reward_by_token": token_rows("reward"),
             "average_rating": average_rating,
             "rating_count": rating_count,
             "rating_distribution": {str(score): distribution.get(score, 0) for score in range(1, 6)},
@@ -148,4 +198,13 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
 
 
 
-    return assemble_snapshot(window, now, list(metric_rows), list(rating_rows))
+    asset_conditions = [CommunityContribution.user_id.is_(None), CommunityContribution.asset_breakdown.is_not(None)]
+    if duration is not None:
+        asset_conditions.append(CommunityContribution.created_at >= now - duration)
+    asset_stmt = select(
+        CommunityContribution.project_official_id,
+        CommunityContribution.asset_breakdown,
+    ).where(and_(*asset_conditions))
+    asset_rows = (await db.execute(asset_stmt)).mappings().all()
+
+    return assemble_snapshot(window, now, list(metric_rows), list(rating_rows), list(asset_rows))

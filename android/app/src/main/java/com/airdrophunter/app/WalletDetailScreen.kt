@@ -258,7 +258,22 @@ private fun WalletActivityPanel(
                                                         interactionMethod = "链上交易导入",
                                                         timestamp = tx.timestamp * 1000L,
                                                         chain = tx.chain,
-                                                        network = tx.chain
+                                                        network = tx.chain,
+                                                        assetBreakdownJson = LedgerAssetBreakdownCodec.encode(
+                                                            listOfNotNull(
+                                                                tx.gas_cost_native.takeIf { it.isNotBlank() && tx.native_symbol.isNotBlank() }?.let {
+                                                                    LedgerAssetAmount(
+                                                                        kind = "gas",
+                                                                        amount_native = it,
+                                                                        symbol = tx.native_symbol,
+                                                                        decimals = tx.native_decimals,
+                                                                        usd_valuation = tx.gas_cost_usd?.toDoubleOrNull(),
+                                                                        valuation_timestamp = tx.native_price_timestamp,
+                                                                        valuation_source = tx.native_price_source
+                                                                    )
+                                                                }
+                                                            )
+                                                        )
                                                     )
                                                 )
                                                 android.widget.Toast.makeText(

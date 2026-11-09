@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -16,10 +17,21 @@ router = APIRouter(prefix="/api/community/projects", tags=["community"])
 MAX_AMOUNT = Decimal("999999999999.99999999")
 
 
+class CommunityAssetAmount(BaseModel):
+    kind: str = Field(pattern="^(gas|reward)$")
+    amount_native: Decimal = Field(ge=0, le=MAX_AMOUNT)
+    symbol: str = Field(min_length=1, max_length=20, pattern="^[A-Za-z0-9._-]+$")
+    decimals: int | None = Field(default=None, ge=0, le=36)
+    usd_valuation: Decimal | None = Field(default=None, ge=0, le=MAX_AMOUNT)
+    valuation_timestamp: datetime | None = None
+    valuation_source: str | None = Field(default=None, max_length=64)
+
+
 class CommunityContributionRequest(BaseModel):
     event_id: UUID
     gas_cost_usd: Decimal = Field(ge=0, le=MAX_AMOUNT)
     actual_reward_usd: Decimal = Field(ge=0, le=MAX_AMOUNT)
+    asset_breakdown: list[CommunityAssetAmount] = Field(default_factory=list, max_length=10)
 
 
 def serialize_stats(project_official_id: str, row: CommunityProjectStats | None, average_rating=None, rating_count=0) -> dict:
@@ -65,6 +77,7 @@ async def add_community_contribution(
         project_official_id=project_official_id,
         gas_cost_usd=payload.gas_cost_usd,
         actual_reward_usd=payload.actual_reward_usd,
+        asset_breakdown=[item.model_dump(mode="json") for item in payload.asset_breakdown],
     ).on_conflict_do_nothing(index_elements=[CommunityContribution.id]).returning(CommunityContribution.id)
 
     inserted_id = (await db.execute(contribution)).scalar_one_or_none()
@@ -78,6 +91,7 @@ async def add_community_contribution(
             and existing.project_official_id == project_official_id
             and existing.gas_cost_usd == payload.gas_cost_usd
             and existing.actual_reward_usd == payload.actual_reward_usd
+            and (existing.asset_breakdown or []) == [item.model_dump(mode="json") for item in payload.asset_breakdown]
         )
         if not same_contribution:
             raise HTTPException(status_code=409, detail="统计流水编号冲突：同一编号不能对应不同的项目或金额")

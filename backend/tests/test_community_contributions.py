@@ -25,6 +25,12 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
             "event_id": event_id,
             "gas_cost_usd": "2.50",
             "actual_reward_usd": "12.00",
+            "asset_breakdown": [
+                {"kind": "gas", "amount_native": "0.001", "symbol": "ETH", "decimals": 18,
+                 "usd_valuation": "2.50", "valuation_timestamp": "2026-11-09T08:00:00+00:00", "valuation_source": "coinpaprika"},
+                {"kind": "reward", "amount_native": "100", "symbol": "LINEA", "decimals": 18,
+                 "usd_valuation": "12.00", "valuation_timestamp": "2026-11-09T08:00:00+00:00", "valuation_source": "user_input"},
+            ],
         }
         first = client.post(
             "/api/community/projects/linea/contributions",
