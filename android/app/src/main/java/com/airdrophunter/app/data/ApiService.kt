@@ -70,6 +70,8 @@ interface ApiService {
         @Body request: CommunityProjectRatingRequest
     ): CommunityProjectStatsDto
 
+    @GET("api/community/catalog") suspend fun getCommunityCatalog(): List<CommunityProjectCatalogDto>
+
     @GET("api/community/projects/{projectOfficialId}/stats")
     suspend fun getCommunityProjectStats(@Path("projectOfficialId") projectOfficialId: String): CommunityProjectStatsDto
 }
