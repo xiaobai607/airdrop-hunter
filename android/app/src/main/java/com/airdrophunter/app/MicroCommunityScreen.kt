@@ -189,7 +189,7 @@ fun MicroCommunityScreen(
                                 reward = reward,
                                 updateTime = updateTime,
                                 showUpdateTime = window != "overall",
-                                hasData = useDemoStats || projectSnapshot != null
+                                hasData = useDemoStats || (projectSnapshot?.contribution_count ?: 0L) > 0L
                             )
                         }
 
@@ -311,18 +311,27 @@ private fun CommunitySnapshotPeriodMetric(
     showUpdateTime: Boolean,
     hasData: Boolean
 ) {
-    val total = (gas + reward).coerceAtLeast(0.01)
-    val gasWeight = if (gas + reward <= 0.0) 0.5f else (gas / total).toFloat().coerceIn(0.01f, 0.99f)
-    val rewardWeight = 1f - gasWeight
+    val total = gas + reward
+    val hasComparableAmounts = hasData && total > 0.0
+    val gasWeight = if (hasComparableAmounts) (gas / total).toFloat().coerceIn(0.01f, 0.99f) else 0f
+    val rewardWeight = if (hasComparableAmounts) 1f - gasWeight else 0f
     Surface(color = Color(0xFF20352B), shape = RoundedCornerShape(13.dp)) {
         Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                 Text("USD 估值", color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall)
             }
-            Row(Modifier.fillMaxWidth().height(18.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                Box(Modifier.weight(gasWeight).fillMaxHeight().background(Color(0xFFEF6262), RoundedCornerShape(6.dp)))
-                Box(Modifier.weight(rewardWeight).fillMaxHeight().background(Color(0xFF31C48D), RoundedCornerShape(6.dp)))
+            if (hasComparableAmounts) {
+                Row(Modifier.fillMaxWidth().height(18.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Box(Modifier.weight(gasWeight).fillMaxHeight().background(Color(0xFFEF6262), RoundedCornerShape(6.dp)))
+                    Box(Modifier.weight(rewardWeight).fillMaxHeight().background(Color(0xFF31C48D), RoundedCornerShape(6.dp)))
+                }
+            } else {
+                Text(
+                    if (hasData) "暂无可比较的 Gas / 实际收益金额" else "暂无该时间窗口的确认贡献",
+                    color = Color(0xFFB9C8C0),
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
@@ -333,9 +342,6 @@ private fun CommunitySnapshotPeriodMetric(
                     Text("实际收益", color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
                     Text(String.format(java.util.Locale.US, "$%,.2f", reward), color = Color.White, fontWeight = FontWeight.Bold)
                 }
-            }
-            if (!hasData) {
-                Text("暂无该时间窗口的快照数据", color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall)
             }
             if (showUpdateTime) {
                 Text(
