@@ -353,8 +353,12 @@ fun CommunitySquareScreen(
                     }
                     if (project.gas > 0.0 || project.reward > 0.0) {
                         Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Box(Modifier.weight(project.gasWeight).fillMaxHeight().background(Color(0xFFE76565), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))
-                            Box(Modifier.weight(project.rewardWeight).fillMaxHeight().background(Color(0xFF31B77D), RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)))
+                            if (project.gasWeight > 0f) {
+                                Box(Modifier.weight(project.gasWeight).fillMaxHeight().background(Color(0xFFE76565), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))
+                            }
+                            if (project.rewardWeight > 0f) {
+                                Box(Modifier.weight(project.rewardWeight).fillMaxHeight().background(Color(0xFF31B77D), RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)))
+                            }
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(String.format(Locale.US, "Gas USD估值 $%,.2f", project.gas), color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
