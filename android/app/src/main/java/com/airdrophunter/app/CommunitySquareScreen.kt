@@ -18,6 +18,8 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.runtime.*
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,7 +39,7 @@ import kotlinx.coroutines.coroutineScope
 import java.util.Locale
 
 private data class CommunityProject(
-    val id: String, val name: String, val chain: String, val logo: String,
+    val id: String, val name: String, val chain: String, val logo: String, val websiteUrl: String,
     val reward: Double, val gas: Double, val contributionCount: Long,
     val tags: List<String>, val isDemo: Boolean = false,
     val demoScore: Double = 0.0, val demoPositive: Int = 0, val demoReviews: Int = 0,
@@ -75,6 +77,7 @@ fun CommunitySquareScreen(
     onProjectSelected: (String, String, String) -> Unit
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val joinedIds by CacheStore.observeUserProjects().collectAsStateWithLifecycle(initialValue = emptyList())
     val favorites by CacheStore.observeCommunityFavorites().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -124,6 +127,7 @@ fun CommunitySquareScreen(
             name = entry.name,
             chain = entry.chain,
             logo = entry.logo.ifBlank { entry.name.take(1).uppercase() },
+            websiteUrl = entry.website_url,
             reward = if (showDemo) demo!!.reward else stats?.total_actual_reward_usd ?: 0.0,
             gas = if (showDemo) demo!!.gas else stats?.total_gas_cost_usd ?: 0.0,
             contributionCount = if (showDemo) demo!!.contributions else stats?.contribution_count ?: 0L,
@@ -343,6 +347,31 @@ fun CommunitySquareScreen(
                                 Text(tag, Modifier.padding(horizontal = 7.dp, vertical = 4.dp), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                             }
                         }
+                    }
+                    if (project.websiteUrl.isNotBlank()) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                project.websiteUrl,
+                                Modifier.weight(1f),
+                                color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            TextButton(
+                                onClick = {
+                                    runCatching { uriHandler.openUri(project.websiteUrl) }
+                                        .onFailure {
+                                            Toast.makeText(context, "无法打开项目链接", Toast.LENGTH_SHORT).show()
+                                        }
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                            ) {
+                                Text("打开链接")
+                            }
+                        }
+                    } else {
+                        Text("项目链接待补充", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("${project.contributionCount} 笔全网确认贡献", Modifier.weight(1f), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
