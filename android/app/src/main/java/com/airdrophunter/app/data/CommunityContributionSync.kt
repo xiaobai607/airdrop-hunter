@@ -36,6 +36,12 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: HttpException) {
+                    if (isTerminalContributionConflict(error.code())) {
+                        CacheStore.markCommunitySyncTerminalFailure(
+                            entry.id, batch.accountScope, "HTTP 409: contribution event ID conflict"
+                        )
+                        continue
+                    }
                     CacheStore.markCommunitySyncAttempt(entry.id, batch.accountScope, "HTTP ${error.code()}")
                     return@withContext Result.retry()
                 } catch (error: IOException) {
@@ -56,3 +62,7 @@ object CommunityContributionSyncScheduler {
     fun enqueue(context: Context) = GlobalSyncScheduler.enqueueNow(context, forceCommunityContribution = true)
     fun ensurePeriodic(context: Context) = GlobalSyncScheduler.ensurePeriodic(context)
 }
+
+
+/** A 409 means this event ID is already bound to a different contribution and cannot succeed on retry. */
+internal fun isTerminalContributionConflict(statusCode: Int): Boolean = statusCode == 409
