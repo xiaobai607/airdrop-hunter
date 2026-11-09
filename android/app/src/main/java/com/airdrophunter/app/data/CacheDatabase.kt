@@ -192,9 +192,6 @@ interface ProjectRatingDao {
 }
 
 @Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class], version = 8, exportSchema = false)
-internal fun shouldPersistPrivateAccounting(accountScope: String): Boolean =
-    accountScope != "guest"
-
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -469,25 +466,6 @@ object CacheStore {
                 WalletActivityNetworkPolicy.isSupported(effectiveNetwork) &&
                 db.userInteractionDao().hasTransaction(scope, effectiveNetwork, bill.walletAddress, bill.txHash)
             ) return@withTransaction false
-            // Guests contribute only the public aggregate. Their detailed wallet,
-            // transaction, project and P&L records must not be persisted after confirmation.
-            if (!shouldPersistPrivateAccounting(scope)) {
-                canonicalOfficialId?.takeIf { isEligibleForPublicContribution(effectiveBill) }?.let { officialId ->
-                    db.communitySyncOutboxDao().insert(
-                        CommunitySyncOutboxEntity(
-                            id = bill.id,
-                            accountScope = scope,
-                            projectOfficialId = officialId,
-                            gasCostUsd = gas,
-                            actualRewardUsd = reward,
-                            interactionCount = 1,
-                            createdAt = bill.timestamp
-                        )
-                    )
-                }
-                db.pendingBillDao().delete(id, scope)
-                return@withTransaction true
-            }
             val ledgerKey = "${scope}:local:personal_ledger"
             val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
             val gson = Gson()
