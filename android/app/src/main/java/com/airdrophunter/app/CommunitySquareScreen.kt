@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.runtime.*
 import android.widget.Toast
@@ -78,6 +80,7 @@ fun CommunitySquareScreen(
     var useDemoData by remember { mutableStateOf(BuildConfig.DEBUG) }
     var selectedTag by remember { mutableStateOf<String?>(null) }
     var favoritesOnly by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
     val allTags = listOf("L2", "零撸", "需测试网", "高Gas", "明牌空投")
 
     LaunchedEffect(Unit) {
@@ -110,7 +113,8 @@ fun CommunitySquareScreen(
     }
     val displayedProjects = combinedProjects.filter {
         (selectedTag == null || selectedTag in it.tags) &&
-            (!favoritesOnly || it.id in favoriteIds)
+            (!favoritesOnly || it.id in favoriteIds) &&
+            matchesCommunityProjectQuery(it.name, it.chain, it.tags, searchQuery)
     }
         .let { filtered ->
             when (ranking) {
@@ -129,6 +133,22 @@ fun CommunitySquareScreen(
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("微社区广场", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("像逛 Steam 一样发现空投项目，按收益、风险和标签探索", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    placeholder = { Text("搜索项目名称、链或标签") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "搜索社区项目") },
+                    trailingIcon = {
+                        if (searchQuery.isNotBlank()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "清除搜索")
+                            }
+                        }
+                    }
+                )
                 Surface(color = if (useDemoData) Color(0xFFFFF4E5) else Color(0xFFE8F7EF), shape = RoundedCornerShape(999.dp)) {
                     Text(
                         if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网统计仅累计用户手动确认的真实贡献",
@@ -191,7 +211,12 @@ fun CommunitySquareScreen(
         if (displayedProjects.isEmpty()) {
             item {
                 Text(
-                    if (favoritesOnly) "还没有收藏项目，点击项目卡片上的爱心即可收藏" else "暂无符合条件的项目",
+                    when {
+                        favoritesOnly && searchQuery.isNotBlank() -> "没有找到符合搜索条件的收藏项目"
+                        favoritesOnly -> "还没有收藏项目，点击项目卡片上的爱心即可收藏"
+                        searchQuery.isNotBlank() -> "没有找到匹配的社区项目"
+                        else -> "暂无符合条件的项目"
+                    },
                     Modifier.fillMaxWidth().padding(vertical = 28.dp),
                     color = AppColors.TextHelper,
                     style = MaterialTheme.typography.bodyMedium
