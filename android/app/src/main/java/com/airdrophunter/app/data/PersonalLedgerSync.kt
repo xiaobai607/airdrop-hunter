@@ -1,15 +1,7 @@
 package com.airdrophunter.app.data
 
 import android.content.Context
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.airdrophunter.app.AirdropHunterApplication
 import kotlinx.coroutines.CancellationException
@@ -26,11 +18,18 @@ class PersonalLedgerSyncWorker(
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        val accessToken = TokenStore.readTokenBlocking()?.takeIf { it.isNotBlank() }
+            ?: return@withContext Result.success()
+        val cadenceKey = SyncCadence.scopedKey(SyncCadence.PERSONAL_LEDGER_KEY, accessToken)
+        if (!inputData.getBoolean(GlobalSyncScheduler.FORCE_KEY, false) &&
+            !SyncCadence.isDue(applicationContext, cadenceKey, 8, TimeUnit.HOURS)) {
+            return@withContext Result.success()
+        }
         ApiClient.initialize(applicationContext)
-        if (TokenStore.readTokenBlocking().isNullOrBlank()) return@withContext Result.success()
         val app = applicationContext as? AirdropHunterApplication ?: return@withContext Result.failure()
         try {
             if (app.appContainer.accountingRepository.syncPersonalLedger()) {
+                SyncCadence.markSuccess(applicationContext, cadenceKey)
                 Result.success()
             } else {
                 Result.retry()
@@ -44,27 +43,6 @@ class PersonalLedgerSyncWorker(
 }
 
 object PersonalLedgerSyncScheduler {
-    private const val ONE_TIME_NAME = "private-ledger-sync-retry"
-    private const val PERIODIC_NAME = "private-ledger-periodic-sync"
-
-    private fun constraints() = Constraints.Builder()
-        .setRequiredNetworkType(NetworkType.CONNECTED)
-        .build()
-
-    fun enqueue(context: Context) {
-        val request = OneTimeWorkRequestBuilder<PersonalLedgerSyncWorker>()
-            .setConstraints(constraints())
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
-        WorkManager.getInstance(context.applicationContext)
-            .enqueueUniqueWork(ONE_TIME_NAME, ExistingWorkPolicy.KEEP, request)
-    }
-
-    fun ensurePeriodic(context: Context) {
-        val request = PeriodicWorkRequestBuilder<PersonalLedgerSyncWorker>(8, TimeUnit.HOURS)
-            .setConstraints(constraints())
-            .build()
-        WorkManager.getInstance(context.applicationContext)
-            .enqueueUniquePeriodicWork(PERIODIC_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
-    }
+    fun enqueue(context: Context) = GlobalSyncScheduler.enqueueNow(context, forcePersonalLedger = true)
+    fun ensurePeriodic(context: Context) = GlobalSyncScheduler.ensurePeriodic(context)
 }
