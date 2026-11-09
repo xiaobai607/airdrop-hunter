@@ -144,12 +144,9 @@ class AccountingRepository(
             val cloudRecordIds = cloudEntries.mapTo(mutableSetOf()) { it.client_record_id }
             // Simulated toolbar bills are retained on this device for testing, but
             // must never be uploaded to the account's real personal ledger.
-            val demoLocalEntries = localEntries.filter {
-                it.extra["is_demo"] == "true" || it.tx_hash.startsWith("MOCK-")
-            }.filterNot { it.client_record_id in cloudRecordIds }
-            val syncableLocalEntries = localEntries.filterNot {
-                it.extra["is_demo"] == "true" || it.tx_hash.startsWith("MOCK-")
-            }
+            val demoLocalEntries = localEntries.filter(::isDemoPersonalLedgerEntry)
+                .filterNot { it.client_record_id in cloudRecordIds }
+            val syncableLocalEntries = localEntries.filterNot(::isDemoPersonalLedgerEntry)
             syncableLocalEntries.filterNot { it.client_record_id in cloudRecordIds }.forEach { entry ->
                 cloudEntries += remote.upsertPersonalLedger(entry.client_record_id, entry)
             }
@@ -181,3 +178,7 @@ class AccountingRepository(
         }.getOrDefault(false)
     }
 }
+
+internal fun isDemoPersonalLedgerEntry(entry: PersonalLedgerWriteRequest): Boolean =
+    entry.extra["is_demo"] == "true" ||
+        isDemoAccountingTransaction(entry.tx_hash, entry.wallet_address, entry.interaction_method)

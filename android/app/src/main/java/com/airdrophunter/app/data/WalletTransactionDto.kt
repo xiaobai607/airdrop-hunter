@@ -1,5 +1,8 @@
 package com.airdrophunter.app.data
 
+import java.util.Locale
+import java.util.UUID
+
 data class WalletTransactionDto(
     val chain: String,
     val hash: String,
@@ -36,6 +39,17 @@ object WalletTransactionAccountingPolicy {
             transaction.fee_paid_by_wallet &&
             transaction.fee_type != "evm_l2_execution_fee_wei"
         ) transaction.gas_cost_usd.orEmpty() else ""
+}
+
+object WalletTransactionIdentity {
+    /** Stable transaction ID shared across guest/account scopes; Room scopes the row separately. */
+    fun pendingBillId(chain: String, walletAddress: String, txHash: String, ecosystem: String): String {
+        val network = chain.trim().lowercase(Locale.US)
+        val address = if (ecosystem == WalletEcosystem.EVM) walletAddress.trim().lowercase(Locale.US) else walletAddress.trim()
+        val hash = if (network == "solana") txHash else txHash.lowercase(Locale.US)
+        val identity = "$network|$address|$hash"
+        return UUID.nameUUIDFromBytes(identity.toByteArray(Charsets.UTF_8)).toString()
+    }
 }
 
 data class WalletActivityBatchDto(

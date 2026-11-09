@@ -35,6 +35,27 @@ class AccountingRepositoryTest {
     }
 
     @Test
+    fun demoLedgerRowsAreRecognizedAndNeverTreatedAsSyncable() {
+        val demo = PersonalLedgerWriteRequest(
+            client_record_id = "demo-row",
+            project_id = null,
+            project_name = "Demo",
+            chain = "ethereum",
+            wallet_address = "0x" + "1".repeat(40),
+            tx_hash = "0x" + "a".repeat(64),
+            interaction_method = "模拟测试",
+            expected_gas_cost_usd = 0.0,
+            expected_reward_usd = null,
+            actual_gas_cost_usd = 0.0,
+            actual_reward_usd = 0.0,
+            occurred_at = "2026-11-09T00:00:00Z"
+        )
+        assertTrue(isDemoPersonalLedgerEntry(demo))
+        assertTrue(isDemoPersonalLedgerEntry(demo.copy(interaction_method = "chain import", extra = mapOf("is_demo" to "true"))))
+        assertTrue(!isDemoPersonalLedgerEntry(demo.copy(interaction_method = "chain import", extra = emptyMap())))
+    }
+
+    @Test
     fun pendingBillOperationsAreDelegatedToLocalDataSource() = runBlocking {
         val source = FakeAccountingLocalDataSource()
         val repository = AccountingRepository(source)
