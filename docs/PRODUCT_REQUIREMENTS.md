@@ -793,6 +793,7 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Existing `CoinGeckoPriceRepository` currently supports only TRX/USDT spot quotes. Extend it conservatively for explicitly mapped, unambiguous token IDs; keep quote results nullable and persist quote source/time. Manual valuation remains available; never guess from ambiguous symbols.
 - The latest transaction-linked contribution enhancement is a separate pending extension of Batch 07, but it shares the same confirmation/outbox path: implement the unchecked opt-in, per-wallet Tx Hash, chain verification, receipt fee calculation, historical valuation, provenance tiers, and retry/privacy behavior from Sections 2 and 5.2. Do not create a second contribution pipeline or send public contributions by default.
 - **Next coherent implementation focus:** integrate the project-scoped direct accounting workflow with the existing ledger transaction boundary and the new opt-in contribution contract. Keep the community adoption affordances already present. After this integration is validated, resume the existing Batch 08–15 order.
+- **Current implementation evidence (2026-11-10):** The multi-wallet accounting branch includes Room 16→17 reward-kind/quantity/unit/USD valuation and historical quote metadata, sticky USD-profit completeness, one Room transaction for all selected wallet rows plus local ledger/project aggregates, and deterministic per-wallet batch IDs. The project detail screen exposes “记一笔”, wallet multi-select, per-wallet Gas, per-wallet or total reward allocation, USD/token/manual valuation/points/unissued/unknown reward types, and quick Gas chips. Anonymous consent is independent per selected wallet and unchecked by default; only an explicitly authorized wallet must provide its own locally validated chain-specific Tx Hash. Unsupported networks cannot opt in. Opted-in rows remain private and pending chain verification; they are not yet enqueued to the public outbox. Exact PR head 35742a12b9784f2990adf5b41510939d87dd181a passed Android unit tests and Debug APK assembly in Actions run 42706233132. Backend Tx Hash verification, historical token quote lookup wiring, and post-verification outbox enqueue remain pending. Unknown/points/unissued rewards use a numeric compatibility sentinel only internally; explicit reward-kind/completeness fields govern presentation and USD totals.
 
 ### New cross-module requirements captured — 2026-11-10 (requirements only; not yet implemented)
 
@@ -825,3 +826,81 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Public dashboard bars and totals distinguish user-reported, transaction-linked, and amount-verified data: lighter/semitransparent styling for user-reported values, an explicit separate transaction-linked state, and solid/high-confidence styling for receipt-verified amounts. Never silently combine tiers without provenance labels.
 - No transaction verification result may automatically complete an event. The user must still manually enter and confirm actual realized results.
 - **Status:** requirements only; Android opt-in/hash capture, durable pending/retry state, backend chain/provider adapters, historical-price valuation, fee-completeness checks, ±20% comparison, global fingerprint uniqueness, provenance-aware aggregates/UI, and regression tests are pending. Implement as an extension of Batch 07's existing contribution flow, not as a second pipeline.
+
+
+### 2026-11-10 continuation verification note — PR #119
+
+- The project-scoped direct-entry UI is now being validated against the exact PR head. CI run 42705514709 on head 213a402e2acf0475fa3beabaf0dfd9744cf0c251 failed at Kotlin compilation in ProjectDetailScreen.kt because the newly nullable USD reward/net values were passed to a metric composable that accepted only non-null Double.
+- The fix changes the period metric to accept nullable values and display “估值未完整” instead of coercing an unknown USD result to zero. This preserves the product rule that incomplete reward valuation must not look like a real $0 income or net result.
+- The accounting dialog now has separate per-wallet Gas and reward amount fields, plus the campaign-total even-split mode. Per-row public opt-in and local chain-specific Tx Hash validation remain pending; the current batch-wide opt-in must be replaced before public contribution is enabled.
+- Do not merge PR #119 until the exact latest head passes Android unit tests and Debug APK assembly. Backend Tx verification, historical-price valuation, global chain+hash replay protection, old pending-bill/outbox gating, provenance-aware public aggregates, and full end-to-end regression remain pending.
+
+
+### 2026-11-10 per-wallet consent and local hash-validation implementation
+
+- PR #119 follow-up changes anonymous contribution authorization from one batch-wide switch to a separate unchecked-by-default switch on each selected wallet row. A wallet can remain private while another wallet in the same atomic batch explicitly opts in.
+- Each opted-in row must provide its own chain-specific transaction hash: EVM hashes require 0x + 64 hex characters; TRON and Bitcoin transaction IDs require 64 hex characters; Solana signatures require 87–88 Base58 characters. Unsupported networks cannot opt in. This is local format validation only, not proof that a transaction exists or belongs to the selected wallet.
+- The per-row consent bit is persisted with that interaction's existing metadata/entity; the batch persistence remains one Room transaction. No public outbox enqueue is performed by this direct-entry flow.
+- Regression tests cover mixed consent within one batch, missing/malformed hashes, supported chain formats, and unsupported-network rejection. Backend receipt verification, historical pricing, replay protection, provenance tiers, and legacy pending-bill contribution gating remain pending.
+
+
+### PR #119 validation follow-up — 2026-11-10
+
+- Latest PR head before this correction: `d737a6b29bd247c80dd5dea87a4a83d0dcae474f`; Actions run `42708139131` compiled the Android app and assembled the Debug APK successfully, but the unit-test task failed (114 passed, one failed).
+- Failure root cause: the new chain-hash-format test created otherwise valid EVM/TRON/Solana test rows without supplying the required reward input. `ManualProjectAccountingPolicy.prepare(..., PER_WALLET)` correctly rejects a row without a reward; the failure was in the test fixture, not the hash validators or application compile. The test now supplies an explicit UNKNOWN reward for each network row while testing only hash-format behavior.
+- Exact-head CI must be rerun after this test-only correction. No PR merge is authorized until the new exact head passes.
+- Code review confirms the direct-entry batch writes the per-wallet consent bit into each private interaction and does not enqueue an outbox row. However, the legacy `confirmPendingBill` path still auto-enqueues eligible contributions without the new explicit per-row opt-in and chain-verification contract. This is a separate connected entry point and remains a required follow-up: retain private bill confirmation, but default public contribution to off and only enqueue after explicit consent plus successful backend verification. Do not silently assume legacy confirmation is consent.
+- Local hash validation is only syntax validation; it does not prove transaction existence, ownership, finality, fee amount, or historical USD value. TRON/Bitcoin/Solana must not be described as verified until deterministic server adapters exist.
+
+
+### PR #119 legacy bill-confirmation integration — 2026-11-10 (implementation submitted; CI pending)
+
+- The browser's existing “确认本次记账” dialog now includes a separate unchecked-by-default consent for that single pending bill. If selected, the current chain and Tx Hash must pass local format validation before confirmation; unsupported/malformed inputs can still be saved privately after consent is turned off.
+- Consent is passed through the accounting repository and persisted in the private interaction row and ledger metadata. Opted-in rows are marked `pending_verification`; non-opted-in rows are marked `private`.
+- Critical privacy correction: the legacy `confirmPendingBill` transaction no longer inserts an anonymous outbox row merely because the user confirmed private accounting. It preserves the local/private ledger confirmation and only stores the user's explicit intent. No public contribution is sent until the backend verifies transaction existence, fee payer, finality, full fee components, historical quote, tolerance, and global replay protection.
+- The new direct multi-wallet dialog and the legacy single-bill confirmation dialog now share the same unchecked-by-default consent principle. The direct multi-wallet path still writes all selected rows atomically and keeps public verification separate from private-ledger success.
+- Repository tests verify that opt-in intent is propagated. Hash-format tests now provide the required UNKNOWN reward fixture so they test only the intended network/hash validation behavior.
+- Backend verifier/outbox integration and provenance-aware public aggregation remain pending. Do not label local syntax validation as on-chain verification.
+
+- **Follow-up compile review:** the repository facade also needs to declare the new opt-in parameter before forwarding it to the local data source; this signature is included in the latest follow-up commit. Revalidate the exact latest head rather than relying on an earlier in-progress CI run.
+
+
+### 2026-11-10 accounting aggregate correctness follow-up
+
+- Exact latest PR #119 head `98818a62c666de9f7bd3ad17fce7f047e1582065` passed Android Debug APK assembly and unit tests in Actions run `42709360469`.
+- Code-fit review then found that the profile's local achievement aggregator still summed compatibility sentinel values from projects whose USD reward valuation is incomplete. This could make a partial ledger appear to have a confirmed total reward, net profit, or win rate.
+- The local profile aggregate now keeps Gas totals, but excludes incomplete-valuation projects from USD reward/profit and win-rate calculations. It carries an explicit `usd_profit_complete` flag; the profile shows “估值未完整” rather than presenting the partial sum as a final USD total. The number of participating projects remains the full ledger project count.
+- Added regression coverage for a mixed complete/incomplete ledger. This is part of the same accounting-domain consistency pass; it does not change historical ledger rows or infer missing reward values.
+- The new follow-up commit requires its own exact-head Android CI run before PR #119 can be considered validated. Backend receipt verification, historical-price quotes, global chain+hash replay protection, and the verified contribution pipeline remain pending.
+
+
+### Cloud/local accounting valuation parity follow-up (2026-11-10; implementation submitted, CI pending)
+
+- A cross-module audit found the guest/local profile now excludes incomplete-valuation projects, while the authenticated `/api/user/stats` endpoint still summed compatibility sentinel values from every private-ledger row.
+- The backend now groups ledger rows by project and applies the same project-level completeness rule as Room: Gas totals remain visible, but reward totals, net P&L, profitable-project count, and win rate exclude a project if any row in that project has an incomplete USD reward valuation.
+- The backend returns `usd_profit_complete`; Android's existing `UserStatsDto` and profile display consume this flag. New direct-accounting rows persist the flag in the private-ledger `extra` metadata so the same meaning survives authenticated sync.
+- Legacy confirmed-bill rows without reward-kind metadata remain backward-compatible. New reward metadata infers POINTS/UNISSUED/UNKNOWN as incomplete and TOKEN as complete only when a persisted USD valuation exists. Explicit completeness metadata takes precedence.
+- Added backend regression tests for unknown, points, unpriced-token, USD, manual USD valuation, and priced-token rows, including project-level aggregation.
+- This is an end-to-end correctness extension of the current accounting integration, not a new public-contribution pipeline. The next dependency remains backend transaction receipt verification and provenance-aware anonymous outbox delivery.
+- Current branch head before this follow-up: `b4a8149b459b464fcbffd9a2972809440a8cc0e5`; this change requires exact-head Android and backend CI before it is considered validated.
+
+
+## 2026-11-10 链上核验与公共贡献闭环进展
+
+本轮在原有多钱包记账基础上补齐公共贡献核验链路，以下内容已进入本次开发分支，仍需 CI 验证及部署配置确认：
+
+1. **后端先验后收**：公共贡献接口现在要求网络、钱包地址、Tx Hash、Gas 金额和实际收益。没有通过服务端核验不会写入公共统计；仅有客户端金额或哈希格式不再足够。
+2. **EVM 核验范围**：当前适配 Ethereum、BNB Smart Chain、Polygon、Arbitrum、Optimism、Base、Avalanche。服务端通过 Etherscan V2 读取交易、回执、发送方、执行状态、区块和确认数；发送钱包不匹配、金额超出 ±20% 容差时拒绝公共贡献。失败交易仍可核验其已经支付的 Gas，但不会被标记为成功活动；确认数不足属于待确认状态，保留队列并自动重试。
+3. **历史价格与 Gas**：Tier 3 使用交易区块时点的 Chainlink 原生币/USD Feed 历史状态，按实际 gasUsed × effectiveGasPrice（并计入服务端可读取的 L1 fee）计算 Gas USD。若 L2 的 L1 数据费未能完整读取，只标记为 Tier 2“链上已确认”，不冒充精确核验；不完整或限流的服务响应返回可重试状态。
+4. **三级来源标识**：历史旧数据保留为“用户自报”；交易发送方、成功状态和确认数核验通过但费用组件不完整的记录标记为“链上已确认”；费用组件和历史报价完整且金额通过容差检查的记录标记为“链上精确核验”。快照和项目详情接口输出各等级 Gas 汇总，详情页展示分级金额。
+5. **防重与隐私**：服务端只保存由 `COMMUNITY_TX_FINGERPRINT_SECRET` 生成的链+Tx Hash HMAC 指纹，以及不含原始钱包地址/Tx Hash 的核验元数据；数据库唯一约束执行全局防重复。原始钱包地址和 Tx Hash 仅作为核验请求输入，不写入公共贡献表。用户私账仍按原有私有账本路径保存。
+6. **Android 待处理队列**：Room 升级到 18，待核验队列在本机保存网络、钱包、Tx Hash 和发生时间；多钱包手工记账要求逐钱包明确选择实际 EVM 网络（不把通用“EVM”生态标签猜成 Ethereum），逐笔授权后才入队。浏览器待确认账单和项目多钱包记账均接入队列；仅开放当前 EVM 核验网络、公共项目及完整 USD 奖励估值。游客队列留在本地，登录用户的详细账本仍走私有云端账本。
+7. **失败处理**：服务不可用、限流、回执未就绪等返回 503 并自动重试；金额不符、钱包不匹配、网络不支持和全局 Hash 重复等返回终态拒绝；成功或终态拒绝会更新私账中的贡献状态元数据。任何公共核验失败都不回滚或删除用户私账。
+8. **奖励边界**：链上核验只核验交易与 Gas，不证明空投奖励或利润。实际奖励仍是用户明确确认的金额；不完整 USD 估值的记录不会进入公共贡献队列。
+
+**发布前仍需完成**：
+- Render 后端配置服务端专用 `ETHERSCAN_API_KEY` 和至少 32 字节随机 `COMMUNITY_TX_FINGERPRINT_SECRET`；不得把密钥放进 APK、仓库或日志。指纹密钥必须长期稳定保存，轮换前要先设计历史指纹迁移，否则全局防重复会失效。
+- 完成当前分支 Android 单元测试/Debug APK 与后端 pytest 的最新 CI 验证；失败必须在同一 PR 修复。
+- 进行真实 EVM 交易的部署后验证，确认各网络 Etherscan V2 与历史 Chainlink `eth_call` 的实际可用性；服务商不支持历史区块读取时保持待处理，不得降级伪造 Tier 3。
+- 私账行级核验状态已写入本地账本及登录用户的私有账本元数据；“等待核验 / 已核验 / 核验拒绝”的可见状态文案和交互反馈并入 Batch 15 全局 UI 集成，避免在本批拆成零散 UI 改动。
+- TRON、Bitcoin、Solana 暂不接入公共链上核验；这些网络仍可使用个人账本，不能显示为链上核验通过。

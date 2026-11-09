@@ -39,7 +39,8 @@ data class PnlRecordEntity(
     val totalGasCostUsd: Double,
     val totalRewardUsd: Double,
     val netProfitUsd: Double,
-    @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest"
+    @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest",
+    @ColumnInfo(defaultValue = "1") val usdProfitComplete: Boolean = true
 )
 
 
@@ -56,7 +57,8 @@ data class UserProjectEntity(
     val projectLocalId: String, val projectOfficialId: String?, val projectName: String,
     val status: String, val totalGasCostUsd: Double, val totalActualRewardUsd: Double,
     val netProfitUsd: Double, val interactionCount: Int, val lastInteractionAt: Long,
-    val createdAt: Long, val updatedAt: Long
+    val createdAt: Long, val updatedAt: Long,
+    @ColumnInfo(defaultValue = "1") val usdProfitComplete: Boolean = true
 )
 
 @Entity(tableName = "user_interactions", primaryKeys = ["accountScope", "id"], indices = [Index(value = ["accountScope", "projectLocalId", "timestamp"]), Index(value = ["projectOfficialId"])])
@@ -68,7 +70,15 @@ data class UserInteractionEntity(
     val gasCostUsd: Double, val actualRewardUsd: Double, val interactionMethod: String, val timestamp: Long,
     val assetBreakdownJson: String? = null,
     val expectedGasCostUsd: Double? = null,
-    val expectedRewardUsd: Double? = null
+    val expectedRewardUsd: Double? = null,
+    @ColumnInfo(defaultValue = "'USD'") val rewardKind: String = "USD",
+    val rewardAmount: Double? = null,
+    val rewardUnit: String? = null,
+    val rewardUsdValuation: Double? = null,
+    val rewardQuoteSource: String? = null,
+    val rewardQuoteTimestamp: Long? = null,
+    @ColumnInfo(defaultValue = "1") val usdProfitComplete: Boolean = true,
+    @ColumnInfo(defaultValue = "0") val publicContributionOptIn: Boolean = false
 )
 
 @Entity(tableName = "community_sync_outbox", primaryKeys = ["accountScope", "id"], indices = [Index(value = ["accountScope", "createdAt"])])
@@ -80,7 +90,11 @@ data class CommunitySyncOutboxEntity(
     @ColumnInfo(defaultValue = "0") val attemptCount: Int = 0,
     val lastAttemptAt: Long? = null, val lastError: String? = null,
     val assetBreakdownJson: String? = null,
-    @ColumnInfo(defaultValue = "0") val terminalFailure: Boolean = false
+    @ColumnInfo(defaultValue = "0") val terminalFailure: Boolean = false,
+    val network: String? = null,
+    val walletAddress: String? = null,
+    val txHash: String? = null,
+    val occurredAt: Long? = null
 )
 
 @Entity(
@@ -155,15 +169,15 @@ interface PnlRecordDao {
     @Query("SELECT * FROM pnl_records WHERE projectOfficialId = :projectOfficialId AND accountScope = :accountScope LIMIT 1")
     suspend fun findByProject(projectOfficialId: String, accountScope: String): PnlRecordEntity?
 
-    @Query("UPDATE pnl_records SET projectOfficialId = :projectOfficialId, projectCustomName = :customName, walletAddress = :walletAddress, totalGasCostUsd = totalGasCostUsd + :gas, totalRewardUsd = totalRewardUsd + :reward, netProfitUsd = (totalRewardUsd + :reward) - (totalGasCostUsd + :gas) WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope")
-    suspend fun addAmounts(projectLocalId: String, projectOfficialId: String?, customName: String, walletAddress: String, gas: Double, reward: Double, accountScope: String): Int
+    @Query("UPDATE pnl_records SET projectOfficialId = :projectOfficialId, projectCustomName = :customName, walletAddress = :walletAddress, totalGasCostUsd = totalGasCostUsd + :gas, totalRewardUsd = totalRewardUsd + :reward, netProfitUsd = (totalRewardUsd + :reward) - (totalGasCostUsd + :gas), usdProfitComplete = usdProfitComplete AND :complete WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope")
+    suspend fun addAmounts(projectLocalId: String, projectOfficialId: String?, customName: String, walletAddress: String, gas: Double, reward: Double, complete: Boolean, accountScope: String): Int
 
     @Transaction
-    suspend fun addToProject(projectLocalId: String, projectOfficialId: String?, customName: String, walletAddress: String, gas: Double, reward: Double, accountScope: String) {
-        if (addAmounts(projectLocalId, projectOfficialId, customName, walletAddress, gas, reward, accountScope) == 0) {
+    suspend fun addToProject(projectLocalId: String, projectOfficialId: String?, customName: String, walletAddress: String, gas: Double, reward: Double, complete: Boolean, accountScope: String) {
+        if (addAmounts(projectLocalId, projectOfficialId, customName, walletAddress, gas, reward, complete, accountScope) == 0) {
             insert(PnlRecordEntity(
                 java.util.UUID.randomUUID().toString(), projectOfficialId, projectLocalId,
-                customName, walletAddress, gas, reward, reward - gas, accountScope
+                customName, walletAddress, gas, reward, reward - gas, accountScope, complete
             ))
         }
     }
@@ -182,8 +196,8 @@ interface UserProjectDao {
     suspend fun getAll(accountScope: String): List<UserProjectEntity>
     @Query("SELECT * FROM user_projects WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope LIMIT 1")
     fun observeByLocalId(projectLocalId: String, accountScope: String): Flow<UserProjectEntity?>
-    @Query("UPDATE user_projects SET projectOfficialId = :projectOfficialId, projectName = :projectName, totalGasCostUsd = totalGasCostUsd + :gas, totalActualRewardUsd = totalActualRewardUsd + :reward, netProfitUsd = (totalActualRewardUsd + :reward) - (totalGasCostUsd + :gas), interactionCount = interactionCount + 1, lastInteractionAt = :timestamp, updatedAt = :timestamp WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope")
-    suspend fun addAmounts(projectLocalId: String, projectOfficialId: String?, projectName: String, gas: Double, reward: Double, timestamp: Long, accountScope: String): Int
+    @Query("UPDATE user_projects SET projectOfficialId = :projectOfficialId, projectName = :projectName, totalGasCostUsd = totalGasCostUsd + :gas, totalActualRewardUsd = totalActualRewardUsd + :reward, netProfitUsd = (totalActualRewardUsd + :reward) - (totalGasCostUsd + :gas), interactionCount = interactionCount + 1, lastInteractionAt = :timestamp, updatedAt = :timestamp, usdProfitComplete = usdProfitComplete AND :complete WHERE projectLocalId = :projectLocalId AND accountScope = :accountScope")
+    suspend fun addAmounts(projectLocalId: String, projectOfficialId: String?, projectName: String, gas: Double, reward: Double, timestamp: Long, complete: Boolean, accountScope: String): Int
 }
 
 @Dao
@@ -193,6 +207,8 @@ interface UserInteractionDao {
     fun observeByProject(projectLocalId: String, accountScope: String): Flow<List<UserInteractionEntity>>
     @Query("SELECT * FROM user_interactions WHERE accountScope = :accountScope ORDER BY timestamp DESC")
     suspend fun getAll(accountScope: String): List<UserInteractionEntity>
+    @Query("SELECT * FROM user_interactions WHERE accountScope = :accountScope AND id = :id LIMIT 1")
+    suspend fun findById(id: String, accountScope: String): UserInteractionEntity?
     @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND ((LOWER(:network) = 'solana' AND txHash = :txHash) OR (LOWER(:network) != 'solana' AND LOWER(txHash) = LOWER(:txHash))) AND ((LOWER(:network) IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (LOWER(:network) NOT IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND walletAddress = :walletAddress)))")
     suspend fun hasTransaction(accountScope: String, network: String, walletAddress: String, txHash: String): Boolean
 }
@@ -288,7 +304,7 @@ interface LocalBackupDao {
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectWalletAssignments(rows:List<ProjectWalletAssignmentEntity>)
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 16, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 18, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -534,13 +550,38 @@ object CacheStore {
         }
     }
 
+    private val MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE pnl_records ADD COLUMN usdProfitComplete INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE user_projects ADD COLUMN usdProfitComplete INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN rewardKind TEXT NOT NULL DEFAULT 'USD'")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN rewardAmount REAL")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN rewardUnit TEXT")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN rewardUsdValuation REAL")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN rewardQuoteSource TEXT")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN rewardQuoteTimestamp INTEGER")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN usdProfitComplete INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN publicContributionOptIn INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("UPDATE user_interactions SET rewardAmount = actualRewardUsd, rewardUnit = 'USD', rewardUsdValuation = actualRewardUsd, rewardQuoteSource = 'legacy-recorded'")
+        }
+    }
+
+    private val MIGRATION_17_18 = object : Migration(17, 18) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN network TEXT")
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN walletAddress TEXT")
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN txHash TEXT")
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN occurredAt INTEGER")
+        }
+    }
+
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -764,8 +805,43 @@ object CacheStore {
             result
         }
 
-    suspend fun completeCommunitySync(id: String, accountScope: String) = withContext(Dispatchers.IO) {
+    private suspend fun updatePublicContributionLedgerStatus(
+        id: String,
+        accountScope: String,
+        status: String,
+        verificationTier: String? = null,
+        error: String? = null
+    ) {
+        val db = database ?: return
+        val ledgerKey = "$accountScope:local:personal_ledger"
+        val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+        val gson = Gson()
+        val existing = db.cacheDao().read(ledgerKey)?.let { raw ->
+            runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }.getOrNull()
+        }.orEmpty()
+        var changed = false
+        val updated = existing.map { entry ->
+            if (entry.client_record_id != id) return@map entry
+            changed = true
+            val metadata = entry.extra.toMutableMap()
+            metadata["public_contribution_status"] = status
+            verificationTier?.let { metadata["public_contribution_tier"] = it }
+            error?.takeIf { it.isNotBlank() }?.let { metadata["public_contribution_error"] = it.take(240) }
+            entry.copy(extra = metadata)
+        }
+        if (changed) {
+            db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(updated), System.currentTimeMillis()))
+            if (accountScope.startsWith("user:")) schedulePrivateLedgerSync()
+        }
+    }
+
+    suspend fun completeCommunitySync(
+        id: String,
+        accountScope: String,
+        verificationTier: String
+    ) = withContext(Dispatchers.IO) {
         database?.communitySyncOutboxDao()?.deleteById(id, accountScope)
+        updatePublicContributionLedgerStatus(id, accountScope, "verified", verificationTier)
     }
 
     suspend fun markCommunitySyncAttempt(
@@ -786,6 +862,7 @@ object CacheStore {
         database?.communitySyncOutboxDao()?.markTerminalFailureById(
             id, accountScope, System.currentTimeMillis(), error.take(500)
         )
+        updatePublicContributionLedgerStatus(id, accountScope, "rejected", error = error)
     }
 
     fun observeProjectRatings(projectOfficialId: String): Flow<List<ProjectRatingEntity>> =
@@ -830,7 +907,8 @@ object CacheStore {
         projectCustomName: String,
         gas: Double,
         reward: Double,
-        assetBreakdownJson: String? = null
+        assetBreakdownJson: String? = null,
+        publicContributionOptIn: Boolean = false
     ): Boolean = withContext(Dispatchers.IO) {
         if (projectLocalId.isBlank() || !gas.isFinite() || !reward.isFinite() || gas < 0.0 || reward < 0.0) return@withContext false
         val db = database ?: return@withContext false
@@ -840,13 +918,16 @@ object CacheStore {
             val canonicalOfficialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
             val effectiveNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
                 ?: when (bill.chain.trim().lowercase()) {
-                    "ethereum", "erc20", "evm" -> "ethereum"
+                    "ethereum", "erc20" -> "ethereum"
                     "tron", "trc20" -> "tron"
                     "bitcoin", "btc" -> "bitcoin"
                     "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" -> bill.chain.trim().lowercase()
                     else -> "unknown"
                 }
-            val effectiveBill = bill.copy(network = effectiveNetwork)
+            if (publicContributionOptIn && (
+                    canonicalOfficialId == null ||
+                    !ManualProjectAccountingPolicy.isTransactionHashFormatValid(effectiveNetwork, bill.txHash)
+                )) return@withTransaction false
             val effectiveAssetBreakdown = assetBreakdownJson ?: bill.assetBreakdownJson
             if (
                 bill.txHash.isNotBlank() && bill.walletAddress.isNotBlank() &&
@@ -875,16 +956,18 @@ object CacheStore {
                 occurred_at = Instant.ofEpochMilli(bill.timestamp).toString(),
                 extra = mapOf(
                     "project_official_id" to (canonicalOfficialId ?: ""),
+                    "public_contribution_opt_in" to publicContributionOptIn.toString(),
+                    "public_contribution_status" to if (publicContributionOptIn) "pending_verification" else "private",
                     // Demo transactions remain available for local UI testing but are never synced.
                     "is_demo" to isDemoAccountingTransaction(bill.txHash, bill.walletAddress, bill.interactionMethod).toString()
                 ) + (effectiveAssetBreakdown?.let { mapOf("asset_breakdown" to it) } ?: emptyMap())
             )
             val updatedLedger = (existingLedger.filterNot { it.client_record_id == bill.id } + ledgerEntry)
             db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(updatedLedger), System.currentTimeMillis()))
-            db.pnlRecordDao().addToProject(projectLocalId, canonicalOfficialId, projectCustomName, bill.walletAddress, gas, reward, scope)
+            db.pnlRecordDao().addToProject(projectLocalId, canonicalOfficialId, projectCustomName, bill.walletAddress, gas, reward, true, scope)
             val recordedAt = bill.timestamp
             val updatedProjects = db.userProjectDao().addAmounts(
-                projectLocalId, canonicalOfficialId, projectCustomName, gas, reward, recordedAt, scope
+                projectLocalId, canonicalOfficialId, projectCustomName, gas, reward, recordedAt, true, scope
             )
             if (updatedProjects == 0) {
                 db.userProjectDao().insert(
@@ -921,21 +1004,24 @@ object CacheStore {
                     timestamp = recordedAt,
                     assetBreakdownJson = effectiveAssetBreakdown,
                     expectedGasCostUsd = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 },
-                    expectedRewardUsd = null
+                    expectedRewardUsd = null,
+                    publicContributionOptIn = publicContributionOptIn
                 )
             )
-            canonicalOfficialId?.takeIf {
-                scope != "invalid-session" && isEligibleForPublicContribution(effectiveBill)
-            }?.let { officialId ->
+            if (publicContributionOptIn) {
                 db.communitySyncOutboxDao().insert(
                     CommunitySyncOutboxEntity(
                         id = bill.id,
                         accountScope = scope,
-                        projectOfficialId = officialId,
+                        projectOfficialId = canonicalOfficialId!!,
                         gasCostUsd = gas,
                         actualRewardUsd = reward,
                         createdAt = recordedAt,
-                        assetBreakdownJson = effectiveAssetBreakdown
+                        assetBreakdownJson = effectiveAssetBreakdown,
+                        network = effectiveNetwork,
+                        walletAddress = bill.walletAddress,
+                        txHash = bill.txHash,
+                        occurredAt = recordedAt
                     )
                 )
             }
@@ -946,6 +1032,139 @@ object CacheStore {
             if (confirmed) appContext?.let { CommunityContributionSyncScheduler.enqueue(it) }
         }
     }
+    suspend fun recordManualAccountingBatch(
+        batchId: String,
+        projectLocalId: String,
+        projectOfficialId: String?,
+        projectName: String,
+        batch: ManualAccountingBatch
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (batchId.isBlank() || batchId.length > 100 || projectLocalId.isBlank() || projectName.isBlank()) return@withContext false
+        val db = database ?: return@withContext false
+        val scope = currentAccountScope()
+        if (scope == "invalid-session") return@withContext false
+        val officialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
+        if (batch.entries.any { it.publicContributionOptIn } && officialId == null) return@withContext false
+        val timestamp = System.currentTimeMillis()
+        val rowIds = batch.entries.map { entry ->
+            java.util.UUID.nameUUIDFromBytes("$batchId:${entry.walletId}".toByteArray(Charsets.UTF_8)).toString()
+        }
+        val saved = db.withTransaction {
+            val existingCount = rowIds.count { db.userInteractionDao().findById(it, scope) != null }
+            if (existingCount == rowIds.size) return@withTransaction true
+            if (existingCount != 0) return@withTransaction false
+            batch.entries.forEach { entry ->
+                if (entry.txHash.isNotBlank() && db.userInteractionDao().hasTransaction(scope, entry.network, entry.walletAddress, entry.txHash)) {
+                    return@withTransaction false
+                }
+            }
+            val ledgerKey = "$scope:local:personal_ledger"
+            val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+            val gson = Gson()
+            val ledgerRows = db.cacheDao().read(ledgerKey)?.let { raw ->
+                runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }.getOrNull()
+            }.orEmpty().toMutableList()
+            batch.entries.forEachIndexed { index, entry ->
+                val reward = entry.reward
+                val rewardUsd = entry.actualRewardUsd?.toDouble()
+                val complete = rewardUsd != null
+                val gas = entry.gasCostUsd.toDouble()
+                val rewardValue = rewardUsd ?: 0.0
+                val recordedAt = timestamp + index
+                val id = rowIds[index]
+                val recordedAtIso = Instant.ofEpochMilli(recordedAt).toString()
+                val assetRows = buildList {
+                    add(LedgerAssetAmount(
+                        kind = "gas", amount_native = entry.gasCostUsd.toPlainString(), symbol = "USD",
+                        decimals = 2, usd_valuation = gas, valuation_timestamp = recordedAtIso,
+                        valuation_source = "manual_usd_entry"
+                    ))
+                    reward.amount?.let { amount ->
+                        add(LedgerAssetAmount(
+                            kind = "reward", amount_native = amount.toPlainString(),
+                            symbol = reward.unit?.takeIf { it.isNotBlank() } ?: "USD",
+                            decimals = if (reward.unit.equals("USD", true)) 2 else null,
+                            usd_valuation = rewardUsd,
+                            valuation_timestamp = reward.quoteTimestamp?.let { Instant.ofEpochMilli(it).toString() }
+                                ?: recordedAtIso.takeIf { rewardUsd != null },
+                            valuation_source = reward.quoteSource ?: if (rewardUsd != null) "manual_usd_entry" else null
+                        ))
+                    }
+                }
+                val assetJson = LedgerAssetBreakdownCodec.encode(assetRows)
+                val metadata = mapOf(
+                    "reward_kind" to reward.kind.name,
+                    "reward_amount" to (reward.amount?.toPlainString() ?: ""),
+                    "reward_unit" to (reward.unit ?: ""),
+                    "reward_usd_valuation" to (rewardUsd?.toString() ?: ""),
+                    "reward_quote_source" to (reward.quoteSource ?: ""),
+                    "reward_quote_timestamp" to (reward.quoteTimestamp?.toString() ?: ""),
+                    "usd_profit_complete" to complete.toString(),
+                    "public_contribution_opt_in" to entry.publicContributionOptIn.toString(),
+                    "public_contribution_status" to if (entry.publicContributionOptIn && complete && officialId != null) "pending_verification" else if (entry.publicContributionOptIn) "not_eligible" else "private",
+                    "project_official_id" to (officialId ?: ""),
+                    "asset_breakdown" to (assetJson ?: "")
+                )
+                ledgerRows.removeAll { it.client_record_id == id }
+                ledgerRows += PersonalLedgerWriteRequest(
+                    client_record_id = id, project_id = projectLocalId, project_name = projectName,
+                    chain = entry.network, wallet_address = entry.walletAddress, tx_hash = entry.txHash,
+                    interaction_method = "manual_project_entry", expected_gas_cost_usd = null,
+                    expected_reward_usd = null, actual_gas_cost_usd = gas,
+                    actual_reward_usd = rewardValue, occurred_at = Instant.ofEpochMilli(recordedAt).toString(),
+                    extra = metadata
+                )
+                db.pnlRecordDao().addToProject(projectLocalId, officialId, projectName, entry.walletAddress, gas, rewardValue, complete, scope)
+                val updated = db.userProjectDao().addAmounts(projectLocalId, officialId, projectName, gas, rewardValue, recordedAt, complete, scope)
+                if (updated == 0) {
+                    db.userProjectDao().insert(UserProjectEntity(
+                        id = java.util.UUID.randomUUID().toString(), accountScope = scope,
+                        projectLocalId = projectLocalId, projectOfficialId = officialId,
+                        projectName = projectName, status = "tracking", totalGasCostUsd = gas,
+                        totalActualRewardUsd = rewardValue, netProfitUsd = rewardValue - gas,
+                        interactionCount = 1, lastInteractionAt = recordedAt, createdAt = recordedAt,
+                        updatedAt = recordedAt, usdProfitComplete = complete
+                    ))
+                }
+                db.userInteractionDao().insert(UserInteractionEntity(
+                    id = id, accountScope = scope, projectLocalId = projectLocalId,
+                    projectOfficialId = officialId, projectName = projectName,
+                    txHash = entry.txHash, walletAddress = entry.walletAddress, network = entry.network,
+                    gasCostUsd = gas, actualRewardUsd = rewardValue, interactionMethod = "manual_project_entry",
+                    timestamp = recordedAt, assetBreakdownJson = assetJson, rewardKind = reward.kind.name,
+                    rewardAmount = reward.amount?.toDouble(), rewardUnit = reward.unit,
+                    rewardUsdValuation = rewardUsd, rewardQuoteSource = reward.quoteSource,
+                    rewardQuoteTimestamp = reward.quoteTimestamp, usdProfitComplete = complete,
+                    publicContributionOptIn = entry.publicContributionOptIn
+                ))
+                if (entry.publicContributionOptIn && complete) {
+                    db.communitySyncOutboxDao().insert(
+                        CommunitySyncOutboxEntity(
+                            id = id,
+                            accountScope = scope,
+                            projectOfficialId = officialId!!,
+                            gasCostUsd = gas,
+                            actualRewardUsd = rewardValue,
+                            createdAt = recordedAt,
+                            assetBreakdownJson = assetJson,
+                            network = entry.network,
+                            walletAddress = entry.walletAddress,
+                            txHash = entry.txHash,
+                            occurredAt = recordedAt
+                        )
+                    )
+                }
+            }
+            db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(ledgerRows), System.currentTimeMillis()))
+            true
+        }
+        if (saved && scope.startsWith("user:")) schedulePrivateLedgerSync()
+        if (saved && batch.entries.any { it.publicContributionOptIn && it.actualRewardUsd != null }) {
+            appContext?.let { CommunityContributionSyncScheduler.enqueue(it) }
+        }
+        saved
+    }
+
     private val MIGRATION_4_5 = object : Migration(4, 5) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE pending_bills ADD COLUMN accountScope TEXT NOT NULL DEFAULT 'guest'")

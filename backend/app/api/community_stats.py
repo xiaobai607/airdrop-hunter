@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -12,6 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import CommunityContribution, CommunityProjectRating, CommunityProjectStats, PersonalLedgerEntry, User
 from app.routers.auth import get_current_user, get_optional_current_user, limiter
+from app.services.transaction_verification import (
+    VerificationPending,
+    VerificationRejected,
+    verify_community_transaction,
+)
 
 router = APIRouter(prefix="/api/community/projects", tags=["community"])
 MAX_AMOUNT = Decimal("999999999999.99999999")
@@ -29,16 +34,27 @@ class CommunityAssetAmount(BaseModel):
 
 class CommunityContributionRequest(BaseModel):
     event_id: UUID
+    network: str = Field(min_length=1, max_length=40)
+    wallet_address: str = Field(min_length=1, max_length=160)
+    tx_hash: str = Field(min_length=1, max_length=180)
+    public_contribution_opt_in: bool
     gas_cost_usd: Decimal = Field(ge=0, le=MAX_AMOUNT)
     actual_reward_usd: Decimal = Field(ge=0, le=MAX_AMOUNT)
     asset_breakdown: list[CommunityAssetAmount] = Field(default_factory=list, max_length=10)
 
 
-def serialize_stats(project_official_id: str, row: CommunityProjectStats | None, average_rating=None, rating_count=0) -> dict:
+def serialize_stats(
+    project_official_id: str,
+    row: CommunityProjectStats | None,
+    average_rating=None,
+    rating_count=0,
+    gas_by_verification_tier: dict[str, float] | None = None,
+) -> dict:
     return {
         "project_official_id": project_official_id,
         "total_gas_cost_usd": float(row.total_gas_cost_usd or 0) if row else 0.0,
         "total_actual_reward_usd": float(row.total_actual_reward_usd or 0) if row else 0.0,
+        "gas_by_verification_tier": gas_by_verification_tier or {},
         "average_rating": float(average_rating) if average_rating is not None else None,
         "rating_count": int(rating_count or 0),
         "data_quality": "user_confirmed",
@@ -56,7 +72,16 @@ async def serialize_stats_with_rating(
             ).where(CommunityProjectRating.project_official_id == project_official_id)
         )
     ).one()
-    return serialize_stats(project_official_id, row, rating.average, rating.count)
+    tier_result = await db.execute(
+        select(
+            CommunityContribution.verification_tier,
+            func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0),
+        )
+        .where(CommunityContribution.project_official_id == project_official_id)
+        .group_by(CommunityContribution.verification_tier)
+    )
+    tier_totals = {str(item[0]): float(item[1] or 0) for item in tier_result.all()}
+    return serialize_stats(project_official_id, row, rating.average, rating.count, tier_totals)
 
 
 @router.post("/{project_official_id}/contributions")
@@ -68,37 +93,78 @@ async def add_community_contribution(
     db: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User | None, Depends(get_optional_current_user)],
 ):
+    if not payload.public_contribution_opt_in:
+        raise HTTPException(status_code=403, detail="未获得匿名公共贡献授权")
+
+    # Tx Hash/address are transient verification inputs only. The database stores
+    # a server-keyed fingerprint and sanitized verification metadata, never raw values.
+    try:
+        verification = await verify_community_transaction(
+            payload.network, payload.wallet_address, payload.tx_hash, payload.gas_cost_usd
+        )
+    except VerificationPending:
+        raise HTTPException(status_code=503, detail="链上核验暂不可用，记录已保留并等待重试")
+    except VerificationRejected as error:
+        raise HTTPException(status_code=422, detail=str(error))
+
+    public_gas_cost = verification.gas_cost_usd
+    asset_breakdown = [item.model_dump(mode="json") for item in payload.asset_breakdown]
+    for asset in asset_breakdown:
+        if not isinstance(asset, dict) or asset.get("kind") != "gas":
+            continue
+        if verification.tier == "amount_verified":
+            quote_timestamp = datetime.fromtimestamp(
+                int(verification.metadata["price_updated_at"]), tz=timezone.utc
+            )
+            asset["amount_native"] = str(verification.metadata["native_fee"])
+            asset["symbol"] = str(verification.metadata["native_symbol"])
+            asset["decimals"] = 18
+            asset["usd_valuation"] = str(public_gas_cost)
+            asset["valuation_timestamp"] = quote_timestamp.isoformat()
+            asset["valuation_source"] = str(verification.metadata.get("price_source") or "chainlink")
+        else:
+            asset["valuation_source"] = "user_reported"
+
     contribution = pg_insert(CommunityContribution).values(
         id=payload.event_id,
-        # Public dashboard contributions are deliberately unlinkable to an account.
-        # Authentication may validate a request, but no user ID or private ledger
-        # identity is persisted with an aggregate contribution.
+        # Public aggregates are intentionally unlinkable to a signed-in account.
         user_id=None,
         project_official_id=project_official_id,
-        gas_cost_usd=payload.gas_cost_usd,
+        gas_cost_usd=public_gas_cost,
         actual_reward_usd=payload.actual_reward_usd,
-        asset_breakdown=[item.model_dump(mode="json") for item in payload.asset_breakdown],
-    ).on_conflict_do_nothing(index_elements=[CommunityContribution.id]).returning(CommunityContribution.id)
+        asset_breakdown=asset_breakdown,
+        tx_fingerprint=verification.tx_fingerprint,
+        verification_tier=verification.tier,
+        verification_metadata=verification.metadata,
+    ).on_conflict_do_nothing().returning(CommunityContribution.id)
 
     inserted_id = (await db.execute(contribution)).scalar_one_or_none()
     if inserted_id is None:
         existing = await db.scalar(
-            select(CommunityContribution).where(CommunityContribution.id == payload.event_id)
+            select(CommunityContribution).where(
+                or_(
+                    CommunityContribution.id == payload.event_id,
+                    CommunityContribution.tx_fingerprint == verification.tx_fingerprint,
+                )
+            )
         )
         same_contribution = (
             existing is not None
+            and existing.id == payload.event_id
             and existing.user_id is None
             and existing.project_official_id == project_official_id
-            and existing.gas_cost_usd == payload.gas_cost_usd
+            and existing.gas_cost_usd == public_gas_cost
             and existing.actual_reward_usd == payload.actual_reward_usd
-            and (existing.asset_breakdown or []) == [item.model_dump(mode="json") for item in payload.asset_breakdown]
+            and existing.tx_fingerprint == verification.tx_fingerprint
+            and existing.verification_tier == verification.tier
+            and (existing.asset_breakdown or []) == asset_breakdown
         )
         if not same_contribution:
-            raise HTTPException(status_code=409, detail="统计流水编号冲突：同一编号不能对应不同的项目或金额")
+            raise HTTPException(status_code=409, detail="该链上交易已贡献，或统计流水编号与原记录冲突")
     else:
         aggregate_insert = pg_insert(CommunityProjectStats).values(
             project_official_id=project_official_id,
-            total_gas_cost_usd=payload.gas_cost_usd,
+            total_gas_cost_usd=public_gas_cost,
             total_actual_reward_usd=payload.actual_reward_usd,
         )
         excluded = aggregate_insert.excluded
@@ -113,8 +179,9 @@ async def add_community_contribution(
 
     await db.commit()
     row = await db.get(CommunityProjectStats, project_official_id)
-    return await serialize_stats_with_rating(db, project_official_id, row)
-
+    response = await serialize_stats_with_rating(db, project_official_id, row)
+    response["verification_tier"] = verification.tier
+    return response
 
 
 

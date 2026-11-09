@@ -129,19 +129,20 @@ fun ProfileScreen(
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
                     StatCell("跟踪项目", stats.tracked_projects.toString(), Modifier.weight(1f))
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
-                    StatCell("胜率", String.format(Locale.US, "%.1f%%", stats.win_rate),
-                        Modifier.weight(1f))
+                    StatCell(if (stats.usd_profit_complete) "胜率" else "已估值胜率",
+                        String.format(Locale.US, "%.1f%%", stats.win_rate), Modifier.weight(1f))
                 }
                 HorizontalDivider(color = AppColors.Border)
                 Row(Modifier.fillMaxWidth().height(100.dp)) {
                     StatCell("累计 Gas", String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost),
                         Modifier.weight(1f), "USD")
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
-                    StatCell("实际收益", String.format(Locale.US, "%.2f", stats.ledger_total_actual_reward),
-                        Modifier.weight(1f), "USD")
+                    StatCell("实际收益",
+                        if (stats.usd_profit_complete) String.format(Locale.US, "%.2f", stats.ledger_total_actual_reward) else "估值未完整",
+                        Modifier.weight(1f), if (stats.usd_profit_complete) "USD" else "")
                 }
                 Text(
-                    "参与项目 ${stats.ledger_project_count} · 净收益 ${String.format(Locale.US, "%.2f", stats.ledger_net_profit)} USD · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
+                    "参与项目 ${stats.ledger_project_count} · 净收益 ${if (stats.usd_profit_complete) String.format(Locale.US, "%.2f", stats.ledger_net_profit) + " USD" else "估值未完整"} · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                     color = AppColors.TextHelper,
                     style = MaterialTheme.typography.labelSmall

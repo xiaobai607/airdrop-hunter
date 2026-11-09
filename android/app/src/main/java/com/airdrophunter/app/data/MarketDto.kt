@@ -45,5 +45,6 @@ data class UserStatsDto(
     val evaluated_projects: Int = 0,
     val win_rate: Double = 0.0,
     val ledger_interaction_days: Int = 0,
-    val total_interactions: Int = 0
+    val total_interactions: Int = 0,
+    val usd_profit_complete: Boolean = true
 )

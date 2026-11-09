@@ -34,6 +34,23 @@ class UserAchievementStatsTest {
     }
 
     @Test
+    fun incompleteUsdValuationIsExcludedFromRewardProfitAndWinRateTotals() {
+        val projects = listOf(
+            project("known", "Known", 2.0, 5.0, 3.0, 1),
+            project("unknown", "Unknown", 4.0, 0.0, -4.0, 1).copy(usdProfitComplete = false)
+        )
+        val stats = calculateLocalUserStats(projects, emptyList(), ZoneId.of("UTC"))
+        assertEquals(6.0, stats.ledger_total_gas_cost, 0.0001)
+        assertEquals(5.0, stats.ledger_total_actual_reward, 0.0001)
+        assertEquals(3.0, stats.ledger_net_profit, 0.0001)
+        assertEquals(2, stats.ledger_project_count)
+        assertEquals(1, stats.evaluated_projects)
+        assertEquals(1, stats.profitable_projects)
+        assertEquals(100.0, stats.win_rate, 0.0001)
+        assertEquals(false, stats.usd_profit_complete)
+    }
+
+    @Test
     fun emptyLedgerHasZeroWinRateAndNoDivisionByZero() {
         val stats = calculateLocalUserStats(emptyList(), emptyList(), ZoneId.of("UTC"))
         assertEquals(0.0, stats.win_rate, 0.0)

@@ -6,8 +6,9 @@ import org.junit.Test
 
 class CommunityContributionRetryPolicyTest {
     @Test
-    fun idempotencyConflictIsTerminalAndDoesNotEnterAutomaticRetry() {
+    fun replayConflictAndDefinitiveChainRejectionAreTerminal() {
         assertTrue(isTerminalContributionConflict(409))
+        assertTrue(isTerminalContributionConflict(422))
     }
 
     @Test

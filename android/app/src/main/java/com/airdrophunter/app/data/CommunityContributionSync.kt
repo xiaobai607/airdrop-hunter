@@ -7,6 +7,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
+import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -21,24 +22,43 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
         val batches = CacheStore.getPendingCommunitySyncBatches()
         for (batch in batches) {
             for (entry in batch.entries) {
+                val network = entry.network?.takeIf { it.isNotBlank() }
+                val walletAddress = entry.walletAddress?.takeIf { it.isNotBlank() }
+                val txHash = entry.txHash?.takeIf { it.isNotBlank() }
+                if (network == null || walletAddress == null || txHash == null) {
+                    CacheStore.markCommunitySyncTerminalFailure(
+                        entry.id, batch.accountScope, "缺少链上核验信息，未发送公共统计"
+                    )
+                    continue
+                }
                 try {
-                    ApiClient.service.addCommunityContribution(
+                    val response = ApiClient.service.addCommunityContribution(
                         entry.projectOfficialId,
                         CommunityContributionRequest(
                             event_id = entry.id,
+                            network = network,
+                            wallet_address = walletAddress,
+                            tx_hash = txHash,
+                            public_contribution_opt_in = true,
                             gas_cost_usd = entry.gasCostUsd,
                             actual_reward_usd = entry.actualRewardUsd,
                             asset_breakdown = LedgerAssetBreakdownCodec.decode(entry.assetBreakdownJson)
                         ),
                         batch.authorizationHeader
                     )
-                    CacheStore.completeCommunitySync(entry.id, batch.accountScope)
+                    CacheStore.completeCommunitySync(
+                        entry.id, batch.accountScope, response.verification_tier ?: "transaction_linked"
+                    )
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: HttpException) {
                     if (isTerminalContributionConflict(error.code())) {
+                        val detail = runCatching {
+                            JSONObject(error.response()?.errorBody()?.string().orEmpty()).optString("detail")
+                        }.getOrNull()?.takeIf { it.isNotBlank() }
                         CacheStore.markCommunitySyncTerminalFailure(
-                            entry.id, batch.accountScope, "HTTP 409: contribution event ID conflict"
+                            entry.id, batch.accountScope,
+                            detail ?: "HTTP ${error.code()}: 链上核验拒绝或交易重复"
                         )
                         continue
                     }
@@ -63,6 +83,5 @@ object CommunityContributionSyncScheduler {
     fun ensurePeriodic(context: Context) = GlobalSyncScheduler.ensurePeriodic(context)
 }
 
-
-/** A 409 means this event ID is already bound to a different contribution and cannot succeed on retry. */
-internal fun isTerminalContributionConflict(statusCode: Int): Boolean = statusCode == 409
+/** Definitive chain rejection and replay conflicts are terminal; provider failures remain retryable. */
+internal fun isTerminalContributionConflict(statusCode: Int): Boolean = statusCode == 409 || statusCode == 422

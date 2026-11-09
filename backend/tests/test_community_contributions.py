@@ -1,11 +1,32 @@
 from uuid import uuid4
+from decimal import Decimal
+import hashlib
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.database import get_db
 from app.main import app
 from app.models import CommunityProjectStats, User
 from app.routers.auth import get_optional_current_user
+from app.services.transaction_verification import VerificationResult
+
+
+@pytest.fixture(autouse=True)
+def stub_chain_verification(monkeypatch):
+    async def fake_verify(network, wallet_address, tx_hash, expected_gas_usd):
+        fingerprint = hashlib.sha256(f"{network.lower()}:{tx_hash.lower()}".encode()).hexdigest()
+        return VerificationResult(
+            tier="amount_verified",
+            gas_cost_usd=Decimal(str(expected_gas_usd)),
+            tx_fingerprint=fingerprint,
+            metadata={
+                "network": network.lower(), "block_timestamp": 1794258505,
+                "price_updated_at": 1794258400, "native_fee": "0.001", "native_symbol": "ETH",
+                "price_source": "chainlink:ethereum", "fee_components_complete": True
+            },
+        )
+    monkeypatch.setattr("app.api.community_stats.verify_community_transaction", fake_verify)
 
 
 def _headers(client, prefix: str):
@@ -23,6 +44,10 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         event_id = str(uuid4())
         payload = {
             "event_id": event_id,
+            "network": "ethereum",
+            "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
+            "tx_hash": "0x" + "a" * 64,
+            "public_contribution_opt_in": True,
             "gas_cost_usd": "2.50",
             "actual_reward_usd": "12.00",
             "asset_breakdown": [
@@ -41,6 +66,8 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert first.json()["total_gas_cost_usd"] == 2.5
         assert first.json()["total_actual_reward_usd"] == 12.0
         assert first.json()["data_quality"] == "user_confirmed"
+        assert first.json()["verification_tier"] == "amount_verified"
+        assert first.json()["gas_by_verification_tier"]["amount_verified"] == 2.5
         assert "total_interactions" not in first.json()
         assert "contribution_count" not in first.json()
 
@@ -71,6 +98,10 @@ def test_guest_can_contribute_to_public_stats_idempotently():
     with TestClient(app) as client:
         payload = {
             "event_id": str(uuid4()),
+            "network": "ethereum",
+            "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
+            "tx_hash": "0x" + "b" * 64,
+            "public_contribution_opt_in": True,
             "gas_cost_usd": "0.75",
             "actual_reward_usd": "3.25",
         }
@@ -97,6 +128,9 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
     class FakeResult:
         def scalar_one_or_none(self):
             return event_id
+
+        def all(self):
+            return []
 
         def one(self):
             return type("RatingStats", (), {"average": None, "count": 0})()
@@ -138,12 +172,19 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
                 "/api/community/projects/anonymous-test/contributions",
                 json={
                     "event_id": str(event_id),
+                    "network": "ethereum",
+                    "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
+                    "tx_hash": "0x" + "c" * 64,
+                    "public_contribution_opt_in": True,
                     "gas_cost_usd": "1.00",
                     "actual_reward_usd": "4.00",
                 },
             )
         assert response.status_code == 200
         assert captured["user_id"] is None
+        assert "tx_hash" not in captured
+        assert "wallet_address" not in captured
+        assert "tx_fingerprint" in captured
     finally:
         app.dependency_overrides.pop(get_db, None)
         app.dependency_overrides.pop(get_optional_current_user, None)
@@ -204,3 +245,49 @@ def test_global_rating_requires_verified_participation_and_upserts_per_account()
         assert public.json()["average_rating"] == 4.0
         assert public.json()["rating_count"] == 1
         assert "user_id" not in public.json()
+
+
+
+def test_same_transaction_hash_cannot_be_reused_for_another_event():
+    with TestClient(app) as client:
+        first_payload = {
+            "event_id": str(uuid4()),
+            "network": "ethereum",
+            "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
+            "tx_hash": "0x" + "d" * 64,
+            "public_contribution_opt_in": True,
+            "gas_cost_usd": "1.00",
+            "actual_reward_usd": "2.00",
+        }
+        first = client.post("/api/community/projects/replay-test/contributions", json=first_payload)
+        assert first.status_code == 200
+        second_payload = {**first_payload, "event_id": str(uuid4())}
+        second = client.post("/api/community/projects/replay-test/contributions", json=second_payload)
+        assert second.status_code == 409
+
+
+def test_community_contribution_requires_transaction_link_fields():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/community/projects/missing-proof/contributions",
+            json={"event_id": str(uuid4()), "gas_cost_usd": "1.00", "actual_reward_usd": "2.00"},
+        )
+        assert response.status_code == 422
+
+
+
+def test_public_contribution_requires_explicit_opt_in():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/community/projects/consent-test/contributions",
+            json={
+                "event_id": str(uuid4()),
+                "network": "ethereum",
+                "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
+                "tx_hash": "0x" + "9" * 64,
+                "public_contribution_opt_in": False,
+                "gas_cost_usd": "1.00",
+                "actual_reward_usd": "2.00",
+            },
+        )
+        assert response.status_code == 403

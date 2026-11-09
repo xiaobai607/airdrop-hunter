@@ -23,7 +23,8 @@ def test_snapshot_contains_money_ratings_and_catalog_metadata_only():
         [{"project_official_id": "linea", "name": "Linea", "chain": "Ethereum", "logo": "L",
           "description": "Layer 2", "website_url": "https://linea.build",
           "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc), "tags": ["L2"], "gas_cost_usd": 2.5,
-          "actual_reward_usd": 12.0}],
+          "actual_reward_usd": 12.0, "gas_user_reported_usd": 0.5,
+          "gas_transaction_linked_usd": 1.0, "gas_amount_verified_usd": 1.0}],
         [{"project_official_id": "linea", "score": 5, "rating_count": 2},
          {"project_official_id": "linea", "score": 3, "rating_count": 1}],
     )
@@ -34,6 +35,9 @@ def test_snapshot_contains_money_ratings_and_catalog_metadata_only():
     assert project["gas_cost_usd_valuation"] == 2.5
     assert project["actual_reward_usd_valuation"] == 12.0
     assert project["net_result_usd_valuation"] == 9.5
+    assert project["gas_by_verification_tier"] == {
+        "user_reported": 0.5, "transaction_linked": 1.0, "amount_verified": 1.0
+    }
     asset_rows = [{"project_official_id": "linea", "asset_breakdown": [
         {"kind": "gas", "amount_native": "0.1", "symbol": "ETH", "decimals": 18,
          "usd_valuation": "250", "valuation_timestamp": "2026-11-09T08:00:00+00:00", "valuation_source": "coinpaprika"},
