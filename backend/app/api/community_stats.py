@@ -71,7 +71,7 @@ async def add_community_contribution(
         )
         same_contribution = (
             existing is not None
-            and existing.user_id == (user.id if user is not None else None)
+            and existing.user_id is None
             and existing.project_official_id == project_official_id
             and existing.gas_cost_usd == payload.gas_cost_usd
             and existing.actual_reward_usd == payload.actual_reward_usd
