@@ -50,6 +50,18 @@ private data class CommunityProject(
     val rewardWeight: Float get() =
         if (reward + gas <= 0.0) 0.5f
         else (reward / (reward + gas)).toFloat().coerceIn(0.02f, 0.98f)
+    val gasWeight: Float get() = 1f - rewardWeight
+    val reputationLabel: String get() = when {
+        isDemo && demoPositive >= 90 -> "好评如潮"
+        isDemo && demoPositive >= 70 -> "整体较好"
+        isDemo && demoPositive >= 50 -> "褒贬不一"
+        isDemo -> "口碑偏低"
+        ratingCount < 5L || averageRating == null -> "评分样本较少"
+        averageRating >= 4.5 -> "好评如潮"
+        averageRating >= 4.0 -> "整体较好"
+        averageRating >= 3.0 -> "褒贬不一"
+        else -> "口碑偏低"
+    }
 }
 
 private enum class CommunityRanking(val title: String) {
@@ -320,26 +332,30 @@ fun CommunitySquareScreen(
                     }
                     if (project.isDemo) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("★ ${String.format(Locale.US, "%.1f", project.demoScore)} · ${project.demoPositive}% 好评",
+                            Text("★ ${String.format(Locale.US, "%.1f", project.demoScore)} · ${project.reputationLabel}",
                                 color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                            Text("${project.demoReviews} 条模拟评价", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                            Text("测试样本 · ${project.demoReviews} 条", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
                     } else {
                         Text(
                             if (project.ratingCount > 0 && project.averageRating != null)
-                                "★ ${String.format(Locale.US, "%.1f", project.averageRating)} · ${project.ratingCount} 个账号评分"
+                                "★ ${String.format(Locale.US, "%.1f", project.averageRating)} · ${project.reputationLabel} · ${project.ratingCount} 个账号评分"
                             else "暂无全网评分",
                             color = if (project.ratingCount > 0) Color(0xFFB7791F) else AppColors.TextHelper,
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
-                    Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Box(Modifier.weight(project.rewardWeight).fillMaxHeight().background(Color(0xFF31B77D), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))
-                        Box(Modifier.weight(1f - project.rewardWeight).fillMaxHeight().background(Color(0xFFE76565), RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)))
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(String.format(Locale.US, "收益 $%,.0f", project.reward), color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                        Text(String.format(Locale.US, "Gas $%,.0f", project.gas), color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                    if (project.gas > 0.0 || project.reward > 0.0) {
+                        Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Box(Modifier.weight(project.gasWeight).fillMaxHeight().background(Color(0xFFE76565), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))
+                            Box(Modifier.weight(project.rewardWeight).fillMaxHeight().background(Color(0xFF31B77D), RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)))
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(String.format(Locale.US, "Gas $%,.2f", project.gas), color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                            Text(String.format(Locale.US, "实际收益 $%,.2f", project.reward), color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                        }
+                    } else {
+                        Text("暂无已确认 Gas / 实际收益数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         project.tags.forEach { tag ->
