@@ -129,6 +129,7 @@ fun WalletManagerScreen(
     modifier: Modifier = Modifier,
     onOpenBrowser: (String, WalletDto, List<WalletDto>, String) -> Unit,
     isGuest: Boolean = false,
+    sessionScopeKey: String = "guest",
     vm: WalletManagerViewModel? = null
 ) {
     val context = LocalContext.current
@@ -166,7 +167,11 @@ fun WalletManagerScreen(
         }
     }
 
-    LaunchedEffect(isGuest) {
+    LaunchedEffect(isGuest, sessionScopeKey) {
+        selectedWallet = null
+        editingWallet = null
+        pendingConnectedAccount = null
+        showAddDialog = false
         walletViewModel.load(isGuest)
     }
 
