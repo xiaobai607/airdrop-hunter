@@ -17,21 +17,21 @@ import java.util.concurrent.TimeUnit
 /**
  * Single entry point for app-wide background sync.
  *
- * A lightweight dispatcher runs every 15 minutes and enqueues one serialized
- * chain. Individual workers decide whether their own data source is due:
+ * A lightweight dispatcher runs every 15 minutes and schedules each source into
+ * its own unique WorkManager queue. Failures retry independently. Individual
+ * workers decide whether their own data source is due:
  * public contributions 15m; wallet activity/private ledger/favorites 8h.
  */
 class GlobalSyncDispatcherWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
-        GlobalSyncScheduler.enqueueSyncChain(applicationContext)
+        GlobalSyncScheduler.enqueueSyncTasks(applicationContext)
         return Result.success()
     }
 }
 
 object GlobalSyncScheduler {
     private const val PERIODIC_NAME = "global-sync-dispatcher"
-    private const val CHAIN_NAME = "global-sync-serialized-chain"
 
     private fun constraints() = Constraints.Builder()
         .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -53,9 +53,9 @@ object GlobalSyncScheduler {
         forceWalletActivity: Boolean = false,
         forcePersonalLedger: Boolean = false,
         forceFavorites: Boolean = false
-    ) = enqueueSyncChain(context.applicationContext, forceCommunityContribution, forceWalletActivity, forcePersonalLedger, forceFavorites)
+    ) = enqueueSyncTasks(context.applicationContext, forceCommunityContribution, forceWalletActivity, forcePersonalLedger, forceFavorites)
 
-    internal fun enqueueSyncChain(
+    internal fun enqueueSyncTasks(
         context: Context,
         forceCommunityContribution: Boolean = false,
         forceWalletActivity: Boolean = false,
@@ -85,13 +85,12 @@ object GlobalSyncScheduler {
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
 
-        // KEEP prevents startup, periodic, and event-driven triggers from creating
-        // overlapping copies of the same multi-source sync pipeline.
-        workManager.beginUniqueWork(CHAIN_NAME, ExistingWorkPolicy.KEEP, contribution)
-            .then(walletActivity)
-            .then(personalLedger)
-            .then(favorites)
-            .enqueue()
+        // Each source has its own unique queue. A failure in one source retries
+        // independently and cannot block unrelated ledger, wallet, or favorite work.
+        workManager.enqueueUniqueWork("global-sync-community-contribution", ExistingWorkPolicy.KEEP, contribution)
+        workManager.enqueueUniqueWork("global-sync-wallet-activity", ExistingWorkPolicy.KEEP, walletActivity)
+        workManager.enqueueUniqueWork("global-sync-private-ledger", ExistingWorkPolicy.KEEP, personalLedger)
+        workManager.enqueueUniqueWork("global-sync-community-favorites", ExistingWorkPolicy.KEEP, favorites)
     }
 }
 

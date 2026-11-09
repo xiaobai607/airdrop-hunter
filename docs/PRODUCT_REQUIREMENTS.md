@@ -427,11 +427,11 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 
 ### Global background sync coordination (PR #89)
 
-- One app-level WorkManager dispatcher replaces independently registered periodic schedulers. It runs on a connected network every 15 minutes and enqueues one unique serialized chain, preventing overlapping copies of the full sync pipeline.
-- The chain order is: anonymous public contribution outbox, read-only wallet activity refresh, authenticated private-ledger sync, then authenticated community favorites reconciliation.
+- One app-level WorkManager dispatcher replaces independently registered periodic schedulers. It runs on a connected network every 15 minutes and schedules each source into its own unique WorkManager queue, preventing overlapping copies of the same source job.
+- The coordinated sources are anonymous public contribution delivery, read-only wallet activity refresh, authenticated private-ledger sync, and authenticated community favorites reconciliation. They run independently so a failure in one source cannot block progress in another.
 - Per-source cadence is retained: public contribution outbox at 15 minutes; wallet activity, private ledger, and favorites at 8 hours. Wallet, private-ledger, and favorites cadence keys are scoped to the guest/account identity, so signing into a different account does not inherit the previous account's last-sync timestamp. Successful timestamps are persisted locally; a failed task is not marked successful and WorkManager retries with exponential backoff.
 - A task that is not yet due exits successfully without network calls. The dispatcher does not change manual refresh behavior.
 - All chain requests require network connectivity. Existing event-driven ledger/contribution enqueue entry points now request the global chain, rather than creating parallel standalone worker schedules.
 - Guest private ledger data is never uploaded; guest public contribution remains anonymous and idempotent; guest favorites remain local-only. Wallet activity remains bound to the session token captured when its worker starts. Private ledger and favorites remain authenticated and account-scoped.
-- The chain is unique with KEEP, so app startup, periodic dispatch, and event-triggered requests do not create duplicate overlapping sync pipelines. A failed child retries before later chain stages proceed.
+- Each source queue uses unique-work KEEP, so app startup, periodic dispatch, and event-triggered requests do not create overlapping copies of the same source job. A failed source retries independently and does not block other sources.
 - Unit tests cover first-run, interval boundary, not-yet-due, and clock rollback cadence behavior. Real-device background execution, offline retry, battery optimization, and account-switch acceptance remain pending.
