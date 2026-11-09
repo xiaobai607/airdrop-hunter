@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.responses import JSONResponse
@@ -11,6 +11,8 @@ from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
+from sqlalchemy import text
 from app.routers.auth import router as auth_router, limiter
 from app.routers.projects import router as projects_router
 from app.routers.market import router as market_router
@@ -107,3 +109,32 @@ for router in (
 @app.get("/health", tags=["system"])
 async def health():
     return {"status": "ok", "service": "airdrop-hunter-api"}
+
+
+@app.get("/health/ready", tags=["system"])
+async def readiness():
+    """Deployment readiness: database reachable and migrations at the current code head."""
+    try:
+        async with engine.connect() as connection:
+            result = await connection.execute(text("SELECT version_num FROM alembic_version"))
+            database_revision = result.scalar_one_or_none()
+
+        config = Config()
+        config.set_main_option(
+            "script_location",
+            str(Path(__file__).resolve().parent / "migrations"),
+        )
+        expected_revision = ScriptDirectory.from_config(config).get_current_head()
+        if not expected_revision or database_revision != expected_revision:
+            raise HTTPException(status_code=503, detail="service_not_ready")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.warning("Readiness check failed", exc_info=True)
+        raise HTTPException(status_code=503, detail="service_not_ready")
+
+    return {
+        "status": "ready",
+        "service": "airdrop-hunter-api",
+        "schema_revision": expected_revision,
+    }
