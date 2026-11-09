@@ -23,7 +23,7 @@ class PersonalLedgerEntry(Base):
     wallet_address: Mapped[str] = mapped_column(String(160), nullable=False, default="")
     tx_hash: Mapped[str] = mapped_column(String(180), nullable=False, default="")
     interaction_method: Mapped[str] = mapped_column(String(120), nullable=False, default="")
-    expected_gas_cost_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)
+    expected_gas_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True, default=None)
     expected_reward_usd: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True, default=None)
     actual_gas_cost_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)
     actual_reward_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)

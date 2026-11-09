@@ -127,3 +127,20 @@ def test_user_stats_aggregate_confirmed_ledger_gas_rewards_and_win_rate():
         assert abs(result["win_rate"] - 33.3333333333) < 0.001
         assert result["ledger_interaction_days"] == 2
         assert result["total_interactions"] == 3
+
+
+def test_personal_ledger_preserves_unknown_expected_gas_as_null_and_explicit_zero():
+    with TestClient(app) as client:
+        headers = auth(client)
+        unknown = ledger_payload("unknown-gas", expected_gas_cost_usd=None)
+        saved_unknown = client.put("/api/personal-ledger/unknown-gas", headers=headers, json=unknown)
+        assert saved_unknown.status_code == 200
+        assert saved_unknown.json()["expected_gas_cost_usd"] is None
+        restored = client.get("/api/personal-ledger", headers=headers)
+        assert restored.status_code == 200
+        assert next(row for row in restored.json() if row["client_record_id"] == "unknown-gas")["expected_gas_cost_usd"] is None
+
+        explicit_zero = ledger_payload("known-zero-gas", expected_gas_cost_usd="0")
+        saved_zero = client.put("/api/personal-ledger/known-zero-gas", headers=headers, json=explicit_zero)
+        assert saved_zero.status_code == 200
+        assert float(saved_zero.json()["expected_gas_cost_usd"]) == 0.0

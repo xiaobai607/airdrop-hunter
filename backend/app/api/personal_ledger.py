@@ -22,7 +22,7 @@ class PersonalLedgerWrite(BaseModel):
     wallet_address: str = Field(default="", max_length=160)
     tx_hash: str = Field(default="", max_length=180)
     interaction_method: str = Field(default="", max_length=120)
-    expected_gas_cost_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
+    expected_gas_cost_usd: Decimal | None = Field(default=None, ge=0, le=MAX_AMOUNT)
     expected_reward_usd: Decimal | None = Field(default=None, ge=0, le=MAX_AMOUNT)
     actual_gas_cost_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
     actual_reward_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
@@ -39,7 +39,7 @@ class PersonalLedgerResponse(BaseModel):
     wallet_address: str
     tx_hash: str
     interaction_method: str
-    expected_gas_cost_usd: Decimal
+    expected_gas_cost_usd: Decimal | None
     expected_reward_usd: Decimal | None
     actual_gas_cost_usd: Decimal
     actual_reward_usd: Decimal
