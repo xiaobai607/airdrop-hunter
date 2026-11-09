@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.CommunityProjectSubmissionRequest
 import com.airdrophunter.app.ui.theme.AppColors
@@ -44,10 +45,9 @@ private data class CommunityProject(
     val averageRating: Double? = null, val ratingCount: Long = 0
 ) {
     val label: String get() = if (isDemo) "测试演示" else if (gas > 0.0 || reward > 0.0) "真实贡献" else "暂无贡献"
-    val rewardWeight: Float get() =
-        if (reward + gas <= 0.0) 0.5f
-        else (reward / (reward + gas)).toFloat().coerceIn(0.02f, 0.98f)
-    val gasWeight: Float get() = 1f - rewardWeight
+    val metricWeights: Pair<Float, Float> get() = communityMetricWeights(gas, reward)
+    val gasWeight: Float get() = metricWeights.first
+    val rewardWeight: Float get() = metricWeights.second
     val reputationLabel: String get() = when {
         isDemo && demoScore >= 4.5 -> "好评如潮"
         isDemo && demoScore >= 4.0 -> "整体较好"
@@ -361,8 +361,12 @@ fun CommunitySquareScreen(
                     }
                     if (project.gas > 0.0 || project.reward > 0.0) {
                         Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Box(Modifier.weight(project.gasWeight).fillMaxHeight().background(Color(0xFFE76565), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))
-                            Box(Modifier.weight(project.rewardWeight).fillMaxHeight().background(Color(0xFF31B77D), RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)))
+                            if (project.gasWeight > 0f) {
+                                Box(Modifier.weight(project.gasWeight).fillMaxHeight().background(Color(0xFFE76565), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))
+                            }
+                            if (project.rewardWeight > 0f) {
+                                Box(Modifier.weight(project.rewardWeight).fillMaxHeight().background(Color(0xFF31B77D), RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)))
+                            }
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(String.format(Locale.US, "Gas USD估值 $%,.2f", project.gas), color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
