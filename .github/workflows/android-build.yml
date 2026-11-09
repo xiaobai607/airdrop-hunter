@@ -1,6 +1,10 @@
 name: Android debug build and backend tests
 
 on:
+  # Temporary automatic fallback for PR #103: its pull_request runs failed before jobs were created.
+  # This branch-scoped push trigger runs the Android suite without requiring a manual dispatch.
+  push:
+    branches: [cleanup/cancelled-wallet-assets]
   pull_request:
     branches: [main]
     paths-ignore:
@@ -45,6 +49,12 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           MANUAL_SCOPE: ${{ inputs.scope || 'both' }}
         run: |
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             if [[ "$MANUAL_SCOPE" == "both" || "$MANUAL_SCOPE" == "android" ]]; then
               echo "android=true" >> "$GITHUB_OUTPUT"
