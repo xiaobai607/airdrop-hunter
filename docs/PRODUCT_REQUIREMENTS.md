@@ -170,6 +170,10 @@ Additional rules:
 - PR #61: public community project submission API and Android submission dialog; name + HTTPS URL, duplicate checks, rate limiting, known shorteners held for review; merged and CI passed.
 - PR #62: community project cards display their stored URL and open-link action; merged commit e7879556a10d26ff94041d65eee90be708345982; Android and backend CI passed.\n- PR #63: admin-token-protected discovery candidate queue, approve-to-catalog/reject actions, review timestamps/status, HTTPS/name revalidation, and duplicate linking; merged commit 1a88bef3f7baea3a4f79965c3840d6ee8a258a78; backend and Android CI passed.
 - PR #64: end-to-end tests for candidate submission, admin review queue, approve/reject, persisted review metadata, duplicate-action conflicts, and admin-token protection; merged commit 0e31b0af2a0c9ab7958c09eba3d13a9f51e07bbb; backend and Android CI passed.
+- PR #65: documented the user-confirmed project card/detail presentation; superseded the earlier five-window detail draft after the user removed the today window.
+- PR #66: compact community project cards with overall Gas/actual-reward comparison, honest empty state, and rating-derived reputation; merged commit 17171c81902dd44502ed3cac2eeba4500754f9e1.
+- PR #68 + #69: backend four-window static snapshot generation, anonymous aggregation, versioned object-storage publisher, Room-first cache, silent CDN revalidation, and waterfall detail integration; PR #69 merged with Android and backend CI green. CDN/R2 and scheduled publisher remain unconfigured.
+- PR #70: removed fabricated empty/50:50 comparison bars, made data presence depend on confirmed contribution count, corrected the stale five-window requirement to four windows; merged commit 0c57de441fcfb668dbb6e4d639ea68f9e6c443ee; Android and backend CI green.
 
 ### Current audit findings
 
@@ -180,7 +184,7 @@ Additional rules:
 - Confirmed in main source: private personal-ledger endpoint requires authentication and scopes reads/deletes/upserts to the authenticated user. Android AccountingRepository.syncPersonalLedger() returns before any private cloud call when no token exists.
 - PR #46 and PR #47 are merged: new public contribution rows store user_id as null; migration 0005 clears historical account links while preserving aggregate totals.
 - Source audit confirms guest wallet addresses are stored in the guest-scoped app cache and authenticated wallet lists are fetched from the private wallet API and cached by account scope. Device-level app-data clearing and account-switch behavior still require real-device acceptance; production database backup/restore also remains unverified.
-- Community implementation: PR #48 adds guest/account-scoped local favorites; cross-device favorite sync remains pending. PR #49 adds rolling 24-hour confirmed interaction heat and uses it for the new-star ranking. PR #50 adds global 1–5 star aggregates for logged-in accounts after server verification against confirmed private-ledger participation; guest ratings remain local-only. PR #51 adds in-app search over the existing seven-project catalog; this does not search external websites. PR #59 has replaced the fixed seven-project list with a dynamic backend catalog and Android API loading. PR #60 adds RSS/Atom candidate intake and scheduled-script integration; candidates are not automatically promoted to verified projects. Actual feed configuration, source checks, and user project submission/deduplication remain pending. Public metrics count contribution events/interactions, not unique people, to avoid introducing account/device tracking into anonymous public contributions.
+- Community implementation: PR #48 adds guest/account-scoped local favorites; cross-device favorite sync remains pending. PR #49 adds rolling 24-hour confirmed interaction heat and uses it for the new-star ranking. PR #50 adds global 1–5 star aggregates for logged-in accounts after server verification against confirmed private-ledger participation; guest ratings remain local-only. PR #51 adds in-app search over the existing seven-project catalog; this does not search external websites. PR #59 has replaced the fixed seven-project list with a dynamic backend catalog and Android API loading. PR #60 adds RSS/Atom candidate intake and scheduled-script integration; candidates are not automatically promoted to verified projects. PR #61 adds public project submission and duplicate checks; PR #63 adds the protected review queue. Actual feed activation/source checks and moderation operations remain pending. Public metrics count contribution events/interactions, not unique people, to avoid introducing account/device tracking into anonymous public contributions.
 - Personal achievement: implemented in PR #47. Guest metrics read the guest-scoped local ledger; logged-in metrics read the authenticated private cloud ledger. Win rate uses only projects with confirmed ledger interactions.
 - Task management now supports create, rename/edit, complete, and delete for guest-local and authenticated projects. PR #52 adds the edit flow and backend validation.
 - Project management now exposes edit, status changes, and delete in the Android project list. PR #53 preserves confirmed ledger history when removing a project from the list. Ledger-derived project summaries remain read-only.
@@ -188,11 +192,41 @@ Additional rules:
 - PR #54 adds manual plus eight-hour background refresh of saved wallet transaction activity. Background snapshots are cached locally by guest/account scope and never auto-create ledger rows or public contributions.
 - Sync is not yet app-wide: community contribution outbox has its own periodic worker; wallet activity has an eight-hour worker; PR #56 adds account-private ledger retry plus an eight-hour fallback. There is no unified refresh coordinator for every data source.
 - The Airdrop Hub has a dynamic backend catalog (PR #59), RSS/Atom candidate intake (PR #60), public project submission flow (PR #61), and project-card URL display/open action (PR #62). RSS records remain unverified candidates; no feeds are enabled by default and production Cron/environment setup is not yet confirmed. Public submissions accept a project name and HTTPS URL (official or third-party listing); unique non-shortener links currently enter the catalog after syntactic URL checks, while known shorteners are held as candidates. This is not proof that a domain is trustworthy; abuse monitoring and stronger moderation remain required. No submitted website is crawled. Discovery remains free-first: only stable, permitted free APIs/feeds/listing interfaces; user submissions are also supported. Telegram/Discord are optional only when free and authorized; paid X/API and paid data sources are out of scope. Check source access, terms, rate limits, and failure isolation before enabling any feed.
-- Real-device acceptance for browser/wallet bridge, Android transaction import, guest data clearing, and cross-device restore remains pending.
+- Real-device acceptance for browser/wallet bridge, Android transaction import, guest data clearing, account switching, and cross-device restore remains pending. The static snapshot screens also need real-device cache/offline acceptance after CDN configuration.
 
 ### Status discipline
 
 Use only these states: **complete in code**, **partial**, **in progress**, **pending verification**, **deferred**, **cancelled**. A PR merge/CI pass is code-level evidence only; device and production checks remain separate.
+
+
+### Code-coupling map and next implementation order
+
+The main data path is intentionally one-way at each boundary:
+
+1. **Wallet/address layer:** user adds a public address -> account/guest-scoped wallet repository -> read-only chain activity refresh/cache.
+2. **Accounting layer:** user selects a transaction or enters an interaction -> pending bill -> user manually reviews/enters actual Gas and actual reward -> one Room transaction updates the private ledger, project P&L, interaction history, and (only if eligible) public-contribution outbox.
+3. **Private sync layer:** authenticated users sync/restore detailed ledger rows through account-scoped authenticated APIs; guests never call private cloud-ledger endpoints.
+4. **Public contribution layer:** both guest and authenticated sessions may send only project ID + confirmed aggregate Gas/actual reward + event ID/count. The server stores public contribution rows with no account identity; idempotency prevents duplicate retries.
+5. **Community presentation layer:** server-side scheduled jobs aggregate anonymous contributions into static JSON; Android Room cache renders first and CDN revalidation updates silently. Community UI must not bypass this path with live per-project aggregation.
+6. **Project/task layer:** project and task ownership, project-to-wallet assignments, and ledger links are separate from public project metadata. A transaction is linked to a project only by explicit user selection.
+7. **Discovery layer:** provider APIs/RSS candidates and user submissions populate project metadata only. They must never fabricate participation, Gas, rewards, ratings, or P&L.
+
+Recommended next implementation order, based on shared-code dependencies:
+
+1. **Wallet input correctness (next):** replace client-side automatic ecosystem detection with explicit chain/ecosystem selection and chain-specific format validation. Keep server-side validation authoritative. Preserve existing WalletConnect flow and guest/account storage. This touches the wallet form, DTO/repository, and backend validation together; do not merge the old PR #32 wholesale.
+2. **Transaction-to-ledger reliability:** test and harden the chain activity -> pending bill -> manual confirmation path, especially fee-payer attribution, duplicate detection, demo exclusion, and account-scope isolation. Never auto-confirm a transaction or estimated reward.
+3. **Currency-aware accounting:** extend the private ledger and anonymous public contribution model to retain native token amount/symbol/decimals and valuation timestamp/source. Keep USD valuation separate and never sum unlike tokens. Update snapshots only after the source model is correct.
+4. **Sync/restore acceptance:** verify guest data survives normal app restarts but is lost on app-data clearing; verify account data restores on another device and cannot leak across account switches. Add conflict/retry handling only where tests demonstrate a gap.
+5. **Discovery operations:** verify source terms/access, enable only feeds that are genuinely free and stable, and configure review/Cron without blocking user submissions.
+6. **Production and device acceptance:** configure database backups, CDN/R2, scheduled publishing, and end-to-end phone tests before claiming production readiness.
+7. **Unified UI refinement:** defer broad visual redesign until the above core chains are complete.
+
+### Open legacy branches — do not merge directly
+
+- PR #32 is an old wallet refactor draft. It contains some useful isolated work (for example, a stricter Bitcoin address validator), but its wallet architecture and dependencies must be reviewed and selectively ported only if still required.
+- PR #36 is an old broad ledger/community/wallet implementation. Its main data-flow concepts have since been implemented through later merged PRs; its remaining token-portfolio files are not a reason to restore the cancelled full asset dashboard. Do not merge it directly.
+- Keep one authoritative implementation on `main`; close or archive superseded PRs after any still-needed isolated code has been extracted and tested.
+
 
 
 ### User-confirmed zero-cost discovery refinement (2026-11-09)
@@ -211,7 +245,7 @@ Use only these states: **complete in code**, **partial**, **in progress**, **pen
 - PR #61 (merged): public community project submission API and Android submission dialog. Required fields are project name + HTTPS URL; official websites are not mandatory, and third-party airdrop listing URLs are accepted. The backend normalizes URLs, checks name/URL duplicates against the catalog and RSS candidates, rejects unsafe URL forms, rate-limits submissions, and holds known URL shorteners as unverified candidates. It does not fetch or crawl submitted websites. CI passed; real-device verification and moderation/abuse monitoring remain pending.
 - PR #62 (merged): show each catalog project's stored URL directly on its Android community card and provide an explicit open-link action. Missing URLs are labeled as awaiting supplementation; no URL is invented.
 - PR #63 (merged): admin-token-protected candidate review queue, approve-to-catalog and reject actions, review timestamps/status, safe URL revalidation, and duplicate-to-existing-project linking. Android review UI remains deferred because the admin token must not be embedded in the public app.
-- Project-list overall Gas/reward bar and project-detail waterfall layout above are confirmed requirements. PR #66 implements the project-card Gas-first red / actual-reward green bar, two-decimal overall USD values, derived reputation wording, and honest empty-data handling; the four-window static-newspaper detail page remains pending; the 'today' dimension is explicitly removed.
+- Project-list overall Gas/reward bar and project-detail waterfall layout above are confirmed requirements. PR #66 implements the concise project card. PRs #68–#70 implement the four-window static snapshot detail page and correct empty-data rendering; 'today' is explicitly excluded.
 - Still pending: enable only verified free feeds after checking access and terms; production Cron/environment setup; optional free provider enrichment only when stable and authorized. Do not add paid or complex integrations.
 
 ### User-confirmed community static-newspaper snapshot mechanism (2026-11-09)
@@ -231,29 +265,15 @@ Use only these states: **complete in code**, **partial**, **in progress**, **pen
 - **UI hierarchy:** concise project-list cards show identity, brief rating/reputation, and overall Gas-vs-actual-reward bar. Tapping opens a vertically scrolling detail page with the four windows above simultaneously visible; no tabs. Rating/reputation and rolling 24-hour heat remain distinct metrics.
 
 
-### Static snapshot backend implementation progress (PR #68)
+### Static community snapshot implementation (PRs #68–#70 merged)
 
-- The first backend slice adds aggregate-only snapshot generation for overall, rolling 7d, rolling 3d, and rolling 1h from the existing anonymous community_contributions table and active project catalog. Each window uses one UTC generation timestamp and a rolling lower boundary; update_time is emitted in Asia/Shanghai.
-- Snapshot rows contain only project catalog metadata (including tags) and aggregate amounts/counts, rating distribution, and a separate rolling 24-hour activity aggregate. Both window metrics and 24-hour heat explicitly include only anonymous contribution rows (`user_id IS NULL`). No wallet address, transaction hash, user ID, or private ledger row is serialized.
-- Current contribution schema stores USD-denominated aggregate values only. These are explicitly labeled as USD valuations; per-token totals are not fabricated and remain pending a future source-schema extension if token-level public contribution data is added.
-- A five-minute dispatcher helper returns the 1-hour snapshot on each invocation, adds the 3-day snapshot at 00:00/06:00/12:00/18:00 UTC+8, and adds overall + 7-day at 08:00 UTC+8. Deployment must invoke the command every five minutes; this PR does not create a production scheduler or claim one is active.
-- Versioned JSON objects are uploaded before the manifest pointer is changed. The S3-compatible publisher supports Cloudflare R2-style endpoints through environment variables; the local atomic publisher is for development/tests only. Production mode fails closed unless a public CDN base URL and object-storage credentials are configured.
-- Android Room caching, static-manifest consumption, removal of existing manual refresh affordances, and production CDN/Cron configuration remain subsequent implementation/acceptance steps.
-
-
-### Android static snapshot cache implementation (PR #69)
-
-- PR #69 merged into `main` as `25035c83e6f69f125d0b336170fdd0e0d5c93316`; Android build and backend test jobs both passed. Production CDN/Cron configuration and real-device acceptance remain separate pending tasks.
-
-- Android reads the public overall snapshot from a shared Room cache before any network request. Public snapshot cache keys are deliberately not scoped to guest/account identity because the data is public and identical for all sessions.
-- CDN manifest revalidation and versioned snapshot downloads use a dedicated unauthenticated OkHttp client; user Authorization tokens are never sent to the public CDN.
-- The client accepts only HTTPS manifest URLs and snapshot object URLs on the configured CDN host. Each downloaded snapshot is schema/window checked and only replaces a cached copy when its generation timestamp is newer.
-- Community project metadata and aggregate metrics on the square screen are derived from the overall static snapshot; per-project live stats API calls are removed from that screen.
-- The CDN base URL is an optional build-time `COMMUNITY_SNAPSHOT_BASE_URL`. Until a public CDN URL and production storage/Cron are configured, the app keeps any existing Room copy and otherwise shows an unavailable state; no live database fallback is silently enabled.
-- All four snapshot windows are supported by the repository API for the next detail-screen integration. No Room schema migration is required because public JSON uses the existing cached_payloads table.
-
-- The micro-community project detail now presents the four snapshot windows vertically (overall, 7d, 3d, 1h), with each non-overall bar showing that snapshot’s own update time. The 24-hour heat metric remains separate and is read from the freshest available snapshot; the detail view no longer calls the live per-project stats endpoint.
-
+- Backend precomputes overall, rolling 7d, rolling 3d, and rolling 1h snapshots from eligible anonymous public contribution rows. The rolling 24-hour heat remains a separate metric.
+- The scheduler computes due windows in Asia/Shanghai: overall + 7d daily at 08:00; 3d at 00:00/06:00/12:00/18:00; 1h every five minutes. Timestamps are stored/compared in UTC and presented in UTC+8.
+- Snapshot payloads contain project catalog metadata and aggregate metrics only. They do not contain wallet addresses, transaction hashes, user IDs, or private ledger rows. Current contribution amounts are USD valuations only; per-token public totals are not yet modeled.
+- Versioned JSON objects are uploaded before the manifest is atomically switched. Android reads Room cache first, then silently revalidates the CDN using a dedicated unauthenticated HTTPS client restricted to the configured CDN host. Offline or invalid responses preserve the last good cache.
+- Project list and detail screens use static snapshots rather than per-project live stats calls. The detail screen shows the four windows vertically, with each non-overall window's own update time. There is no manual refresh affordance in the micro-community. Empty/zero-denominator data is not represented by a fabricated balanced bar.
+- PR #69 merged as `25035c83e6f69f125d0b336170fdd0e0d5c93316`; PR #70 merged as `0c57de441fcfb668dbb6e4d639ea68f9e6c443ee`. Both Android and backend CI jobs passed.
+- **Not production-complete:** the scheduled workflow is disabled until storage/CDN/database settings are configured. No production R2 bucket, public CDN endpoint, or scheduled publishing activation is claimed.
 
 ### Free scheduled snapshot publishing
 
