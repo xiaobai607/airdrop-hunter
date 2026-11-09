@@ -160,7 +160,6 @@ private fun BrowserScreen(
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var loadAttempt by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
-    val latestPageUrl = rememberUpdatedState(currentPageUrl)
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
     var approvedExternalEntry by remember(url) { mutableStateOf(false) }
     var approvedOrigin by remember(url) { mutableStateOf(DappProviderBridge.origin(Uri.parse(url))) }
@@ -438,6 +437,7 @@ private fun BrowserScreen(
                                         }
                                         pendingDappConnection = null
                                         waitingDappWalletApproval = false
+                                    }
                                     currentPageUrl = it
                                 }
                                 pageState = BrowserPageState.Loading
