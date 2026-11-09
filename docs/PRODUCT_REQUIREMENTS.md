@@ -153,6 +153,7 @@ Additional rules:
 - PR #51: internal community project search by name, chain, and tags; merged commit 1902ecc74fc1307c3d6785842f55f6892aa6a3ff.
 - PR #52: project task-name editing for guest-local and authenticated account tasks, with server ownership checks and name validation; merged commit 30b1c58849bbc4606b618cc5c74e0186d9e1892f.
 - PR #53: project edit/status/delete controls for guest-local and authenticated account projects; merged commit 5e4b5ec97d602535bdfd0e20cee857deb45f17c5.
+- PR #54: eight-hour WorkManager refresh for saved wallet activity, guest/account-scoped cache, and cached-first transaction display; merged commit f036e75a2df583cc56d0a5cecdca851adf041945.
 
 ### Current audit findings
 
@@ -168,6 +169,9 @@ Additional rules:
 - Task management now supports create, rename/edit, complete, and delete for guest-local and authenticated projects. PR #52 adds the edit flow and backend validation.
 - Project management now exposes edit, status changes, and delete in the Android project list. PR #53 preserves confirmed ledger history when removing a project from the list. Ledger-derived project summaries remain read-only.
 - Project-wallet association is currently represented by wallet addresses on confirmed project interactions and the wallet selected for a project claim. A separate persistent project-to-multiple-wallet assignment manager is not yet implemented and remains partial.
+- PR #54 adds manual plus eight-hour background refresh of saved wallet transaction activity. Background snapshots are cached locally by guest/account scope and never auto-create ledger rows or public contributions.
+- Sync is not yet app-wide: community contribution outbox has its own periodic worker; wallet activity has an eight-hour worker. There is no unified refresh coordinator for every data source.
+- The Airdrop Hub currently has a manual refresh path backed by the existing external public data feed. Do not add automatic discovery/crawling or periodic external feed refresh without revisiting the user's cancelled public website-discovery scope.
 - Real-device acceptance for browser/wallet bridge, Android transaction import, guest data clearing, and cross-device restore remains pending.
 
 ### Status discipline
