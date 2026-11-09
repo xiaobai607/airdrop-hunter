@@ -27,8 +27,8 @@ object WalletEcosystem {
         return when {
             Regex("^0x[a-fA-F0-9]{40}$").matches(value) -> EVM
             Regex("^T[1-9A-HJ-NP-Za-km-z]{33}$").matches(value) -> TRON
-            Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$").matches(value) -> SOL
             isBitcoinAddress(value) -> BTC
+            Regex("^[1-9A-HJ-NP-Za-km-z]{32,44}$").matches(value) -> SOL
             legacyChain.equals("Ethereum", true) || legacyChain.equals("ERC20", true) ||
                 legacyChain.equals(EVM, true) -> EVM
             legacyChain.equals("Tron", true) || legacyChain.equals("TRC20", true) ||
