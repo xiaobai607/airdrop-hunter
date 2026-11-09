@@ -19,7 +19,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.CancellationException
@@ -32,60 +31,34 @@ import java.util.Locale
 fun WalletDetailScreen(
     wallet: WalletDto,
     onBack: () -> Unit,
-    isGuest: Boolean = false,
-    vm: WalletDetailViewModel? = null
+    isGuest: Boolean = false
 ) {
-    val context = LocalContext.current
-    val application = context.applicationContext as AirdropHunterApplication
-    val walletDetailViewModel: WalletDetailViewModel = vm ?: viewModel(
-        factory = WalletDetailViewModelFactory(application.appContainer.assetRepository)
-    )
-    val state by walletDetailViewModel.uiState.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
-    var selectedTab by remember { mutableIntStateOf(0) }
-    LaunchedEffect(wallet.address) { walletDetailViewModel.loadWallet(wallet.address) }
-    DisposableEffect(walletDetailViewModel) { onDispose { walletDetailViewModel.clear() } }
-
     Column(Modifier.fillMaxSize().background(AppColors.Background)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary) }
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary)
+            }
             Column(Modifier.weight(1f)) {
-                Text(wallet.wallet_name.ifBlank { "钱包详情" }, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text(shortAddress(wallet.address), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                Text(
+                    wallet.wallet_name.ifBlank { "钱包详情" },
+                    color = AppColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    shortAddress(wallet.address),
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
             IconButton(onClick = { clipboard.setText(AnnotatedString(wallet.address)) }) {
                 Icon(Icons.Default.ContentCopy, "复制地址", tint = AppColors.Primary)
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
-                selected = selectedTab == 0,
-                onClick = { selectedTab = 0 },
-                label = { Text("资产") }
-            )
-            FilterChip(
-                selected = selectedTab == 1,
-                onClick = { selectedTab = 1 },
-                label = { Text("交易记录") }
-            )
-        }
-        if (selectedTab == 0) {
-            UnifiedAssetContent(
-                assets = state.assets,
-                isLoading = state.isLoading,
-                errorMessage = state.errorMessage,
-                onRefresh = walletDetailViewModel::refresh,
-                modifier = Modifier.weight(1f)
-            )
-        } else {
-            WalletActivityPanel(wallet, Modifier.weight(1f), isGuest)
-        }
+        WalletActivityPanel(wallet, Modifier.weight(1f), isGuest)
     }
 }
 
