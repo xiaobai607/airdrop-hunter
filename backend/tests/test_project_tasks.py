@@ -6,7 +6,7 @@ from app.main import app
 
 
 def register(client):
-    username = f"projectflow{uuid4().hex[:12]}"
+    username = f"prj{uuid4().hex[:12]}"
     response = client.post("/api/auth/register", json={
         "username": username,
         "password": "strong-password-123",
