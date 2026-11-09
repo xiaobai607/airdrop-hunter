@@ -39,6 +39,7 @@ fun ProjectsScreen(
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
     onOpenCommunity: (ProjectDto) -> Unit = {},
+    sessionScopeKey: String = "guest",
     vm: ProjectsViewModel? = null
 ) {
     val context = LocalContext.current
@@ -66,7 +67,13 @@ fun ProjectsScreen(
     var editProjectTwitterUrl by remember { mutableStateOf("") }
     var editProjectStatus by remember { mutableStateOf("tracking") }
 
-    LaunchedEffect(isGuest) { projectsViewModel.loadProjects(isGuest) }
+    LaunchedEffect(isGuest, sessionScopeKey) {
+        actionProject = null
+        editingProject = null
+        deletingProject = null
+        showAddDialog = false
+        projectsViewModel.loadProjects(isGuest)
+    }
 
     val savedProjectDtos = savedProjects.map { saved ->
         ProjectDto(
