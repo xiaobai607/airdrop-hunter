@@ -75,3 +75,37 @@ def test_distinct_chinese_project_names_are_not_treated_as_duplicates():
         })
         assert first.status_code == 200 and first.json()["status"] == "published"
         assert second.status_code == 200 and second.json()["status"] == "published"
+
+def test_public_submission_holds_idn_and_nonstandard_https_ports_for_review():
+    with TestClient(app) as client:
+        idn = client.post("/api/community/catalog/submit", json={
+            "name": "International Domain Project QA",
+            "url": "https://xn--e1afmkfd.xn--p1ai/airdrop",
+        })
+        custom_port = client.post("/api/community/catalog/submit", json={
+            "name": "Custom Port Project QA",
+            "url": "https://custom-port-project.example:8443/airdrop",
+        })
+        assert idn.status_code == 200 and idn.json()["status"] == "pending_review"
+        assert custom_port.status_code == 200 and custom_port.json()["status"] == "pending_review"
+        assert "国际化编码" in idn.json()["message"]
+        assert "非标准 HTTPS 端口" in custom_port.json()["message"]
+        candidates = client.get("/api/airdrops/discovery/candidates").json()
+        titles = {item["title"] for item in candidates}
+        assert "International Domain Project QA" in titles
+        assert "Custom Port Project QA" in titles
+
+
+def test_public_submission_rejects_malformed_domain_labels():
+    with TestClient(app) as client:
+        for url in (
+            "https://bad..example.org/project",
+            "https://-bad.example.org/project",
+            "https://bad-.example.org/project",
+            "https://example.123/project",
+        ):
+            response = client.post("/api/community/catalog/submit", json={
+                "name": "Malformed Domain Project QA",
+                "url": url,
+            })
+            assert response.status_code == 422
