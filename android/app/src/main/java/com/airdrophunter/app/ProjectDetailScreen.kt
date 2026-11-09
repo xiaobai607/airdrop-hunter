@@ -27,6 +27,7 @@ import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.UserInteractionEntity
 import com.airdrophunter.app.data.formatLedgerAssetBreakdown
 import com.airdrophunter.app.data.aggregateLedgerAssetPeriodTotals
+import com.airdrophunter.app.data.aggregateLedgerEstimatePeriodTotals
 import com.airdrophunter.app.data.TaskDto
 import com.airdrophunter.app.data.WalletDto
 import kotlinx.coroutines.launch
@@ -263,6 +264,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     Instant.ofEpochMilli(row.timestamp).atZone(zone).toLocalDate() >= periodStart
                 }
             }
+            val estimateTotals = remember(periodInteractions) { aggregateLedgerEstimatePeriodTotals(periodInteractions) }
             val periodGas = periodInteractions.sumOf { it.gasCostUsd }
             val periodReward = periodInteractions.sumOf { it.actualRewardUsd }
             val periodNet = periodReward - periodGas
@@ -300,8 +302,18 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             )
                         }
                     }
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            "预估 Gas：" + (estimateTotals.expectedGasCostUsd?.let { "USD $%.2f".format(Locale.US, it.toDouble()) } ?: "暂无完整估值"),
+                            color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
+                        )
+                        Text(
+                            "预估奖励：" + (estimateTotals.expectedRewardUsd?.let { "USD $%.2f".format(Locale.US, it.toDouble()) } ?: "暂无完整估值"),
+                            color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LedgerPeriodMetric(Modifier.weight(1f), "Gas 消耗", periodGas, AppColors.Danger)
+                        LedgerPeriodMetric(Modifier.weight(1f), "实际 Gas", periodGas, AppColors.Danger)
                         LedgerPeriodMetric(Modifier.weight(1f), "实际收益", periodReward, AppColors.Success)
                         LedgerPeriodMetric(Modifier.weight(1f), "净盈亏", periodNet,
                             if (periodNet >= 0.0) AppColors.Success else AppColors.Danger)
@@ -517,8 +529,15 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                     fontWeight = FontWeight.SemiBold)
                 Text(interaction.network, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
+            Text(
+                "预估 Gas：" + (interaction.expectedGasCostUsd?.let { "USD $%.2f".format(Locale.US, it) } ?: "暂无估值"),
+                color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
+            )
+            interaction.expectedRewardUsd?.let {
+                Text("预估奖励：USD $%.2f".format(Locale.US, it), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Gas USD估值 $%.2f".format(Locale.US, interaction.gasCostUsd),
+                Text("实际 Gas USD估值 $%.2f".format(Locale.US, interaction.gasCostUsd),
                     color = AppColors.Danger, style = MaterialTheme.typography.bodySmall)
                 Text("实际收益 USD估值 +$%.2f".format(Locale.US, interaction.actualRewardUsd),
                     color = AppColors.Success, style = MaterialTheme.typography.bodySmall)
