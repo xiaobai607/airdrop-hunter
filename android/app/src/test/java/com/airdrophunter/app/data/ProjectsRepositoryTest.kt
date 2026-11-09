@@ -135,8 +135,6 @@ class ProjectsRepositoryTest {
             assertFalse(local.guest.containsKey("tasks:p1"))
         }
     }
-}
-
 
     @Test fun guestTaskCanBeRenamedAndPersistsLocally() {
         val local = FakeLocal()
