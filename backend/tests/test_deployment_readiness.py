@@ -119,3 +119,11 @@ def test_readiness_rejects_private_wallet_and_transaction_fields_recursively():
         validate_snapshot_privacy({
             "projects": [{"stats": {"user_id": "account-123"}}],
         })
+    with pytest.raises(ValueError):
+        validate_snapshot_privacy({
+            "projects": [{"stats": {"account_identifier": "account-123"}}],
+        })
+    with pytest.raises(ValueError):
+        validate_snapshot_privacy({
+            "projects": [{"stats": {"userIdentifier": "user-123"}}],
+        })
