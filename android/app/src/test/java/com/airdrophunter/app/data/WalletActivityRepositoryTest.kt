@@ -46,6 +46,23 @@ class WalletActivityRepositoryTest {
     }
 
     @Test
+    fun bitcoinAddressUsesBitcoinEndpoint() = runBlocking {
+        val remote = FakeRemote()
+        val wallet = wallet("bc1q" + "a".repeat(38), WalletEcosystem.BTC)
+        WalletActivityRepository(remote).load(wallet)
+
+        assertEquals(listOf("bitcoin"), remote.chainCalls)
+        assertEquals(0, remote.evmCalls)
+    }
+
+    @Test
+    fun bitcoinAddressFormatsAreRecognized() {
+        assertEquals(WalletEcosystem.BTC, WalletEcosystem.fromAddress("1" + "A".repeat(25)))
+        assertEquals(WalletEcosystem.BTC, WalletEcosystem.fromAddress("bc1q" + "a".repeat(38)))
+        assertEquals("OTHER", WalletEcosystem.fromAddress("bc1qMixedCaseAddress"))
+    }
+
+    @Test
     fun solanaAddressUsesSolanaEndpoint() = runBlocking {
         val remote = FakeRemote()
         val wallet = wallet("1".repeat(32), WalletEcosystem.SOL)
