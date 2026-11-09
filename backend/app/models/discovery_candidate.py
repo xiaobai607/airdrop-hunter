@@ -24,3 +24,6 @@ class AirdropDiscoveryCandidate(Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    review_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending", index=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_catalog_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
