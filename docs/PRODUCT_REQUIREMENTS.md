@@ -206,6 +206,7 @@ Additional rules:
 - Confirmed in main source: guest outbox batches use no Authorization header; logged-in batches use the user's bearer token.
 - Confirmed in main source: guest wallet addresses are saved through the app-local cache; logged-in wallet addresses are loaded from the authenticated wallet API and cached under an account-specific key. Room project, P&L, interaction, pending-bill, and outbox records are scoped by token user ID or guest scope.
 - Confirmed in main source: private personal-ledger endpoint requires authentication and scopes reads/deletes/upserts to the authenticated user. Android AccountingRepository.syncPersonalLedger() returns before any private cloud call when no token exists; PR #75 stores structured token breakdowns in the existing private-ledger extra JSON and preserves them during cloud restore.
+- PR #77 hardens account-ledger sync against session changes during network requests: each run captures its bearer token, uses explicit authorization on private-ledger API calls, reads the captured token's local cache scope, and atomically merges cloud-canonical rows with latest local-only rows in a Room transaction shared with bill confirmation. It rejects restores beyond 10,000 rows before uploading or replacing local data. Android regression tests cover guest no-cloud behavior, account switching, concurrent local additions, cloud-canonical conflict handling, demo exclusion, and oversized-cloud protection.
 - PR #46 and PR #47 are merged: new public contribution rows store user_id as null; migration 0005 clears historical account links while preserving aggregate totals.
 - Source audit confirms guest wallet addresses are stored in the guest-scoped app cache and authenticated wallet lists are fetched from the private wallet API and cached by account scope. Device-level app-data clearing and account-switch behavior still require real-device acceptance; production database backup/restore also remains unverified.
 - Community implementation: PR #48 adds guest/account-scoped local favorites; cross-device favorite sync remains pending. PR #49 adds a community ranking enhancement; its legacy metric output is scheduled for removal. PR #50 adds global 1–5 star aggregates for logged-in accounts after server verification against confirmed private-ledger participation; guest ratings remain local-only. PR #51 adds in-app search over the existing seven-project catalog; this does not search external websites. PR #59 has replaced the fixed seven-project list with a dynamic backend catalog and Android API loading. PR #60 adds RSS/Atom candidate intake and scheduled-script integration; candidates are not automatically promoted to verified projects. PR #61 adds public project submission and duplicate checks; PR #63 adds the protected review queue. Actual feed activation/source checks and moderation operations remain pending.
@@ -240,7 +241,7 @@ Recommended next implementation order, based on shared-code dependencies:
 1. **Public metric cleanup (PR #73 merged):** backend, snapshot, and Android public data contracts now expose confirmed monetary aggregates, star ratings, and catalog metadata. The New ranking sorts by catalog creation time.
 2. **Transaction-to-ledger reliability (PR #74 merged):** duplicate transaction identities are isolated by account scope, public event IDs remain stable for server idempotency, demo rows are excluded from sync/contribution, fee-payer attribution is conservative, and manual confirmation is required.
 3. **Currency-aware accounting (PR #75 merged):** native token amount/symbol/decimals and valuation timestamp/source now flow through chain activity, pending bills, private ledger, anonymous public contributions, and per-token static snapshots. USD valuations remain separate and unlike native units are never added together.
-4. **Sync/restore acceptance:** verify guest data survives normal app restarts but is lost on app-data clearing; verify account data restores on another device and cannot leak across account switches. Add conflict/retry handling only where tests demonstrate a gap.
+4. **Sync/restore hardening (PR #77 in progress):** bind each private-ledger sync to the token/account that started it, use explicit Authorization headers and token-scoped local cache access, atomically merge cloud rows with local rows, and reject cloud restores beyond the 10,000-row safety cap without overwriting local data. Real-device cross-device and app-data-clear acceptance remains pending.
 5. **Discovery operations:** verify source terms/access, enable only feeds that are genuinely free and stable, and configure review/Cron without blocking user submissions.
 6. **Production and device acceptance:** configure database backups, CDN/R2, scheduled publishing, and end-to-end phone tests before claiming production readiness.
 7. **Unified UI refinement:** defer broad visual redesign until the above core chains are complete.
@@ -252,11 +253,11 @@ Recommended next implementation order, based on shared-code dependencies:
 - Backend create/update endpoints apply the same selected-chain validation. Legacy `/api/wallet/sync` retains strict address-only identification for backward compatibility; wallet serialization prefers stored chain metadata to avoid reclassifying Solana Base58 as Bitcoin.
 - Validation checks encoding/checksum only, not ownership or live chain activity. WalletConnect-imported EVM addresses remain unchanged.
 
-### Open legacy branches — do not merge directly
+### Closed legacy pull requests
 
-- PR #32 is an old wallet refactor draft. It contains some useful isolated work (for example, a stricter Bitcoin address validator), but its wallet architecture and dependencies must be reviewed and selectively ported only if still required.
-- PR #36 is an old broad ledger/community/wallet implementation. Its main data-flow concepts have since been implemented through later merged PRs; its remaining token-portfolio files are not a reason to restore the cancelled full asset dashboard. Do not merge it directly.
-- Keep one authoritative implementation on `main`; close or archive superseded PRs after any still-needed isolated code has been extracted and tested.
+- PR #32 was closed as superseded after chain-specific wallet validation and Bitcoin address validation were implemented in merged PR #72.
+- PR #36 was closed as superseded after its required ledger, community contribution, and accounting data-flow work was implemented in merged PRs #39, #40, #42, #74, and #75. Its remaining token-portfolio work is outside the confirmed product scope.
+- Maintain one authoritative implementation on `main`; do not reopen or merge these legacy branches.
 
 
 
@@ -332,11 +333,23 @@ Recommended next implementation order, based on shared-code dependencies:
 - Project detail displays native token breakdowns for each confirmed time window; project list cards retain concise USD-valuation summaries.
 - PR #75 passed Android debug build/unit tests and backend tests before merge. Real-device verification of imported native precision, local persistence, account cloud restore, and token-separated public snapshot display remains pending.
 
-### Legacy cached wallet-activity precision compatibility (PR #76 in progress)
+### Private ledger sync/restore hardening (PR #77 in progress)
+
+- Capture the authenticated access token once per sync and use it for every private-ledger request; do not let a mid-flight account switch redirect requests.
+- Read local ledger payloads under the captured account scope, not whichever account is active at completion.
+- Merge canonical cloud rows and local-only rows atomically in Room, serialized against the local confirmed-bill transaction, so rows created during network work cannot be overwritten.
+- Cloud records remain canonical for duplicate client record IDs; local-only and demo rows remain on the same account/device, and demo rows are never uploaded.
+- Explicitly authenticate private ledger GET/PUT calls with the captured bearer token.
+- Refuse cloud restore when more than 10,000 rows are present, before uploading or replacing local data.
+- Unit tests cover guest no-cloud behavior, account switching during sync, concurrent local additions, canonical cloud conflicts, demo exclusion, and oversized cloud restore.
+- Real-device cross-device restore, account switching, app-data clearing, and offline retry acceptance remain pending.
+
+### Legacy cached wallet-activity precision compatibility (PR #76 merged)
 
 - Older cached wallet-activity JSON may not contain native token decimals. Treat missing precision as unknown in the DTO rather than defaulting every chain to 18 decimals.
 - When precision is absent, infer only the documented native precision for known supported chains: EVM 18, TRON 6, Bitcoin 8, Solana 9. Unknown chains remain null; never fabricate precision.
 - Preserve an explicitly supplied valid precision from the backend, and cover old-cache fallback and explicit-precision precedence with Android unit tests.
+- PR #76 merged as `50e5dba160380637cf7a53acbd9e6a4e26615b98`; Android debug build/unit tests and backend tests passed (Actions run 42586518156).
 
 ### Public community metric scope (user-confirmed)
 

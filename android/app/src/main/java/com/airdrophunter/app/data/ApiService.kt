@@ -55,8 +55,8 @@ interface ApiService {
     @DELETE("api/wallets/{walletId}") suspend fun deleteWallet(@Path("walletId") walletId: String)
     @GET("api/stats") suspend fun getStats(): StatsDto
     @GET("api/user/stats") suspend fun getUserStats(): UserStatsDto
-    @GET("api/personal-ledger") suspend fun getPersonalLedger(@Query("project_id") projectId: String? = null, @Query("limit") limit: Int = 500, @Query("offset") offset: Int = 0): List<PersonalLedgerEntryDto>
-    @PUT("api/personal-ledger/{clientRecordId}") suspend fun upsertPersonalLedger(@Path("clientRecordId") clientRecordId: String, @Body request: PersonalLedgerWriteRequest): PersonalLedgerEntryDto
+    @GET("api/personal-ledger") suspend fun getPersonalLedger(@Query("project_id") projectId: String? = null, @Query("limit") limit: Int = 500, @Query("offset") offset: Int = 0, @Header("Authorization") authorizationHeader: String? = null): List<PersonalLedgerEntryDto>
+    @PUT("api/personal-ledger/{clientRecordId}") suspend fun upsertPersonalLedger(@Path("clientRecordId") clientRecordId: String, @Body request: PersonalLedgerWriteRequest, @Header("Authorization") authorizationHeader: String? = null): PersonalLedgerEntryDto
     @DELETE("api/personal-ledger/{clientRecordId}") suspend fun deletePersonalLedger(@Path("clientRecordId") clientRecordId: String)
     @POST("api/community/projects/{projectOfficialId}/contributions")
     suspend fun addCommunityContribution(

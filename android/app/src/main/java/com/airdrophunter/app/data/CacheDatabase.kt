@@ -885,6 +885,39 @@ object CacheStore {
     suspend fun writeLocal(key: String, payload: String) = withContext(Dispatchers.IO) {
         runCatching { database?.cacheDao()?.write(CachedPayload("${currentAccountScope()}:local:$key", payload, System.currentTimeMillis())) }; Unit
     }
+    /** Read from the account that initiated sync, even if another account is now active. */
+    suspend fun readLocalForToken(key: String, accessToken: String): String? = withContext(Dispatchers.IO) {
+        val scope = accountScopeFromToken(accessToken)
+        if (scope == "invalid-session") return@withContext null
+        runCatching { database?.cacheDao()?.read("$scope:local:$key") }.getOrNull()
+    }
+    /**
+     * Atomically merge canonical cloud rows with local-only rows for the captured account.
+     * Room serializes this transaction against confirmPendingBill's local ledger write.
+     */
+    suspend fun mergePersonalLedgerForToken(
+        key: String,
+        cloudEntries: List<PersonalLedgerWriteRequest>,
+        accessToken: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        val scope = accountScopeFromToken(accessToken)
+        if (scope == "invalid-session") return@withContext false
+        val db = database ?: return@withContext false
+        db.withTransaction {
+            val cacheKey = "$scope:local:$key"
+            val type = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+            val localEntries = db.cacheDao().read(cacheKey)?.let { raw ->
+                runCatching { Gson().fromJson<List<PersonalLedgerWriteRequest>>(raw, type) }.getOrNull()
+            }.orEmpty()
+            val cloudIds = cloudEntries.mapTo(mutableSetOf()) { it.client_record_id }
+            val merged = (cloudEntries + localEntries.filterNot { it.client_record_id in cloudIds })
+                .distinctBy { it.client_record_id }
+            db.cacheDao().write(
+                CachedPayload(cacheKey, Gson().toJson(merged), System.currentTimeMillis())
+            )
+        }
+        true
+    }
     // Public community snapshots are shared across guest and signed-in sessions.
     suspend fun readPublic(key: String): String? = withContext(Dispatchers.IO) {
         runCatching { database?.cacheDao()?.read("public:community:$key") }.getOrNull()
