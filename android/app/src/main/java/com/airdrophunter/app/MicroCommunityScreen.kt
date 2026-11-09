@@ -18,8 +18,12 @@ import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.airdrophunter.app.data.AccountingRepository
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.CacheStoreAccountingLocalDataSource
+import com.airdrophunter.app.data.CommunityProjectRatingRequest
+import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AppColors
@@ -32,7 +36,9 @@ private data class CommunityDemoStats(
     val reward: Double,
     val contributions: Long,
     val interactions: Long,
-    val recentInteractions: Long
+    val recentInteractions: Long,
+    val score: Double,
+    val ratingCount: Long
 )
 
 @Composable
@@ -57,20 +63,23 @@ fun MicroCommunityScreen(
     var saving by remember { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
     val demoStats = when (projectOfficialId.lowercase()) {
-        "linea" -> CommunityDemoStats(42.80, 184.20, 1280, 4320, 310)
-        "scroll" -> CommunityDemoStats(38.60, 128.60, 964, 3210, 205)
-        "zksync" -> CommunityDemoStats(62.00, 156.00, 1820, 5860, 480)
-        "starknet" -> CommunityDemoStats(51.00, 98.00, 1450, 4100, 365)
-        "base" -> CommunityDemoStats(73.00, 226.00, 2200, 7240, 520)
-        "arbitrum" -> CommunityDemoStats(84.00, 142.00, 1730, 5320, 190)
-        "optimism" -> CommunityDemoStats(49.00, 117.00, 1390, 4680, 270)
-        else -> CommunityDemoStats(18.50, 64.00, 320, 980, 20)
+        "linea" -> CommunityDemoStats(42.80, 184.20, 1280, 4320, 310, 4.9, 97)
+        "scroll" -> CommunityDemoStats(38.60, 128.60, 964, 3210, 205, 4.8, 95)
+        "zksync" -> CommunityDemoStats(62.00, 156.00, 1820, 5860, 480, 4.7, 93)
+        "starknet" -> CommunityDemoStats(51.00, 98.00, 1450, 4100, 365, 4.4, 88)
+        "base" -> CommunityDemoStats(73.00, 226.00, 2200, 7240, 520, 4.9, 96)
+        "arbitrum" -> CommunityDemoStats(84.00, 142.00, 1730, 5320, 190, 4.2, 82)
+        "optimism" -> CommunityDemoStats(49.00, 117.00, 1390, 4680, 270, 4.6, 91)
+        else -> CommunityDemoStats(18.50, 64.00, 320, 980, 20, 4.0, 1)
     }
     val displayGasTotal = if (useDemoStats) demoStats.gas else communityStats?.total_gas_cost_usd ?: 0.0
     val displayRewardTotal = if (useDemoStats) demoStats.reward else communityStats?.total_actual_reward_usd ?: 0.0
     val displayContributionCount = if (useDemoStats) demoStats.contributions else communityStats?.contribution_count ?: 0L
     val displayInteractionCount = if (useDemoStats) demoStats.interactions else communityStats?.total_interactions ?: 0L
     val displayRecentInteractions = if (useDemoStats) demoStats.recentInteractions else communityStats?.interactions_24h ?: 0L
+    val displayAverageRating = if (useDemoStats) demoStats.score else communityStats?.average_rating
+    val displayRatingCount = if (useDemoStats) demoStats.ratingCount else communityStats?.rating_count ?: 0L
+    var isGuest by remember { mutableStateOf(TokenStore.readTokenBlocking().isNullOrBlank()) }
     val combinedTotal = (displayGasTotal + displayRewardTotal).coerceAtLeast(1.0)
     val rewardWeight = if (displayGasTotal + displayRewardTotal <= 0.0) 0.5f
         else (displayRewardTotal / combinedTotal).toFloat().coerceIn(0.01f, 0.99f)
@@ -90,7 +99,8 @@ fun MicroCommunityScreen(
             runCatching { Gson().fromJson<List<WalletDto>>(it, type) }.getOrNull()
         }.orEmpty()
         wallet = wallets.firstOrNull()?.address.orEmpty()
-        canRate = wallet.isNotBlank() && CacheStore.hasPnlParticipation(projectOfficialId)
+        isGuest = TokenStore.readTokenBlocking().isNullOrBlank()
+        canRate = CacheStore.hasPnlParticipation(projectOfficialId) && (!isGuest || wallet.isNotBlank())
         participationChecked = true
     }
     LaunchedEffect(myRating) {
@@ -138,6 +148,13 @@ fun MicroCommunityScreen(
                         }
                     }
                     Text(
+                        if (displayRatingCount > 0 && displayAverageRating != null)
+                            "全网评分 ★ ${String.format(java.util.Locale.US, "%.1f", displayAverageRating)} · ${displayRatingCount} 个账号评分"
+                        else "暂无全网评分",
+                        color = if (displayRatingCount > 0) Color(0xFFFFD08A) else Color(0xFFB9C8C0),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
                         when {
                             useDemoStats -> "测试样本：$displayContributionCount 笔演示贡献 · 不进入全网统计"
                             statsLoading -> "正在加载全网统计…"
@@ -153,7 +170,7 @@ fun MicroCommunityScreen(
                 Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
                     Text("本机已保存的评分", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        if (ratings.isEmpty()) "暂无评分记录。全网评分功能尚未接入，暂不展示模拟数据。"
+                        if (ratings.isEmpty()) "暂无本机评分记录。全网评分只统计通过真实参与验证的账号。"
                         else "本机评分记录：${ratings.size} 条 · 平均 ${String.format(java.util.Locale.US, "%.1f", average ?: 0.0)} 星",
                         color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
                     )
@@ -188,9 +205,11 @@ fun MicroCommunityScreen(
                     if (!canRate) {
                         Text("仅限真实参与该项目的用户打分", color = AppColors.TextHelper, style = MaterialTheme.typography.labelMedium)
                     } else if (saved) {
-                        Text("已提交：匿名猎人 #${wallet.takeLast(4).uppercase()}", color = AppColors.Success, style = MaterialTheme.typography.labelMedium)
+                        Text(if (isGuest) "已保存在本机" else "已提交全网星级评分", color = AppColors.Success, style = MaterialTheme.typography.labelMedium)
+                    } else if (isGuest) {
+                        Text("游客评分只保存在本机，不计入全网评分", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                     } else {
-                        Text("评分将以“匿名猎人 #XXXX”显示，不支持文字评论", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text("账号私有账本将用于验证真实参与，公开只展示星级汇总", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                     }
                     Button(
                         onClick = {
@@ -199,9 +218,21 @@ fun MicroCommunityScreen(
                             } else if (selectedScore in 1..5 && !saved && !saving) {
                                 saving = true
                                 scope.launch {
-                                    val ok = CacheStore.saveProjectRating(projectOfficialId, wallet, selectedScore)
+                                    val ok = if (isGuest) {
+                                        CacheStore.saveProjectRating(projectOfficialId, wallet, selectedScore)
+                                    } else {
+                                        runCatching {
+                                            val repository = AccountingRepository(CacheStoreAccountingLocalDataSource(), ApiClient.service)
+                                            check(repository.syncPersonalLedger()) { "私人账本同步失败" }
+                                            communityStats = ApiClient.service.submitCommunityProjectRating(
+                                                projectOfficialId, CommunityProjectRatingRequest(selectedScore)
+                                            )
+                                            if (wallet.isBlank()) true else CacheStore.saveProjectRating(projectOfficialId, wallet, selectedScore)
+                                        }.getOrDefault(false)
+                                    }
                                     saving = false
                                     saved = ok
+                                    if (!ok) Toast.makeText(context, if (isGuest) "本机评分保存失败" else "云端验证失败，请确认账本已同步", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
