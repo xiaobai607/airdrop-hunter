@@ -16,7 +16,10 @@ data class ManualRewardInput(
     val amount: BigDecimal? = null,
     val unit: String? = null,
     /** Explicit USD valuation only; null means the reward has no confirmed USD value. */
-    val usdValuation: BigDecimal? = null
+    val usdValuation: BigDecimal? = null,
+    val unitUsdPrice: BigDecimal? = null,
+    val quoteSource: String? = null,
+    val quoteTimestamp: Long? = null
 )
 
 data class ManualWalletAccountingInput(
@@ -66,6 +69,9 @@ object ManualProjectAccountingPolicy {
     ): ManualAccountingBatch {
         require(wallets.isNotEmpty() && wallets.size <= maxRows) { "请选择1至100个钱包" }
         require(wallets.map { it.walletId }.distinct().size == wallets.size) { "钱包不能重复" }
+        val hashes = wallets.filter { it.txHash.isNotBlank() }
+            .map { "${it.network.trim().lowercase()}:${it.txHash.trim().lowercase()}" }
+        require(hashes.distinct().size == hashes.size) { "同一批次不能重复使用 Tx Hash" }
         wallets.forEach { wallet ->
             require(wallet.walletId.isNotBlank() && wallet.walletId.length <= 80) { "钱包标识无效" }
             require(wallet.walletAddress.isNotBlank() && wallet.walletAddress.length <= 160) { "钱包地址无效" }
@@ -117,27 +123,46 @@ object ManualProjectAccountingPolicy {
             ManualRewardKind.USD -> {
                 require(amount.isValidAmount()) { "USD 奖励金额无效" }
                 require(valuation == null || valuation.compareTo(amount!!) == 0) { "USD 奖励不能重复指定估值" }
+                require(reward.unitUsdPrice == null && reward.quoteSource == null && reward.quoteTimestamp == null) {
+                    "USD 直接录入不需要代币报价信息"
+                }
                 return reward.copy(unit = "USD", usdValuation = amount)
             }
             ManualRewardKind.TOKEN -> {
                 require(amount.isValidAmount() && !reward.unit.isNullOrBlank()) { "代币奖励需要数量和币种" }
                 require(valuation == null || valuation.isValidAmount()) { "代币 USD 估值无效" }
+                if (valuation != null) {
+                    require(reward.unitUsdPrice.isValidAmount() && reward.unitUsdPrice!!.signum() > 0 &&
+                        !reward.quoteSource.isNullOrBlank() && (reward.quoteTimestamp ?: 0L) > 0L) {
+                        "代币估值必须保存单价、报价来源和时间"
+                    }
+                } else {
+                    require(reward.unitUsdPrice == null && reward.quoteSource == null && reward.quoteTimestamp == null) {
+                        "未估值代币不能附带不完整报价信息"
+                    }
+                }
             }
             ManualRewardKind.MANUAL_USD_VALUATION -> {
                 require(amount.isValidAmount()) { "手动 USD 估值必须明确填写" }
                 require(valuation == null) { "手动估值请直接填写 USD 金额" }
+                require(reward.unitUsdPrice == null && reward.quoteSource == null && reward.quoteTimestamp == null) {
+                    "手动估值不应携带行情报价信息"
+                }
                 return reward.copy(unit = "USD", usdValuation = amount)
             }
             ManualRewardKind.POINTS -> {
                 require(amount.isValidAmount() && !reward.unit.isNullOrBlank()) { "积分奖励需要数量和积分名称" }
                 require(valuation == null) { "积分不能直接作为 USD 收益" }
+                require(reward.unitUsdPrice == null && reward.quoteSource == null && reward.quoteTimestamp == null)
             }
             ManualRewardKind.UNISSUED -> {
                 require(valuation == null) { "未发放奖励不能计入实际 USD 收益" }
                 require(amount == null || amount.isValidAmount()) { "未发放奖励数量无效" }
+                require(reward.unitUsdPrice == null && reward.quoteSource == null && reward.quoteTimestamp == null)
             }
             ManualRewardKind.UNKNOWN -> {
                 require(amount == null && valuation == null) { "未知奖励不能伪造数量或 USD 估值" }
+                require(reward.unitUsdPrice == null && reward.quoteSource == null && reward.quoteTimestamp == null)
             }
         }
         return reward.copy(unit = reward.unit?.trim()?.takeIf { it.isNotEmpty() })

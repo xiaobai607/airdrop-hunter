@@ -73,7 +73,7 @@ class ManualProjectAccountingPolicyTest {
     @Test
     fun anonymousContributionIsOptInAndRequiresHashForEveryWallet() {
         val privateBatch = ManualProjectAccountingPolicy.prepare(
-            listOf(wallet("one")),
+            listOf(wallet("one", ManualRewardInput(ManualRewardKind.UNKNOWN))),
             ManualRewardAllocationMode.PER_WALLET,
             publicContributionOptIn = false
         )
