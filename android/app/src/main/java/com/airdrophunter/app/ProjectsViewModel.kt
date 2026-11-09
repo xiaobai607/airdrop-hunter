@@ -7,6 +7,7 @@ import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.ProjectWriteRequest
 import com.airdrophunter.app.data.ProjectsRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,9 +24,11 @@ data class ProjectsUiState(
 class ProjectsViewModel(private val repository: ProjectsRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(ProjectsUiState())
     val uiState: StateFlow<ProjectsUiState> = _uiState.asStateFlow()
+    private var activeJob: Job? = null
 
     fun loadProjects(isGuest: Boolean = false) {
-        viewModelScope.launch {
+        activeJob?.cancel()
+        activeJob = viewModelScope.launch {
             _uiState.value = ProjectsUiState(isLoading = true)
             try {
                 val cached = repository.readCachedProjects(isGuest)
@@ -69,7 +72,8 @@ class ProjectsViewModel(private val repository: ProjectsRepository) : ViewModel(
         successMessage: String,
         operation: suspend () -> List<ProjectDto>
     ) {
-        viewModelScope.launch {
+        activeJob?.cancel()
+        activeJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, error = null, message = null)
             try {
                 val projects = operation()
