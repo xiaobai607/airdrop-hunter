@@ -18,7 +18,7 @@ NETWORKS = {
     "EVM": ("EVM", "E"), "Ethereum": ("ERC20", "E"), "ERC20": ("ERC20", "E"),
     "TRON": ("TRC20", "T"), "Tron": ("TRC20", "T"), "TRC20": ("TRC20", "T"),
     "SOL": ("Solana", "S"), "Solana": ("Solana", "S"),
-    "Bitcoin": ("Bitcoin", "B"),
+    "BTC": ("Bitcoin", "B"), "Bitcoin": ("Bitcoin", "B"),
 }
 
 class WalletWrite(BaseModel):
@@ -58,19 +58,109 @@ class WalletWrite(BaseModel):
     def normalize_notes(cls, value: str) -> str:
         return value.strip()
 
-def identify_chain(address: str) -> str | None:
+BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+def _decode_base58(value: str) -> bytes | None:
+    if not value or any(char not in BASE58_ALPHABET for char in value):
+        return None
+    number = 0
+    for char in value:
+        number = number * 58 + BASE58_ALPHABET.index(char)
+    body = number.to_bytes((number.bit_length() + 7) // 8, "big") if number else b""
+    return b"\\x00" * (len(value) - len(value.lstrip("1"))) + body
+
+def _is_base58check(value: str, versions: set[int], payload_size: int) -> bool:
+    import hashlib
+    decoded = _decode_base58(value)
+    if decoded is None or len(decoded) != payload_size + 4 or decoded[0] not in versions:
+        return False
+    checksum = hashlib.sha256(hashlib.sha256(decoded[:payload_size]).digest()).digest()[:4]
+    return checksum == decoded[payload_size:]
+
+def _bech32_polymod(values: list[int]) -> int:
+    generators = (0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3)
+    checksum = 1
+    for value in values:
+        top = checksum >> 25
+        checksum = ((checksum & 0x1ffffff) << 5) ^ value
+        for index, generator in enumerate(generators):
+            if (top >> index) & 1:
+                checksum ^= generator
+    return checksum
+
+def _is_bitcoin_segwit(value: str) -> bool:
+    charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+    if not 14 <= len(value) <= 90 or not (value.islower() or value.isupper()):
+        return False
+    value = value.lower()
+    separator = value.rfind("1")
+    if separator < 1 or separator > 83 or separator + 7 >= len(value) or value[:separator] != "bc":
+        return False
+    try:
+        data = [charset.index(char) for char in value[separator + 1:]]
+    except ValueError:
+        return False
+    if len(data) < 7:
+        return False
+    hrp = value[:separator]
+    expanded = [ord(char) >> 5 for char in hrp] + [0] + [ord(char) & 31 for char in hrp]
+    checksum = _bech32_polymod(expanded + data)
+    if checksum not in (1, 0x2bc830a3):
+        return False
+    version = data[0]
+    if version > 16 or (version == 0 and checksum != 1) or (version != 0 and checksum != 0x2bc830a3):
+        return False
+    accumulator = bits = 0
+    decoded: list[int] = []
+    for item in data[1:-6]:
+        accumulator = (accumulator << 5) | item
+        bits += 5
+        while bits >= 8:
+            bits -= 8
+            decoded.append((accumulator >> bits) & 0xff)
+    if bits >= 5 or ((accumulator << (8 - bits)) & 0xff) or not 2 <= len(decoded) <= 40:
+        return False
+    if version == 0:
+        return len(decoded) in (20, 32)
+    if version == 1:
+        return len(decoded) == 32
+    return True
+
+def is_valid_address_for_chain(address: str, chain: str) -> bool:
     value = address.strip()
-    if re.fullmatch(r"0x[a-fA-F0-9]{40}", value): return "EVM"
-    if re.fullmatch(r"T[1-9A-HJ-NP-Za-km-z]{33}", value): return "TRON"
-    if re.fullmatch(r"bc1[ac-hj-np-z02-9]{11,71}", value, re.IGNORECASE) or re.fullmatch(r"[13][1-9A-HJ-NP-Za-km-z]{25,34}", value): return "Bitcoin"
-    if re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]{32,44}", value): return "SOL"
+    canonical = {
+        "ethereum": "EVM", "erc20": "EVM", "evm": "EVM",
+        "tron": "TRON", "trc20": "TRON",
+        "sol": "SOL", "solana": "SOL",
+        "btc": "Bitcoin", "bitcoin": "Bitcoin",
+    }.get(chain.strip().lower())
+    if canonical == "EVM":
+        return re.fullmatch(r"0x[a-fA-F0-9]{40}", value) is not None
+    if canonical == "TRON":
+        return _is_base58check(value, {0x41}, 21)
+    if canonical == "SOL":
+        decoded = _decode_base58(value)
+        return decoded is not None and len(decoded) == 32
+    if canonical == "Bitcoin":
+        return _is_base58check(value, {0x00, 0x05}, 21) or _is_bitcoin_segwit(value)
+    return False
+
+def identify_chain(address: str) -> str | None:
+    for chain in ("EVM", "TRON", "Bitcoin", "SOL"):
+        if is_valid_address_for_chain(address, chain):
+            return chain
     return None
 
 def _serialize(w: Wallet) -> dict:
-    detected = identify_chain(w.address or w.public_key)
-    canonical = detected or w.chain
+    stored = {
+        "evm": "EVM", "erc20": "EVM", "ethereum": "EVM",
+        "tron": "TRON", "trc20": "TRON",
+        "sol": "SOL", "solana": "SOL",
+        "btc": "Bitcoin", "bitcoin": "Bitcoin",
+    }.get((w.chain or "").strip().lower())
+    canonical = stored or identify_chain(w.address or w.public_key) or w.chain
     return {"id": str(w.id), "wallet_name": w.wallet_name, "chain": canonical,
-        "network_icon": {"EVM": "E", "TRON": "T", "SOL": "S"}.get(canonical, w.network_icon),
+        "network_icon": {"EVM": "E", "TRON": "T", "SOL": "S", "Bitcoin": "B"}.get(canonical, w.network_icon),
         "ecosystem": canonical, "address": w.address or w.public_key,
         "public_key": w.address or w.public_key, "daily_gas_usd": float(w.daily_gas_usd or 0),
         "recent_airdrop_income_usd": float(w.recent_airdrop_income_usd or 0),
@@ -89,9 +179,8 @@ async def list_wallets(db: AsyncSession = Depends(get_db), user: User = Depends(
 async def add_wallet(payload: WalletWrite, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     chain = payload.chain.strip()
     if chain not in NETWORKS: raise HTTPException(422, "暂不支持该生态")
-    detected = identify_chain(payload.address)
-    expected = {"Ethereum": "EVM", "ERC20": "EVM", "Tron": "TRON", "TRC20": "TRON", "Solana": "SOL"}.get(chain, chain)
-    if detected != expected: raise HTTPException(422, "钱包地址格式与所选生态不匹配")
+    if not is_valid_address_for_chain(payload.address, chain):
+        raise HTTPException(422, "钱包地址格式或校验码与所选生态不匹配")
     address = payload.address.strip()
     existing = await db.scalar(select(Wallet).where(Wallet.user_id == user.id, Wallet.address == address))
     db_chain, icon = NETWORKS[chain]
@@ -125,10 +214,8 @@ async def update_wallet(
     if chain not in NETWORKS:
         raise HTTPException(422, "暂不支持该生态")
     address = payload.address.strip()
-    detected = identify_chain(address)
-    expected = {"Ethereum": "EVM", "ERC20": "EVM", "Tron": "TRON", "TRC20": "TRON", "Solana": "SOL"}.get(chain, chain)
-    if detected != expected:
-        raise HTTPException(422, "钱包地址格式与所选生态不匹配")
+    if not is_valid_address_for_chain(address, chain):
+        raise HTTPException(422, "钱包地址格式或校验码与所选生态不匹配")
     duplicate = await db.scalar(select(Wallet).where(
         Wallet.user_id == user.id, Wallet.address == address, Wallet.id != wallet_id
     ))

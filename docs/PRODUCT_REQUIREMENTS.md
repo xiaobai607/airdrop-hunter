@@ -177,6 +177,8 @@ Additional rules:
 - PR #68: initial backend snapshot-builder PR was closed as superseded; it was not merged separately. Its implementation was carried into PR #69.
 - PR #69: backend four-window snapshot generation, anonymous aggregation, versioned object-storage publisher, Room-first cache, silent CDN revalidation, and waterfall detail integration; merged commit 25035c83e6f69f125d0b336170fdd0e0d5c93316 with Android and backend CI green. CDN/R2 and scheduled publisher remain unconfigured.
 - PR #70: removed fabricated empty/50:50 comparison bars, made data presence depend on confirmed contribution count, corrected the stale five-window requirement to four windows; merged commit 0c57de441fcfb668dbb6e4d639ea68f9e6c443ee; Android and backend CI green.
+- PR #71: consolidated the single-source product requirements, README boundaries, cross-module data-flow map, and dependency-driven roadmap; merged commit 1bc27b7a3ec78b45321891c3f68b82db5b91a1ec; Android and backend CI green.
+- PR #72: explicit chain selection and checksum-aware address validation for EVM/TRON/Solana/Bitcoin; in progress until CI passes and the change is merged.
 
 ### Current audit findings
 
@@ -216,13 +218,20 @@ The main data path is intentionally one-way at each boundary:
 
 Recommended next implementation order, based on shared-code dependencies:
 
-1. **Wallet input correctness (next):** replace client-side automatic ecosystem detection with explicit chain/ecosystem selection and chain-specific format validation. Keep server-side validation authoritative. Preserve existing WalletConnect flow and guest/account storage. This touches the wallet form, DTO/repository, and backend validation together; do not merge the old PR #32 wholesale.
+1. **Wallet input correctness (PR #72; awaiting CI):** the user selects EVM/TRON/Solana/Bitcoin explicitly; Android local validation and backend validation check the selected chain, including Base58Check for TRON/Bitcoin and 32-byte Base58 for Solana. Stored chain metadata takes priority over address inference so overlapping Base58 encodings do not silently change ecosystems. Preserve WalletConnect and guest/account storage; do not merge old PR #32 wholesale.
 2. **Transaction-to-ledger reliability:** test and harden the chain activity -> pending bill -> manual confirmation path, especially fee-payer attribution, duplicate detection, demo exclusion, and account-scope isolation. Never auto-confirm a transaction or estimated reward.
 3. **Currency-aware accounting:** extend the private ledger and anonymous public contribution model to retain native token amount/symbol/decimals and valuation timestamp/source. Keep USD valuation separate and never sum unlike tokens. Update snapshots only after the source model is correct.
 4. **Sync/restore acceptance:** verify guest data survives normal app restarts but is lost on app-data clearing; verify account data restores on another device and cannot leak across account switches. Add conflict/retry handling only where tests demonstrate a gap.
 5. **Discovery operations:** verify source terms/access, enable only feeds that are genuinely free and stable, and configure review/Cron without blocking user submissions.
 6. **Production and device acceptance:** configure database backups, CDN/R2, scheduled publishing, and end-to-end phone tests before claiming production readiness.
 7. **Unified UI refinement:** defer broad visual redesign until the above core chains are complete.
+
+### Wallet input validation implementation (PR #72)
+
+- Wallet add UI asks the user to select EVM, TRON, Solana, or Bitcoin before entering an address; it no longer auto-detects the selected ecosystem.
+- Android validates EVM hex shape, TRON Base58Check/version, Solana Base58 decoded length (32 bytes), and Bitcoin Base58Check or Bech32/Bech32m witness addresses. Guest local writes and authenticated remote writes share the same local validation.
+- Backend create/update endpoints apply the same selected-chain validation. Legacy `/api/wallet/sync` retains strict address-only identification for backward compatibility; wallet serialization prefers stored chain metadata to avoid reclassifying Solana Base58 as Bitcoin.
+- Validation checks encoding/checksum only, not ownership or live chain activity. WalletConnect-imported EVM addresses remain unchanged.
 
 ### Open legacy branches — do not merge directly
 

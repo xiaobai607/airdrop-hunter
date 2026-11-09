@@ -47,6 +47,7 @@ class WalletRepository(
             "最多添加12个标签，每个标签不能超过24个字符"
         }
         require(request.notes.length <= 500) { "钱包备注不能超过500个字符" }
+        require(WalletAddressValidator.isValidForChain(request.chain, request.address)) { "地址格式或校验码不正确，请检查所选链和地址" }
         return request.copy(
             wallet_name = name,
             tags = request.tags.map { it.trim() }.distinctBy { it.lowercase() },

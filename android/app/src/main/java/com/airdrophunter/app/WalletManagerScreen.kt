@@ -129,14 +129,6 @@ class WalletManagerViewModelFactory(private val repository: WalletRepository) : 
     }
 }
 
-private fun detectEcosystem(address: String): String? =
-    when (AddressDetector.detect(address)) {
-        DetectedNetwork.EVM -> WalletEcosystem.EVM
-        DetectedNetwork.TRON -> WalletEcosystem.TRON
-        DetectedNetwork.SOL -> WalletEcosystem.SOL
-        else -> WalletEcosystem.fromAddress(address).takeIf { it == WalletEcosystem.BTC }
-    }
-
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class)
 @Composable
 fun WalletManagerScreen(
@@ -152,6 +144,7 @@ fun WalletManagerScreen(
     val state by walletViewModel.state.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
     var address by remember { mutableStateOf("") }
+    var selectedEcosystem by remember { mutableStateOf(WalletEcosystem.EVM) }
     var walletName by remember { mutableStateOf("") }
     var walletTags by remember { mutableStateOf("") }
     var walletNotes by remember { mutableStateOf("") }
@@ -160,7 +153,7 @@ fun WalletManagerScreen(
     var editWalletTags by remember { mutableStateOf("") }
     var editWalletNotes by remember { mutableStateOf("") }
     var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
-    val ecosystem = remember(address) { detectEcosystem(address.trim()) }
+    val addressValidation = remember(selectedEcosystem, address) { WalletAddressValidator.validate(selectedEcosystem, address) }
     val connectedAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
     var pendingConnectedAccount by remember { mutableStateOf<WalletConnectAccount?>(null) }
     var connectedWalletName by remember { mutableStateOf("") }
@@ -232,6 +225,7 @@ fun WalletManagerScreen(
             Button(
                 onClick = {
                     address = ""
+                    selectedEcosystem = WalletEcosystem.EVM
                     walletName = ""
                     walletTags = ""
                     walletNotes = ""
@@ -459,11 +453,26 @@ fun WalletManagerScreen(
                     ) {
                         Text("连接外部钱包（WalletConnect）")
                     }
+                    Text("选择地址所属链", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(selected = selectedEcosystem == WalletEcosystem.EVM, onClick = { selectedEcosystem = WalletEcosystem.EVM }, label = { Text("EVM") })
+                        FilterChip(selected = selectedEcosystem == WalletEcosystem.TRON, onClick = { selectedEcosystem = WalletEcosystem.TRON }, label = { Text("TRON") })
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(selected = selectedEcosystem == WalletEcosystem.SOL, onClick = { selectedEcosystem = WalletEcosystem.SOL }, label = { Text("Solana") })
+                        FilterChip(selected = selectedEcosystem == WalletEcosystem.BTC, onClick = { selectedEcosystem = WalletEcosystem.BTC }, label = { Text("Bitcoin") })
+                    }
+                    Text("先选择链，再输入对应的公开地址；系统不会自动猜测链。", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(
                         value = address,
                         onValueChange = { address = it },
-                        label = { Text("钱包地址") },
+                        label = { Text("$selectedEcosystem 地址") },
                         singleLine = true
+                    )
+                    Text(
+                        addressValidation.message,
+                        color = if (addressValidation.valid) AppColors.Primary else if (address.isBlank()) AppColors.TextHelper else AppColors.Danger,
+                        style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedTextField(
                         value = walletName,
@@ -485,12 +494,12 @@ fun WalletManagerScreen(
                         maxLines = 3
                     )
                     Text(
-                        when (ecosystem) {
+                        when (selectedEcosystem) {
                             WalletEcosystem.TRON -> "TRON：第一版支持真实余额查询"
                             WalletEcosystem.EVM -> "EVM：余额查询接入中"
                             WalletEcosystem.SOL -> "Solana：余额查询接入中"
                             WalletEcosystem.BTC -> "Bitcoin：支持只读交易记录查询"
-                            else -> "支持 EVM、TRON、Solana 和 Bitcoin 公开地址"
+                            else -> ""
                         },
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
@@ -504,13 +513,13 @@ fun WalletManagerScreen(
             },
             confirmButton = {
                 Button(
-                    enabled = ecosystem != null && !state.isSaving,
+                    enabled = addressValidation.valid && !state.isSaving,
                     onClick = {
-                        val detectedEcosystem = ecosystem ?: return@Button
+                        if (!WalletAddressValidator.isValidForChain(selectedEcosystem, address)) return@Button
                         walletViewModel.add(
                             WalletWriteRequest(
-                                wallet_name = walletName.trim().ifBlank { "$detectedEcosystem Wallet" },
-                                chain = detectedEcosystem,
+                                wallet_name = walletName.trim().ifBlank { "$selectedEcosystem Wallet" },
+                                chain = selectedEcosystem,
                                 address = address.trim(),
                                 tags = parseWalletTags(walletTags),
                                 notes = walletNotes.trim()
