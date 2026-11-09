@@ -181,3 +181,51 @@ def test_tron_zero_fee_is_not_prefilled_as_paid_gas():
         "parameter": {"value": {"owner_address": wallet_hex}},
     }]
     assert tron_fee_is_paid_by_wallet(contracts, wallet_hex, 0) is False
+
+
+def test_solana_rpc_parser_reads_confirmed_fee_and_first_account_fee_payer():
+    import asyncio
+    from app.routers.wallet_activity import solana_transactions
+
+    signature = "a" * 64
+    other_wallet = "another-solana-wallet"
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.payload
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = 0
+
+        async def post(self, url, json):
+            self.calls += 1
+            if json["method"] == "getSignaturesForAddress":
+                return FakeResponse({"result": [{"signature": signature, "blockTime": 1_700_000_000}]})
+            return FakeResponse({
+                "result": {
+                    "blockTime": 1_700_000_000,
+                    "meta": {"fee": 5000, "err": {"InstructionError": [0, "Custom"]}},
+                    "transaction": {
+                        "message": {
+                            "accountKeys": [
+                                {"pubkey": other_wallet},
+                                {"pubkey": "recipient"},
+                            ]
+                        }
+                    },
+                }
+            })
+
+    rows = asyncio.run(solana_transactions(FakeClient(), WALLET, 50))
+    assert len(rows) == 1
+    assert rows[0]["from_address"] == other_wallet
+    assert rows[0]["fee_paid_by_wallet"] is False
+    assert rows[0]["total_fee_base_unit"] == "5000"
+    assert rows[0]["status"] == "failed"
