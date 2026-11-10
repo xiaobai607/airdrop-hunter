@@ -1,11 +1,17 @@
 package com.airdrophunter.app
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Add
@@ -66,6 +72,7 @@ fun MicroCommunityScreen(
     var periodSnapshots by remember(projectOfficialId) { mutableStateOf<Map<String, com.airdrophunter.app.data.CommunitySnapshotDto>>(emptyMap()) }
     var statsLoading by remember(projectOfficialId) { mutableStateOf(true) }
     var statsFailed by remember(projectOfficialId) { mutableStateOf(false) }
+    var selectedPeriod by remember(projectOfficialId) { mutableStateOf("overall") }
     var useDemoStats by remember(projectOfficialId) { mutableStateOf(isDemoProject) }
     var wallet by remember(projectOfficialId, sessionScopeKey) { mutableStateOf("") }
     var canRate by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
@@ -118,7 +125,7 @@ fun MicroCommunityScreen(
         ApiClient.initialize(context)
 
         // Show every available Room snapshot immediately, then silently revalidate the CDN.
-        val cachedSnapshots = listOf("overall", "7d", "3d", "1h").mapNotNull { window ->
+        val cachedSnapshots = listOf("overall", "3d", "1h").mapNotNull { window ->
             com.airdrophunter.app.data.CommunitySnapshotRepository.readSnapshot(window)?.let { window to it }
         }.toMap()
         periodSnapshots = cachedSnapshots
@@ -197,76 +204,84 @@ fun MicroCommunityScreen(
                     }
                 }
 
-                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF17251F))) {
-                    Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                        Text(
-                            if (useDemoStats) "社区大盘（测试演示数据）" else "社区大盘（静态快照）",
-                            color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
-                        )
-                        if (BuildConfig.DEBUG) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(onClick = { useDemoStats = true }, contentPadding = PaddingValues(0.dp)) {
-                                    Text(if (useDemoStats) "✓ 测试演示" else "测试演示", color = Color(0xFFFFD08A))
-                                }
-                                TextButton(onClick = { useDemoStats = false }, contentPadding = PaddingValues(0.dp)) {
-                                    Text(if (!useDemoStats) "✓ 全网真实" else "全网真实", color = Color.White)
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Gas / 收益统计", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            if (BuildConfig.DEBUG) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    TextButton(onClick = { useDemoStats = true }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp)) {
+                                        Text(if (useDemoStats) "✓ 演示" else "演示", color = MaterialTheme.colorScheme.tertiary,
+                                            style = MaterialTheme.typography.labelSmall)
+                                    }
+                                    TextButton(onClick = { useDemoStats = false }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp)) {
+                                        Text(if (!useDemoStats) "✓ 全网" else "全网", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MaterialTheme.typography.labelSmall)
+                                    }
                                 }
                             }
                         }
                         if (useDemoStats) {
-                            Text("仅用于界面和流程测试，不会上传到公共统计", color = Color(0xFFFFD08A), style = MaterialTheme.typography.labelSmall)
+                            Text("测试演示数据 · 不计入全网统计", color = MaterialTheme.colorScheme.tertiary,
+                                style = MaterialTheme.typography.labelSmall)
                         }
-
-                        val periodDefinitions = listOf(
-                            Triple("overall", "总体", 1.0),
-                            Triple("7d", "近7天", 0.42),
-                            Triple("3d", "近3天", 0.18),
-                            Triple("1h", "近1小时", 0.008)
-                        )
-                        periodDefinitions.forEach { (window, title, demoScale) ->
+                        Row(
+                            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, CircleShape).padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            listOf("overall" to "总览", "3d" to "近3天", "1h" to "近1小时").forEach { (window, label) ->
+                                val selected = selectedPeriod == window
+                                Surface(
+                                    modifier = Modifier.weight(1f).clickable { selectedPeriod = window },
+                                    color = if (selected) Color(0xFF7A58FF) else Color.Transparent,
+                                    shape = CircleShape
+                                ) {
+                                    Box(Modifier.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
+                                        Text(label, color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                            style = MaterialTheme.typography.labelLarge)
+                                    }
+                                }
+                            }
+                        }
+                        AnimatedContent(
+                            targetState = selectedPeriod,
+                            transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
+                            label = "community-period-switch"
+                        ) { window ->
+                            val demoScale = when (window) { "overall" -> 1.0; "3d" -> 0.18; else -> 0.008 }
                             val projectSnapshot = snapshotProjects[window]
                             val gas = if (useDemoStats) demoStats.gas * demoScale else projectSnapshot?.gas_cost_usd_valuation ?: 0.0
                             val reward = if (useDemoStats) demoStats.reward * demoScale else projectSnapshot?.reward_usd_valuation?.takeIf { it > 0.0 } ?: projectSnapshot?.actual_reward_usd_valuation ?: 0.0
-                            val updateTime = if (useDemoStats) {
-                                when (window) {
-                                    "overall" -> "2026-11-11T03:00:00"
-                                    "7d" -> "2026-11-11T02:55:00"
-                                    "3d" -> "2026-11-11T02:50:00"
-                                    else -> "2026-11-11T02:45:00"
-                                }
-                            } else periodSnapshots[window]?.update_time
+                            val gasTokens = if (useDemoStats) emptyList() else projectSnapshot?.gas_by_token.orEmpty()
+                            val rewardTokens = if (useDemoStats) emptyList() else projectSnapshot?.reward_by_token.orEmpty()
                             CommunitySnapshotPeriodMetric(
-                                title = title,
                                 gas = gas,
                                 reward = reward,
-                                updateTime = updateTime,
-                                showUpdateTime = true,
-                                gasTokens = if (useDemoStats) emptyList() else projectSnapshot?.gas_by_token.orEmpty(),
-                                rewardTokens = if (useDemoStats) emptyList() else projectSnapshot?.reward_by_token.orEmpty(),
+                                gasTokens = gasTokens,
+                                rewardTokens = rewardTokens,
                                 hasData = useDemoStats || gas > 0.0 || reward > 0.0 ||
-                                    !projectSnapshot?.gas_by_token.isNullOrEmpty() || !projectSnapshot?.reward_by_token.isNullOrEmpty()
+                                    gasTokens.isNotEmpty() || rewardTokens.isNotEmpty()
                             )
                         }
-
-                        Text(
-                            if (displayRatingCount > 0 && displayAverageRating != null)
-                                "全网评分 ★ ${String.format(java.util.Locale.US, "%.1f", displayAverageRating)} · ${displayRatingCount} 个账号评分"
-                            else "暂无全网评分",
-                            color = if (displayRatingCount > 0) Color(0xFFFFD08A) else Color(0xFFB9C8C0),
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                        Text(
-                            when {
-                                statsLoading -> "正在读取本地快照…"
-                                statsFailed -> "暂无快照缓存；联网且 CDN 配置完成后会自动更新"
-                                useDemoStats -> "测试演示样本仅用于界面验证，不会上传"
-                                else -> "Gas 按用户自报、链上已确认、链上精确核验分级展示；实际收益由用户确认"
-                            },
-                            color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall
-                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            Text(
+                                when {
+                                    statsLoading -> "正在读取快照…"
+                                    statsFailed -> "暂无快照缓存"
+                                    else -> "数据更新：" + (if (useDemoStats) "演示样本" else periodSnapshots[selectedPeriod]?.update_time?.replace("T", " ") ?: "暂无")
+                                },
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
                     }
                 }
-            }
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface)) {
                 Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
                     Text("本机已保存的评分", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -352,71 +367,76 @@ fun MicroCommunityScreen(
 
 @Composable
 private fun CommunitySnapshotPeriodMetric(
-    title: String,
     gas: Double,
     reward: Double,
-    updateTime: String?,
-    showUpdateTime: Boolean,
     gasTokens: List<CommunityTokenAggregateDto>,
     rewardTokens: List<CommunityTokenAggregateDto>,
     hasData: Boolean
 ) {
-    val total = gas + reward
+    val total = (gas + reward).coerceAtLeast(0.0)
     val hasComparableAmounts = hasData && total > 0.0
-    val gasWeight = if (hasComparableAmounts) (gas / total).toFloat() else 0f
-    val rewardWeight = if (hasComparableAmounts) (reward / total).toFloat() else 0f
-    Surface(color = Color(0xFF20352B), shape = RoundedCornerShape(13.dp)) {
-        Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-                Text("USD 估值", color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall)
+    val gasWeight = if (hasComparableAmounts) (gas.coerceAtLeast(0.0) / total).toFloat() else 0f
+    val rewardWeight = if (hasComparableAmounts) (reward.coerceAtLeast(0.0) / total).toFloat() else 0f
+    val gasColor = MaterialTheme.colorScheme.error
+    val rewardColor = MaterialTheme.colorScheme.secondary
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("🔥 Gas 支出", color = gasColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text(formatCompactUsd(gas), color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(tokenHint(gasTokens), color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall, maxLines = 1)
             }
-            if (hasComparableAmounts) {
-                val comparisonBrush = when {
-                    gasWeight <= 0f -> SolidColor(Color(0xFF31C48D))
-                    rewardWeight <= 0f -> SolidColor(Color(0xFFEF6262))
-                    else -> Brush.horizontalGradient(
-                        colorStops = arrayOf(
-                            0f to Color(0xFFEF6262),
-                            gasWeight to Color(0xFFEF6262),
-                            gasWeight to Color(0xFF31C48D),
-                            1f to Color(0xFF31C48D)
-                        )
-                    )
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("🎁 收益", color = rewardColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text(formatCompactUsd(reward), color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(tokenHint(rewardTokens), color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            }
+        }
+        if (hasComparableAmounts) {
+            Row(
+                Modifier.fillMaxWidth().height(16.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (gasWeight > 0f) {
+                    Box(
+                        Modifier.weight(gasWeight).fillMaxHeight().background(gasColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (gasWeight >= 0.15f) {
+                            Text("\${(gasWeight * 100).toInt()}%", color = Color.White,
+                                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
-                Box(Modifier.fillMaxWidth().height(18.dp).background(comparisonBrush, RoundedCornerShape(6.dp)))
-            } else {
-                Text(
-                    if (hasData) "暂无可比较的 Gas / 收益金额" else "暂无该时间窗口的统计数据",
-                    color = Color(0xFFB9C8C0),
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text("Gas USD估值", color = Color(0xFFFFB0B0), style = MaterialTheme.typography.labelSmall)
-                    Text(String.format(java.util.Locale.US, "$%,.2f", gas), color = Color.White, fontWeight = FontWeight.Bold)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("收益 USD估值", color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
-                    Text(String.format(java.util.Locale.US, "$%,.2f", reward), color = Color.White, fontWeight = FontWeight.Bold)
+                if (rewardWeight > 0f) {
+                    Box(
+                        Modifier.weight(rewardWeight).fillMaxHeight().background(rewardColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (rewardWeight >= 0.15f) {
+                            Text("\${(rewardWeight * 100).toInt()}%", color = Color.White,
+                                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
-            if (gasTokens.isNotEmpty()) {
-                Text("Gas 原生币：${formatCommunityTokenBreakdown(gasTokens)}",
-                    color = Color(0xFFFFB0B0), style = MaterialTheme.typography.labelSmall)
-            }
-            if (rewardTokens.isNotEmpty()) {
-                Text("收益代币：${formatCommunityTokenBreakdown(rewardTokens)}",
-                    color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
-            }
-            if (showUpdateTime) {
-                Text(
-                    updateTime?.let { "数据更新时间：${it.replace("T", " ")}" } ?: "数据更新时间：暂无快照",
-                    color = Color(0xFFB9C8C0),
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
+        } else {
+            Text("暂无可比较的 Gas / 收益数据", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall)
         }
     }
 }
+
+private fun formatCompactUsd(value: Double): String = when {
+    value >= 1_000_000 -> String.format(java.util.Locale.US, "$%.1fM", value / 1_000_000.0)
+    value >= 1_000 -> String.format(java.util.Locale.US, "$%.1fK", value / 1_000.0)
+    else -> String.format(java.util.Locale.US, "$%.0f", value.coerceAtLeast(0.0))
+}
+
+private fun tokenHint(tokens: List<CommunityTokenAggregateDto>): String =
+    tokens.takeIf { it.isNotEmpty() }?.let { "≈ " + formatCommunityTokenBreakdown(it) } ?: "≈ 暂无代币明细"
+
