@@ -1005,9 +1005,12 @@ object CacheStore {
         if (projectLocalId.isBlank() || !gas.isFinite() || !reward.isFinite() || gas < 0.0 || reward < 0.0) return@withContext false
         val db = database ?: return@withContext false
         val scope = currentAccountScope()
+        val requestedOfficialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
+        val directoryDelisted = CommunityCatalogRepository.isExplicitlyDelisted(requestedOfficialId)
         db.withTransaction {
             val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
-            val canonicalOfficialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
+            val canonicalOfficialId = requestedOfficialId
+            val effectiveContributionOptIn = publicContributionOptIn && !directoryDelisted
             val effectiveNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
                 ?: when (bill.chain.trim().lowercase()) {
                     "ethereum", "erc20" -> "ethereum"
@@ -1016,10 +1019,10 @@ object CacheStore {
                     "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" -> bill.chain.trim().lowercase()
                     else -> "unknown"
                 }
-            if (publicContributionOptIn && (
-                    canonicalOfficialId == null ||
-                    !ManualProjectAccountingPolicy.isTransactionHashFormatValid(effectiveNetwork, bill.txHash)
-                )) return@withTransaction false
+            if (publicContributionOptIn && canonicalOfficialId == null) return@withTransaction false
+            if (effectiveContributionOptIn && !ManualProjectAccountingPolicy.isTransactionHashFormatValid(effectiveNetwork, bill.txHash)) {
+                return@withTransaction false
+            }
             val effectiveAssetBreakdown = assetBreakdownJson ?: bill.assetBreakdownJson
             if (
                 bill.txHash.isNotBlank() && bill.walletAddress.isNotBlank() &&
@@ -1048,8 +1051,8 @@ object CacheStore {
                 occurred_at = Instant.ofEpochMilli(bill.timestamp).toString(),
                 extra = mapOf(
                     "project_official_id" to (canonicalOfficialId ?: ""),
-                    "public_contribution_opt_in" to publicContributionOptIn.toString(),
-                    "public_contribution_status" to if (publicContributionOptIn) "pending_verification" else "private",
+                    "public_contribution_opt_in" to effectiveContributionOptIn.toString(),
+                    "public_contribution_status" to if (effectiveContributionOptIn) "pending_verification" else "private",
                     // Demo transactions remain available for local UI testing but are never synced.
                     "is_demo" to isDemoAccountingTransaction(bill.txHash, bill.walletAddress, bill.interactionMethod).toString()
                 ) + (effectiveAssetBreakdown?.let { mapOf("asset_breakdown" to it) } ?: emptyMap())
@@ -1097,11 +1100,11 @@ object CacheStore {
                     assetBreakdownJson = effectiveAssetBreakdown,
                     expectedGasCostUsd = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 },
                     expectedRewardUsd = null,
-                    publicContributionOptIn = publicContributionOptIn,
-                    publicContributionStatus = if (publicContributionOptIn) "pending_verification" else "private"
+                    publicContributionOptIn = effectiveContributionOptIn,
+                    publicContributionStatus = if (effectiveContributionOptIn) "pending_verification" else "private"
                 )
             )
-            if (publicContributionOptIn) {
+            if (effectiveContributionOptIn) {
                 db.communitySyncOutboxDao().insert(
                     CommunitySyncOutboxEntity(
                         id = bill.id,
@@ -1140,6 +1143,7 @@ object CacheStore {
         if (scope == "invalid-session") return@withContext false
         val officialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
         if (batch.entries.any { it.publicContributionOptIn } && officialId == null) return@withContext false
+        val directoryDelisted = CommunityCatalogRepository.isExplicitlyDelisted(officialId)
         val timestamp = System.currentTimeMillis()
         val rowIds = batch.entries.map { entry ->
             java.util.UUID.nameUUIDFromBytes("$batchId:${entry.walletId}".toByteArray(Charsets.UTF_8)).toString()
@@ -1161,6 +1165,7 @@ object CacheStore {
             }.orEmpty().toMutableList()
             batch.entries.forEachIndexed { index, entry ->
                 val reward = entry.reward
+                val contributionOptIn = entry.publicContributionOptIn && !directoryDelisted
                 val rewardUsd = entry.actualRewardUsd?.toDouble()
                 val complete = rewardUsd != null
                 val gas = entry.gasCostUsd.toDouble()
@@ -1195,8 +1200,8 @@ object CacheStore {
                     "reward_quote_source" to (reward.quoteSource ?: ""),
                     "reward_quote_timestamp" to (reward.quoteTimestamp?.toString() ?: ""),
                     "usd_profit_complete" to complete.toString(),
-                    "public_contribution_opt_in" to entry.publicContributionOptIn.toString(),
-                    "public_contribution_status" to if (entry.publicContributionOptIn && complete && officialId != null) "pending_verification" else if (entry.publicContributionOptIn) "not_eligible" else "private",
+                    "public_contribution_opt_in" to contributionOptIn.toString(),
+                    "public_contribution_status" to if (contributionOptIn && complete && officialId != null) "pending_verification" else if (contributionOptIn) "not_eligible" else "private",
                     "project_official_id" to (officialId ?: ""),
                     "asset_breakdown" to (assetJson ?: "")
                 )
@@ -1230,10 +1235,10 @@ object CacheStore {
                     rewardAmount = reward.amount?.toDouble(), rewardUnit = reward.unit,
                     rewardUsdValuation = rewardUsd, rewardQuoteSource = reward.quoteSource,
                     rewardQuoteTimestamp = reward.quoteTimestamp, usdProfitComplete = complete,
-                    publicContributionOptIn = entry.publicContributionOptIn,
-                    publicContributionStatus = if (entry.publicContributionOptIn && complete && officialId != null) "pending_verification" else if (entry.publicContributionOptIn) "not_eligible" else "private"
+                    publicContributionOptIn = contributionOptIn,
+                    publicContributionStatus = if (contributionOptIn && complete && officialId != null) "pending_verification" else if (contributionOptIn) "not_eligible" else "private"
                 ))
-                if (entry.publicContributionOptIn && complete) {
+                if (contributionOptIn && complete) {
                     db.communitySyncOutboxDao().insert(
                         CommunitySyncOutboxEntity(
                             id = id,
