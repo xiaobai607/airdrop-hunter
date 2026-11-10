@@ -116,9 +116,9 @@ private fun CommunityGasRewardBar(gasUsd: Double, rewardUsd: Double) {
     }
     Box(Modifier.fillMaxWidth().height(12.dp).background(barBrush, RoundedCornerShape(8.dp)))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("Gas 约 $%,.0f".format(Locale.US, gas), color = Color(0xFFD34F4F),
+        Text("Gas", color = Color(0xFFD34F4F),
             style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-        Text("收益 约 $%,.0f".format(Locale.US, reward), color = Color(0xFF16845B),
+        Text("收益", color = Color(0xFF16845B),
             style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
     }
 }
