@@ -29,6 +29,7 @@ def test_only_transient_http_statuses_trigger_provider_rotation():
 
 def test_http_provider_failover_uses_second_endpoint_after_503():
     async def run():
+        _PROVIDER_COOLDOWNS.clear()
         calls = []
         async def handler(request):
             calls.append(request.url.host)
@@ -54,6 +55,7 @@ def test_http_provider_failover_uses_second_endpoint_after_503():
 
 def test_json_rpc_provider_failover_rejects_rpc_error_payload():
     async def run():
+        _PROVIDER_COOLDOWNS.clear()
         calls = []
         async def handler(request):
             calls.append(request.url.host)
@@ -88,6 +90,7 @@ def test_json_rpc_provider_failover_rejects_rpc_error_payload():
 
 def test_json_rpc_does_not_retry_non_transient_http_400():
     async def run():
+        _PROVIDER_COOLDOWNS.clear()
         calls = []
         async def handler(request):
             calls.append(request.url.host)
