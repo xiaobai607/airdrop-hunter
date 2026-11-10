@@ -94,6 +94,9 @@ async def register(
     payload: AuthRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AuthResponse:
+    if not getattr(request.app.state, "allow_registration", False):
+        raise HTTPException(status_code=403, detail="注册功能开发中，请等待后续更新")
+
     username = payload.username
     existing = await db.scalar(select(User).where(User.username == username))
     if existing is not None:
