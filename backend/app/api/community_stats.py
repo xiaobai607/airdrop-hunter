@@ -62,7 +62,7 @@ class CommunityContributionRequest(BaseModel):
     gas_cost_usd: Decimal = Field(ge=0, le=MAX_AMOUNT)
     actual_reward_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
     estimated_reward_usd: Decimal | None = Field(default=None, ge=0, le=MAX_AMOUNT)
-    actual_reward_confirmed: bool = True
+    actual_reward_confirmed: bool = False
     contributor_id: UUID | None = None
     asset_breakdown: list[CommunityAssetAmount] = Field(default_factory=list, max_length=10)
 
