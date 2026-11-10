@@ -876,8 +876,9 @@ object CacheStore {
             if (guestEntries.isNotEmpty()) result += CommunitySyncBatch("guest", "", guestEntries)
             if (activeScope != "guest" && activeScope != "invalid-session") {
                 val accountEntries = dao.getPending(activeScope, limit)
-                if (accountEntries.isNotEmpty() && !token.isNullOrBlank()) {
-                    result += CommunitySyncBatch(activeScope, "Bearer $token", accountEntries)
+                if (accountEntries.isNotEmpty()) {
+                    // Current-release contributions are anonymous; no account bearer is attached.
+                    result += CommunitySyncBatch(activeScope, "", accountEntries)
                 }
             }
             result
