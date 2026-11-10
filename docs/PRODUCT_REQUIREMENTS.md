@@ -1333,3 +1333,11 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Authenticated refresh preserves locally pending projects and maps server records back to stable local IDs instead of replacing ledger references.
 - Cached projects remain visible when a refresh fails; the error is presented as a synchronization warning when local data exists.
 - This is the first persistence-layer step of the unified project library. It does not yet complete the single-picker UI wiring, browser accounting migration, community contribution aggregation, or end-to-end retry worker. Those remain open and must not be described as finished.
+
+
+### Browser accounting now uses the canonical project repository (2026-11-10)
+
+- The browser accounting toolbar no longer persists custom projects directly into a separate `pnl_projects` list.
+- Its project creation action delegates to `AccountingRepository`, which in the application composition root uses the same `ProjectsRepository` as the project library.
+- The accounting project list is loaded from the canonical repository and uses the same guest/account cache boundary and local-first project creation path.
+- The old `pnl_projects` reader remains only as a migration/compatibility source; new browser-created projects are written to `projects`.

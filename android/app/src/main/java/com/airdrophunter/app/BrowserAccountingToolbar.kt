@@ -47,7 +47,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 import java.time.Instant
 
 @Composable
@@ -116,7 +115,9 @@ fun BrowserAccountingToolbar(
     fun saveProjectLocally(project: ProjectDto) {
         projects = (projects.filterNot { it.id == project.id } + project)
         selectedProjectLocalId = project.id
-        scope.launch { accountingRepository.saveLocalProject(project) }
+        scope.launch { runCatching { accountingRepository.saveLocalProject(project) }
+            .onFailure { Toast.makeText(context, "项目保存失败，请重试", Toast.LENGTH_SHORT).show() }
+        }
     }
 
     fun createAndSelectProject() {

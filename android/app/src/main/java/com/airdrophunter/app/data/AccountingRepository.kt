@@ -96,7 +96,8 @@ class AccountingRepository(
     private val api: ApiService? = null,
     private val gson: Gson = Gson(),
     private val accessTokenProvider: () -> String? = { TokenStore.readTokenBlocking() },
-    personalLedgerRemote: PersonalLedgerRemoteDataSource? = null
+    personalLedgerRemote: PersonalLedgerRemoteDataSource? = null,
+    private val projectsRepository: ProjectsRepository? = null
 ) {
     private val ledgerRemote = personalLedgerRemote ?: api?.let(::ApiPersonalLedgerRemoteDataSource)
     private val projectsType = object : TypeToken<List<ProjectDto>>() {}.type
@@ -105,6 +106,14 @@ class AccountingRepository(
 
     suspend fun loadProjects(): List<ProjectDto> {
         syncAndScheduleIfNeeded()
+        val repository = projectsRepository
+        if (repository != null) {
+            val guest = accessTokenProvider().isNullOrBlank()
+            val cached = repository.readCachedProjects(guest)
+            if (guest) return cached
+            return runCatching { repository.refreshProjects() }.getOrDefault(cached)
+        }
+        // Compatibility path for tests/older composition roots only.
         val sources = listOfNotNull(
             local.readLocal("projects"),
             local.read("projects"),
@@ -116,12 +125,28 @@ class AccountingRepository(
     }
 
     suspend fun saveLocalProject(project: ProjectDto): List<ProjectDto> {
-        val existing = local.readLocal("pnl_projects")?.let { raw ->
-            runCatching { gson.fromJson<List<ProjectDto>>(raw, projectsType) }.getOrNull()
-        }.orEmpty()
-        val updated = existing.filterNot { it.id == project.id } + project
-        local.writeLocal("pnl_projects", gson.toJson(updated))
-        return updated
+        val repository = projectsRepository ?: run {
+            val existing = local.readLocal("pnl_projects")?.let { raw ->
+                runCatching { gson.fromJson<List<ProjectDto>>(raw, projectsType) }.getOrNull()
+            }.orEmpty()
+            val updated = existing.filterNot { it.id == project.id } + project
+            local.writeLocal("pnl_projects", gson.toJson(updated))
+            return updated
+        }
+        val guest = accessTokenProvider().isNullOrBlank()
+        val request = ProjectWriteRequest(
+            name = project.name,
+            description = project.description,
+            status = project.status,
+            official_url = project.official_url,
+            claim_url = project.claim_url,
+            twitter_url = project.twitter_url,
+            deadline = project.deadline,
+            expected_income = project.expected_income,
+            gas_cost = project.gas_cost,
+            actual_income = project.actual_income
+        )
+        return repository.createProject(request, guest)
     }
 
     suspend fun addPendingBill(bill: PendingBillEntity) = local.addPendingBill(bill)
