@@ -19,6 +19,17 @@
 
 ---
 
+### Floating browser toolbar — latest explicit layout correction (2026-11-10)
+
+This correction supersedes the earlier vertical-dock inspiration where it conflicts:
+- The floating toolbar **must be horizontal**, not vertical: a long, single-row rounded bar with icons arranged left-to-right.
+- Make it visibly longer and more balanced than the current tiny three-button capsule. Give it a substantial phone-friendly width, comfortable icon targets and spacing, and a polished translucent rounded-rectangle surface. When the number of tools exceeds available width, scroll the icons horizontally inside the bar.
+- The **whole bar** can be dragged to different screen positions independently of the internal icon scrolling. On release it snaps neatly to the nearest suitable screen edge/side, avoiding system bars and important browser controls.
+- The toolbar's default position on every fresh entry to Airdrop Navigation is at the **bottom of the screen**.
+- **Never persist or remember the dragged position.** Leaving/exiting Airdrop Navigation discards that position; the next time the user enters a website, the toolbar starts at the bottom again.
+- Tool selection/configuration (if implemented) is separate from position: it may retain the user's selected/reordered tools, but must not persist the last dragged coordinates.
+- Acceptance: drag from bottom to left/right/top-area and release; verify edge snapping; horizontally scroll icons without moving the bar; exit and reopen the page and verify the bar returns to bottom.
+
 ## Latest user-confirmed mobile test corrections (2026-11-10; supersedes conflicting UI assumptions)
 
 These requirements were added from the user's physical-device test screenshots and observations on 2026-11-10. They are additive: preserve every unrelated existing feature, data rule, and security boundary.
