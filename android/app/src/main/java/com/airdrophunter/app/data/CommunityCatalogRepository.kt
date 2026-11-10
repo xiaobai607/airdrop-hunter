@@ -30,6 +30,10 @@ object CommunityCatalogRepository {
         }.getOrNull()
     }
 
+    suspend fun isExplicitlyDelisted(projectOfficialId: String?): Boolean = withContext(Dispatchers.IO) {
+        isCommunityProjectDelisted(projectOfficialId, readCatalog().orEmpty())
+    }
+
     suspend fun refreshCatalog(): List<CommunityProjectCatalogDto> = withContext(Dispatchers.IO) {
         val cached = readCatalog().orEmpty()
         val incoming = ApiClient.service.getCommunityCatalog()
@@ -59,4 +63,9 @@ internal fun mergeCommunityCatalog(
     cached.forEach { merged[it.project_official_id] = it }
     incoming.forEach { merged[it.project_official_id] = it }
     return merged.values.sortedWith(compareBy<CommunityProjectCatalogDto> { it.sort_order }.thenBy { it.name.lowercase() })
+}
+
+internal fun isCommunityProjectDelisted(projectOfficialId: String?, directory: List<CommunityProjectCatalogDto>): Boolean {
+    if (projectOfficialId.isNullOrBlank()) return false
+    return directory.firstOrNull { it.project_official_id == projectOfficialId }?.is_active == false
 }
