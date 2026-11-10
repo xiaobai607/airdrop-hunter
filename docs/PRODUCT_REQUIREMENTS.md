@@ -3,6 +3,55 @@
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
 
+## Latest user-confirmed mobile test corrections (2026-11-10; supersedes conflicting UI assumptions)
+
+These requirements were added from the user's physical-device test screenshots and observations on 2026-11-10. They are additive: preserve every unrelated existing feature, data rule, and security boundary.
+
+### A. Critical runtime defects — first priority
+1. **Airdrop website navigation currently fails on the user's device.** Treat this as a release-blocking defect. Audit the complete in-app browser path: saved-site selection, URL normalization/scheme validation, WebView creation and lifecycle, navigation interception, redirects, TLS/error handling, JavaScript/DOM settings, cookies/session persistence, external intents, and page-load/error state. Do not bypass TLS, weaken origin authorization, or silently send every site to an external browser. Provide actionable loading/error feedback and a retry path. Test several HTTPS sites, redirects, login-required pages, and a site that intentionally blocks embedded browsers. Distinguish a site-side WebView prohibition from an app defect and offer a safe external-open fallback where appropriate.
+2. **The “连接外部钱包” action in Airdrop Navigation currently appears to do nothing.** Treat as a release-blocking defect and trace the full click-to-result flow through UI event, active DApp origin, WalletConnect/Reown session, external wallet app handoff, return callback, and UI state/error feedback. Do not fake a successful connection. Show why a request cannot proceed (no active DApp page, unsupported chain, no compatible wallet, no session, wallet app unavailable, user rejection, timeout, or callback failure). Keep signing and transaction approval in the external wallet; never store private keys or seed phrases. Preserve the already-merged DApp RPC bridge allowlist and security checks; do not overblock approved DApp signing.
+3. Physical-device acceptance is required after fixes. CI alone does not close either defect. Record device, Android version, site/wallet, exact steps, result, and logs for each case.
+
+### B. Airdrop Navigation floating tool dock
+- Replace/upgrade the current bottom status/action strip in Airdrop Navigation with a configurable floating tool dock inspired by the user's first screenshot (a compact vertical icon rail).
+- The dock supports vertical or horizontal presentation, scrolling within the dock when tools exceed the available space, and moving/repositioning the whole dock independently of scrolling its icons. Keep it clear of Android system bars, browser content controls, and essential page interactions; persist its position/orientation and user configuration locally.
+- Users can add, remove, reorder, and configure small tools. Provide sensible defaults and a restore-defaults action. Do not require users to manually design a configuration before using the browser.
+- Default tool groups and actions:
+  - **Navigation:** back, forward, refresh/stop, home/start page, open current URL externally, copy current page URL, share current URL.
+  - **Wallet/address:** connect/disconnect external wallet; show active connection and chain; select one of the user's saved wallet addresses before copying; copy selected address; show address QR; open selected address in the matching chain explorer. Never silently choose an arbitrary wallet when multiple addresses exist.
+  - **Page utilities:** find text on page, copy selected text (only when selected), add/remove bookmark, manage saved websites, switch among open tabs, clear current-site cookies/session with explicit confirmation.
+  - **Safety/status:** show HTTPS/security origin, page loading/error state, wallet connection state, and explain blocked/unsupported operations.
+- Do not expose private-key/seed-phrase entry, in-app signing, or automatic transaction approval. Destructive actions (clear cookies/session, remove saved site, disconnect) require clear confirmation where appropriate.
+
+### C. Home becomes a phone-desktop card dashboard
+- Remove the redundant Home search field (“搜索币种或 DApp”) because it duplicates the global search entry. Remove the **global-search shortcut card** from the Home quick-entry grid. This is a Home-layout change only: preserve the dedicated coin/DApp search capability in its appropriate existing destination; do not delete coin/DApp search from the product.
+- Keep the three remaining quick functions: **空投导航、钱包管理、TRON 能量租赁**.
+- Rebuild the Home quick-entry area as a responsive, user-customizable phone-desktop card grid: users can add/remove supported cards, resize cards (small/medium/large or equivalent grid spans), reorder by drag, and combine cards freely. Layout adapts to screen width/orientation and does not overlap or clip. Persist layout locally and provide a restore-default-layout action.
+- Retain the existing BTC/ETH market dashboard and its cache/freshness/error behavior unless the user later changes it. The card dashboard must coexist with it without duplicate search UI. The three default quick-function cards must remain readily accessible; do not remove the underlying wallet management or TRON energy-rental capabilities.
+
+### D. Airdrop Library wording
+- The public project-discovery destination remains named **“空投库”**.
+- Change any stale visible title/header still showing “微社区广场” to **“空投库”**.
+- Remove the full descriptive sentence **“像逛 Steam 一样发现空投项目，按收益、风险和标签探索”** (including variants of the same Steam analogy) from this screen. This is a wording correction, not permission to remove project discovery, rankings, tags, filters, submission, or public/community data capabilities.
+
+### E. “我的” page entry points
+- Add clearly visible navigation entries for **“设置”**, **“安全中心”**, and **“消息通知”** to the 我的 page.
+- Each entry must open a real destination, not be a dead button. If a destination's full feature scope is not yet implemented, provide a coherent placeholder/settings shell with its scope clearly labeled as in development; do not claim unavailable controls are active.
+- Settings should own app preferences (theme/appearance, language if supported, browser/dock preferences, cache and notification preferences, data/diagnostics where supported).
+- Security Center should explain the app's non-custodial boundary, saved-wallet-address permissions, connected external-wallet sessions, site/origin permissions, and provide safe session/site permission management. It must never ask for or store seed phrases/private keys.
+- Notifications should provide an inbox/list with read/unread state and empty/loading/error states. Do not fabricate notifications or enable unsolicited push delivery without an implemented and consented channel.
+
+### F. Coherent implementation and acceptance order
+1. Fix and physically verify website navigation and external-wallet connect handoff.
+2. Implement the configurable floating browser dock with the safe, useful default tool groups above.
+3. Rework Home into the responsive desktop-card dashboard while retaining BTC/ETH and the three default functions; remove only duplicate Home search UI/global-search shortcut.
+4. Correct Airdrop Library title/description and add the three real 我的 destinations.
+5. Update the test document and this requirements ledger with device acceptance evidence. Batch related UI/state/persistence/tests together; minimize Actions runs.
+
+**Initial status for all newly added items:** requirements confirmed; implementation status pending code audit. Do not describe any as implemented until source inspection, tests, and device evidence support that status.
+
+---
+
 ## 0. Highest-priority continuation rule — mandatory whenever the user says “继续”, including a new chat
 
 This rule has the highest execution priority for this project. It must survive context limits and chat handoffs. The repository copy of this document is the durable source of truth; memory, summaries, and previous assistant messages are never substitutes for re-reading it.
