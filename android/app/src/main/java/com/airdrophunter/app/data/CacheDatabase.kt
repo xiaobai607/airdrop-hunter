@@ -94,6 +94,8 @@ data class CommunitySyncOutboxEntity(
     val lastAttemptAt: Long? = null, val lastError: String? = null,
     val assetBreakdownJson: String? = null,
     @ColumnInfo(defaultValue = "0") val terminalFailure: Boolean = false,
+    @ColumnInfo(defaultValue = "1") val actualRewardConfirmed: Boolean = true,
+    val expectedRewardUsd: Double? = null,
     val network: String? = null,
     val walletAddress: String? = null,
     val txHash: String? = null,
@@ -356,7 +358,7 @@ interface LocalBackupDao {
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectWalletAssignments(rows:List<ProjectWalletAssignmentEntity>)
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class], version = 20, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class], version = 21, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -653,13 +655,19 @@ object CacheStore {
             db.execSQL("ALTER TABLE user_interactions ADD COLUMN publicContributionError TEXT")
         }
     }
+    private val MIGRATION_20_21 = object : Migration(20, 21) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN actualRewardConfirmed INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN expectedRewardUsd REAL")
+        }
+    }
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -1106,7 +1114,9 @@ object CacheStore {
                         network = effectiveNetwork,
                         walletAddress = bill.walletAddress,
                         txHash = bill.txHash,
-                        occurredAt = recordedAt
+                        occurredAt = recordedAt,
+                        actualRewardConfirmed = true,
+                        expectedRewardUsd = ledgerEntry.expected_reward_usd?.toDouble()
                     )
                 )
             }
@@ -1236,7 +1246,9 @@ object CacheStore {
                             network = entry.network,
                             walletAddress = entry.walletAddress,
                             txHash = entry.txHash,
-                            occurredAt = recordedAt
+                            occurredAt = recordedAt,
+                            actualRewardConfirmed = complete,
+                            expectedRewardUsd = null
                         )
                     )
                 }
@@ -1522,6 +1534,18 @@ object CacheStore {
         }
         Unit
     }
+    suspend fun getOrCreateAnonymousContributorId(): String = withContext(Dispatchers.IO) {
+        val scope = currentAccountScope()
+        val db = database ?: return@withContext java.util.UUID.randomUUID().toString()
+        val key = "$scope:local:community_contributor_id"
+        val existing = db.cacheDao().read(key)?.trim()
+        val validExisting = existing?.let { runCatching { java.util.UUID.fromString(it) }.isSuccess } == true
+        if (validExisting) return@withContext existing!!
+        val generated = java.util.UUID.randomUUID().toString()
+        db.cacheDao().write(CachedPayload(key, generated, System.currentTimeMillis()))
+        generated
+    }
+
     // Public community snapshots are shared across guest and signed-in sessions.
     suspend fun readPublic(key: String): String? = withContext(Dispatchers.IO) {
         runCatching { database?.cacheDao()?.read("public:community:$key") }.getOrNull()
