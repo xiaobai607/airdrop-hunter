@@ -215,6 +215,7 @@ fun HomeScreen(
                 dashboardCards.forEach { card ->
                     val title = HomeDashboardLayoutStore.title(card.id)
                     val subtitle = HomeDashboardLayoutStore.subtitle(card.id)
+                    val layout = HomeDashboardLayoutStore.layout(card.id)
                     val icon = when (card.id) {
                         "wallet_management" -> Icons.Default.AccountBalanceWallet
                         "tron_energy" -> Icons.Default.Shield
@@ -225,8 +226,8 @@ fun HomeScreen(
                     Card(
                         onClick = { if (!editingDashboard) openDashboardCard(card.id) },
                         modifier = Modifier
-                            .fillMaxWidth(if (card.id == "airdrop_navigation") 1f else 0.48f)
-                            .height(if (card.id == "airdrop_navigation") 180.dp else 154.dp)
+                            .fillMaxWidth(layout.widthFraction)
+                            .height(layout.heightDp.dp)
                             .onGloballyPositioned { dashboardBounds[card.id] = it.boundsInRoot() }
                             .graphicsLayer {
                                 if (activeDragCard == card.id) {
@@ -494,7 +495,28 @@ private fun ShortcutCard(
 
 private data class HomeDashboardCard(val id: String)
 
+/**
+ * Developer-owned visual specification. User preferences persist card IDs/order only;
+ * they cannot change width, height, span, or other layout dimensions.
+ * Add new card types here when new Home features are introduced.
+ */
+private data class HomeDashboardCardSpec(
+    val widthFraction: Float,
+    val heightDp: Int
+)
+
 private object HomeDashboardLayoutStore {
+    private val cardSpecs = mapOf(
+        "airdrop_navigation" to HomeDashboardCardSpec(widthFraction = 1f, heightDp = 180),
+        "wallet_management" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 154),
+        "tron_energy" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 154),
+        "airdrop_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 154),
+        "project_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 154)
+    )
+
+    fun layout(id: String): HomeDashboardCardSpec =
+        cardSpecs[id] ?: HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 154)
+
     val defaults = listOf(
         HomeDashboardCard("airdrop_navigation"),
         HomeDashboardCard("wallet_management"),
