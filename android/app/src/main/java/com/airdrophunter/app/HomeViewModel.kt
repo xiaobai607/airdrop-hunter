@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.airdrophunter.app.data.OkxMarketRepository
 import com.airdrophunter.app.data.OkxTicker
 import com.airdrophunter.app.data.MarketSearchRepository
+import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.CacheRefreshPolicy
+import com.airdrophunter.app.data.CacheDisplayStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +22,8 @@ data class HomeUiState(
     val isRefreshing: Boolean = false,
     val hasError: Boolean = false,
     val marketError: String? = null,
-    val lastSuccessfulUpdateAt: Long? = null
+    val lastSuccessfulUpdateAt: Long? = null,
+    val marketCacheStatus: CacheDisplayStatus = CacheDisplayStatus.UNKNOWN
 )
 
 class HomeViewModel(
@@ -52,13 +56,19 @@ class HomeViewModel(
                 val tickers = cachedTickers.map { coin ->
                     OkxTicker("${coin.symbol}-USDT", coin.lastPrice, coin.change24hPercent)
                 }
+                val cacheMetadata = CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
+                val cacheStatus = CacheRefreshPolicy.displayStatus(cacheMetadata, System.currentTimeMillis())
+                val cacheWarning = if (cacheStatus == CacheDisplayStatus.ERROR ||
+                    (cacheStatus == CacheDisplayStatus.STALE && cacheMetadata?.lastError != null)
+                ) "行情暂时不可用，正在显示上次缓存" else null
                 _uiState.value = _uiState.value.copy(
                     market = tickers.filter { it.symbol in setOf("BTC", "ETH") },
                     isLoading = false,
                     isRefreshing = false,
                     hasError = false,
-                    marketError = null,
-                    lastSuccessfulUpdateAt = cachedTickers.maxOfOrNull { it.fetchedAt } ?: System.currentTimeMillis()
+                    marketError = cacheWarning,
+                    lastSuccessfulUpdateAt = cacheMetadata?.fetchedAt ?: cachedTickers.maxOfOrNull { it.fetchedAt } ?: System.currentTimeMillis(),
+                    marketCacheStatus = cacheStatus
                 )
             } catch (error: Exception) {
                 val message = when (error) {
@@ -70,7 +80,8 @@ class HomeViewModel(
                     isLoading = false,
                     isRefreshing = false,
                     hasError = true,
-                    marketError = message
+                    marketError = message,
+                    marketCacheStatus = CacheDisplayStatus.ERROR
                 )
             }
         }

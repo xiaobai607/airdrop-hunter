@@ -10,7 +10,22 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.random.Random
 
+enum class CacheDisplayStatus { FRESH, REFRESHING, STALE, ERROR, UNKNOWN }
+
 object CacheRefreshPolicy {
+    fun walletAssetCacheKey(accountScope: String, walletId: String, chain: String): String =
+        "wallet-assets:$accountScope:$walletId:${chain.lowercase()}"
+
+    fun displayStatus(metadata: CacheMetadataEntity?, now: Long): CacheDisplayStatus {
+        metadata ?: return CacheDisplayStatus.UNKNOWN
+        return when {
+            metadata.refreshStatus == "refreshing" -> CacheDisplayStatus.REFRESHING
+            metadata.refreshStatus == "error" -> CacheDisplayStatus.ERROR
+            isFresh(metadata, now) -> CacheDisplayStatus.FRESH
+            else -> CacheDisplayStatus.STALE
+        }
+    }
+
     const val DEFAULT_TTL_MILLIS = 15 * 60 * 1000L
     const val MANUAL_REFRESH_THROTTLE_MILLIS = 30 * 1000L
     const val FAILURE_COOLDOWN_MILLIS = 30 * 1000L

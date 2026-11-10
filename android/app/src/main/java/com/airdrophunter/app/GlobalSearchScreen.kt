@@ -24,6 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.CacheMetadataEntity
+import com.airdrophunter.app.data.CacheRefreshPolicy
+import com.airdrophunter.app.data.CacheDisplayStatus
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CommunityProjectCatalogDto
 import com.airdrophunter.app.data.HotCoin
@@ -60,12 +63,16 @@ fun GlobalSearchScreen(
     var coinResults by remember { mutableStateOf<List<MarketCoin>>(emptyList()) }
     var dappResults by remember { mutableStateOf<List<CommunityProjectCatalogDto>>(emptyList()) }
     var hotCoins by remember { mutableStateOf<List<HotCoin>>(emptyList()) }
+    var hotCoinMetadata by remember { mutableStateOf<CacheMetadataEntity?>(null) }
+    var coinCacheMetadata by remember { mutableStateOf<CacheMetadataEntity?>(null) }
+    var dappCacheMetadata by remember { mutableStateOf<CacheMetadataEntity?>(null) }
     var isSearching by remember { mutableStateOf(false) }
     var searchError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         ApiClient.initialize(context)
         hotCoins = runCatching { repository.loadHotCoins() }.getOrDefault(emptyList())
+        hotCoinMetadata = CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
     }
 
     LaunchedEffect(query, category) {
@@ -92,10 +99,16 @@ fun GlobalSearchScreen(
             runCatching { withContext(Dispatchers.IO) { repository.searchRemoteCoins(value) } }
                 .onSuccess { coinResults = it }
                 .onFailure { if (coinResults.isEmpty()) searchError = "暂时无法获取远程币种目录，本地结果仍可使用" }
+            coinCacheMetadata = withContext(Dispatchers.IO) {
+                CacheStore.readCacheMetadata("market-prices-supported", "coinpaprika")
+            }
         } else {
             runCatching { withContext(Dispatchers.IO) { repository.searchRemoteDapps(value) } }
                 .onSuccess { dappResults = it }
                 .onFailure { if (dappResults.isEmpty()) searchError = "暂时无法获取 DApp 目录，本地结果仍可使用" }
+            dappCacheMetadata = withContext(Dispatchers.IO) {
+                CacheStore.readCacheMetadata("global-search-dapp-catalog", "community-catalog")
+            }
         }
         isSearching = false
     }
@@ -189,6 +202,9 @@ fun GlobalSearchScreen(
         if (query.isBlank() && category == SearchCategory.COIN) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("热门币种", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                cacheStatusLabel(hotCoinMetadata)?.let {
+                    Text(it, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                }
                 hotCoins.forEach { coin -> HotCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
                 if (hotCoins.isEmpty()) Text("热门行情暂不可用，输入币种名称仍可搜索", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
@@ -199,6 +215,9 @@ fun GlobalSearchScreen(
                 if (category == SearchCategory.COIN) "币种搜索结果" else "DApp 搜索结果",
                 color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
             )
+            cacheStatusLabel(if (category == SearchCategory.COIN) coinCacheMetadata else dappCacheMetadata)?.let {
+                Text(it, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            }
             when (category) {
                 SearchCategory.COIN -> if (coinResults.isEmpty()) {
                     Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的币种", color = AppColors.TextHelper)
@@ -290,3 +309,18 @@ private fun formatSearchPrice(value: Double): String = NumberFormat.getNumberIns
     minimumFractionDigits = 2
     maximumFractionDigits = 8
 }.format(value)
+
+
+private fun cacheStatusLabel(metadata: CacheMetadataEntity?): String? {
+    metadata ?: return null
+    val updated = metadata.fetchedAt?.let {
+        java.text.SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(java.util.Date(it))
+    } ?: "暂无成功更新时间"
+    return when (CacheRefreshPolicy.displayStatus(metadata, System.currentTimeMillis())) {
+        CacheDisplayStatus.FRESH -> "数据更新于 $updated"
+        CacheDisplayStatus.REFRESHING -> "正在更新 · 保留上次数据（$updated）"
+        CacheDisplayStatus.STALE -> "缓存数据 · 上次更新 $updated"
+        CacheDisplayStatus.ERROR -> "更新失败 · 保留上次缓存（$updated）"
+        CacheDisplayStatus.UNKNOWN -> "等待首次更新"
+    }
+}
