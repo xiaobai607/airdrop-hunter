@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.OkxTickerDetail
 import com.airdrophunter.app.data.CacheMetadataEntity
 import com.airdrophunter.app.data.CacheStore
@@ -37,7 +38,7 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
     var cacheMetadata by remember(symbol) { mutableStateOf<CacheMetadataEntity?>(null) }
 
     suspend fun refresh(manual: Boolean) {
-        if (detail == null) loading = true
+        loading = true
         error = null
         val result = repository.loadSpotTickerDetail(symbol, manual)
         detail = result.data ?: detail
