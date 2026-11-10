@@ -170,6 +170,8 @@ class CatalogResponse(BaseModel):
     description: str
     tags: list[str]
     website_url: str
+    is_active: bool
+    sort_order: int
     created_at: datetime
 
 
@@ -183,9 +185,10 @@ def require_catalog_admin(token: Annotated[str | None, Header(alias="X-Catalog-A
 
 @router.get("", response_model=list[CatalogResponse])
 async def list_community_catalog(db: Annotated[AsyncSession, Depends(get_db)]):
+    # Return inactive entries too. Clients need an explicit is_active=false signal
+    # to distinguish a confirmed delisting from an offline or incomplete directory.
     rows = await db.scalars(
         select(CommunityProjectCatalogEntry)
-        .where(CommunityProjectCatalogEntry.is_active.is_(True))
         .order_by(CommunityProjectCatalogEntry.sort_order.asc(), CommunityProjectCatalogEntry.name.asc())
     )
     return list(rows)
