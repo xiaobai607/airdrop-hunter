@@ -174,15 +174,17 @@ class AccountingRepository(
     }
 
     private suspend fun syncAndScheduleIfNeeded() {
+        if (!CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED) return
         if (accessTokenProvider().isNullOrBlank()) return
         if (!syncPersonalLedger()) local.schedulePrivateLedgerSync()
     }
 
     /**
-     * Account records are uploaded only while authenticated. Guest records stay in
-     * the guest-local cache and never call the private account endpoint.
+     * Historical private-cloud implementation retained for a future phase.
+     * Current-release policy returns before any private account endpoint is called.
      */
     suspend fun syncPersonalLedger(): Boolean {
+        if (!CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED) return true
         // Bind every request and local-cache operation to the session that started
         // this sync. An account switch during network work cannot redirect records.
         val accessToken = accessTokenProvider()?.takeIf { it.isNotBlank() } ?: return false
