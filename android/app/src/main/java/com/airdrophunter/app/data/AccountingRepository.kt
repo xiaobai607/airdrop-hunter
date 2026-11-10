@@ -97,7 +97,8 @@ class AccountingRepository(
     private val gson: Gson = Gson(),
     private val accessTokenProvider: () -> String? = { TokenStore.readTokenBlocking() },
     personalLedgerRemote: PersonalLedgerRemoteDataSource? = null,
-    private val projectsRepository: ProjectsRepository? = null
+    private val projectsRepository: ProjectsRepository? = null,
+    private val privateCloudSyncEnabled: Boolean = CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED
 ) {
     private val ledgerRemote = personalLedgerRemote ?: api?.let(::ApiPersonalLedgerRemoteDataSource)
     private val projectsType = object : TypeToken<List<ProjectDto>>() {}.type
@@ -174,7 +175,7 @@ class AccountingRepository(
     }
 
     private suspend fun syncAndScheduleIfNeeded() {
-        if (!CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED) return
+        if (!privateCloudSyncEnabled) return
         if (accessTokenProvider().isNullOrBlank()) return
         if (!syncPersonalLedger()) local.schedulePrivateLedgerSync()
     }
@@ -184,7 +185,7 @@ class AccountingRepository(
      * Current-release policy returns before any private account endpoint is called.
      */
     suspend fun syncPersonalLedger(): Boolean {
-        if (!CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED) return true
+        if (!privateCloudSyncEnabled) return true
         // Bind every request and local-cache operation to the session that started
         // this sync. An account switch during network work cannot redirect records.
         val accessToken = accessTokenProvider()?.takeIf { it.isNotBlank() } ?: return false
