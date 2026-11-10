@@ -21,11 +21,13 @@ The user's latest reference image is the visual source of truth. This is a **mob
 - The six actions are connected: create mock bill (retains the existing accounting confirmation workflow), copy current wallet address, open pending bills, refresh the current WebView, copy current page URL, and open the current page externally.
 - The entire dock is hosted as an overlay within the browser viewport. Long-press drag moves it vertically; release constrains it to the safe browser viewport and snaps horizontally to the nearest side. Ordinary horizontal swipes remain available to scroll the inner tool row.
 - Drag coordinates exist only in Compose `remember` state and are not saved. A fresh browser entry recreates the composable and returns the dock to its bottom default. Selected tools persist independently.
+- Source cleanup audit found no obsolete vertical rail, orientation selector, persisted dock-position keys, duplicate toolbar capsule, search entry, or unused imports in the current toolbar source. Existing bill/accounting state and dialogs remain referenced and are intentionally retained.
+- Edge-snap correction: every completed/cancelled long-press drag now snaps horizontally to the nearest side, including short drags; the prior 15% movement threshold that could leave the dock floating off-center has been removed.
 - The old accounting dialogs and data operations remain in the same composable; this change replaces only the visible action capsule and adds the browser utility actions.
 - **Not yet validated:** exact-head Android build/unit tests and physical-device checks for internal scroll vs long-press drag, edge snap, vertical bounds, add/remove/reorder, all six actions, and bottom reset after exit/re-entry. Do not claim acceptance until those checks pass.
 - Scope deliberately excludes the website loading failure and browser-page WalletConnect no-response issue, which the user asked to defer. Do not weaken HTTPS/TLS/origin checks or spend this batch reopening those investigations.
 
-**Current implementation checkpoint:** browser dock code commit `98781cf546b028c1d9d263de3a06965089238f0b`; latest visual-spec documentation commit `16ed7c8b440a5fa50d9335f24bff815c3288b1c2`. Exact code commit's Android debug build and unit-test job passed in Actions run `42773766449` (run #783). This is automated build/test evidence only; physical-device acceptance remains pending. PR #135 remains draft/unmerged.
+**Current implementation checkpoint:** browser dock code commit `c51395144f66216f914c2411560017b7998f1ca2` includes the saturated app-icon/glass-capsule styling and unconditional edge snap. The prior visual-only code commit passed Android debug build and unit tests in Actions run `42773766449` (run #783); this latest edge-snap correction still requires one exact-commit build. Physical-device acceptance remains pending. PR #135 remains draft/unmerged.
 
 ---
 
