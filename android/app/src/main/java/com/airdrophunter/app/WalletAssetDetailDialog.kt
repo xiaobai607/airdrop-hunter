@@ -63,7 +63,7 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
         error = null
         snapshot = repository.readCached(wallet.id, selectedNetwork, sessionToken)
         try {
-            snapshot = repository.refresh(wallet.id, wallet.address, selectedNetwork, sessionToken)
+            snapshot = repository.refresh(wallet.id, wallet.address, selectedNetwork, sessionToken, manual = reload > 0)
             error = snapshot?.errorMessage
         } catch (cancelled: CancellationException) {
             throw cancelled

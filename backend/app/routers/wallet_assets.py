@@ -9,6 +9,12 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from app.routers.auth import limiter
 from app.routers.wallet import identify_chain
+from app.services.provider_resilience import (
+    ProviderResponseError,
+    post_json_rpc_with_provider_failover,
+    request_with_provider_failover,
+)
+from urllib.parse import urlparse
 
 router = APIRouter(prefix="/api/wallet-assets", tags=["wallet assets"])
 
@@ -29,7 +35,18 @@ BLOCKSCOUT = {
     "polygon": "https://polygon.blockscout.com",
 }
 SOLANA_RPC = "https://api.mainnet-beta.solana.com"
+SOLANA_RPC_PROVIDERS = (SOLANA_RPC, "https://solana-rpc.publicnode.com")
 BITCOIN_API = "https://blockstream.info/api"
+BITCOIN_API_PROVIDERS = (BITCOIN_API, "https://mempool.space/api")
+EVM_RPC_PROVIDERS = {
+    "ethereum": (EVM_RPC["ethereum"][0], "https://eth.llamarpc.com"),
+    "bsc": (EVM_RPC["bsc"][0], "https://bsc-rpc.publicnode.com"),
+    "polygon": (EVM_RPC["polygon"][0], "https://polygon-rpc.com"),
+    "arbitrum": (EVM_RPC["arbitrum"][0], "https://arb1.arbitrum.io/rpc"),
+    "optimism": (EVM_RPC["optimism"][0], "https://mainnet.optimism.io"),
+    "base": (EVM_RPC["base"][0], "https://mainnet.base.org"),
+    "avalanche": (EVM_RPC["avalanche"][0], "https://avalanche-c-chain-rpc.publicnode.com"),
+}
 COINPAPRIKA = "https://api.coinpaprika.com/v1/tickers/"
 SOL_TOKEN_PROGRAMS = (
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
@@ -234,36 +251,36 @@ async def get_wallet_assets(
     try:
         async with httpx.AsyncClient(timeout=timeout, headers={"User-Agent": "AirdropHunter/1.0"}) as client:
             if chain == "bitcoin":
-                response = await client.get(f"{BITCOIN_API}/address/{address}")
-                response.raise_for_status()
+                response, bitcoin_provider = await request_with_provider_failover(
+                    client, "GET",
+                    [f"{base}/address/{address}" for base in BITCOIN_API_PROVIDERS],
+                )
                 assets = normalize_bitcoin_asset(response.json(), await fetch_price(client, "btc-bitcoin"))
-                return WalletAssetsResponse(chain=chain, network="Bitcoin", provider="Blockstream Esplora + CoinPaprika",
+                provider_name = "Blockstream Esplora" if "blockstream.info" in bitcoin_provider else "mempool.space Esplora"
+                return WalletAssetsResponse(chain=chain, network="Bitcoin", provider=f"{provider_name} + CoinPaprika",
                                              fetched_at=fetched_at, assets=assets)
 
             if chain == "solana":
-                native = await client.post(SOLANA_RPC, json={
-                    "jsonrpc": "2.0", "id": 1, "method": "getBalance",
-                    "params": [address, {"commitment": "confirmed"}],
-                })
-                native.raise_for_status()
-                native_payload = native.json()
-                if not isinstance(native_payload, dict) or native_payload.get("error") or not isinstance(native_payload.get("result"), dict):
+                native_payload, solana_provider = await post_json_rpc_with_provider_failover(
+                    client, SOLANA_RPC_PROVIDERS, {
+                        "jsonrpc": "2.0", "id": 1, "method": "getBalance",
+                        "params": [address, {"commitment": "confirmed"}],
+                    }
+                )
+                if not isinstance(native_payload.get("result"), dict):
                     raise HTTPException(503, "Solana 原生余额暂时不可用")
                 lamports = str(native_payload["result"].get("value") or 0)
                 token_payloads, token_unavailable = [], False
                 for index, program in enumerate(SOL_TOKEN_PROGRAMS):
                     try:
-                        response = await client.post(SOLANA_RPC, json={
-                            "jsonrpc": "2.0", "id": index + 2, "method": "getTokenAccountsByOwner",
-                            "params": [address, {"programId": program}, {"encoding": "jsonParsed", "commitment": "confirmed"}],
-                        })
-                        response.raise_for_status()
-                        payload = response.json()
-                        if isinstance(payload, dict) and not payload.get("error"):
-                            token_payloads.append(payload)
-                        else:
-                            token_unavailable = True
-                    except httpx.HTTPError:
+                        payload, _ = await post_json_rpc_with_provider_failover(
+                            client, SOLANA_RPC_PROVIDERS, {
+                                "jsonrpc": "2.0", "id": index + 2, "method": "getTokenAccountsByOwner",
+                                "params": [address, {"programId": program}, {"encoding": "jsonParsed", "commitment": "confirmed"}],
+                            }
+                        )
+                        token_payloads.append(payload)
+                    except (httpx.HTTPError, ProviderResponseError, ValueError):
                         token_unavailable = True
                 prices = {}
                 for mint, (_, _, price_id) in SOL_KNOWN_TOKENS.items():
@@ -272,16 +289,19 @@ async def get_wallet_assets(
                         prices[mint] = price
                 assets = normalize_solana_assets(lamports, token_payloads, await fetch_price(client, "sol-solana"), prices)
                 note = "部分 SPL 代币列表服务暂时不可用" if token_unavailable else None
-                return WalletAssetsResponse(chain=chain, network="Solana", provider="Solana RPC + CoinPaprika",
+                return WalletAssetsResponse(
+                    chain=chain, network="Solana",
+                    provider=f"{urlparse(solana_provider).netloc} RPC + CoinPaprika",
                                              fetched_at=fetched_at, coverage_note=note, assets=assets)
 
-            rpc_url, _, native_price_id = EVM_RPC[chain]
-            rpc_response = await client.post(rpc_url, json={
-                "jsonrpc": "2.0", "id": 1, "method": "eth_getBalance", "params": [address, "latest"],
-            })
-            rpc_response.raise_for_status()
-            rpc_payload = rpc_response.json()
-            native_wei = rpc_payload.get("result") if isinstance(rpc_payload, dict) and not rpc_payload.get("error") else None
+            _, _, native_price_id = EVM_RPC[chain]
+            rpc_payload, rpc_provider = await post_json_rpc_with_provider_failover(
+                client, EVM_RPC_PROVIDERS[chain], {
+                    "jsonrpc": "2.0", "id": 1, "method": "eth_getBalance",
+                    "params": [address, "latest"],
+                }
+            )
+            native_wei = rpc_payload.get("result")
             if not isinstance(native_wei, str) or not re.fullmatch(r"0x[0-9a-fA-F]+", native_wei):
                 raise HTTPException(503, "EVM 原生币余额暂时不可用")
 
@@ -318,10 +338,11 @@ async def get_wallet_assets(
                 if token_unavailable else None
             )
             return WalletAssetsResponse(
-                chain=chain, network=chain.title(), provider="Public EVM RPC + Blockscout + CoinPaprika",
+                chain=chain, network=chain.title(),
+                provider=f"{urlparse(rpc_provider).netloc} + Blockscout + CoinPaprika",
                 fetched_at=fetched_at, coverage_note=note, assets=assets,
             )
     except HTTPException:
         raise
-    except (httpx.HTTPError, ValueError, TypeError, InvalidOperation) as exc:
+    except (httpx.HTTPError, ProviderResponseError, ValueError, TypeError, InvalidOperation) as exc:
         raise HTTPException(503, "链上资产服务暂时不可用，请稍后重试") from exc

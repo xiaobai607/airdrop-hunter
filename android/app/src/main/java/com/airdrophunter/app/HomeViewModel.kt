@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.airdrophunter.app.data.OkxMarketRepository
 import com.airdrophunter.app.data.OkxTicker
+import com.airdrophunter.app.data.MarketSearchRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,10 +29,14 @@ class HomeViewModel(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     fun load(isGuest: Boolean = false) {
-        refresh(isGuest)
+        refreshInternal(isGuest, manual = false)
     }
 
     fun refresh(isGuest: Boolean = true) {
+        refreshInternal(isGuest, manual = true)
+    }
+
+    private fun refreshInternal(isGuest: Boolean, manual: Boolean) {
         if (_uiState.value.isRefreshing) return
 
         viewModelScope.launch {
@@ -43,14 +48,17 @@ class HomeViewModel(
             )
 
             try {
-                val tickers = repository.fetchSpotTickers()
+                val cachedTickers = MarketSearchRepository(repository).loadHotCoins(manual = manual)
+                val tickers = cachedTickers.map { coin ->
+                    OkxTicker("${coin.symbol}-USDT", coin.lastPrice, coin.change24hPercent)
+                }
                 _uiState.value = _uiState.value.copy(
                     market = tickers.filter { it.symbol in setOf("BTC", "ETH") },
                     isLoading = false,
                     isRefreshing = false,
                     hasError = false,
                     marketError = null,
-                    lastSuccessfulUpdateAt = System.currentTimeMillis()
+                    lastSuccessfulUpdateAt = cachedTickers.maxOfOrNull { it.fetchedAt } ?: System.currentTimeMillis()
                 )
             } catch (error: Exception) {
                 val message = when (error) {
