@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +33,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -209,7 +209,7 @@ fun BrowserAccountingToolbar(
                 .pointerInput(configuration.screenWidthDp, configuration.screenHeightDp) {
                     detectDragGesturesAfterLongPress(
                         onDragEnd = {
-                            dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
+                            if (abs(dragOffsetX) > maxHorizontalDrag * 0.15f) dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
                             dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
                         },
                         onDragCancel = {
@@ -233,24 +233,42 @@ fun BrowserAccountingToolbar(
             ) {
                 selectedToolIds.forEach { id ->
                     val option = toolOptions.firstOrNull { it.first == id } ?: return@forEach
-                    val (glyph, tint, background, action) = when (id) {
-                        "mock_bill" -> listOf("⚡", Color(0xFF16845B), Color(0xFFE5F5ED), { createMockBill() })
-                        "copy_address" -> listOf("▣", Color(0xFF356BC5), Color(0xFFEAF1FF), { onCopyAddress() })
-                        "pending_bills" -> listOf("▤", Color(0xFF9A5A16), Color(0xFFFFF1DF), { showBillList = true })
-                        "refresh_page" -> listOf("↻", Color(0xFF356BC5), Color(0xFFEAF1FF), { onRefreshPage() })
-                        "copy_url" -> listOf("🔗", Color(0xFF356BC5), Color(0xFFEAF1FF), { onCopyPageUrl() })
-                        else -> listOf("↗", Color(0xFF16845B), Color(0xFFE5F5ED), { onOpenPageExternally() })
+                    val glyph = when (id) {
+                        "mock_bill" -> "⚡"
+                        "copy_address" -> "▣"
+                        "pending_bills" -> "▤"
+                        "refresh_page" -> "↻"
+                        "copy_url" -> "🔗"
+                        else -> "↗"
+                    }
+                    val tint = when (id) {
+                        "mock_bill", "open_external" -> Color(0xFF16845B)
+                        "pending_bills" -> Color(0xFF9A5A16)
+                        else -> Color(0xFF356BC5)
+                    }
+                    val background = when (id) {
+                        "mock_bill", "open_external" -> Color(0xFFE5F5ED)
+                        "pending_bills" -> Color(0xFFFFF1DF)
+                        else -> Color(0xFFEAF1FF)
+                    }
+                    val action: () -> Unit = when (id) {
+                        "mock_bill" -> ::createMockBill
+                        "copy_address" -> onCopyAddress
+                        "pending_bills" -> { { showBillList = true } }
+                        "refresh_page" -> onRefreshPage
+                        "copy_url" -> onCopyPageUrl
+                        else -> onOpenPageExternally
                     }
                     Surface(
-                        onClick = { (action as () -> Unit).invoke() },
+                        onClick = action,
                         enabled = !(id == "mock_bill" && creatingMockBill),
                         modifier = Modifier.size(68.dp),
                         shape = RoundedCornerShape(19.dp),
-                        color = background as Color,
-                        border = BorderStroke(1.dp, (tint as Color).copy(alpha = 0.16f))
+                        color = background,
+                        border = BorderStroke(1.dp, tint.copy(alpha = 0.16f))
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Text(glyph as String, color = tint, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text(glyph, color = tint, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                             Text(option.second, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
                         }
                     }
