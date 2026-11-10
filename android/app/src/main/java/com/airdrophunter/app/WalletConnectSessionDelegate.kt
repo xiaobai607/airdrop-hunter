@@ -2,7 +2,9 @@ package com.airdrophunter.app
 
 import com.reown.appkit.client.AppKit
 import com.reown.appkit.client.Modal
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** Read-only public accounts approved by an external WalletConnect session. */
@@ -17,6 +19,10 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
     val accounts = _accounts.asStateFlow()
     private val _sessionGeneration = MutableStateFlow(0L)
     val sessionGeneration = _sessionGeneration.asStateFlow()
+    private val _sessionTopic = MutableStateFlow<String?>(null)
+    val sessionTopic = _sessionTopic.asStateFlow()
+    private val _requestResponses = MutableSharedFlow<Modal.Model.SessionRequestResponse>(extraBufferCapacity = 32)
+    val requestResponses = _requestResponses.asSharedFlow()
 
     private fun publishAccounts(accounts: List<WalletConnectAccount>) {
         _accounts.value = accounts
@@ -24,6 +30,10 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
     }
 
     override fun onSessionApproved(approvedSession: Modal.Model.ApprovedSession) {
+        _sessionTopic.value = when (approvedSession) {
+            is Modal.Model.ApprovedSession.WalletConnectSession -> approvedSession.topic
+            is Modal.Model.ApprovedSession.CoinbaseSession -> null
+        }
         publishAccounts(when (approvedSession) {
             is Modal.Model.ApprovedSession.WalletConnectSession ->
                 parseAccounts(approvedSession.accounts, approvedSession.metaData?.name.orEmpty())
@@ -43,17 +53,20 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
     override fun onSessionExtend(session: Modal.Model.Session) = Unit
 
     override fun onSessionDelete(deletedSession: Modal.Model.DeletedSession) {
+        _sessionTopic.value = null
         publishAccounts(emptyList())
     }
 
-    // This app does not relay signing or transaction requests from DApps.
-    override fun onSessionRequestResponse(response: Modal.Model.SessionRequestResponse) = Unit
+    override fun onSessionRequestResponse(response: Modal.Model.SessionRequestResponse) {
+        _requestResponses.tryEmit(response)
+    }
     override fun onProposalExpired(proposal: Modal.Model.ExpiredProposal) = Unit
     override fun onRequestExpired(request: Modal.Model.ExpiredRequest) = Unit
     override fun onConnectionStateChange(state: Modal.Model.ConnectionState) = Unit
     override fun onError(error: Modal.Model.Error) = Unit
 
     fun clearSession() {
+        _sessionTopic.value = null
         publishAccounts(emptyList())
     }
 

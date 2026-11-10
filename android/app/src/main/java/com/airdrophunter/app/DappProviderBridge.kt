@@ -115,22 +115,66 @@ internal object DappProviderBridge {
 """
 
     /**
-     * DApps may read public account information, but this app must not sign messages
-     * or submit transactions in the current product version.
+     * Only these EVM requests may be relayed to the connected external wallet.
+     * The wallet itself must display the request and perform user approval/signing.
+     * Raw signed transactions and smart-account batch methods remain unsupported.
      */
-    fun isSigningOrTransactionMethod(method: String): Boolean {
-        val normalized = method.trim().lowercase()
-        return normalized.startsWith("eth_sign") ||
-            normalized.startsWith("personal_sign") ||
-            normalized in setOf(
-                "eth_sendtransaction",
-                "eth_sendrawtransaction",
-                "eth_senduseroperation",
-                "wallet_sendcalls",
-                "wallet_sendtransaction",
-                "eth_submittransaction"
-            )
+    private val externalWalletMethods = setOf(
+        "personal_sign",
+        "eth_sign",
+        "eth_signtypeddata",
+        "eth_signtypeddata_v3",
+        "eth_signtypeddata_v4",
+        "eth_signtransaction",
+        "eth_sendtransaction"
+    )
+
+    fun isSupportedExternalWalletMethod(method: String): Boolean =
+        method.trim().lowercase() in externalWalletMethods
+
+    fun isAuthorizedAccountRequest(
+        method: String,
+        firstParam: String?,
+        secondParam: String?,
+        transactionFrom: String?,
+        accounts: Set<String>
+    ): Boolean {
+        if (accounts.isEmpty()) return false
+        val normalizedAccounts = accounts.map { it.lowercase() }.toSet()
+        fun isAuthorizedAddress(value: String?): Boolean =
+            !value.isNullOrBlank() &&
+                Regex("^0x[a-fA-F0-9]{40}$").matches(value) &&
+                value.lowercase() in normalizedAccounts
+
+        return when (method.trim().lowercase()) {
+            "personal_sign" -> {
+                val addressPattern = Regex("^0x[a-fA-F0-9]{40}$")
+                val firstLooksLikeAddress = firstParam?.let(addressPattern::matches) == true
+                val secondLooksLikeAddress = secondParam?.let(addressPattern::matches) == true
+                when {
+                    firstLooksLikeAddress && !secondLooksLikeAddress -> isAuthorizedAddress(firstParam)
+                    secondLooksLikeAddress && !firstLooksLikeAddress -> isAuthorizedAddress(secondParam)
+                    else -> false
+                }
+            }
+            "eth_sign",
+            "eth_signtypeddata",
+            "eth_signtypeddata_v3",
+            "eth_signtypeddata_v4" -> isAuthorizedAddress(firstParam)
+            "eth_signtransaction",
+            "eth_sendtransaction" -> isAuthorizedAddress(transactionFrom)
+            else -> false
+        }
     }
+
+    fun isBlockedRawSubmissionMethod(method: String): Boolean =
+        method.trim().lowercase() in setOf(
+            "eth_sendrawtransaction",
+            "eth_senduseroperation",
+            "wallet_sendcalls",
+            "wallet_sendtransaction",
+            "eth_submittransaction"
+        )
 
     fun parseRequest(raw: String): DappRpcRequest? = try {
         val json = JSONObject(raw)

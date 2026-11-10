@@ -16,20 +16,55 @@ class DappProviderBridgeTest {
     }
 
     @Test
-    fun signingAndTransactionSubmissionMethodsAreAlwaysBlocked() {
+    fun onlyExplicitlySupportedMethodsMayBeRelayedToAnExternalWallet() {
         listOf(
-            "personal_sign", "eth_sign", "eth_signTypedData_v4",
-            "eth_signTransaction", "eth_sendTransaction", "eth_sendRawTransaction",
-            "eth_sendUserOperation", "wallet_sendCalls", "wallet_sendTransaction"
+            "personal_sign", "eth_sign", "eth_signTypedData", "eth_signTypedData_v3",
+            "eth_signTypedData_v4", "eth_signTransaction", "eth_sendTransaction"
         ).forEach { method ->
-            assertTrue("$method must be blocked", DappProviderBridge.isSigningOrTransactionMethod(method))
+            assertTrue("$method should be eligible for external-wallet relay", DappProviderBridge.isSupportedExternalWalletMethod(method))
+        }
+        listOf(
+            "eth_sendRawTransaction", "eth_sendUserOperation", "wallet_sendCalls",
+            "wallet_sendTransaction", "eth_submitTransaction", "wallet_switchEthereumChain"
+        ).forEach { method ->
+            assertEquals(false, DappProviderBridge.isSupportedExternalWalletMethod(method))
         }
     }
 
     @Test
-    fun readOnlyAccountAndChainMethodsAreNotClassifiedAsSigning() {
+    fun rawSignedTransactionSubmissionRemainsBlocked() {
+        listOf("eth_sendRawTransaction", "eth_sendUserOperation", "wallet_sendCalls", "wallet_sendTransaction")
+            .forEach { method -> assertTrue(DappProviderBridge.isBlockedRawSubmissionMethod(method)) }
+    }
+
+    @Test
+    fun signingRequestsMustTargetAnAccountApprovedInTheExternalWalletSession() {
+        val account = "0x0123456789012345678901234567890123456789"
+        val accounts = setOf(account)
+        assertTrue(DappProviderBridge.isAuthorizedAccountRequest(
+            "personal_sign", "0xdeadbeef", account, null, accounts
+        ))
+        assertTrue(DappProviderBridge.isAuthorizedAccountRequest(
+            "eth_signTypedData_v4", account, "{}", null, accounts
+        ))
+        assertTrue(DappProviderBridge.isAuthorizedAccountRequest(
+            "eth_sendTransaction", null, null, account, accounts
+        ))
+        assertEquals(false, DappProviderBridge.isAuthorizedAccountRequest(
+            "eth_sendTransaction", null, null, "0x9999999999999999999999999999999999999999", accounts
+        ))
+        assertEquals(false, DappProviderBridge.isAuthorizedAccountRequest(
+            "personal_sign", "0xdeadbeef", null, null, accounts
+        ))
+        assertEquals(false, DappProviderBridge.isAuthorizedAccountRequest(
+            "personal_sign", account, account, null, accounts
+        ))
+    }
+
+    @Test
+    fun readOnlyAccountAndChainMethodsAreNotExternalSigningMethods() {
         listOf("eth_accounts", "eth_requestAccounts", "eth_chainId", "net_version", "eth_call").forEach { method ->
-            assertEquals(false, DappProviderBridge.isSigningOrTransactionMethod(method))
+            assertEquals(false, DappProviderBridge.isSupportedExternalWalletMethod(method))
         }
     }
 }
