@@ -4,7 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.routers.auth import get_current_user, limiter
 from app.database import get_db
@@ -151,6 +151,26 @@ def identify_chain(address: str) -> str | None:
             return chain
     return None
 
+
+def canonicalize_wallet_address(address: str, chain: str) -> str:
+    value = address.strip()
+    selected = chain.strip().lower()
+    if selected in {"evm", "ethereum", "erc20"}:
+        return value.lower()
+    if selected in {"btc", "bitcoin"} and value.lower().startswith("bc1"):
+        return value.lower()
+    return value
+
+
+def wallet_address_identity_filter(address: str, chain: str):
+    selected = chain.strip().lower()
+    if selected in {"evm", "ethereum", "erc20"}:
+        return func.lower(Wallet.address) == address.lower()
+    if selected in {"btc", "bitcoin"} and address.lower().startswith("bc1"):
+        return func.lower(Wallet.address) == address.lower()
+    return Wallet.address == address
+
+
 def _serialize(w: Wallet) -> dict:
     stored = {
         "evm": "EVM", "erc20": "EVM", "ethereum": "EVM",
@@ -181,13 +201,16 @@ async def add_wallet(payload: WalletWrite, db: AsyncSession = Depends(get_db), u
     if chain not in NETWORKS: raise HTTPException(422, "暂不支持该生态")
     if not is_valid_address_for_chain(payload.address, chain):
         raise HTTPException(422, "钱包地址格式或校验码与所选生态不匹配")
-    address = payload.address.strip()
-    existing = await db.scalar(select(Wallet).where(Wallet.user_id == user.id, Wallet.address == address))
+    address = canonicalize_wallet_address(payload.address, chain)
+    existing = await db.scalar(select(Wallet).where(
+        Wallet.user_id == user.id, wallet_address_identity_filter(address, chain)
+    ))
     db_chain, icon = NETWORKS[chain]
     if existing:
         existing.wallet_name = payload.wallet_name.strip() or "Wallet"
         existing.chain = db_chain
         existing.network_icon = icon
+        existing.address = address
         existing.public_key = address
         existing.tags = payload.tags
         existing.notes = payload.notes
@@ -216,8 +239,11 @@ async def update_wallet(
     address = payload.address.strip()
     if not is_valid_address_for_chain(address, chain):
         raise HTTPException(422, "钱包地址格式或校验码与所选生态不匹配")
+    address = canonicalize_wallet_address(address, chain)
     duplicate = await db.scalar(select(Wallet).where(
-        Wallet.user_id == user.id, Wallet.address == address, Wallet.id != wallet_id
+        Wallet.user_id == user.id,
+        wallet_address_identity_filter(address, chain),
+        Wallet.id != wallet_id
     ))
     if duplicate is not None:
         raise HTTPException(409, "该地址已经添加到钱包列表")
@@ -280,10 +306,16 @@ async def legacy_list_wallets(db: AsyncSession = Depends(get_db), user: User = D
 async def legacy_save_wallet(public_key: str = Query(min_length=21, max_length=120), db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     chain = identify_chain(public_key)
     if chain is None: raise HTTPException(422, "公开钱包地址格式无效")
+    address = canonicalize_wallet_address(public_key, chain)
     label, icon = NETWORKS[chain]
-    wallet = await db.scalar(select(Wallet).where(Wallet.user_id == user.id, Wallet.address == public_key))
+    wallet = await db.scalar(select(Wallet).where(
+        Wallet.user_id == user.id, wallet_address_identity_filter(address, chain)
+    ))
     if wallet is None:
-        wallet = Wallet(user_id=user.id, wallet_name="Wallet", chain=label, network_icon=icon, address=public_key, public_key=public_key)
-        db.add(wallet)
+        wallet = Wallet(user_id=user.id, wallet_name="Wallet", chain=label, network_icon=icon, address=address, public_key=address)
+    else:
+        wallet.address = address
+        wallet.public_key = address
+    db.add(wallet)
     await db.commit(); await db.refresh(wallet)
     return {**_serialize(wallet), "status":"saved", "notice":"仅保存公开地址，不涉及私钥。"}

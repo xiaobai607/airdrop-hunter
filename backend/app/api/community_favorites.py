@@ -1,8 +1,9 @@
 import re
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +20,21 @@ class FavoriteState(BaseModel):
     project_name: str = Field(min_length=1, max_length=180)
     is_favorite: bool
     updated_at: int = Field(ge=0)
+
+    @field_validator("project_name")
+    @classmethod
+    def normalize_project_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("项目名称不能为空")
+        return value
+
+    @field_validator("updated_at")
+    @classmethod
+    def reject_future_timestamp(cls, value: int) -> int:
+        if value > int(time.time() * 1000) + 5 * 60 * 1000:
+            raise ValueError("收藏更新时间不能超过当前时间5分钟")
+        return value
 
 
 class FavoriteSyncRequest(BaseModel):

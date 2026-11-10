@@ -60,9 +60,13 @@ def test_same_evm_address_is_saved_as_one_ecosystem_wallet():
         headers = auth(client)
         address = "0x" + "c" * 40
         first = client.post("/api/wallets", headers=headers, json={"wallet_name": "main", "chain": "EVM", "address": address})
-        second = client.post("/api/wallets", headers=headers, json={"wallet_name": "main", "chain": "EVM", "address": address})
+        second = client.post("/api/wallets", headers=headers, json={
+            "wallet_name": "main-updated", "chain": "Ethereum", "address": "0x" + "C" * 40
+        })
         assert first.status_code == 201 and second.status_code == 201
         assert first.json()["id"] == second.json()["id"]
+        assert second.json()["address"] == address
+        assert second.json()["wallet_name"] == "main-updated"
         assert len(client.get("/api/wallets", headers=headers).json()) == 1
 
 def test_claim_url_requires_https_and_configured_project():

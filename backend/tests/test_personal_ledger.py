@@ -198,3 +198,41 @@ def test_personal_ledger_preserves_unknown_expected_gas_as_null_and_explicit_zer
         saved_zero = client.put("/api/personal-ledger/known-zero-gas", headers=headers, json=explicit_zero)
         assert saved_zero.status_code == 200
         assert float(saved_zero.json()["expected_gas_cost_usd"]) == 0.0
+
+
+
+def test_personal_ledger_rejects_secret_material_and_oversized_extra():
+    with TestClient(app) as client:
+        headers = auth(client)
+        secret_payload = ledger_payload(
+            "secret-extra",
+            extra={"source": "manual", "nested": {"seed_phrase": "word1 word2 word3"}},
+        )
+        secret = client.put(
+            "/api/personal-ledger/secret-extra",
+            headers=headers,
+            json=secret_payload,
+        )
+        assert secret.status_code == 422
+
+        private_key_payload = ledger_payload(
+            "private-key-extra",
+            extra={"privateKey": "0x" + "a" * 64},
+        )
+        private_key = client.put(
+            "/api/personal-ledger/private-key-extra",
+            headers=headers,
+            json=private_key_payload,
+        )
+        assert private_key.status_code == 422
+
+        oversized_payload = ledger_payload(
+            "oversized-extra",
+            extra={"note": "x" * 17_000},
+        )
+        oversized = client.put(
+            "/api/personal-ledger/oversized-extra",
+            headers=headers,
+            json=oversized_payload,
+        )
+        assert oversized.status_code == 422

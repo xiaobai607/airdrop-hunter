@@ -1,9 +1,12 @@
+import json
+import math
+import re
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +16,44 @@ from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/personal-ledger", tags=["personal-ledger"])
 MAX_AMOUNT = Decimal("999999999999.99999999")
+MAX_EXTRA_BYTES = 16 * 1024
+FORBIDDEN_EXTRA_KEYS = {
+    "privatekey", "seedphrase", "mnemonic", "recoveryphrase", "recoverykey",
+    "password", "passwordhash", "secret", "secretkey", "accesstoken",
+    "refreshtoken", "apikey", "jwt", "walletseed",
+}
+
+
+def _validate_extra_value(value: Any, depth: int = 0) -> None:
+    if depth > 6:
+        raise ValueError("附加信息嵌套层级过深")
+    if isinstance(value, dict):
+        if len(value) > 40:
+            raise ValueError("附加信息字段过多")
+        for key, child in value.items():
+            if not isinstance(key, str) or not key or len(key) > 64:
+                raise ValueError("附加信息字段名称无效")
+            normalized = re.sub(r"[^a-z0-9]", "", key.casefold())
+            if any(token in normalized for token in FORBIDDEN_EXTRA_KEYS):
+                raise ValueError("附加信息不能包含密码、私钥、助记词或访问凭据")
+            _validate_extra_value(child, depth + 1)
+    elif isinstance(value, list):
+        if len(value) > 100:
+            raise ValueError("附加信息列表过长")
+        for child in value:
+            _validate_extra_value(child, depth + 1)
+    elif isinstance(value, str):
+        if len(value) > 4096:
+            raise ValueError("附加信息文本过长")
+    elif isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError("附加信息数值无效")
+    elif isinstance(value, int) and not isinstance(value, bool):
+        if abs(value) > 9_223_372_036_854_775_807:
+            raise ValueError("附加信息数值超出范围")
+    elif value is not None and not isinstance(value, bool):
+        raise ValueError("附加信息包含不支持的数据类型")
+
 
 class PersonalLedgerWrite(BaseModel):
     client_record_id: str = Field(min_length=1, max_length=64)
@@ -28,6 +69,20 @@ class PersonalLedgerWrite(BaseModel):
     actual_reward_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
     occurred_at: datetime
     extra: dict = Field(default_factory=dict)
+
+    @field_validator("extra")
+    @classmethod
+    def validate_extra(cls, value: dict) -> dict:
+        if len(value) > 40:
+            raise ValueError("附加信息字段过多")
+        _validate_extra_value(value)
+        try:
+            encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        except (TypeError, ValueError, RecursionError) as exc:
+            raise ValueError("附加信息格式无效") from exc
+        if len(encoded) > MAX_EXTRA_BYTES:
+            raise ValueError("附加信息不能超过16KB")
+        return value
 
 class PersonalLedgerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -83,8 +138,6 @@ async def upsert_personal_ledger(
         raise HTTPException(status_code=422, detail="记录标识不匹配")
     if payload.occurred_at.tzinfo is None:
         raise HTTPException(status_code=422, detail="记录时间必须包含时区")
-    if len(payload.extra) > 40:
-        raise HTTPException(status_code=422, detail="附加信息字段过多")
     values = payload.model_dump()
     values["user_id"] = user.id
     statement = insert(PersonalLedgerEntry).values(**values).on_conflict_do_update(

@@ -76,3 +76,22 @@ def test_community_favorite_sync_rejects_invalid_and_duplicate_ids():
             {"project_official_id": "linea", "project_name": "Linea", "is_favorite": False, "updated_at": 2},
         ]}
         assert client.put(endpoint, headers=headers, json=duplicate).status_code == 422
+
+
+
+def test_community_favorite_rejects_future_clock_skew_and_blank_names():
+    import time
+
+    with TestClient(app) as client:
+        headers = auth(client)
+        endpoint = "/api/community/favorites/sync"
+        future = {
+            "project_official_id": "future-project",
+            "project_name": "Future Project",
+            "is_favorite": True,
+            "updated_at": int(time.time() * 1000) + 10 * 60 * 1000,
+        }
+        assert client.put(endpoint, headers=headers, json={"items": [future]}).status_code == 422
+
+        blank_name = {**future, "project_official_id": "blank-project", "project_name": "   ", "updated_at": 100}
+        assert client.put(endpoint, headers=headers, json={"items": [blank_name]}).status_code == 422
