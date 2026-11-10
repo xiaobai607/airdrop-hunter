@@ -83,7 +83,9 @@ class WalletAssetRepository(
         ?.map { it.toDomain() }
 
     private fun cacheKey(walletId: String, chain: String, accessToken: String?): String =
-        "wallet-assets:${CacheStore.accountScopeKey(accessToken)}:$walletId:${chain.lowercase()}"
+        CacheRefreshPolicy.walletAssetCacheKey(
+            CacheStore.accountScopeKey(accessToken), walletId, chain
+        )
 
     private fun UnifiedAssetEntity.toDomain() = UnifiedAsset(
         walletId, chain, assetId, contractAddress, symbol, name, decimals,

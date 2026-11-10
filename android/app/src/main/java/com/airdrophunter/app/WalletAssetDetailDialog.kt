@@ -177,7 +177,9 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
                 }
                 snapshot?.let {
                     Text(
-                        "数据来源：" + it.provider + " · " + if (it.stale) "缓存" else "已更新",
+                        "数据来源：" + it.provider + " · " + if (it.stale) "缓存" else "已更新" +
+                            " · " + java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                                .format(java.util.Date(it.fetchedAt)),
                         color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall
                     )
                 }
