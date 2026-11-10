@@ -16,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,6 +57,7 @@ fun MicroCommunityScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val isDemoProject = projectOfficialId.startsWith("demo:")
     val ratings by CacheStore.observeProjectRatings(projectOfficialId).collectAsStateWithLifecycle(initialValue = emptyList())
     val joinedProjects by CacheStore.observeUserProjects().collectAsStateWithLifecycle(initialValue = emptyList())
     val isJoined = joinedProjects.any { it.projectOfficialId == projectOfficialId }
@@ -63,7 +66,7 @@ fun MicroCommunityScreen(
     var periodSnapshots by remember(projectOfficialId) { mutableStateOf<Map<String, com.airdrophunter.app.data.CommunitySnapshotDto>>(emptyMap()) }
     var statsLoading by remember(projectOfficialId) { mutableStateOf(true) }
     var statsFailed by remember(projectOfficialId) { mutableStateOf(false) }
-    var useDemoStats by remember(projectOfficialId) { mutableStateOf(BuildConfig.DEBUG) }
+    var useDemoStats by remember(projectOfficialId) { mutableStateOf(BuildConfig.DEBUG || isDemoProject) }
     var wallet by remember(projectOfficialId, sessionScopeKey) { mutableStateOf("") }
     var canRate by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
     var participationChecked by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
@@ -72,6 +75,12 @@ fun MicroCommunityScreen(
     var saving by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
     val demoStats = when (projectOfficialId.lowercase()) {
+        "demo:novalayer" -> CommunityDemoStats(42.80, 184.20, 4.8, 28)
+        "demo:orbitfi" -> CommunityDemoStats(38.60, 128.60, 4.6, 21)
+        "demo:zetabridge" -> CommunityDemoStats(62.00, 156.00, 4.2, 17)
+        "demo:pixelquest" -> CommunityDemoStats(51.00, 98.00, 3.8, 13)
+        "demo:aetherrollup" -> CommunityDemoStats(73.00, 226.00, 4.9, 32)
+        "demo:lumenprotocol" -> CommunityDemoStats(18.50, 64.00, 4.0, 9)
         "linea" -> CommunityDemoStats(42.80, 184.20, 4.9, 97)
         "scroll" -> CommunityDemoStats(38.60, 128.60, 4.8, 95)
         "zksync" -> CommunityDemoStats(62.00, 156.00, 4.7, 93)
@@ -98,6 +107,14 @@ fun MicroCommunityScreen(
         saving = false
         statsLoading = true
         statsFailed = false
+        if (isDemoProject) {
+            // Synthetic project detail is local-only; it never touches API or personal data.
+            periodSnapshots = emptyMap()
+            statsLoading = false
+            participationChecked = true
+            canRate = false
+            return@LaunchedEffect
+        }
         ApiClient.initialize(context)
 
         // Show every available Room snapshot immediately, then silently revalidate the CDN.
