@@ -47,10 +47,18 @@ def _range_distribution(values: list[float], max_buckets: int = 5) -> list[dict]
         item = buckets.setdefault(label, {"range_label": label, "count": 0})
         item["count"] += len(group)
     total = len(ordered)
-    return [
-        {**item, "percentage": round(item["count"] * 100.0 / total, 1)}
-        for item in buckets.values()
-    ]
+    result = []
+    assigned_percentage = 0.0
+    items = list(buckets.values())
+    for index, item in enumerate(items):
+        percentage = (
+            round(100.0 - assigned_percentage, 1)
+            if index == len(items) - 1
+            else round(item["count"] * 100.0 / total, 1)
+        )
+        assigned_percentage += percentage
+        result.append({**item, "percentage": percentage})
+    return result
 
 
 def assemble_snapshot(
