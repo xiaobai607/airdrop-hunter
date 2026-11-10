@@ -36,7 +36,6 @@ fun AuthScreen(onGuestMode: () -> Unit) {
     val application = context.applicationContext as AirdropHunterApplication
     val authRepository = remember(application) { application.appContainer.authRepository }
     val requestInFlight = remember { AtomicBoolean(false) }
-    var register by remember { mutableStateOf(false) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
@@ -59,10 +58,10 @@ fun AuthScreen(onGuestMode: () -> Unit) {
             Text("AIRDROP HUNTER", color = AppColors.Primary, fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(12.dp))
-            Text(if (register) "创建账号" else "欢迎回来",
+            Text("欢迎回来",
                 style = MaterialTheme.typography.headlineLarge, color = AppColors.TextPrimary,
                 fontWeight = FontWeight.Bold)
-            Text(if (register) "设置账号和密码，立即开始使用" else "使用账号和密码登录",
+            Text("使用账号和密码登录",
                 Modifier.padding(top = 8.dp, bottom = 24.dp), color = AppColors.TextSecondary)
             Card(
                 Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
@@ -109,7 +108,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                                 try {
                                     val request = AuthRequest(username, password)
                                     val response = withContext(Dispatchers.IO) {
-                                        authRepository.authenticate(request, register)
+                                        authRepository.authenticate(request, false)
                                     }
                                     TokenStore.saveToken(context, response.accessToken)
                                 } catch (e: Exception) {
@@ -122,7 +121,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                                             when {
                                                 e.code() == 429 -> "操作过于频繁，请稍后再试"
                                                 e.code() == 400 && (detail.contains("已存在") || detail.contains("已被占用")) ->
-                                                    "该账号已存在，请直接点击下方返回登录"
+                                                    "该账号已存在，请直接登录"
                                                 e.code() == 400 && detail.isNotBlank() -> detail
                                                 e.code() == 401 -> "账号或密码错误"
                                                 else -> "请求失败，请检查网络后重试"
@@ -144,31 +143,27 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                             containerColor = AppColors.Primary, contentColor = AppColors.Background
                         )
                     ) {
-                        Text(if (loading) "请稍候..." else if (register) "注册并登录" else "登录",
+                        Text(if (loading) "请稍候..." else "登录",
                             fontWeight = FontWeight.Bold)
                     }
-                    TextButton(
-                        onClick = { if (!loading && !requestInFlight.get()) { register = !register; error = null } },
-                        enabled = !loading && !requestInFlight.get(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (register) "已有账号？返回登录" else "没有账号？立即注册",
-                            color = AppColors.Primary)
-                    }
+                    Text(
+                        "注册功能开发中，请等待后续更新",
+                        modifier = Modifier.fillMaxWidth(),
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
-            if (!register) {
-                Spacer(Modifier.height(18.dp))
-                OutlinedButton(
-                    onClick = onGuestMode,
-                    enabled = !loading && !requestInFlight.get(),
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, AppColors.Primary),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Primary)
-                ) {
-                    Text("游客浏览", fontWeight = FontWeight.SemiBold)
-                }
+            Spacer(Modifier.height(18.dp))
+            OutlinedButton(
+                onClick = onGuestMode,
+                enabled = !loading && !requestInFlight.get(),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, AppColors.Primary),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Primary)
+            ) {
+                Text("游客浏览", fontWeight = FontWeight.SemiBold)
             }
         }
     }

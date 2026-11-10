@@ -60,6 +60,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.state.limiter = limiter
+app.state.allow_registration = False
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 

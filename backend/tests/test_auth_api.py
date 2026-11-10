@@ -35,6 +35,20 @@ def test_username_registration_login_and_private_data_isolation() -> None:
         assert profile.json()["uid"] == alice.json()["uid"]
 
 
+def test_registration_is_disabled_by_default_outside_test_override() -> None:
+    app.state.allow_registration = False
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/auth/register",
+                json={"username": f"blocked{uuid4().hex[:8]}", "password": "strong-password-123"},
+            )
+        assert response.status_code == 403
+        assert response.json()["detail"] == "注册功能开发中，请等待后续更新"
+    finally:
+        app.state.allow_registration = True
+
+
 def test_login_rejects_wrong_password() -> None:
     with TestClient(app) as client:
         username = f"login{uuid4().hex[:12]}"
