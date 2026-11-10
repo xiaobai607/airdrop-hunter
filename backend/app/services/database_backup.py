@@ -70,6 +70,37 @@ def _query(connection_args: list[str], env: dict[str, str], sql: str) -> str:
     )
 
 
+def _assert_restore_target_empty(connection_args: list[str], env: dict[str, str]) -> None:
+    """Refuse to restore into a database that already contains application objects."""
+    object_count = _query(
+        connection_args,
+        env,
+        "SELECT "
+        "(SELECT count(*) FROM pg_class c "
+        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') "
+        "AND n.nspname NOT LIKE 'pg_toast%' "
+        "AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')) + "
+        "(SELECT count(*) FROM pg_proc p "
+        "JOIN pg_namespace n ON n.oid = p.pronamespace "
+        "WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') "
+        "AND n.nspname NOT LIKE 'pg_toast%') + "
+        "(SELECT count(*) FROM pg_type t "
+        "JOIN pg_namespace n ON n.oid = t.typnamespace "
+        "WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') "
+        "AND n.nspname NOT LIKE 'pg_toast%' AND t.typtype <> 'p') + "
+        "(SELECT count(*) FROM pg_namespace "
+        "WHERE nspname NOT IN ('pg_catalog', 'information_schema', 'public') "
+        "AND nspname NOT LIKE 'pg_toast%')",
+    )
+    try:
+        count = int(object_count)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("Could not verify that the restore target database is empty") from exc
+    if count != 0:
+        raise RuntimeError("Restore target database is not empty; no restore was attempted")
+
+
 def _schema_signature(connection_args: list[str], env: dict[str, str]) -> tuple[str, tuple[str, ...]]:
     revision = _query(
         connection_args, env,
@@ -98,6 +129,9 @@ def verify_backup_restore(source_url: str, restore_url: str) -> dict[str, object
         if shutil.which(executable) is None:
             raise RuntimeError(f"Required PostgreSQL utility is missing: {executable}")
 
+    # Check before creating the archive or writing anything to the restore target.
+    _assert_restore_target_empty(restore_args, restore_env)
+
     with tempfile.TemporaryDirectory(prefix="airdrop-hunter-backup-check-") as temp_dir:
         archive = os.path.join(temp_dir, "database.dump")
         _run(
@@ -112,8 +146,8 @@ def verify_backup_restore(source_url: str, restore_url: str) -> dict[str, object
         if not os.path.isfile(archive) or os.path.getsize(archive) == 0:
             raise RuntimeError("PostgreSQL backup archive is empty")
 
-        # Deliberately do not use --clean or dropdb: the target must be empty,
-        # and a non-empty target fails safely rather than being destroyed.
+        # Deliberately do not use --clean or dropdb: a target that was not empty
+        # was rejected before the source dump was created.
         _run(
             [
                 "pg_restore", *restore_args,
