@@ -70,17 +70,6 @@ private enum class CommunityRanking(val title: String) {
     REWARD("🔥 吸金榜"), GAS("💀 避坑榜"), NEW("🚀 新星榜")
 }
 
-private data class CommunityDemoMetrics(val reward: Double, val gas: Double, val score: Double)
-
-private val communityDemoMetrics = mapOf(
-    "linea" to CommunityDemoMetrics(184.20, 42.80, 4.9),
-    "scroll" to CommunityDemoMetrics(128.60, 38.60, 4.8),
-    "zksync" to CommunityDemoMetrics(156.00, 62.00, 4.7),
-    "starknet" to CommunityDemoMetrics(98.00, 51.00, 4.4),
-    "base" to CommunityDemoMetrics(226.00, 73.00, 4.9),
-    "arbitrum" to CommunityDemoMetrics(142.00, 84.00, 4.2),
-    "optimism" to CommunityDemoMetrics(117.00, 49.00, 4.6)
-)
 
 @Composable
 fun CommunitySquareScreen(
@@ -109,7 +98,10 @@ fun CommunitySquareScreen(
     var submissionUrl by remember { mutableStateOf("") }
     var submittingProject by remember { mutableStateOf(false) }
     var addingProjectIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    val allTags = remember(catalogEntries) { catalogEntries.flatMap { it.tags }.distinct().sorted() }
+    val allTags = remember(catalogEntries, useDemoData) {
+        if (BuildConfig.DEBUG && useDemoData) listOf("Layer2", "DeFi", "测试网", "零成本", "生态", "跨链", "GameFi", "空投")
+        else catalogEntries.flatMap { it.tags }.distinct().sorted()
+    }
 
     LaunchedEffect(activeToken) {
         ApiClient.initialize(context)
