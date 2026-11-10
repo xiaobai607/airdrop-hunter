@@ -26,8 +26,6 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,9 +49,6 @@ private data class CommunityProject(
     val gasByVerificationTier: Map<String, Double> = emptyMap()
 ) {
     val label: String get() = if (isDemo) "测试演示" else if (gas > 0.0 || reward > 0.0) "全网数据" else "暂无贡献"
-    val metricWeights: Pair<Float, Float> get() = communityMetricWeights(gas, reward)
-    val gasWeight: Float get() = metricWeights.first
-    val rewardWeight: Float get() = metricWeights.second
     val reputationLabel: String get() = when {
         isDemo && demoScore >= 4.5 -> "好评如潮"
         isDemo && demoScore >= 4.0 -> "整体较好"
@@ -96,34 +91,6 @@ private fun CommunityDistributionRows(
 }
 
 @Composable
-private fun CommunityGasRewardBar(gasUsd: Double, rewardUsd: Double) {
-    val gas = gasUsd.coerceAtLeast(0.0)
-    val reward = rewardUsd.coerceAtLeast(0.0)
-    val total = gas + reward
-    val gasShare = if (total <= 0.0) 0.5f else (gas / total).toFloat().coerceIn(0f, 1f)
-    val barBrush = when {
-        gas <= 0.0 && reward <= 0.0 -> SolidColor(AppColors.Border)
-        gas <= 0.0 -> SolidColor(Color(0xFF31B77D))
-        reward <= 0.0 -> SolidColor(Color(0xFFE76565))
-        else -> Brush.horizontalGradient(
-            colorStops = arrayOf(
-                0f to Color(0xFFE76565),
-                gasShare to Color(0xFFE76565),
-                gasShare to Color(0xFF31B77D),
-                1f to Color(0xFF31B77D)
-            )
-        )
-    }
-    Box(Modifier.fillMaxWidth().height(12.dp).background(barBrush, RoundedCornerShape(8.dp)))
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("Gas", color = Color(0xFFD34F4F),
-            style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-        Text("收益", color = Color(0xFF16845B),
-            style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
 private fun CommunityDashboardCard(summary: CommunitySnapshotSummaryDto?, isDemo: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -141,8 +108,18 @@ private fun CommunityDashboardCard(summary: CommunitySnapshotSummaryDto?, isDemo
             if (summary == null) {
                 Text("社区统计快照暂不可用，联网后自动更新", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
             } else {
-                Text("Gas / 收益对比", color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                CommunityGasRewardBar(summary.gas_total_usd, summary.reward_total_usd)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Gas 总支出", color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall)
+                        Text(String.format(Locale.US, "$%,.0f", summary.gas_total_usd), color = AppColors.TextPrimary,
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("收益总额", color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall)
+                        Text(String.format(Locale.US, "$%,.0f", summary.reward_total_usd), color = AppColors.TextPrimary,
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
                 Text("Gas 分链支出", color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                 if (summary.gas_by_chain.isEmpty()) {
                     Text("暂无分链数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
@@ -549,27 +526,6 @@ fun CommunitySquareScreen(
                             color = if (project.ratingCount > 0) Color(0xFFB7791F) else AppColors.TextHelper,
                             style = MaterialTheme.typography.labelSmall
                         )
-                    }
-                    if (project.gas > 0.0 || project.reward > 0.0) {
-                        val comparisonBrush = when {
-                            project.gasWeight <= 0f -> SolidColor(Color(0xFF31B77D))
-                            project.rewardWeight <= 0f -> SolidColor(Color(0xFFE76565))
-                            else -> Brush.horizontalGradient(
-                                colorStops = arrayOf(
-                                    0f to Color(0xFFE76565),
-                                    project.gasWeight to Color(0xFFE76565),
-                                    project.gasWeight to Color(0xFF31B77D),
-                                    1f to Color(0xFF31B77D)
-                                )
-                            )
-                        }
-                        Box(Modifier.fillMaxWidth().height(12.dp).background(comparisonBrush, RoundedCornerShape(8.dp)))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(String.format(Locale.US, "Gas USD估值 $%,.2f", project.gas), color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                            Text(String.format(Locale.US, "收益 USD估值 $%,.2f", project.reward), color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                        }
-                    } else {
-                        Text("暂无 Gas / 收益数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         project.tags.forEach { tag ->
