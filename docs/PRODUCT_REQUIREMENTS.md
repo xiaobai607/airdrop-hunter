@@ -35,7 +35,7 @@ The user's latest reference image is the visual source of truth. This is a **mob
 ## Implementation progress after the user's 11:40–11:45 device test (feature branch; not yet merged)
 
 - The new test corrections are recorded above in the authoritative requirements document before implementation.
-- Source audit confirmed the Home screen still had both a dedicated “搜索币种或 DApp” pill and a “全局搜索” quick card. The Home-only duplicate pill and quick card have now been removed in code; the dedicated global coin/DApp search destination and its underlying functionality are preserved.
+- Home search correction: remove only the duplicate “全局搜索” quick card from 快捷入口. Keep exactly one global coin/DApp search field below the quick-entry cards; tapping it opens the existing GlobalSearchScreen. Preserve its coin/DApp search, local/remote results, search history, and result navigation. Do not remove the search field or its underlying destination.
 - Source audit confirmed the public project-discovery screen still rendered “微社区广场” and the Steam analogy. The visible heading is now “空投库” and the analogy sentence is removed. Project discovery, search, tags, rankings, and submission remain intact.
 - The 我的 page previously exposed only toast-only “消息通知” and “安全设置” rows. It now has separate “设置”, “安全中心”, and “消息通知” destinations with truthful initial information/empty states; wallet management remains available. These are initial destination shells, not a claim that all settings, security-permission controls, or push notifications are implemented.
 - The external-wallet top-bar action now gives immediate launch feedback and catches/logs launch exceptions; the DApp-origin approval path also returns an error to the requesting page if AppKit launch fails. This is a diagnostic/feedback improvement, **not proof that the user's no-response issue is fixed**. Device verification is still required.
@@ -47,6 +47,12 @@ The user's latest reference image is the visual source of truth. This is a **mob
 **Current branch:** `feature/mobile-browser-home-dock-batch`; latest implementation commit at this checkpoint: `9ffd05c2ee7c64e2c3ff3260e62fcdc504ca3321`. Requirements/documentation and the above Android edits are not yet merged to main. Keep release completion pending.
 
 ---
+
+### Home global-search entry correction (2026-11-10)
+
+- The user clarified that “remove duplicate global search from quick entries” means remove only the duplicate quick-entry card, **not** remove the Home search field.
+- Home must show exactly one global search field below 快捷入口. It opens the existing GlobalSearchScreen and preserves coin/DApp search, history, local/remote lookup, and result navigation.
+- No separate global-search card belongs inside the quick-entry grid. The dedicated search screen and all search functionality remain required.
 
 ### Floating browser toolbar — latest explicit layout correction (2026-11-10)
 

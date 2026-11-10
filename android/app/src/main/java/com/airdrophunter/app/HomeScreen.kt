@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -191,6 +192,26 @@ fun HomeScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+
+        // Keep exactly one Home entry point for the existing global coin/DApp search.
+        // The search implementation and dedicated destination remain in GlobalSearchScreen.
+        Row(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(AppColors.Surface)
+                .clickable(onClick = onOpenGlobalSearch)
+                .padding(horizontal = 16.dp, vertical = 15.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(11.dp)
+        ) {
+            Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.TextSecondary)
+            Text(
+                "搜索币种或 DApp",
+                color = AppColors.TextHelper,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
         }
 
         Spacer(Modifier.height(8.dp))
