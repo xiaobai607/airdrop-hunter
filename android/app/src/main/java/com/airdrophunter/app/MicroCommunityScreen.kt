@@ -22,8 +22,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -407,7 +405,7 @@ private fun CommunitySnapshotPeriodMetric(
                         contentAlignment = Alignment.Center
                     ) {
                         if (gasWeight >= 0.15f) {
-                            Text("\${(gasWeight * 100).toInt()}%", color = Color.White,
+                            Text("${(gasWeight * 100).toInt()}%", color = Color.White,
                                 style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -418,7 +416,7 @@ private fun CommunitySnapshotPeriodMetric(
                         contentAlignment = Alignment.Center
                     ) {
                         if (rewardWeight >= 0.15f) {
-                            Text("\${(rewardWeight * 100).toInt()}%", color = Color.White,
+                            Text("${(rewardWeight * 100).toInt()}%", color = Color.White,
                                 style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                     }
