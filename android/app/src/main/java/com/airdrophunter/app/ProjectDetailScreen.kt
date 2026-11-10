@@ -374,6 +374,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         LedgerPeriodMetric(Modifier.weight(1f), "净盈亏", periodNet,
                             if ((periodNet ?: 0.0) >= 0.0) AppColors.Success else AppColors.Danger)
                     }
+                    GasRewardComparisonBar(gasUsd = periodGas, rewardUsd = periodReward)
                     if (gasAssetTotals.isNotEmpty() || rewardAssetTotals.isNotEmpty()) {
                         Text(
                             "原生币种明细（按网络分别统计，不跨币种相加）",
@@ -889,6 +890,45 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                 Text("交易：${interaction.txHash.take(10)}…",
                     color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
+        }
+    }
+}
+
+@Composable
+private fun GasRewardComparisonBar(gasUsd: Double, rewardUsd: Double?) {
+    val gas = gasUsd.coerceAtLeast(0.0)
+    val reward = rewardUsd?.coerceAtLeast(0.0)
+    val total = gas + (reward ?: 0.0)
+    val gasShare = if (reward == null || total <= 0.0) 1f else (gas / total).toFloat().coerceIn(0f, 1f)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        BoxWithConstraints(
+            Modifier.fillMaxWidth().height(12.dp)
+                .background(AppColors.Border, RoundedCornerShape(999.dp))
+        ) {
+            Row(Modifier.fillMaxSize()) {
+                if (gasShare > 0f) {
+                    Box(
+                        Modifier.width(maxWidth * gasShare).fillMaxHeight()
+                            .background(AppColors.Danger)
+                    )
+                }
+                if (reward != null && gasShare < 1f) {
+                    Box(
+                        Modifier.weight(1f).fillMaxHeight()
+                            .background(AppColors.Success)
+                    )
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Gas", color = AppColors.Danger, style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold)
+            Text(
+                if (reward == null) "收益估值未完整" else "收益",
+                color = if (reward == null) AppColors.TextHelper else AppColors.Success,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
