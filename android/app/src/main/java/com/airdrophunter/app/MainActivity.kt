@@ -43,29 +43,36 @@ class MainActivity : ComponentActivity() {
         window.navigationBarColor = android.graphics.Color.rgb(248, 249, 250)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        setContent {
-            AirdropHunterTheme {
-                val initialToken = remember { TokenStore.readTokenBlocking() }
-                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = initialToken)
-                val sessionScopeKey = remember(token) { CacheStore.accountScopeKey(token) }
-                var showAuth by rememberSaveable { mutableStateOf(false) }
-                LaunchedEffect(token) { if (!token.isNullOrBlank()) showAuth = false }
-                if (showAuth && token.isNullOrBlank()) {
-                    AuthScreen(onGuestMode = { showAuth = false })
-                } else {
+
+        // Current release is local-only: retire any legacy login token before screens start.
+        lifecycleScope.launch {
+            TokenStore.clearToken(applicationContext)
+            setContent {
+                AirdropHunterTheme {
                     AirdropHunterApp(
-                        isGuest = token.isNullOrBlank(),
-                        sessionScopeKey = sessionScopeKey,
-                        onRequireAuth = { showAuth = true },
-                        onLogout = { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } },
-                        onOpenAuth = { showAuth = true }
+                        isGuest = true,
+                        sessionScopeKey = "guest",
+                        onRequireAuth = {
+                            Toast.makeText(
+                                applicationContext,
+                                "当前版本暂不开放注册/登录，个人数据仅保存在本机",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        },
+                        onLogout = {},
+                        onOpenAuth = {
+                            Toast.makeText(
+                                applicationContext,
+                                "当前版本暂不开放注册/登录，个人数据仅保存在本机",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     )
                 }
             }
         }
     }
 }
-
 private data class Destination(val label: Int, val icon: ImageVector)
 
 private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY }
