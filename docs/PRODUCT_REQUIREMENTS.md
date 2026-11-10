@@ -3,6 +3,24 @@
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
 
+### Reference-image-matched browser dock — detailed UI and behavior (2026-11-10)
+
+The user's latest reference image is the visual source of truth. This is a **mobile app-launcher dock**, not a row of tiny floating action buttons:
+- Outer frame: one long horizontal, pale blue / lightly translucent rounded-rectangle tray with generous corner radius, subtle border and shadow. Target height about 100 dp and width about 94% of the available phone width (capped on larger screens).
+- Inner tools: consistent rounded-square icon tiles, approximately 68 dp touch targets, balanced spacing, recognizable single-color pictograms and soft individual tile backgrounds. Avoid undersized glyphs, compressed spacing, or circular-only icon buttons.
+- The tray scrolls horizontally internally. A final plus tile opens an add/manage dialog. Available actions include mock bill, copy wallet address, pending bills, refresh page, copy page URL and open current page externally. The selected tool set is saved independently of the dock's position.
+- Long-press and drag the tray itself to reposition it; release snaps its horizontal position to the nearest screen side and keeps it within the safe vertical area. Normal horizontal swipes should scroll the inner tool row.
+- The tray defaults to the bottom of the browser viewport. Its coordinates are transient Compose state only and must not be written to preferences/database; leaving and re-entering the browser resets it to the bottom.
+- Acceptance still requires Android build plus physical-device checks: visual proportions on the user's phone, internal scroll vs long-press drag distinction, edge snap, plus/add/remove, all six tool actions, and bottom reset after exit/re-entry.
+
+### Implementation progress — reference-image dock pass (feature branch; PR #135)
+
+- Replaced the tiny circular-action row with a 94%-width, 100 dp translucent pale-blue rounded tray; icon tiles are 68 dp rounded squares with larger glyphs and consistent spacing.
+- Added horizontal internal scrolling, an always-visible plus tile, and an add/manage dialog. Selected tool IDs are saved in app preferences, while drag coordinates remain transient only.
+- Added functional dock actions for mock bill, copy wallet address, pending bills, page refresh, copy page URL and open externally; connected the three new browser actions to the active WebView/current URL.
+- Implemented long-press drag and horizontal side snapping while constraining vertical movement to the visible safe area. The default offset is zero, aligned at the bottom by the browser parent.
+- This is a source implementation checkpoint, not physical-device acceptance. If Compose gesture competition or actual parent dimensions differ on device, adjust after the user's test rather than claiming success.
+
 ### Horizontal floating toolbar correction — implementation pass (2026-11-10; PR #135)
 
 - Updated the toolbar source from a short circular capsule to a wider horizontal rounded bar (304–360 dp target width), with larger 48 dp icon targets, more spacing, and horizontal scrolling inside the bar.
