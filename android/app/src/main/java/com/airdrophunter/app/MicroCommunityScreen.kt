@@ -35,7 +35,6 @@ import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.CommunityTokenAggregateDto
 import com.airdrophunter.app.data.formatCommunityTokenBreakdown
 import com.airdrophunter.app.data.WalletDto
-import com.airdrophunter.app.ui.theme.AppColors
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
@@ -179,11 +178,11 @@ fun MicroCommunityScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(projectName, color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text(overallProject?.chain ?: if (isDemoProject) "测试演示项目" else "全网公开统计", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(projectName, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text(overallProject?.chain ?: if (isDemoProject) "测试演示项目" else "全网公开统计", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
                     overallProject?.logo?.takeIf { it.isNotBlank() }?.let { logo ->
-                        Surface(shape = RoundedCornerShape(12.dp), color = AppColors.Surface) {
+                        Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface) {
                             Text(logo, Modifier.padding(10.dp), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -191,7 +190,7 @@ fun MicroCommunityScreen(
                 val detailDescription = overallProject?.description?.takeIf { it.isNotBlank() }
                     ?: if (isDemoProject) "这是用于界面与流程测试的虚构空投项目，不代表真实项目、真实奖励或真实参与数据。" else null
                 detailDescription?.let {
-                    Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
                 overallProject?.website_url?.takeIf { it.startsWith("https://", true) }?.let { url ->
                     TextButton(onClick = { runCatching { uriHandler.openUri(url) } }) {
@@ -213,7 +212,7 @@ fun MicroCommunityScreen(
                                 val selected = selectedPeriod == window
                                 Surface(
                                     modifier = Modifier.weight(1f).clickable { selectedPeriod = window },
-                                    color = if (selected) Color(0xFF7A58FF) else Color.Transparent,
+                                    color = if (selected) MaterialTheme.colorScheme.tertiary else Color.Transparent,
                                     shape = CircleShape
                                 ) {
                                     Box(Modifier.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
@@ -277,31 +276,31 @@ fun MicroCommunityScreen(
                 }
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                    Text("本机已保存的评分", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text("本机已保存的评分", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        if (ratings.isEmpty()) "暂无本机评分记录。全网评分只统计通过真实参与验证的账号。"
+                        if (ratings.isEmpty()) "暂无本机评分记录。当前版本不提交全网评分。"
                         else "本机评分记录：${ratings.size} 条 · 平均 ${String.format(java.util.Locale.US, "%.1f", average ?: 0.0)} 星",
-                        color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
                     )
                     ratings.take(3).forEach { rating ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("本机记录 #${rating.walletAddress.takeLast(4).uppercase()}",
-                                Modifier.weight(1f), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text("本机评分记录",
+                                Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                             Text("★".repeat(rating.score), color = Color(0xFFFFB12B), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
             }
-            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface)) {
+            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("为这个项目打分", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
+                    Text("为这个项目打分", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         (1..5).forEach { score ->
                             Icon(
                                 imageVector = if (score <= selectedScore) Icons.Default.Star else Icons.Outlined.StarBorder,
                                 contentDescription = "$score 星",
-                                tint = if (score <= selectedScore) Color(0xFFFFB12B) else AppColors.TextHelper,
+                                tint = if (score <= selectedScore) Color(0xFFFFB12B) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(34.dp).clickable(enabled = !saved) {
                                     if (!participationChecked || !canRate) {
                                         Toast.makeText(context, "仅限真实参与该项目的用户打分", Toast.LENGTH_SHORT).show()
@@ -313,9 +312,9 @@ fun MicroCommunityScreen(
                     if (!canRate) {
                         Text("仅限真实参与该项目的用户打分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                     } else if (saved) {
-                        Text("已保存在本机", color = AppColors.Success, style = MaterialTheme.typography.labelMedium)
+                        Text("已保存在本机", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelMedium)
                     } else {
-                        Text("评分仅保存在本机；当前版本不会上传个人账本或提交全网评分", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text("评分仅保存在本机；当前版本不会上传个人账本或提交全网评分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                     Button(
                         onClick = {
@@ -334,11 +333,11 @@ fun MicroCommunityScreen(
                         enabled = canRate && selectedScore in 1..5 && !saved && !saving,
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = AppColors.Primary,
-                            disabledContainerColor = AppColors.Border
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            disabledContainerColor = MaterialTheme.colorScheme.outline
                         ),
                         shape = RoundedCornerShape(13.dp)
-                    ) { Text(if (saving) "提交中…" else if (saved) "已评价" else "保存星级评分", fontWeight = FontWeight.Bold) }
+                    ) { Text(if (saving) "保存中…" else if (saved) "已评价" else "保存星级评分", fontWeight = FontWeight.Bold) }
                 }
             }
         }
