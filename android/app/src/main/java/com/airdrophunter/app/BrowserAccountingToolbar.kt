@@ -195,13 +195,13 @@ fun BrowserAccountingToolbar(
             isValidNativeAssetInput(rewardNative, rewardSymbol, rewardDecimals)
 
     BoxWithConstraints(
-        modifier = modifier.fillMaxWidth().height(100.dp)
+        modifier = modifier.fillMaxSize()
     ) {
         val maxHorizontalDrag = with(density) { (configuration.screenWidthDp * 0.03f).dp.toPx() }
         val maxVerticalDrag = with(density) { (configuration.screenHeightDp - 180).coerceAtLeast(0).dp.toPx() }
         Surface(
             modifier = Modifier
-                .align(Alignment.Center)
+                .align(Alignment.BottomCenter)
                 .fillMaxWidth(0.94f)
                 .widthIn(max = 420.dp)
                 .height(100.dp)
