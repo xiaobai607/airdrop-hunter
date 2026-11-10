@@ -1266,7 +1266,14 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Retained the single Home global-search entry point and its existing `GlobalSearchScreen` route. The duplicate quick-entry search card remains removed; search itself is not deleted.
 - Retained developer-controlled Home card dimensions, user add/remove/reorder/default-reset behavior, and the six agreed browser dock actions. User-facing resize controls and persisted drag coordinates remain absent.
 - Retained the browser's safety warning, host/origin confirmation, wallet approval, accounting confirmation, and existing pending-bill data paths. These are required security/accounting behavior, not disposable duplicate UI.
-- The error/loading overlay still offers copy/open actions as recovery affordances when a page has not loaded; these are separate from the normal dock actions and were not removed without auditing the overlay component and all call sites.
+- Removed the error overlay's duplicate “open externally” and “copy URL” buttons after auditing its only call site: those actions now live in the persistent dock. The error overlay retains its distinct retry and back actions.
 - Website-loading and browser WalletConnect troubleshooting remains deferred at the user's request.
 - This is a source cleanup pass, not a claim that the remaining full product requirements or physical-device acceptance are complete.
 
+
+
+### Duplicate browser recovery action cleanup — 2026-11-10
+
+- The browser error/loading overlay previously duplicated the dock's “open externally” and “copy URL” actions. Removed those two overlay buttons and their now-unused callback parameters/closures after confirming the dock remains visible in the browser host.
+- Kept the overlay's unique “retry” and “back” actions. Kept the dock's six agreed actions unchanged.
+- No search, wallet, DApp authorization, origin confirmation, accounting, or ledger behavior was removed.
