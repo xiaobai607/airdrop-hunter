@@ -1277,3 +1277,13 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - The browser error/loading overlay previously duplicated the dock's “open externally” and “copy URL” actions. Removed those two overlay buttons and their now-unused callback parameters/closures after confirming the dock remains visible in the browser host.
 - Kept the overlay's unique “retry” and “back” actions. Kept the dock's six agreed actions unchanged.
 - No search, wallet, DApp authorization, origin confirmation, accounting, or ledger behavior was removed.
+
+### Legacy requirement/code cleanup audit (2026-11-10)
+
+- Removed the superseded browser-dock requirement set that described a vertical rail, user-selectable orientation, persisted dock position, and the earlier oversized list of tools. The current horizontal six-action dock specification above is authoritative.
+- Reclassified website loading failure and browser-page WalletConnect no-response as explicitly deferred, matching the user's latest instruction. Existing TLS, HTTPS, origin, and DApp bridge security rules remain mandatory.
+- Removed the unused `AccountingCapsuleButton` composable and its `CircleShape` import. The old three-button capsule is no longer a supported UI component; the underlying accounting dialogs, pending-bill repository operations, mock-bill creation, and manual confirmation remain because they are still required.
+- Re-audited Home source: no card-size cycling or user resize control remains; developer-owned `cardSpecs` remains. Exactly one Home search field remains and opens the existing global-search destination.
+- This cleanup does not delete historical completed-feature evidence or shared data models that remain in use. Delete only code proven unreachable/obsolete; preserve migrations, persisted-data compatibility, and required accounting flows.
+- Validation is still pending for the latest Android code cleanup. PR #135 remains draft/unmerged; do not treat a docs-only update or prior cancelled CI run as validation.
+
