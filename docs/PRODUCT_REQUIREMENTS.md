@@ -1463,3 +1463,13 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Removed the personal-ledger sync and global rating submission from the rating action. The UI now truthfully says ratings are local-only in this release.
 - Public rating aggregates remain read-only. A future global-rating write path requires a separate anonymous, privacy-preserving participation proof and anti-abuse design; it must not upload private ledgers or wallet identifiers.
 - Exact-head Android/backend CI and physical-device validation are pending.
+
+
+### 2026-11-11 — community project detail theme consistency
+
+- Replaced fixed light-palette AppColors references in the project detail screen with Material 3 semantic color roles for primary text, secondary text, card surfaces, button states, borders, and success state.
+- The selected period tab now uses the theme tertiary role: brand purple in light mode and the accessible lighter purple in dark mode.
+- Kept Gas and reward semantic colors tied to error/secondary roles.
+- Removed the wallet-address suffix from locally displayed rating labels; the detail UI now identifies them simply as local rating records.
+- Updated rating empty-state copy to state accurately that this release does not submit global ratings.
+- Exact-head CI and physical-device theme verification are pending.
