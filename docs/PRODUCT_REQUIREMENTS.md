@@ -137,6 +137,16 @@ Additional rules:
 - DApp signing/transaction requests are supported only through the external-wallet handoff: Airdrop Hunter may relay the user's explicit DApp request, but the external wallet displays the request and performs the final approval, signature, and broadcast. Never inject or use an app-owned private key.
 - Real-device validation of WalletConnect/Reown external-wallet handoff, actual external signing approval, WebView lifecycle, origin boundaries, session expiry, and DApp compatibility remains required. A connection-only test does not prove the external signing flow.
 
+### External-wallet DApp signing and transaction requests (user-confirmed 2026-11-07; implementation gap being closed)
+
+- The previous blanket read-only restriction on `personal_sign`, `eth_signTypedData`, and `eth_sendTransaction` contradicted the user's explicit requirement to invoke MetaMask, OKX Wallet, Trust Wallet, and other external wallets for signing.
+- A DApp may request only the explicit EVM method allowlist implemented in the browser bridge: `personal_sign`, `eth_sign`, `eth_signTypedData` (including v3/v4), `eth_signTransaction`, and `eth_sendTransaction`.
+- Before relaying, require that the current HTTPS top-level origin has an active user-approved WalletConnect session, that the request's signing/sending address exactly matches an account approved in that session, and that the request uses the session's active CAIP-2 chain ID.
+- Relay the method and parameters through Reown AppKit. The connected external wallet must open and present its own confirmation UI; only that wallet can approve/sign/broadcast. Airdrop Hunter never holds keys or signs on the user's behalf.
+- Keep raw signed-transaction submission (`eth_sendRawTransaction`), smart-account batch methods, and unsupported RPC methods blocked. Network switching remains a manual action in the external wallet; the user reconnects after switching.
+- Serialize pending DApp requests, return the external wallet's actual JSON-RPC result/error to the requesting page, and fail closed on session changes, origin navigation, unsupported connector paths, timeouts, ambiguous account parameters, or mismatched addresses.
+- CI and real-device validation are separate: tests must cover the allowlist and address ownership; on-device acceptance must confirm MetaMask/OKX/Trust Wallet handoff, approval, rejection, and returned result. Connection-only success is not signing-flow completion.
+
 ## 5. Personal accounting, Gas, rewards, and project history
 
 - Record project, chain/network, wallet address, transaction hash, interaction method, timestamp, theoretical Gas, actual Gas, theoretical reward, and actual reward.
@@ -292,7 +302,7 @@ Additional rules:
 ## 11. Cancelled or deferred scope — do not reintroduce
 
 - Full OKX-style portfolio/dashboard.
-- Seed phrase/private-key wallet creation, custody, signing, transfers, swaps, and approvals.
+- In-app seed phrase/private-key wallet creation or custody, app-owned private-key signing, and standalone native transfer/swap execution are cancelled. External-wallet DApp signing and transaction requests remain required: the user approves and signs only inside their chosen external wallet.
 - Self-written arbitrary-site crawling/scraping is cancelled. Free verified provider APIs, free allowlisted RSS/Atom feeds, freely accessible third-party airdrop platform listings, and user submissions are preferred discovery channels. Telegram/Discord are optional only when free and authorized. Paid X/API integrations and paid data services are out of scope unless the user explicitly changes the zero-cost rule.
 - Automatic address recognition (deferred).
 - Community chat, groups, DMs, mentoring, and teaching/social features (deferred).
