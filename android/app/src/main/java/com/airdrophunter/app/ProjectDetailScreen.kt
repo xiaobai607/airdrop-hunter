@@ -690,7 +690,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     publicContributionOptIn = ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
                                         project.communityOfficialId,
                                         accountingRewardKind,
-                                        accountingWalletNetworks[wallet.id].orEmpty(),
+                                        accountingWalletNetworks[wallet.id].orEmpty().ifBlank { wallet.chain.trim().lowercase() },
                                         accountingTxHashes[wallet.id].orEmpty()
                                     )
                                 )
@@ -717,7 +717,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             if (!saved) error("记账未保存，请检查是否存在重复交易或部分重复提交")
                             showManualAccounting = false
                             Toast.makeText(context,
-                                if (batch.hasPublicContributionOptIn) "私账已保存，已授权的钱包等待链上核验" else "记账成功",
+                                if (batch.hasPublicContributionOptIn) "记账成功；符合条件的社区数据等待链上核验" else "记账成功",
                                 Toast.LENGTH_LONG).show()
                         } catch (error: Exception) {
                             Toast.makeText(context, error.message ?: "记账失败，请检查输入", Toast.LENGTH_LONG).show()
