@@ -39,6 +39,14 @@ class CommunityCatalogMergeTest {
         assertTrue(merged.first { it.project_official_id == "scroll" }.is_active)
     }
 
+    @Test fun onlyExplicitInactiveEntryIsConsideredDelisted() {
+        val directory = listOf(project("linea", "Linea", active = false))
+        assertTrue(isCommunityProjectDelisted("linea", directory))
+        assertFalse(isCommunityProjectDelisted("scroll", directory))
+        assertFalse(isCommunityProjectDelisted(null, directory))
+        assertFalse(isCommunityProjectDelisted("linea", emptyList()))
+    }
+
     @Test fun incomingOfficialMetadataReplacesCachedMetadata() {
         val merged = mergeCommunityCatalog(
             listOf(project("linea", "Old Name", order = 20)),
