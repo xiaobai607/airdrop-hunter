@@ -5,7 +5,10 @@ import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -27,6 +30,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import kotlin.math.roundToInt
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,6 +52,9 @@ fun BrowserAccountingToolbar(
     walletAddress: String,
     chainName: String,
     onCopyAddress: () -> Unit,
+    onRefreshPage: () -> Unit,
+    onCopyPageUrl: () -> Unit,
+    onOpenPageExternally: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -73,6 +84,27 @@ fun BrowserAccountingToolbar(
     var saving by remember { mutableStateOf(false) }
     var publicContributionOptIn by remember { mutableStateOf(false) }
     var creatingMockBill by remember { mutableStateOf(false) }
+    var showToolManager by remember { mutableStateOf(false) }
+    val toolOptions = listOf(
+        "mock_bill" to "模拟账单",
+        "copy_address" to "复制地址",
+        "pending_bills" to "待确认账单",
+        "refresh_page" to "刷新网页",
+        "copy_url" to "复制网址",
+        "open_external" to "外部打开"
+    )
+    val preferences = remember(context) { context.getSharedPreferences("browser_dock_preferences", android.content.Context.MODE_PRIVATE) }
+    var selectedToolIds by remember {
+        mutableStateOf(preferences.getString("selected_tools", null)?.split(",")?.filter { id -> toolOptions.any { it.first == id } }
+            ?.distinct()?.takeIf { it.isNotEmpty() } ?: toolOptions.map { it.first })
+    }
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    var dragOffsetX by remember { mutableFloatStateOf(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(selectedToolIds) {
+        preferences.edit().putString("selected_tools", selectedToolIds.joinToString(",")).apply()
+    }
 
     LaunchedEffect(accountingRepository) {
         projects = accountingRepository.loadProjects()
@@ -162,45 +194,126 @@ fun BrowserAccountingToolbar(
         isValidNativeAssetInput(gasNative, gasSymbol, gasDecimals) &&
             isValidNativeAssetInput(rewardNative, rewardSymbol, rewardDecimals)
 
-    Surface(
-        modifier = modifier,
-        color = Color(0xCCFFFFFF),
-        shape = CircleShape,
-        border = BorderStroke(1.dp, AppColors.Border.copy(alpha = 0.8f)),
-        shadowElevation = 5.dp
+    BoxWithConstraints(
+        modifier = modifier.fillMaxWidth().height(100.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        val maxHorizontalDrag = with(density) { (configuration.screenWidthDp * 0.03f).dp.toPx() }
+        val maxVerticalDrag = with(density) { (configuration.screenHeightDp - 180).coerceAtLeast(0).dp.toPx() }
+        Surface(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth(0.94f)
+                .widthIn(max = 420.dp)
+                .height(100.dp)
+                .offset { IntOffset(dragOffsetX.roundToInt(), dragOffsetY.roundToInt()) }
+                .pointerInput(configuration.screenWidthDp, configuration.screenHeightDp) {
+                    detectDragGesturesAfterLongPress(
+                        onDragEnd = {
+                            dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
+                            dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
+                        },
+                        onDragCancel = {
+                            dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
+                        }
+                    ) { change, amount ->
+                        change.consume()
+                        dragOffsetX = (dragOffsetX + amount.x).coerceIn(-maxHorizontalDrag, maxHorizontalDrag)
+                        dragOffsetY = (dragOffsetY + amount.y).coerceIn(-maxVerticalDrag, 0f)
+                    }
+                },
+            color = Color(0xDDEAF4FF),
+            shape = RoundedCornerShape(28.dp),
+            border = BorderStroke(1.dp, Color(0xFFB9D3EA).copy(alpha = 0.8f)),
+            shadowElevation = 9.dp
         ) {
-            AccountingCapsuleButton(
-                description = "模拟抓取账单",
-                background = Color(0xFFEAF7F1),
-                tint = Color(0xFF16845B),
-                loading = creatingMockBill,
-                onClick = ::createMockBill
+            Row(
+                modifier = Modifier.fillMaxSize().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (creatingMockBill) CircularProgressIndicator(Modifier.size(19.dp), color = Color(0xFF16845B), strokeWidth = 2.dp)
-                else Icon(Icons.Default.FlashOn, contentDescription = "模拟抓取账单", tint = Color(0xFF16845B), modifier = Modifier.size(20.dp))
-            }
-            AccountingCapsuleButton(
-                description = "复制钱包地址",
-                background = Color(0xFFEDF3FF),
-                tint = Color(0xFF356BC5),
-                onClick = onCopyAddress
-            ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "复制钱包地址", tint = Color(0xFF356BC5), modifier = Modifier.size(18.dp))
-            }
-            AccountingCapsuleButton(
-                description = "待确认账单",
-                background = Color(0xFFFFF4E8),
-                tint = Color(0xFF9A5A16),
-                onClick = { showBillList = true }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "待确认账单", tint = Color(0xFF9A5A16), modifier = Modifier.size(20.dp))
+                selectedToolIds.forEach { id ->
+                    val option = toolOptions.firstOrNull { it.first == id } ?: return@forEach
+                    val (glyph, tint, background, action) = when (id) {
+                        "mock_bill" -> listOf("⚡", Color(0xFF16845B), Color(0xFFE5F5ED), { createMockBill() })
+                        "copy_address" -> listOf("▣", Color(0xFF356BC5), Color(0xFFEAF1FF), { onCopyAddress() })
+                        "pending_bills" -> listOf("▤", Color(0xFF9A5A16), Color(0xFFFFF1DF), { showBillList = true })
+                        "refresh_page" -> listOf("↻", Color(0xFF356BC5), Color(0xFFEAF1FF), { onRefreshPage() })
+                        "copy_url" -> listOf("🔗", Color(0xFF356BC5), Color(0xFFEAF1FF), { onCopyPageUrl() })
+                        else -> listOf("↗", Color(0xFF16845B), Color(0xFFE5F5ED), { onOpenPageExternally() })
+                    }
+                    Surface(
+                        onClick = { (action as () -> Unit).invoke() },
+                        enabled = !(id == "mock_bill" && creatingMockBill),
+                        modifier = Modifier.size(68.dp),
+                        shape = RoundedCornerShape(19.dp),
+                        color = background as Color,
+                        border = BorderStroke(1.dp, (tint as Color).copy(alpha = 0.16f))
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            Text(glyph as String, color = tint, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text(option.second, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                        }
+                    }
+                }
+                Surface(
+                    onClick = { showToolManager = true },
+                    modifier = Modifier.size(68.dp),
+                    shape = RoundedCornerShape(19.dp),
+                    color = Color(0xFFE8EDF4),
+                    border = BorderStroke(1.dp, Color(0xFFB7C4D3).copy(alpha = 0.6f))
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("+", color = Color(0xFF486581), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal)
+                    }
+                }
             }
         }
+    }
+
+    if (showToolManager) {
+        AlertDialog(
+            onDismissRequest = { showToolManager = false },
+            title = { Text("管理工具") },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("勾选显示的工具；使用上下箭头调整顺序。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                    toolOptions.forEach { option ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = option.first in selectedToolIds,
+                                onCheckedChange = { checked ->
+                                    selectedToolIds = if (checked) selectedToolIds + option.first else selectedToolIds - option.first
+                                }
+                            )
+                            Text(option.second, modifier = Modifier.weight(1f), color = AppColors.TextPrimary)
+                            TextButton(
+                                enabled = option.first in selectedToolIds && selectedToolIds.indexOf(option.first) > 0,
+                                onClick = {
+                                    val index = selectedToolIds.indexOf(option.first)
+                                    if (index > 0) selectedToolIds = selectedToolIds.toMutableList().also {
+                                        val item = it.removeAt(index); it.add(index - 1, item)
+                                    }
+                                }
+                            ) { Text("↑") }
+                            TextButton(
+                                enabled = option.first in selectedToolIds && selectedToolIds.indexOf(option.first) < selectedToolIds.lastIndex,
+                                onClick = {
+                                    val index = selectedToolIds.indexOf(option.first)
+                                    if (index >= 0 && index < selectedToolIds.lastIndex) selectedToolIds = selectedToolIds.toMutableList().also {
+                                        val item = it.removeAt(index); it.add(index + 1, item)
+                                    }
+                                }
+                            ) { Text("↓") }
+                        }
+                    }
+                    if (selectedToolIds.isEmpty()) Text("至少选择一个工具，或稍后通过默认配置恢复。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = { TextButton(onClick = { showToolManager = false }) { Text("完成") } },
+            dismissButton = {
+                TextButton(onClick = { selectedToolIds = toolOptions.map { it.first } }) { Text("恢复默认") }
+            }
+        )
     }
 
     if (showBillList) {
