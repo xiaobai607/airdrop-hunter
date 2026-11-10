@@ -227,10 +227,8 @@ fun MicroCommunityScreen(
                                 }
                             }
                         }
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Gas / 收益统计", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                            if (BuildConfig.DEBUG) {
+                        if (BuildConfig.DEBUG) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     TextButton(onClick = { useDemoStats = true }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp)) {
                                         Text(if (useDemoStats) "✓ 演示" else "演示", color = MaterialTheme.colorScheme.tertiary,
