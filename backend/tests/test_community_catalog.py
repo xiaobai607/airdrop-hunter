@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-def test_community_catalog_is_dynamic_and_public_listing_hides_inactive_entries():
+def test_community_catalog_is_dynamic_and_includes_explicit_inactive_state():
     with TestClient(app) as client:
         response = client.get("/api/community/catalog")
         assert response.status_code == 200
@@ -12,6 +12,8 @@ def test_community_catalog_is_dynamic_and_public_listing_hides_inactive_entries(
             "linea", "scroll", "zksync", "starknet", "base", "arbitrum", "optimism"
         }
         assert all("website_url" in item and "tags" in item for item in projects)
+        assert all("is_active" in item and "sort_order" in item for item in projects)
+        assert all(item["is_active"] is True for item in projects)
         assert all("total_actual_reward_usd" not in item for item in projects)
 
 
@@ -40,8 +42,11 @@ def test_catalog_admin_can_create_update_and_deactivate(monkeypatch):
         updated = client.put("/api/community/catalog/new-l2-project", headers=headers, json=updated_payload)
         assert updated.status_code == 200
         assert updated.json()["name"] == "Updated L2 Project"
-        assert all(p["project_official_id"] != "new-l2-project"
-                   for p in client.get("/api/community/catalog").json())
+        directory_after_deactivation = client.get("/api/community/catalog").json()
+        deactivated = next(p for p in directory_after_deactivation
+                           if p["project_official_id"] == "new-l2-project")
+        assert deactivated["is_active"] is False
+        assert deactivated["name"] == "Updated L2 Project"
 
         assert client.delete("/api/community/catalog/new-l2-project", headers=headers).status_code == 204
 
