@@ -142,8 +142,16 @@ internal object DappProviderBridge {
 
         return when (method.trim().lowercase()) {
             "personal_sign" -> {
-                isAuthorizedAddress(params.optString(0).takeIf { params.opt(0) is String }) ||
-                    isAuthorizedAddress(params.optString(1).takeIf { params.opt(1) is String })
+                val first = params.optString(0).takeIf { params.opt(0) is String }
+                val second = params.optString(1).takeIf { params.opt(1) is String }
+                val addressPattern = Regex("^0x[a-fA-F0-9]{40}$")
+                val firstLooksLikeAddress = first?.let(addressPattern::matches) == true
+                val secondLooksLikeAddress = second?.let(addressPattern::matches) == true
+                when {
+                    firstLooksLikeAddress && !secondLooksLikeAddress -> isAuthorizedAddress(first)
+                    secondLooksLikeAddress && !firstLooksLikeAddress -> isAuthorizedAddress(second)
+                    else -> false
+                }
             }
             "eth_sign",
             "eth_signtypeddata",
