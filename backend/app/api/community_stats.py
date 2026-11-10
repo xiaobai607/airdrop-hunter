@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import CommunityContribution, CommunityProjectRating, CommunityProjectStats, PersonalLedgerEntry, User
+from app.models import CommunityContribution, CommunityProjectCatalogEntry, CommunityProjectRating, CommunityProjectStats, PersonalLedgerEntry, User
 from app.routers.auth import get_current_user, get_optional_current_user, limiter
 from app.services.community_privacy import anonymous_contributor_fingerprint
 from app.services.transaction_verification import (
@@ -165,6 +165,17 @@ async def add_community_contribution(
 ):
     if not payload.public_contribution_opt_in:
         raise HTTPException(status_code=403, detail="未获得匿名公共贡献授权")
+
+    # Only currently active, explicitly curated official projects may receive
+    # new public contributions. Deactivation never deletes historical aggregates.
+    catalog_entry = await db.scalar(
+        select(CommunityProjectCatalogEntry).where(
+            CommunityProjectCatalogEntry.project_official_id == project_official_id,
+            CommunityProjectCatalogEntry.is_active.is_(True),
+        )
+    )
+    if catalog_entry is None:
+        raise HTTPException(status_code=404, detail="该项目不在当前有效社区目录中，不能新增公共贡献")
 
     # Tx Hash/address are transient verification inputs only. The database stores
     # a server-keyed fingerprint and sanitized verification metadata, never raw values.
