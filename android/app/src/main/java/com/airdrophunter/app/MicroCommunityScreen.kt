@@ -338,7 +338,7 @@ fun MicroCommunityScreen(
                             disabledContainerColor = AppColors.Border
                         ),
                         shape = RoundedCornerShape(13.dp)
-                    ) { Text(if (saving) "提交中…" else if (saved) "已评价" else "提交星级评分", fontWeight = FontWeight.Bold) }
+                    ) { Text(if (saving) "提交中…" else if (saved) "已评价" else "保存星级评分", fontWeight = FontWeight.Bold) }
                 }
             }
         }
