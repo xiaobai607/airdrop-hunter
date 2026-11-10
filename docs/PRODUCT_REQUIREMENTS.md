@@ -2,6 +2,40 @@
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
+## 0.1 Latest user-confirmed corrections — 2026-11-11 (authoritative overrides)
+
+The following decisions are newer than the older baseline below. Where older sections conflict, this section and the explicit replacements noted in those sections win.
+
+### Current-release personal data boundary — local-only
+- All detailed personal data for every user, including guests and any existing authenticated session, is stored on the phone in the local Room database for this release.
+- Do not upload personal ledgers, personal wallet lists, personal project records, task details, transaction details, or personal P&L to a private cloud service. Do not build or expose private-ledger cloud sync, account-based personal-data persistence, or cross-device cloud restore in this phase.
+- The server receives only the minimum anonymous/de-identified aggregate contribution data required for public community statistics. Never include wallet addresses, transaction hashes, individual ledger rows, account identity, or personal details in public payloads.
+- Existing authentication/account/private-sync code may remain in the repository for a later phase, but it is not an active current-release personal-data storage path and must not be expanded or presented as available. New registration remains disabled. The approved device-migration path is the encrypted local backup/import file in Section 1.
+
+### Community public dashboard — confirmed presentation and aggregation
+- Gas: show one community-wide total in USD plus a per-chain Gas breakdown. Also show a participant Gas-spend range distribution (bucket counts/percentages), without exposing individual records.
+- Rewards/income: show one community-wide total in USD and a participant reward-range distribution. Do not split reward totals by chain.
+- Community contributor counts: show cumulative distinct contributors and distinct contributors active in the last 30 days. Count a contributor once per period; do not expose identity or wallet address.
+- Do not show net profit, net Gas-minus-reward, reward-versus-Gas comparison, correlation between individual Gas and reward ranges, personal profit rankings/leaderboards, individual financial details, project-participation counts, project-participation frequency, or independent-wallet counts.
+- Public income is an approximate community overview and may include both theoretical/estimated rewards and user-confirmed actual rewards. It is not a precise financial statement and does not require every event to have a manually confirmed final settlement before an estimate can appear. Personal records must still keep theoretical and actual values in separate fields. Mock/demo records never enter real public aggregates.
+- Distribution buckets are aggregate-only; choose sensible ranges from the observed data and do not create a personal ranking.
+
+### Gas / reward comparison bar — single continuous two-color bar
+- The visual is one horizontal proportional bar per metric row: red represents Gas cost and green represents reward/income. It is a single continuous bar with adjacent red and green segments, not two separate bars, not two independent numeric KPI tiles, and not a replacement by percentage numbers.
+- Keep the accompanying textual amounts/currency breakdown as supporting information, but the comparison visualization itself must remain one bar. Use exact proportional widths; a zero-valued side has zero width; missing/zero-denominator data shows an honest empty state, never a fabricated 50:50 bar or minimum-width segment.
+- The public project list card shows the overall Gas/reward amounts and one overall red/green bar. The project detail page uses a vertically scrolling waterfall layout and shows four rows simultaneously: overall, last 7 days, last 3 days, and last 1 hour. Each row contains its textual data and its own single red/green bar, with its own update timestamp below it.
+- The “Today” window is cancelled and must not return. Do not add a manual refresh button to these community snapshot rows; use the existing Room-first cache and silent CDN revalidation schedule.
+- List cards remain concise. Do not reintroduce the cancelled standalone 24-hour community heat metric, project participation counts, or independent-wallet counts merely because an older visual reference contains them.
+
+### Micro Community Square UI and isolated test mode
+- Match the user's supplied Micro Community Square reference: page heading “微社区广场”, short Steam-style discovery subtitle, “提交新空投项目” entry, search by project name/chain/tag, a visible “测试演示 / 全网真实” switch, community ranking chips (吸金榜 / 避坑榜 / 新星榜), and project filters (我的收藏 / 全部 / available tags). Preserve the offline cached-snapshot warning and honest empty state.
+- Test mode must include clearly labeled fictional airdrop projects as well as fictional metrics so the user can test list rendering, search, chain/tag filters, rankings, project detail navigation, and the Gas/reward bar. All demo projects and metrics are local UI fixtures only: no API submission, no local personal-ledger mutation, no public contribution, no real community rating, and no public statistics contamination. The “全网真实” mode must show only real catalog/snapshot data.
+- Demo/real mode must be clearly labeled and must never silently mix the two datasets.
+
+### Project-detail visual reference
+- The Airdrop Library project list/detail layout follows the user's supplied two-screen reference, but all previously cancelled metrics remain excluded. The detail page includes project identity/description, task list, safety guidance, community rating, and the Gas/reward comparison module described above. The comparison module belongs in the detail screen, separate from the star-rating section; do not confuse the red/green Gas/reward bar with positive/negative reviews.
+- The single-bar requirement is authoritative even if a generated mockup or earlier assistant draft shows two large amount tiles or percentage numerals in place of the bar.
+
 
 ### Reference-image-matched browser dock — detailed UI and behavior (2026-11-10)
 
@@ -213,8 +247,8 @@ This policy is authoritative across Android storage, API requests, database mode
 
 | Data layer | Guest | Logged-in user |
 |---|---|---|
-| Detailed personal ledger (wallet addresses, Gas details, rewards, project participation, transaction references, timestamps) | Stored in app-private local storage only | Stored locally and uploaded to the user's private cloud ledger |
-| Private cloud restore | Not available; clearing app data or uninstalling loses guest details | Cross-device restore is deferred and must not be offered or promised in the current release |
+| Detailed personal ledger (wallet addresses, Gas details, rewards, project participation, transaction references, timestamps) | Stored on the phone in the local Room database only | Stored on the phone in the local Room database only; no private cloud upload in this release |
+| Private cloud restore | Not available; clearing app data or uninstalling loses local details | Not available in this release; clearing app data or uninstalling loses local details |
 | Portable local backup | User can export an encrypted backup file and import it on another device; file/password remain under the user's control | Same, scoped to the active session; no credentials are exported |
 | Public community contribution | Valid confirmed Gas, actual rewards, and project participation may contribute | Same |
 | Public contribution storage | Anonymous aggregate only; no wallet address, tx hash, personal ledger row, or account identity | Same; must not be linked to the user's account |
@@ -223,9 +257,9 @@ This policy is authoritative across Android storage, API requests, database mode
 Additional rules:
 - Guest personal details are saved in the app-private local database only. They are not uploaded to a private cloud vault. Clearing app data or uninstalling the app loses guest personal details.
 - Public aggregate data is separate from the private ledger. Never expose individual bills, addresses, hashes, or account identifiers in public project statistics.
-- Only user-confirmed actual Gas/reward values are eligible for public totals. Estimates and mock/demo records are excluded.
+- Public Gas totals use eligible anonymous contribution records and retain their provenance tiers. Public reward/income overviews may include both theoretical estimates and user-confirmed actual rewards as an approximate community picture. Mock/demo records are always excluded.
 - Contributions must be idempotent and retry-safe.
-- Logged-in private ledger endpoints require authentication and must scope every read, update, and delete to the authenticated account.
+- Existing authenticated private-ledger endpoints/code may be retained for a later phase, but current-release personal records remain local-only and must not be uploaded or synced. If those dormant endpoints are reactivated in a later release, authentication and account scoping remain mandatory.
 - Switching accounts must not expose another account's local private cache.
 - Community-directory projects are opted into anonymous aggregate contribution by default; users do not manually authorize each bill. A project created privately by the user (communityOfficialId = null) remains private and never contributes. A user-created project only becomes eligible after it is explicitly linked to a stable official community project ID.
 - For an eligible community-directory project, each participating wallet row must provide its own transaction hash (Tx Hash) and selected chain/network. Validate hash syntax locally, but treat backend chain verification as authoritative. A missing/invalid hash or unsupported chain keeps the personal ledger row but prevents public contribution.
@@ -242,7 +276,7 @@ Additional rules:
 - **Amount comparison tolerance:** compare the user's entered Gas amount with the backend-calculated transaction fee using a ±20% tolerance after converting both to the same asset/currency basis and applying the historical quote. Within tolerance, accept Tier 3 and use the backend-calculated chain amount as the public aggregate amount (not the user-entered amount). Outside tolerance, reject high-trust amount contribution and show **“金额与链上不符”**; retain the private ledger entry and its user-entered amount. Do not silently overwrite the private ledger.
 - A verified transaction fee verifies Gas only. It does not verify reward/token income, reward valuation, project participation, or the user's realized profit. Those values retain their own provenance and only user-confirmed actual values are eligible under the existing public contribution rules.
 - Provider/API timeout, rate limit, outage, or incomplete response means **pending verification with retry**, not a false rejection and not an automatic downgrade to a falsely verified amount. Invalid hash, wrong payer, insufficient finality, unsupported attribution, or replay conflict is a terminal public-contribution rejection; the private ledger remains intact.
-- Dashboard visualization must distinguish provenance: Tier 1 user-reported values use lighter/semitransparent bars; Tier 2 transaction-linked values use a separate explicit “链上已确认” state and must not be visually conflated with Tier 3; Tier 3 receipt/fee-verified values use solid/high-confidence bars. Show labels and totals by provenance so unverified and verified amounts are never silently blended as if equally trustworthy.
+- Dashboard data may show approximate aggregate income that includes estimates and actual rewards; retain provenance labels where available, especially for Gas verification tiers. Do not imply the whole dashboard is a precise financial statement. This provenance display must not replace the single continuous red/green Gas/reward comparison bar.
 - Keep the existing anonymous outbox/idempotency path; do not create a second contribution pipeline. Preserve global replay protection and privacy: raw Tx Hash/address must not appear in public tables, snapshots, public APIs, analytics, or ordinary logs; persist only server-keyed fingerprints plus minimal verification metadata.
 - This verification flow never auto-completes an event or settlement. Actual final results remain pending until the user manually enters and confirms the realized amount under Section 5.
 - Only after successful chain verification and replay checks may the eligible community-project anonymous aggregate enter the public contribution pipeline. Invalid/missing hash, unsupported chain attribution, failed/unconfirmed transaction, or replay conflict must not create a public contribution; the user private ledger entry remains intact and can be corrected/retried.
@@ -289,7 +323,7 @@ Additional rules:
 - Link imported chain transactions to a project only with user selection; never infer a project without evidence.
 - Prefill actual Gas only when payer attribution is reliable. Ambiguous/shared fees require manual review.
 - Project-level accounting, cost, actual rewards, net P&L, interaction history, and day/week/month statistics.
-- Guest private accounting remains local-only. Logged-in private accounting syncs to the authenticated account-scoped cloud ledger.
+- All private accounting remains local-only for this release, regardless of guest/authentication state. Private cloud ledger sync is deferred.
 
 ## 5.1 Quick manual accounting and batch wallet entry (new user-confirmed requirements, 2026-11-10)
 
@@ -347,7 +381,7 @@ Additional rules:
 - **Project list card UI (user-confirmed):** keep cards concise for browsing, showing project avatar/logo, name, brief 1–5-star rating and reputation label (for example, “好评如潮” / “褒贬不一”), plus an **overall Gas cost vs actual reward** summary with separate USD valuations and a red/green comparison bar (red = Gas cost, green = actual reward). Tapping a card opens the full project detail page. The detail page exposes the underlying per-token amounts; native units are never added across different symbols.
 - **Project detail UI (user-confirmed):** use a single vertically scrolling waterfall/stacked layout, not tabs. From top to bottom show project avatar, name, URL, and description; overall star rating and derived reputation wording; then four simultaneously visible Gas-vs-actual-reward comparison rows: overall, last 7 days, last 3 days, and last 1 hour. Each row shows per-currency amounts and comparable USD valuation where available, plus a red/green proportional bar only when there are comparable non-zero amounts; never render a fabricated 50/50 bar for missing or zero-denominator data.
 - **Metric integrity:** public project metrics use only eligible, user-confirmed actual Gas and actual rewards from anonymous aggregate contributions; theoretical/estimated rewards remain separate and are never displayed as realized rewards. Do not add unlike tokens together without per-token breakdown; USD estimates must be labeled as valuations. Missing/zero-denominator data must be represented honestly; proportional bars must use exact ratios and a zero-valued side must have zero width, never an artificial minimum-width segment. Reputation labels are derived from real rating aggregates and distribution, never hard-coded.
-- Public aggregate Gas, actual rewards, and net P&L presentation.
+- Public aggregate Gas and approximate reward/income presentation only; public net P&L is not displayed.
 - Rankings: 吸金榜、避坑榜、新星榜.
 - Categories/tags may include L2, zero-cost, testnet-required, high-Gas, confirmed airdrop, and similar classifications.
 - Favorites/following and personal to-do tracking.
