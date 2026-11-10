@@ -111,12 +111,12 @@ fun ProfileScreen(
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(if (isGuest) "游客模式" else (state.profile?.username ?: "账户中心"),
+                Text(if (isGuest) "本地模式" else (state.profile?.username ?: "账户中心"),
                     color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold)
                 Text(
                     when {
-                        isGuest -> "登录账户，使用账户服务"
+                        isGuest -> "个人数据仅保存在本机"
                         state.profile != null -> "ID: " + state.profile!!.uid
                         state.isLoading -> "正在加载账户信息…"
                         else -> "账户信息暂时无法加载"
@@ -185,8 +185,11 @@ fun ProfileScreen(
         }
 
         if (isGuest) {
-            Text("游客个人账本仅保存在本机；登录后可使用账号私有账本服务", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
-            Button(onClick = onRequireAuth, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("登录账户") }
+            Text(
+                "当前版本暂不开放注册/登录。钱包、项目、任务和个人账本均保存在本机；请定期使用上方备份功能保存数据。",
+                color = AppColors.TextHelper,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
 
         if (state.hasError && !isGuest) {
