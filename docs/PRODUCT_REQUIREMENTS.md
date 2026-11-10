@@ -1434,3 +1434,11 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - The public contribution intake now checks the official community catalog before chain verification and insertion. Only an active catalog entry can receive new contributions; unknown or inactive official IDs return 404. Deactivation does not delete historical contribution rows or previously counted historical aggregates.
 - In the individual community project detail page, retain the four simultaneous snapshot rows (总体、近7天、近3天、近1小时). Each row must use one continuous horizontal red/green Gas/reward comparison bar; do not replace the bar with numbers or percentage numerals. The USD amounts, token breakdowns, and update timestamp remain supporting information within that detail row. Do not add this comparison bar to the personal ledger, project list cards, or Community Square overview.
 - Public contribution reward confirmation defaults to false at the API, ORM, and database levels. Only an explicit user confirmation marks a reward as actual; otherwise the estimate remains in the estimated bucket. The migration preserves pre-existing rows as confirmed legacy actual values while changing the database default for new rows to unconfirmed.
+
+
+### 2026-11-11 — airdrop library list cleanup (latest user correction)
+
+- Remove the entire “社区大盘” summary card from the Airdrop Library page. Do not show all-project Gas/reward totals, per-chain Gas totals, contributor counts, active-contributor counts, or Gas/reward range distributions in the library overview; these aggregate figures are not useful for the user's intended project-discovery flow.
+- Keep the individual project card's single continuous red/green Gas/reward comparison bar, but remove the two text labels and USD amounts beneath it (“Gas USD 估值” and “收益 USD 估值”). Do not replace the bar with numbers or percentages.
+- Do not show project website URLs, “项目链接待补充”, or an “打开链接” action on the project list card. Website and qualification links are shown only after opening the individual project detail page.
+- Remove the “查看评价” action from project list cards. Do not remove the detail-page content merely because this list shortcut is removed.
