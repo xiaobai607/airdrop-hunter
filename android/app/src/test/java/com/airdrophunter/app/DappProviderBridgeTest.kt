@@ -58,6 +58,9 @@ class DappProviderBridgeTest {
         assertEquals(false, DappProviderBridge.isAuthorizedAccountRequest(
             "personal_sign", JSONArray().put("0xdeadbeef"), accounts
         ))
+        assertEquals(false, DappProviderBridge.isAuthorizedAccountRequest(
+            "personal_sign", JSONArray().put(account).put(account), accounts
+        ))
     }
 
     @Test
