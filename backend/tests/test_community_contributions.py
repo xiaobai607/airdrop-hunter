@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.database import get_db
 from fastapi import HTTPException
 from app.main import app
-from app.api.community_stats import CommunityAssetAmount, normalize_public_asset_breakdown
+from app.api.community_stats import CommunityAssetAmount, CommunityContributionRequest, normalize_public_asset_breakdown
 from app.models import CommunityProjectStats, User
 from app.routers.auth import get_optional_current_user
 from app.services.transaction_verification import VerificationResult
@@ -41,6 +41,18 @@ def _headers(client, prefix: str):
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
+
+
+def test_reward_confirmation_defaults_to_unconfirmed():
+    payload = CommunityContributionRequest(
+        event_id=uuid4(),
+        network="ethereum",
+        wallet_address="0x1234567890abcdef1234567890abcdef12345678",
+        tx_hash="0x" + "a" * 64,
+        public_contribution_opt_in=True,
+        gas_cost_usd=Decimal("1.00"),
+    )
+    assert payload.actual_reward_confirmed is False
 
 
 def test_contributor_id_is_hmac_fingerprinted_and_never_returned_raw(monkeypatch):
