@@ -879,6 +879,24 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
             formatLedgerAssetBreakdown(interaction.assetBreakdownJson).takeIf { it.isNotBlank() }?.let {
                 Text("币种明细：$it", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
+            if (interaction.publicContributionOptIn) {
+                val statusColor = when (interaction.publicContributionStatus) {
+                    "verified" -> AppColors.Success
+                    "rejected" -> AppColors.Danger
+                    else -> AppColors.Primary
+                }
+                Text(
+                    communityContributionStatusLabel(interaction.publicContributionStatus, interaction.publicContributionTier),
+                    color = statusColor,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                interaction.publicContributionError?.takeIf {
+                    interaction.publicContributionStatus == "rejected" && it.isNotBlank()
+                }?.let { message ->
+                    Text(message, color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                }
+            }
             if (interaction.txHash.isNotBlank()) {
                 Text("交易：${interaction.txHash.take(10)}…",
                     color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
