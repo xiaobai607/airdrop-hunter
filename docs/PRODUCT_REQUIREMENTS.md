@@ -1259,3 +1259,14 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Therefore, the earlier statement above that a 12-second policy and main-frame completion guard were added is not supported by the current source tree and must not be treated as implemented. The previously recorded CI pass does not prove that missing source behavior exists.
 - The user has asked to defer the website-loading investigation. Do not reopen it in this dock batch; preserve HTTPS/TLS/origin protections and revisit only when explicitly requested.
 
+### Requirement-to-code cleanup audit — 2026-11-10
+
+- Rechecked the current Home, browser host, and browser dock source against the latest user-confirmed requirements before deleting code.
+- Removed only confirmed unused imports from `HomeScreen.kt`, `BrowserActivity.kt`, and `BrowserAccountingToolbar.kt`; no behavior-bearing code was removed in this cleanup pass.
+- Retained the single Home global-search entry point and its existing `GlobalSearchScreen` route. The duplicate quick-entry search card remains removed; search itself is not deleted.
+- Retained developer-controlled Home card dimensions, user add/remove/reorder/default-reset behavior, and the six agreed browser dock actions. User-facing resize controls and persisted drag coordinates remain absent.
+- Retained the browser's safety warning, host/origin confirmation, wallet approval, accounting confirmation, and existing pending-bill data paths. These are required security/accounting behavior, not disposable duplicate UI.
+- The error/loading overlay still offers copy/open actions as recovery affordances when a page has not loaded; these are separate from the normal dock actions and were not removed without auditing the overlay component and all call sites.
+- Website-loading and browser WalletConnect troubleshooting remains deferred at the user's request.
+- This is a source cleanup pass, not a claim that the remaining full product requirements or physical-device acceptance are complete.
+
