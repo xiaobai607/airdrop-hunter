@@ -6,7 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.database import get_db
+from fastapi import HTTPException
 from app.main import app
+from app.api.community_stats import CommunityAssetAmount, normalize_public_asset_breakdown
 from app.models import CommunityProjectStats, User
 from app.routers.auth import get_optional_current_user
 from app.services.transaction_verification import VerificationResult
@@ -36,6 +38,71 @@ def _headers(client, prefix: str):
     })
     assert response.status_code == 201
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+
+def test_reward_asset_breakdown_must_be_complete_and_match_actual_usd_total():
+    verification = VerificationResult(
+        tier="transaction_linked",
+        gas_cost_usd=Decimal("1.00"),
+        tx_fingerprint="fingerprint",
+        metadata={},
+    )
+    incomplete = [
+        CommunityAssetAmount(
+            kind="reward", amount_native=Decimal("100"), symbol="TOKEN",
+            decimals=18, usd_valuation=None,
+        )
+    ]
+    with pytest.raises(HTTPException) as missing_quote:
+        normalize_public_asset_breakdown(incomplete, Decimal("0"), verification)
+    assert missing_quote.value.status_code == 422
+
+    mismatched = [
+        CommunityAssetAmount(
+            kind="reward", amount_native=Decimal("100"), symbol="TOKEN",
+            decimals=18, usd_valuation=Decimal("1000"),
+        )
+    ]
+    with pytest.raises(HTTPException) as wrong_total:
+        normalize_public_asset_breakdown(mismatched, Decimal("1"), verification)
+    assert wrong_total.value.status_code == 422
+
+
+def test_amount_verified_gas_breakdown_is_replaced_by_one_server_derived_row():
+    verification = VerificationResult(
+        tier="amount_verified",
+        gas_cost_usd=Decimal("0.063"),
+        tx_fingerprint="fingerprint",
+        metadata={
+            "price_updated_at": 1794258400,
+            "native_fee": "0.000021",
+            "native_symbol": "ETH",
+            "price_source": "chainlink:ethereum",
+        },
+    )
+    assets = [
+        CommunityAssetAmount(
+            kind="gas", amount_native=Decimal("99"), symbol="FAKE",
+            decimals=18, usd_valuation=Decimal("999"),
+        ),
+        CommunityAssetAmount(
+            kind="gas", amount_native=Decimal("88"), symbol="DUP",
+            decimals=18, usd_valuation=Decimal("888"),
+        ),
+        CommunityAssetAmount(
+            kind="reward", amount_native=Decimal("10"), symbol="LINEA",
+            decimals=18, usd_valuation=Decimal("4.50"),
+        ),
+    ]
+    normalized = normalize_public_asset_breakdown(assets, Decimal("4.50"), verification)
+    gas_rows = [row for row in normalized if row["kind"] == "gas"]
+    assert len(gas_rows) == 1
+    assert gas_rows[0]["symbol"] == "ETH"
+    assert gas_rows[0]["amount_native"] == "0.000021"
+    assert gas_rows[0]["usd_valuation"] == "0.063"
+    assert gas_rows[0]["valuation_source"] == "chainlink:ethereum"
+    assert [row["symbol"] for row in normalized if row["kind"] == "reward"] == ["LINEA"]
 
 
 def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
@@ -86,7 +153,8 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
             headers=headers,
             json=conflicting_payload,
         )
-        assert conflict.status_code == 409
+        assert conflict.status_code == 422
+        assert conflict.json()["detail"] == "奖励代币明细估值合计与本笔实际收益不一致"
 
         public = client.get("/api/community/projects/linea/stats")
         assert public.status_code == 200

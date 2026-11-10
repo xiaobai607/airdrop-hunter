@@ -84,6 +84,50 @@ async def serialize_stats_with_rating(
     return serialize_stats(project_official_id, row, rating.average, rating.count, tier_totals)
 
 
+def normalize_public_asset_breakdown(
+    assets: list[CommunityAssetAmount],
+    actual_reward_usd: Decimal,
+    verification,
+) -> list[dict]:
+    """Keep token-level snapshot rows consistent with the authoritative contribution totals."""
+    reward_assets = [asset for asset in assets if asset.kind == "reward"]
+    if reward_assets:
+        if any(asset.usd_valuation is None for asset in reward_assets):
+            raise HTTPException(status_code=422, detail="奖励代币明细估值不完整，不能匿名贡献")
+        reward_total = sum(
+            (asset.usd_valuation for asset in reward_assets if asset.usd_valuation is not None),
+            Decimal("0"),
+        )
+        if abs(reward_total - actual_reward_usd) > Decimal("0.00000001"):
+            raise HTTPException(status_code=422, detail="奖励代币明细估值合计与本笔实际收益不一致")
+
+    gas_assets = [asset for asset in assets if asset.kind == "gas"]
+    if verification.tier != "amount_verified" and len(gas_assets) > 1:
+        raise HTTPException(status_code=422, detail="单笔交易不能包含多条 Gas 原生币明细")
+
+    serialized = [asset.model_dump(mode="json") for asset in assets]
+    if verification.tier == "amount_verified":
+        # Ignore every client-supplied Gas row and emit exactly one server-derived row.
+        serialized = [asset for asset in serialized if asset.get("kind") != "gas"]
+        quote_timestamp = datetime.fromtimestamp(
+            int(verification.metadata["price_updated_at"]), tz=timezone.utc
+        )
+        serialized.insert(0, {
+            "kind": "gas",
+            "amount_native": str(verification.metadata["native_fee"]),
+            "symbol": str(verification.metadata["native_symbol"]),
+            "decimals": 18,
+            "usd_valuation": str(verification.gas_cost_usd),
+            "valuation_timestamp": quote_timestamp.isoformat(),
+            "valuation_source": str(verification.metadata.get("price_source") or "chainlink"),
+        })
+    else:
+        for asset in serialized:
+            if asset.get("kind") == "gas":
+                asset["valuation_source"] = "user_reported"
+    return serialized
+
+
 @router.post("/{project_official_id}/contributions")
 @limiter.limit("60/hour")
 async def add_community_contribution(
@@ -108,22 +152,9 @@ async def add_community_contribution(
         raise HTTPException(status_code=422, detail=str(error))
 
     public_gas_cost = verification.gas_cost_usd
-    asset_breakdown = [item.model_dump(mode="json") for item in payload.asset_breakdown]
-    for asset in asset_breakdown:
-        if not isinstance(asset, dict) or asset.get("kind") != "gas":
-            continue
-        if verification.tier == "amount_verified":
-            quote_timestamp = datetime.fromtimestamp(
-                int(verification.metadata["price_updated_at"]), tz=timezone.utc
-            )
-            asset["amount_native"] = str(verification.metadata["native_fee"])
-            asset["symbol"] = str(verification.metadata["native_symbol"])
-            asset["decimals"] = 18
-            asset["usd_valuation"] = str(public_gas_cost)
-            asset["valuation_timestamp"] = quote_timestamp.isoformat()
-            asset["valuation_source"] = str(verification.metadata.get("price_source") or "chainlink")
-        else:
-            asset["valuation_source"] = "user_reported"
+    asset_breakdown = normalize_public_asset_breakdown(
+        payload.asset_breakdown, payload.actual_reward_usd, verification
+    )
 
     contribution = pg_insert(CommunityContribution).values(
         id=payload.event_id,
