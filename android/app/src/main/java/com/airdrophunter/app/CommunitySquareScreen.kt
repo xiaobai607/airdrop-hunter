@@ -23,6 +23,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -387,25 +389,22 @@ fun CommunitySquareScreen(
                     val totalGasReward = project.gas.coerceAtLeast(0.0) + project.reward.coerceAtLeast(0.0)
                     if (totalGasReward > 0.0) {
                         val gasShare = (project.gas.coerceAtLeast(0.0) / totalGasReward).toFloat().coerceIn(0f, 1f)
+                        val comparisonBrush = when {
+                            gasShare <= 0f -> SolidColor(Color(0xFF31B77D))
+                            gasShare >= 1f -> SolidColor(Color(0xFFE76565))
+                            else -> Brush.horizontalGradient(
+                                colorStops = arrayOf(
+                                    0f to Color(0xFFE76565),
+                                    gasShare to Color(0xFFE76565),
+                                    gasShare to Color(0xFF31B77D),
+                                    1f to Color(0xFF31B77D)
+                                )
+                            )
+                        }
                         Box(
                             Modifier.fillMaxWidth().height(10.dp)
-                                .background(AppColors.Border, RoundedCornerShape(999.dp))
-                        ) {
-                            Row(Modifier.fillMaxSize()) {
-                                if (gasShare > 0f) {
-                                    Box(
-                                        Modifier.fillMaxWidth(gasShare).fillMaxHeight()
-                                            .background(Color(0xFFE76565))
-                                    )
-                                }
-                                if (gasShare < 1f) {
-                                    Box(
-                                        Modifier.fillMaxWidth(1f - gasShare).fillMaxHeight()
-                                            .background(Color(0xFF31B77D))
-                                    )
-                                }
-                            }
-                        }
+                                .background(comparisonBrush, RoundedCornerShape(999.dp))
+                        )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         project.tags.forEach { tag ->
