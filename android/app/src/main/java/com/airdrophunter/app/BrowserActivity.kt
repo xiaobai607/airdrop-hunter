@@ -414,6 +414,9 @@ private fun BrowserScreen(
                                                     val account = connectedDappAccounts.firstOrNull()
                                                     val authorized = authorizedDappOrigins[origin] == currentDappAuthorizationStamp()
                                                     val connectedAddresses = connectedDappAccounts.map { it.address }.toSet()
+                                                    val firstRequestParam = request.params.opt(0) as? String
+                                                    val secondRequestParam = request.params.opt(1) as? String
+                                                    val transactionFrom = request.params.optJSONObject(0)?.optString("from")
                                                     when {
                                                         !authorized || account == null ->
                                                             DappProviderBridge.error(replyProxy, request.id, 4100, "请先在当前网站授权连接外部钱包")
@@ -421,7 +424,10 @@ private fun BrowserScreen(
                                                             DappProviderBridge.error(replyProxy, request.id, 4200, "当前钱包连接方式暂不支持 DApp 签名转发，请使用 WalletConnect 外部钱包连接")
                                                         pendingDappExternalRequest != null ->
                                                             DappProviderBridge.error(replyProxy, request.id, -32002, "已有一笔外部钱包请求正在等待确认")
-                                                        !DappProviderBridge.isAuthorizedAccountRequest(request.method, request.params, connectedAddresses) ->
+                                                        !DappProviderBridge.isAuthorizedAccountRequest(
+                                                            request.method, firstRequestParam, secondRequestParam,
+                                                            transactionFrom, connectedAddresses
+                                                        ) ->
                                                             DappProviderBridge.error(replyProxy, request.id, 4100, "请求使用的钱包地址未在当前外部钱包会话中授权")
                                                         AppKit.getSelectedChain()?.chainReference
                                                             ?.removePrefix("eip155:")
