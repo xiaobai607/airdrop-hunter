@@ -66,7 +66,7 @@ fun MicroCommunityScreen(
     var periodSnapshots by remember(projectOfficialId) { mutableStateOf<Map<String, com.airdrophunter.app.data.CommunitySnapshotDto>>(emptyMap()) }
     var statsLoading by remember(projectOfficialId) { mutableStateOf(true) }
     var statsFailed by remember(projectOfficialId) { mutableStateOf(false) }
-    var useDemoStats by remember(projectOfficialId) { mutableStateOf(BuildConfig.DEBUG || isDemoProject) }
+    var useDemoStats by remember(projectOfficialId) { mutableStateOf(isDemoProject) }
     var wallet by remember(projectOfficialId, sessionScopeKey) { mutableStateOf("") }
     var canRate by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
     var participationChecked by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
