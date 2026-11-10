@@ -1322,3 +1322,14 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - The existing single global search remains directly after shortcut cards in a fixed 54 dp field; it is not removed, duplicated, or hidden.
 - Users may still add/remove/reorder shortcuts and restore defaults; dimensions remain developer-controlled.
 - Exact-head Android CI and physical-device visual acceptance are pending. Do not claim verification until installed and checked on-device.
+
+
+### Unified project library — local-first persistence and scoped legacy migration (2026-11-10)
+
+- The project repository is the canonical owner of project records. Legacy browser-accounting `pnl_projects` records are imported into the matching guest/account `projects` cache, deduplicated by stable local project ID, and retained as a rollback source during this migration.
+- Guest and authenticated caches are never merged across scopes.
+- Project creation writes to the local project cache before attempting account API synchronization. A network/API failure must not discard the project or clear the user's input; the local project remains visible with a pending-sync marker.
+- A stable local project ID is retained for bill/history references. The remote server ID is stored separately and used for subsequent account API update/delete calls.
+- Authenticated refresh preserves locally pending projects and maps server records back to stable local IDs instead of replacing ledger references.
+- Cached projects remain visible when a refresh fails; the error is presented as a synchronization warning when local data exists.
+- This is the first persistence-layer step of the unified project library. It does not yet complete the single-picker UI wiring, browser accounting migration, community contribution aggregation, or end-to-end retry worker. Those remain open and must not be described as finished.

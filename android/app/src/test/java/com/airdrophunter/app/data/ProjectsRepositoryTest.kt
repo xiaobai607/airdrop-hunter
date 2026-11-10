@@ -16,7 +16,7 @@ class ProjectsRepositoryTest {
         }
     }
 
-    private class FakeRemote : ProjectsRemoteDataSource {
+    private open class FakeRemote : ProjectsRemoteDataSource {
         val projects = mutableListOf<ProjectDto>()
         val tasks = mutableMapOf<String, MutableList<TaskDto>>()
         var projectCreateCalls = 0
@@ -63,6 +63,38 @@ class ProjectsRepositoryTest {
 
     private fun project(id: String, name: String = id) =
         ProjectDto(id, name, "", "tracking")
+
+
+    @Test fun authenticatedProjectIsSavedLocallyWhenServerCreateFails() {
+        val local = FakeLocal()
+        val remote = object : FakeRemote() {
+            override suspend fun createProject(request: ProjectWriteRequest): ProjectDto {
+                throw IllegalStateException("offline")
+            }
+        }
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val created = repository.createProject(
+                ProjectWriteRequest("Offline project", "saved locally", "tracking"), guest = false
+            )
+            assertEquals("Offline project", created.single().name)
+            assertTrue(created.single().syncPending)
+            assertTrue(local.account.containsKey("projects"))
+            assertFalse(local.guest.containsKey("projects"))
+        }
+    }
+
+    @Test fun legacyPnlProjectsMigrateWithinTheirOwnScope() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            local.write("pnl_projects", com.google.gson.Gson().toJson(listOf(project("legacy"))), guest = true)
+            val migrated = repository.readCachedProjects(guest = true)
+            assertEquals(listOf("legacy"), migrated.map { it.id })
+            assertTrue(local.guest.containsKey("projects"))
+            assertFalse(local.account.containsKey("projects"))
+        }
+    }
 
     @Test fun authenticatedClaimUrlIsRetrievedThroughOwnedWalletEndpoint() {
         val repository = ProjectsRepository(FakeRemote(), FakeLocal())

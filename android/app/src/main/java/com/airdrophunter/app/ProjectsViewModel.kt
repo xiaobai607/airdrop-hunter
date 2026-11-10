@@ -32,9 +32,7 @@ class ProjectsViewModel(private val repository: ProjectsRepository) : ViewModel(
             _uiState.value = ProjectsUiState(isLoading = true)
             try {
                 val cached = repository.readCachedProjects(isGuest)
-                if (cached.isNotEmpty() || isGuest) {
-                    _uiState.value = _uiState.value.copy(isLoading = false, projects = cached)
-                }
+                _uiState.value = _uiState.value.copy(isLoading = false, projects = cached, error = null)
                 if (isGuest) return@launch
                 val refreshed = repository.refreshProjects()
                 _uiState.value = _uiState.value.copy(isLoading = false, projects = refreshed, error = null)
@@ -43,7 +41,8 @@ class ProjectsViewModel(private val repository: ProjectsRepository) : ViewModel(
             } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = error.message ?: "Network error"
+                    error = if (_uiState.value.projects.isNotEmpty()) "同步暂不可用，已保留本地项目"
+                        else error.message ?: "Network error"
                 )
             }
         }
