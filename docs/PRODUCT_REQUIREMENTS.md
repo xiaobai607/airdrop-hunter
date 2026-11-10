@@ -1042,7 +1042,7 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Automated validation is pending on this batch's exact PR head. Batch 15 remains open for the remaining cross-screen regression and real-device acceptance; this entry does not claim final release acceptance.
 
 
-- Batch 15 correction: the serialized backup identity key is exactly `app_name` (not Kotlin's default `appName`); `@SerializedName("app_name")` and a JSON-contract regression test are included in PR #132. The current PR head is `1bb5bbae02a8a4a25c026b5d8921f048ef198fd8`; its exact-head Android CI must pass before merge.
+- Batch 15 correction: the serialized backup identity key is exactly `app_name` (not Kotlin's default `appName`); `@SerializedName("app_name")` and a JSON-contract regression test are included in PR #132. PR #132 remains open until Android unit tests and Debug APK assembly pass on its latest exact head.
 
 
 - Batch 15 contribution-status UI integration: Room schema 19→20 adds account-scoped verification status/tier/error fields to each private interaction. The existing contribution worker now updates both the private-ledger metadata and the corresponding interaction row for pending/retry, verified, and terminal-rejected outcomes. Project accounting history visibly distinguishes “等待链上核验”, “链上已确认”, “链上精确核验”, and “核验拒绝”; rejection detail is shown only in the owner's private ledger. A pure status-label regression test covers the state mapping. This does not expose raw wallet addresses or transaction hashes publicly and does not alter manual event settlement confirmation.
