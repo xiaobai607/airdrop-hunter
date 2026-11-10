@@ -31,7 +31,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -98,7 +97,6 @@ fun BrowserAccountingToolbar(
         mutableStateOf(preferences.getString("selected_tools", null)?.split(",")?.filter { id -> toolOptions.any { it.first == id } }
             ?.distinct()?.takeIf { it.isNotEmpty() } ?: toolOptions.map { it.first })
     }
-    val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
@@ -207,7 +205,7 @@ fun BrowserAccountingToolbar(
                 .widthIn(max = 420.dp)
                 .height(100.dp)
                 .offset { IntOffset(dragOffsetX.roundToInt(), dragOffsetY.roundToInt()) }
-                .pointerInput(configuration.screenWidthDp, configuration.screenHeightDp) {
+                .pointerInput(maxWidth, maxHeight) {
                     detectDragGesturesAfterLongPress(
                         onDragEnd = {
                             if (abs(dragOffsetX) > maxHorizontalDrag * 0.15f) dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
