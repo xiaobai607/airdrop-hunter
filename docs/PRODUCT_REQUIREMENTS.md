@@ -38,8 +38,8 @@ The user's latest reference image is the visual source of truth. This is a **mob
 - The external-wallet top-bar action now gives immediate launch feedback and catches/logs launch exceptions; the DApp-origin approval path also returns an error to the requesting page if AppKit launch fails. This is a diagnostic/feedback improvement, **not proof that the user's no-response issue is fixed**. Device verification is still required.
 - The configurable horizontal dock is now implemented in the feature branch with the six agreed actions, internal scrolling, tool add/remove/reorder/reset, and transient drag/edge-snap positioning. Address QR/explorer utilities, address picker, and broader browser page utilities remain outside this six-action dock pass.
 - The Home desktop-style card grid was implemented in the feature branch: add/remove/reorder/persist/restore. Card dimensions are developer-defined and fixed per card type; end users cannot resize cards.
-- The website loading failure remains unresolved pending a complete device trace. Current code deliberately requires HTTPS, rejects TLS errors, gates external-origin navigation with user confirmation, and may retry with a different user agent. Do not weaken these safety rules as a shortcut. Investigate redirects, WebView provider compatibility, cookies/session behavior, page errors, and external-wallet return flow before changing navigation policy.
-- No Actions build has been triggered for this feature branch yet. Validate the complete related Android batch once rather than compiling after every small edit.
+- Website loading and browser-page WalletConnect remain deferred at the user's request. Preserve HTTPS/TLS/origin protections; do not investigate or modify these flows until the user explicitly resumes them.
+- The browser dock and host integration are now in this feature branch. Exact-head CI and physical-device acceptance are tracked separately; do not mark either passed without evidence.
 
 **Current branch:** `feature/mobile-browser-home-dock-batch`; the browser dock implementation is now in the branch after the earlier `9ffd05c2ee7c64e2c3ff3260e62fcdc504ca3321` checkpoint. Requirements/documentation and Android edits are not yet merged to main. Keep release completion pending.
 
@@ -85,21 +85,22 @@ This correction supersedes the earlier vertical-dock inspiration where it confli
 
 These requirements were added from the user's physical-device test screenshots and observations on 2026-11-10. They are additive: preserve every unrelated existing feature, data rule, and security boundary.
 
-### A. Critical runtime defects — first priority
-1. **Airdrop website navigation currently fails on the user's device.** Treat this as a release-blocking defect. Audit the complete in-app browser path: saved-site selection, URL normalization/scheme validation, WebView creation and lifecycle, navigation interception, redirects, TLS/error handling, JavaScript/DOM settings, cookies/session persistence, external intents, and page-load/error state. Do not bypass TLS, weaken origin authorization, or silently send every site to an external browser. Provide actionable loading/error feedback and a retry path. Test several HTTPS sites, redirects, login-required pages, and a site that intentionally blocks embedded browsers. Distinguish a site-side WebView prohibition from an app defect and offer a safe external-open fallback where appropriate.
-2. **The “连接外部钱包” action in Airdrop Navigation currently appears to do nothing.** Treat as a release-blocking defect and trace the full click-to-result flow through UI event, active DApp origin, WalletConnect/Reown session, external wallet app handoff, return callback, and UI state/error feedback. Do not fake a successful connection. Show why a request cannot proceed (no active DApp page, unsupported chain, no compatible wallet, no session, wallet app unavailable, user rejection, timeout, or callback failure). Keep signing and transaction approval in the external wallet; never store private keys or seed phrases. Preserve the already-merged DApp RPC bridge allowlist and security checks; do not overblock approved DApp signing.
-3. Physical-device acceptance is required after fixes. CI alone does not close either defect. Record device, Android version, site/wallet, exact steps, result, and logs for each case.
+### A. Browser loading and in-page WalletConnect — explicitly deferred by the user
 
-### B. Airdrop Navigation floating tool dock
-- Replace/upgrade the current bottom status/action strip in Airdrop Navigation with a configurable floating tool dock inspired by the user's first screenshot (a compact vertical icon rail).
-- The dock supports vertical or horizontal presentation, scrolling within the dock when tools exceed the available space, and moving/repositioning the whole dock independently of scrolling its icons. Keep it clear of Android system bars, browser content controls, and essential page interactions; persist its position/orientation and user configuration locally.
-- Users can add, remove, reorder, and configure small tools. Provide sensible defaults and a restore-defaults action. Do not require users to manually design a configuration before using the browser.
-- Default tool groups and actions:
-  - **Navigation:** back, forward, refresh/stop, home/start page, open current URL externally, copy current page URL, share current URL.
-  - **Wallet/address:** connect/disconnect external wallet; show active connection and chain; select one of the user's saved wallet addresses before copying; copy selected address; show address QR; open selected address in the matching chain explorer. Never silently choose an arbitrary wallet when multiple addresses exist.
-  - **Page utilities:** find text on page, copy selected text (only when selected), add/remove bookmark, manage saved websites, switch among open tabs, clear current-site cookies/session with explicit confirmation.
-  - **Safety/status:** show HTTPS/security origin, page loading/error state, wallet connection state, and explain blocked/unsupported operations.
-- Do not expose private-key/seed-phrase entry, in-app signing, or automatic transaction approval. Destructive actions (clear cookies/session, remove saved site, disconnect) require clear confirmation where appropriate.
+- The website-loading failure and the browser-page “连接钱包” action that appears unresponsive are **deferred**. Do not make them the next task, reopen their investigation, or treat them as a release-blocking priority unless the user explicitly asks to resume them.
+- Preserve the existing HTTPS/TLS validation, allowed-origin rules, DApp bridge allowlist, and external-wallet signing security. Never bypass certificate errors, loosen origin checks, fake a successful connection, or move signing/private keys into the app.
+- Existing wallet-management address connection/selection and browser-page DApp WalletConnect are separate flows. Do not claim one proves the other works.
+
+### B. Airdrop Navigation horizontal floating dock — current approved scope
+
+- The dock is one horizontal pale-blue translucent rounded tray, approximately 100 dp high, 94% of available width (maximum 420 dp), with consistent rounded-square tool tiles around 68 dp.
+- Tool tiles scroll horizontally inside the tray. A plus tile opens tool management. Users can add/remove the six currently approved actions, reorder them, and restore defaults.
+- The six approved actions are: mock bill, copy current wallet address, pending bills, refresh current page, copy current page URL, and open current page externally.
+- The whole tray moves only after a long press and drag; normal horizontal swipes scroll its inner row. On release, it snaps horizontally to the nearest side and stays within the browser viewport's safe vertical bounds.
+- The dock starts at the bottom on every fresh browser entry. Only selected tool IDs/order may persist; drag coordinates and position/orientation must never be persisted.
+- Do not implement the superseded vertical rail, user-selectable horizontal/vertical presentation, persisted dock position/orientation, or the earlier expanded list of QR/explorer/bookmark/tab/cookie tools without new user approval.
+- Keep the existing mock-bill, pending-bill, and manual accounting-confirmation workflows. Replacing the old three-button visual capsule does not authorize deleting those accounting operations.
+- Acceptance requires exact-head Android build/tests and physical-device checks for proportions, internal scrolling vs drag, edge snapping, safe bounds, tool management, all six actions, and bottom reset after leaving/re-entering.
 
 ### C. Home becomes a phone-desktop card dashboard
 - Keep exactly one global coin/DApp search field **below the quick-entry cards**, opening the existing GlobalSearchScreen. Remove only any duplicate global-search shortcut card from the quick-entry grid. Preserve search history, local/remote search, result navigation, and the dedicated search destination; do not delete the search field or search capability.
@@ -120,11 +121,10 @@ These requirements were added from the user's physical-device test screenshots a
 - Notifications should provide an inbox/list with read/unread state and empty/loading/error states. Do not fabricate notifications or enable unsolicited push delivery without an implemented and consented channel.
 
 ### F. Coherent implementation and acceptance order
-1. Fix and physically verify website navigation and external-wallet connect handoff.
-2. Implement the configurable floating browser dock with the safe, useful default tool groups above.
-3. Rework Home into the responsive desktop-card dashboard while retaining BTC/ETH and the three default functions; remove only duplicate Home search UI/global-search shortcut.
-4. Correct Airdrop Library title/description and add the three real 我的 destinations.
-5. Update the test document and this requirements ledger with device acceptance evidence. Batch related UI/state/persistence/tests together; minimize Actions runs.
+1. Keep website loading and browser-page WalletConnect deferred unless the user explicitly resumes them.
+2. Complete exact-head CI and physical-device acceptance for the six-action horizontal dock; retain existing accounting flows.
+3. Finish/verify the responsive Home card dashboard, exactly one global search field, Airdrop Library wording, and the three 我的 destinations.
+4. Continue the remaining user-confirmed product batches in dependency order, updating this ledger and minimizing Actions runs.
 
 **Initial status for all newly added items:** requirements confirmed; implementation status pending code audit. Do not describe any as implemented until source inspection, tests, and device evidence support that status.
 
