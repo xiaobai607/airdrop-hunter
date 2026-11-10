@@ -261,6 +261,9 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
             return type("RatingStats", (), {"average": None, "count": 0})()
 
     class FakeDatabase:
+        async def scalar(self, statement):
+            return type("ActiveCatalogEntry", (), {"is_active": True})()
+
         async def execute(self, statement):
             if not captured:
                 captured.update(statement.compile().params)
