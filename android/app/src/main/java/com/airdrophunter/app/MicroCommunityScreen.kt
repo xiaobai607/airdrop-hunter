@@ -360,6 +360,7 @@ fun MicroCommunityScreen(
                 }
             }
         }
+        }
     }
 }
 
