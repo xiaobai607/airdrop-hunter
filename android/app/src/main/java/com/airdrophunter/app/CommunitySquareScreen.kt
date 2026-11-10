@@ -38,7 +38,7 @@ import java.time.Instant
 import java.util.Locale
 
 private data class CommunityProject(
-    val id: String, val name: String, val chain: String, val logo: String, val websiteUrl: String,
+    val id: String, val name: String, val chain: String, val logo: String,
     val reward: Double, val gas: Double, val createdAt: String,
     val tags: List<String>, val isDemo: Boolean = false,
     val demoScore: Double = 0.0,
@@ -147,7 +147,6 @@ fun CommunitySquareScreen(
             name = entry.name,
             chain = entry.chain,
             logo = entry.logo.ifBlank { entry.name.take(1).uppercase() },
-            websiteUrl = entry.website_url,
             reward = stats?.total_reward_usd ?: stats?.total_actual_reward_usd ?: 0.0,
             gas = stats?.total_gas_cost_usd ?: 0.0,
             createdAt = entry.created_at,
