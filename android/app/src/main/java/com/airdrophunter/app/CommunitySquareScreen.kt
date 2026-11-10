@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
-import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.CommunityProjectSubmissionRequest
 import com.airdrophunter.app.ui.theme.AppColors
@@ -79,7 +78,6 @@ fun CommunitySquareScreen(
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
-    val activeToken by TokenStore.observeToken(context).collectAsStateWithLifecycle(initialValue = TokenStore.readTokenBlocking())
     val joinedIds by CacheStore.observeUserProjects().collectAsStateWithLifecycle(initialValue = emptyList())
     val favorites by CacheStore.observeCommunityFavorites().collectAsStateWithLifecycle(initialValue = emptyList())
     val favoriteIds = remember(favorites) { favorites.map { it.projectOfficialId }.toSet() }
@@ -103,10 +101,8 @@ fun CommunitySquareScreen(
         else catalogEntries.flatMap { it.tags }.distinct().sorted()
     }
 
-    LaunchedEffect(activeToken) {
+    LaunchedEffect(Unit) {
         ApiClient.initialize(context)
-        // Guest state remains local; signed-in favorites merge with the account cloud.
-        CacheStore.syncCommunityFavorites()
 
         fun applyOverallSnapshot(snapshot: com.airdrophunter.app.data.CommunitySnapshotDto?) {
             if (snapshot == null) return
