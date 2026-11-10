@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -400,22 +401,28 @@ private fun CommunitySnapshotPeriodMetric(
             ) {
                 if (gasWeight > 0f) {
                     Box(
-                        Modifier.weight(gasWeight).fillMaxHeight().background(gasColor, CircleShape),
+                        Modifier.weight(gasWeight).fillMaxHeight().background(
+                            gasColor,
+                            if (rewardWeight == 0f) CircleShape else RoundedCornerShape(topStart = 50, bottomStart = 50, topEnd = 0, bottomEnd = 0)
+                        ),
                         contentAlignment = Alignment.Center
                     ) {
                         if (gasWeight >= 0.15f) {
-                            Text("${(gasWeight * 100).toInt()}%", color = Color.White,
+                            Text("${(gasWeight * 100).roundToInt()}%", color = Color.White,
                                 style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
                 if (rewardWeight > 0f) {
                     Box(
-                        Modifier.weight(rewardWeight).fillMaxHeight().background(rewardColor, CircleShape),
+                        Modifier.weight(rewardWeight).fillMaxHeight().background(
+                            rewardColor,
+                            if (gasWeight == 0f) CircleShape else RoundedCornerShape(topStart = 0, bottomStart = 0, topEnd = 50, bottomEnd = 50)
+                        ),
                         contentAlignment = Alignment.Center
                     ) {
                         if (rewardWeight >= 0.15f) {
-                            Text("${(rewardWeight * 100).toInt()}%", color = Color.White,
+                            Text("${(rewardWeight * 100).roundToInt()}%", color = Color.White,
                                 style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                     }
