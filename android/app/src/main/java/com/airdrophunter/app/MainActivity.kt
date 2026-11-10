@@ -43,32 +43,31 @@ class MainActivity : ComponentActivity() {
         window.navigationBarColor = android.graphics.Color.rgb(248, 249, 250)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-
-        // Current release is local-only: retire any legacy login token before screens start.
-        lifecycleScope.launch {
-            TokenStore.clearToken(applicationContext)
-            setContent {
-                AirdropHunterTheme {
-                    AirdropHunterApp(
-                        isGuest = true,
-                        sessionScopeKey = "guest",
-                        onRequireAuth = {
-                            Toast.makeText(
-                                applicationContext,
-                                "当前版本暂不开放注册/登录，个人数据仅保存在本机",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        },
-                        onLogout = {},
-                        onOpenAuth = {
-                            Toast.makeText(
-                                applicationContext,
-                                "当前版本暂不开放注册/登录，个人数据仅保存在本机",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    )
-                }
+        setContent {
+            AirdropHunterTheme {
+                val initialToken = remember { TokenStore.readTokenBlocking() }
+                val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = initialToken)
+                // Keep a legacy local namespace stable without treating it as a login session.
+                val localScopeKey = remember(token) { CacheStore.accountScopeKey(token) }
+                AirdropHunterApp(
+                    isGuest = true,
+                    sessionScopeKey = localScopeKey,
+                    onRequireAuth = {
+                        Toast.makeText(
+                            applicationContext,
+                            "当前版本暂不开放注册/登录，个人数据仅保存在本机",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    },
+                    onLogout = {},
+                    onOpenAuth = {
+                        Toast.makeText(
+                            applicationContext,
+                            "当前版本暂不开放注册/登录，个人数据仅保存在本机",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                )
             }
         }
     }
