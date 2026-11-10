@@ -41,6 +41,24 @@ def _headers(client, prefix: str):
 
 
 
+
+def test_public_valuation_source_is_allowlisted_and_cannot_embed_private_identifiers():
+    address = "0x1234567890abcdef1234567890abcdef12345678"
+    tx_hash = "0x" + "a" * 64
+
+    def asset(source):
+        return CommunityAssetAmount(
+            kind="reward", amount_native=Decimal("1"), symbol="TOKEN",
+            usd_valuation=Decimal("1"), valuation_source=source,
+        )
+
+    assert asset("CoinPaprika").valuation_source == "coinpaprika"
+    assert asset("chainlink:ethereum").valuation_source == "chainlink:ethereum"
+    assert asset("manual_usd_entry").valuation_source == "manual_usd_entry"
+    assert asset(address).valuation_source == "user_reported"
+    assert asset(tx_hash).valuation_source == "user_reported"
+
+
 def test_reward_asset_breakdown_must_be_complete_and_match_actual_usd_total():
     verification = VerificationResult(
         tier="transaction_linked",

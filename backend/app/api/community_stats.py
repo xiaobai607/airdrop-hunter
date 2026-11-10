@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +30,26 @@ class CommunityAssetAmount(BaseModel):
     usd_valuation: Decimal | None = Field(default=None, ge=0, le=MAX_AMOUNT)
     valuation_timestamp: datetime | None = None
     valuation_source: str | None = Field(default=None, max_length=64)
+
+    @field_validator("valuation_source")
+    @classmethod
+    def sanitize_valuation_source(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        allowed = {
+            "coinpaprika",
+            "coingecko",
+            "manual_usd_entry",
+            "user_input",
+            "user_reported",
+            "legacy-recorded",
+        }
+        allowed.update({
+            f"chainlink:{network}"
+            for network in ("ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche")
+        })
+        return normalized if normalized in allowed else "user_reported"
 
 
 class CommunityContributionRequest(BaseModel):
