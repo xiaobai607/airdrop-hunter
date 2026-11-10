@@ -1350,3 +1350,14 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - For a project carrying a canonical `communityOfficialId`, eligible EVM-network manual records no longer require a separate per-wallet contribution opt-in. The UI requests each wallet's transaction hash and automatically marks the row for verification when the hash format and confirmed USD reward conditions are satisfied.
 - Private/custom projects remain private by default. Community contribution still requires server-side chain verification; raw wallet/transaction details are used only for verification and are not part of the public aggregate model.
 - Ineligible or unverified rows remain in the personal ledger and do not count as verified public aggregate data.
+
+
+### Authenticated project sync — local-first and idempotent creation (2026-11-11)
+
+- Local persistence is the success boundary: creating a project must save it under its stable local UUID before attempting network synchronization. A server outage must not hide or discard the locally saved project.
+- The same stable local UUID is sent as `client_project_id` when creating the authenticated server record. The backend stores this nullable UUID and enforces a unique key on `(user_id, client_project_id)`; the key is scoped to the authenticated owner, so two users may independently use the same client UUID.
+- Repeating a create request with the same user and client key returns the original server project. If concurrent requests race, the unique constraint resolves the winner and the losing request reads and returns that same row. Legacy clients that omit the key remain compatible.
+- A project left with `syncPending = true` is retried during the next authenticated project refresh using its original local UUID and the original project fields. Successful synchronization stores the server ID as `remoteId`, clears the pending marker, and preserves the stable local ID referenced by bills and historical records.
+- The server echoes `client_project_id` in project responses so refresh can reconcile a local record with its server record even if the original create response was lost. Project updates must not overwrite or clear this immutable idempotency key.
+- Guest projects remain local-only and do not send project creation requests. The private ledger remains separate from community aggregate contribution.
+- Validation required: backend tests for same-user retries, concurrent/idempotent resolution and cross-user isolation; Android unit tests for a committed server create whose response is lost, followed by safe retry and stable-ID reconciliation; Android build/unit tests and backend pytest. CI status must be checked against the exact final commit. Physical-device acceptance is separate from CI.
