@@ -611,24 +611,6 @@ private fun BrowserScreen(
                         pageState = BrowserPageState.Loading
                         browser?.settings?.userAgentString = CHROME_MOBILE_USER_AGENT
                         browser?.reload()
-                    },
-                    onOpenExternal = {
-                        val uri = Uri.parse(currentPageUrl)
-                        val chromeIntent = Intent(Intent.ACTION_VIEW, uri).apply { setPackage("com.android.chrome") }
-                        try {
-                            context.startActivity(chromeIntent)
-                        } catch (_: Exception) {
-                            try {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-                            } catch (_: Exception) {
-                                Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                    onCopyUrl = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Page URL", currentPageUrl))
-                        Toast.makeText(context, "网址已复制", Toast.LENGTH_SHORT).show()
                     }
                 )
             }
@@ -791,9 +773,7 @@ private const val IOS_SAFARI_USER_AGENT =
 private fun BrowserPageOverlay(
     state: BrowserPageState,
     onBack: () -> Unit,
-    onRetry: () -> Unit,
-    onOpenExternal: () -> Unit,
-    onCopyUrl: () -> Unit
+    onRetry: () -> Unit
 ) {
     val infinite = rememberInfiniteTransition(label = "loading-pulse")
     val pulse by infinite.animateFloat(0.92f, 1.08f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse")
@@ -823,10 +803,6 @@ private fun BrowserPageOverlay(
                 Button(onClick = onRetry, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
                     Text("重新加载")
                 }
-                OutlinedButton(onClick = onOpenExternal, modifier = Modifier.fillMaxWidth()) {
-                    Text("在外部浏览器打开")
-                }
-                TextButton(onClick = onCopyUrl, modifier = Modifier.fillMaxWidth()) { Text("复制网址") }
                 TextButton(onClick = onBack) { Text("返回") }
             }
         }
