@@ -9,7 +9,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     config = Config(str(backend_dir / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0018_idempotent_project_creation"
+    assert scripts.get_current_head() == "0019_comm_dash"
     bootstrap = scripts.get_revision("0001_bootstrap")
     ledger = scripts.get_revision("0002_personal_ledger")
     nullable_reward = scripts.get_revision("0003_nullable_expected_reward")
