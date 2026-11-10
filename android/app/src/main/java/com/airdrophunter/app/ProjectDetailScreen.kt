@@ -149,6 +149,13 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(project.name, color = AppColors.TextPrimary,
                             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        if (project.communityDelisted) {
+                            Surface(color = Color(0xFFFFE8E8), shape = RoundedCornerShape(999.dp)) {
+                                Text("社区已下架 · 私人模式", Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    color = Color(0xFFB42318), style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                         if (project.description.isNotBlank()) Text(project.description,
                             color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
@@ -216,7 +223,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) { Text(if (isLoadingAccountingWallets) "读取钱包…" else "＋ 记一笔") }
-                    if (project.communityOfficialId != null && onOpenCommunity != null) {
+                    if (project.communityOfficialId != null && !project.communityDelisted && onOpenCommunity != null) {
                         OutlinedButton(
                             onClick = { onOpenCommunity(project) },
                             modifier = Modifier.fillMaxWidth()
@@ -593,8 +600,11 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             enabled = !isSavingAccounting
                         )
                     }
-                    Text("社区目录项目默认参与脱敏统计；选择支持的 EVM 网络并填写每个钱包自己的 Tx Hash，链上核验通过后才计入公共汇总。私人项目只进入个人账本。",
-                        color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        if (project.communityDelisted) "该项目已被社区目录明确标记为下架。仍可正常记账、编辑和查看历史；本次及后续新记录只保存在本机，不再贡献公共统计。"
+                        else "社区目录项目默认参与脱敏统计；选择支持的 EVM 网络并填写每个钱包自己的 Tx Hash，链上核验通过后才计入公共汇总。私人项目只进入个人账本。",
+                        color = if (project.communityDelisted) Color(0xFFB42318) else AppColors.TextHelper,
+                        style = MaterialTheme.typography.bodySmall)
                     selectedWallets.forEach { wallet ->
                         val selectedNetwork = accountingWalletNetworks[wallet.id].orEmpty()
                         var networkMenuExpanded by remember(wallet.id) { mutableStateOf(false) }
@@ -642,12 +652,12 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             Text("该钱包网络暂不支持公共链上核验，仍可保存个人账本。",
                                 color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
-                        if (project.communityOfficialId != null &&
+                        if (!project.communityDelisted && project.communityOfficialId != null &&
                             ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)) {
                             Text("社区目录项目默认参与脱敏统计；填写该钱包的 Tx Hash 后，系统会先核验交易，再决定是否计入公共汇总。",
                                 color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
                         }
-                        if (project.communityOfficialId != null &&
+                        if (!project.communityDelisted && project.communityOfficialId != null &&
                             ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)) {
                             OutlinedTextField(
                                 value = accountingTxHashes[wallet.id].orEmpty(),
@@ -687,7 +697,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     gasCostUsd = gas,
                                     txHash = accountingTxHashes[wallet.id].orEmpty(),
                                     reward = if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET) reward else null,
-                                    publicContributionOptIn = ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+                                    publicContributionOptIn = !project.communityDelisted && ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
                                         project.communityOfficialId,
                                         accountingRewardKind,
                                         accountingWalletNetworks[wallet.id].orEmpty().ifBlank { wallet.chain.trim().lowercase() },
@@ -717,7 +727,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             if (!saved) error("记账未保存，请检查是否存在重复交易或部分重复提交")
                             showManualAccounting = false
                             Toast.makeText(context,
-                                if (batch.hasPublicContributionOptIn) "记账成功；符合条件的社区数据等待链上核验" else "记账成功",
+                                if (project.communityDelisted) "记账成功；该项目已下架，记录仅保存在本机"
+                                else if (batch.hasPublicContributionOptIn) "记账成功；符合条件的社区数据等待链上核验" else "记账成功",
                                 Toast.LENGTH_LONG).show()
                         } catch (error: Exception) {
                             Toast.makeText(context, error.message ?: "记账失败，请检查输入", Toast.LENGTH_LONG).show()
