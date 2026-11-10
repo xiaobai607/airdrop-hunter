@@ -112,11 +112,15 @@ fun BrowserAccountingToolbar(
         selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
     }
 
-    fun saveProjectLocally(project: ProjectDto) {
-        projects = (projects.filterNot { it.id == project.id } + project)
-        selectedProjectLocalId = project.id
-        scope.launch { runCatching { accountingRepository.saveLocalProject(project) }
-            .onFailure { Toast.makeText(context, "项目保存失败，请重试", Toast.LENGTH_SHORT).show() }
+    fun saveProjectLocally(project: ProjectDto, onSaved: () -> Unit = {}) {
+        scope.launch {
+            runCatching { accountingRepository.saveLocalProject(project) }
+                .onSuccess { updated ->
+                    projects = updated
+                    selectedProjectLocalId = project.id
+                    onSaved()
+                }
+                .onFailure { Toast.makeText(context, "项目保存失败，请重试", Toast.LENGTH_SHORT).show() }
         }
     }
 
@@ -129,9 +133,10 @@ fun BrowserAccountingToolbar(
             description = "本地自定义项目",
             status = "tracking"
         )
-        saveProjectLocally(project)
-        newProjectName = ""
-        showProjectPicker = false
+        saveProjectLocally(project) {
+            newProjectName = ""
+            showProjectPicker = false
+        }
     }
 
     fun openBill(bill: PendingBillEntity) {

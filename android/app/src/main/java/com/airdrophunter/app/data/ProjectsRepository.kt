@@ -95,11 +95,11 @@ class ProjectsRepository(
         return mergePnlProjects(unique, guest = false)
     }
 
-    suspend fun createProject(request: ProjectWriteRequest, guest: Boolean): List<ProjectDto> {
+    suspend fun createProject(request: ProjectWriteRequest, guest: Boolean, localId: String? = null): List<ProjectDto> {
         val normalized = normalizeProjectRequest(request)
         val current = readCachedProjects(guest)
         val created = ProjectDto(
-            id = UUID.randomUUID().toString(),
+            id = localId?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString(),
             name = normalized.name,
             description = normalized.description,
             status = normalized.status,

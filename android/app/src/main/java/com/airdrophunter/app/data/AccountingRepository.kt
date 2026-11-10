@@ -146,7 +146,7 @@ class AccountingRepository(
             gas_cost = project.gas_cost,
             actual_income = project.actual_income
         )
-        return repository.createProject(request, guest)
+        return repository.createProject(request, guest, localId = project.id)
     }
 
     suspend fun addPendingBill(bill: PendingBillEntity) = local.addPendingBill(bill)
