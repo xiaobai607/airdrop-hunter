@@ -276,50 +276,33 @@ fun HomeScreen(
                         elevation = CardDefaults.cardElevation(if (activeDragCard == card.id) 5.dp else 1.dp)
                     ) {
                         if (card.id == "airdrop_navigation") {
-                            Row(
-                                Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 10.dp),
+                            Row(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(icon, contentDescription = null, tint = AppColors.Primary,
-                                    modifier = Modifier.size(30.dp))
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(30.dp))
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(title, color = AppColors.TextPrimary,
-                                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                    Text(subtitle, color = AppColors.TextSecondary,
-                                        style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                    Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold)
+                                    Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
                                 }
                                 if (editingDashboard) {
                                     TextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
-                                        contentPadding = PaddingValues(horizontal = 4.dp)) {
-                                        Text("移除", color = AppColors.Danger)
-                                    }
-                                } else {
-                                    Text("打开  ›", color = AppColors.Primary,
-                                        style = MaterialTheme.typography.labelMedium)
-                                }
+                                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = AppColors.Danger) }
+                                } else Text("打开  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium)
                             }
                         } else {
-                            Column(
-                                Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 9.dp),
-                                verticalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
+                            Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 9.dp),
+                                verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(icon, contentDescription = null, tint = AppColors.Primary,
-                                        modifier = Modifier.size(26.dp))
+                                    Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(26.dp))
                                     Spacer(Modifier.weight(1f))
-                                    if (editingDashboard) {
-                                        TextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
-                                            contentPadding = PaddingValues(horizontal = 4.dp)) {
-                                            Text("移除", color = AppColors.Danger)
-                                        }
-                                    }
+                                    if (editingDashboard) TextButton(
+                                        onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
+                                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = AppColors.Danger) }
                                 }
-                                Text(title, color = AppColors.TextPrimary,
-                                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1)
-                                Text(subtitle, color = AppColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
                             }
                         }
                     }

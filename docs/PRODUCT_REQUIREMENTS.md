@@ -1316,9 +1316,9 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 
 ### Home visual correction — compact first-screen layout (2026-11-10)
 
-- User's physical-device screenshots showed that the full-width 空投导航 card (180 dp) and paired wallet/TRON cards (154 dp each) consumed excessive vertical space, leaving the only global search field below the initial viewport.
-- Updated the developer-owned card specifications: 空投导航 is a compact 76 dp horizontal row; wallet/TRON and other half-width shortcuts are 104 dp. Shortcut spacing and overall Home section spacing are reduced while retaining readable touch targets and card hierarchy.
-- The 空投导航 card now uses a horizontal icon/title/subtitle treatment instead of a large empty vertical panel. Wallet and TRON cards retain a compact vertical content hierarchy.
-- The existing single global search remains directly after the shortcut cards, with a fixed 54 dp field height. It is not removed, duplicated, or moved into a hidden screen.
-- User customization remains limited to adding/removing/reordering shortcut cards and restoring defaults. Card dimensions remain developer-controlled.
-- This is a layout correction based on the supplied screenshots. Exact-head Android CI and physical-device visual acceptance are pending; do not claim the new composition is verified until installed and checked on-device.
+- User screenshots showed that the 180 dp full-width 空投导航 card and 154 dp wallet/TRON cards consumed excessive vertical space, leaving the only global search field below the initial viewport.
+- Updated developer-owned specifications: 空投导航 is a compact 76 dp horizontal row; wallet/TRON and other half-width shortcuts are 104 dp. Shortcut and overall Home section spacing are reduced.
+- 空投导航 uses a horizontal icon/title/subtitle treatment instead of a large empty vertical panel. Wallet and TRON retain a compact vertical hierarchy.
+- The existing single global search remains directly after shortcut cards in a fixed 54 dp field; it is not removed, duplicated, or hidden.
+- Users may still add/remove/reorder shortcuts and restore defaults; dimensions remain developer-controlled.
+- Exact-head Android CI and physical-device visual acceptance are pending. Do not claim verification until installed and checked on-device.
