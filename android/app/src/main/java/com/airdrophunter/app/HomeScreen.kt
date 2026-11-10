@@ -20,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -155,22 +154,6 @@ fun HomeScreen(
                 style = MaterialTheme.typography.labelSmall
             )
         }
-        Surface(
-            modifier = Modifier.fillMaxWidth().clickable { onOpenGlobalSearch() },
-            shape = RoundedCornerShape(999.dp),
-            color = AppColors.Surface,
-            border = BorderStroke(1.dp, AppColors.Border)
-        ) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.TextHelper)
-                Spacer(Modifier.width(10.dp))
-                Text("搜索币种或 DApp", color = AppColors.TextHelper, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("快捷入口", color = AppColors.TextPrimary,
                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -191,13 +174,6 @@ fun HomeScreen(
                         Text("常用活动网站", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                ShortcutCard(
-                    icon = Icons.Default.Search,
-                    title = "全局搜索",
-                    subtitle = "搜索币种、地址、DApp",
-                    onClick = onOpenGlobalSearch,
-                    modifier = Modifier.weight(1f)
-                )
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ShortcutCard(
