@@ -312,7 +312,14 @@ private fun BrowserScreen(
                     title = { Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1) },
                     navigationIcon = { IconButton(onClick = onExit) { Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary) } },
                     actions = {
-                        TextButton(onClick = { walletNavController.openAppKit() }) { Text("连接外部钱包", color = AppColors.Primary) }
+                        TextButton(onClick = {
+                            Toast.makeText(context, "正在打开外部钱包连接…", Toast.LENGTH_SHORT).show()
+                            runCatching { walletNavController.openAppKit() }
+                                .onFailure { error ->
+                                    Toast.makeText(context, error.localizedMessage ?: "无法启动外部钱包连接，请稍后重试", Toast.LENGTH_LONG).show()
+                                    Log.e("AirdropBrowser", "Unable to open external wallet connection UI", error)
+                                }
+                        }) { Text("连接外部钱包", color = AppColors.Primary) }
                         if (selectedWallet != null) TextButton(onClick = { showWalletPicker = true }) {
                             Text("钱包 · ${selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }}", color = AppColors.Primary, maxLines = 1)
                         }
@@ -722,7 +729,15 @@ private fun BrowserScreen(
                         pendingDappConnection = null
                     } else {
                         waitingDappWalletApproval = true
-                        walletNavController.openAppKit()
+                        Toast.makeText(context, "正在打开外部钱包，请在钱包中确认连接…", Toast.LENGTH_SHORT).show()
+                        runCatching { walletNavController.openAppKit() }
+                            .onFailure { error ->
+                                waitingDappWalletApproval = false
+                                DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, error.localizedMessage ?: "无法启动外部钱包")
+                                pendingDappConnection = null
+                                Toast.makeText(context, error.localizedMessage ?: "无法启动外部钱包连接", Toast.LENGTH_LONG).show()
+                                Log.e("AirdropBrowser", "Unable to launch external wallet approval", error)
+                            }
                     }
                 }) { Text("确认并连接", color = AppColors.Primary) }
             },
