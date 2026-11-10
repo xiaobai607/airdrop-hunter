@@ -1,3 +1,4 @@
+import asyncio
 import re
 import time
 from decimal import Decimal, InvalidOperation
@@ -188,6 +189,36 @@ async def fetch_price(client: httpx.AsyncClient, price_id: str) -> Decimal | Non
     except (httpx.HTTPError, KeyError, TypeError, ValueError):
         return None
 
+async def verify_evm_token_contracts(
+    client: httpx.AsyncClient, blockscout: str, token_rows: list
+) -> tuple[list, int]:
+    rows = [row for row in token_rows if isinstance(row, dict)
+            and isinstance(row.get("token"), dict)
+            and str(row["token"].get("type") or "").upper() == "ERC-20"][:50]
+    semaphore = asyncio.Semaphore(5)
+
+    async def verify(row: dict) -> dict:
+        token = row["token"]
+        contract = str(token.get("address_hash") or "").lower()
+        if not re.fullmatch(r"0x[0-9a-f]{40}", contract):
+            token["is_verified"] = False
+            return row
+        if token.get("is_verified") is True:
+            return row
+        try:
+            async with semaphore:
+                response = await client.get(f"{blockscout}/api/v2/addresses/{contract}")
+                response.raise_for_status()
+            details = response.json()
+            token["is_verified"] = isinstance(details, dict) and details.get("is_verified") is True
+        except (httpx.HTTPError, ValueError, TypeError):
+            token["is_verified"] = False
+        return row
+
+    verified_rows = await asyncio.gather(*(verify(row) for row in rows))
+    failed = sum(1 for row in verified_rows if row["token"].get("is_verified") is not True)
+    return list(verified_rows), failed
+
 @router.get("/{chain}/{address}", response_model=WalletAssetsResponse)
 @limiter.limit("12/minute")
 async def get_wallet_assets(
@@ -262,7 +293,8 @@ async def get_wallet_assets(
                     response.raise_for_status()
                     payload = response.json()
                     if isinstance(payload, list):
-                        token_rows = payload
+                        token_rows, verification_failures = await verify_evm_token_contracts(client, blockscout, payload)
+                        token_unavailable = verification_failures > 0 or len(payload) > 50
                     else:
                         token_unavailable = True
                 except httpx.HTTPError:
@@ -279,7 +311,12 @@ async def get_wallet_assets(
                 if prices.get(price_id) is not None
             }
             assets = normalize_evm_assets(chain, native_wei, token_rows, native_price, token_prices)
-            note = "当前免费服务仅提供该网络原生币余额，代币列表暂不可用" if token_unavailable else None
+            note = (
+                "当前免费服务仅提供该网络原生币余额，代币列表暂不可用"
+                if not blockscout else
+                "部分代币未能完成合约核验或列表超过 50 项，已按低可信资产隐藏"
+                if token_unavailable else None
+            )
             return WalletAssetsResponse(
                 chain=chain, network=chain.title(), provider="Public EVM RPC + Blockscout + CoinPaprika",
                 fetched_at=fetched_at, coverage_note=note, assets=assets,
