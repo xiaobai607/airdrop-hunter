@@ -131,7 +131,15 @@ private fun CommunityDashboardCard(summary: CommunitySnapshotSummaryDto?, isDemo
                         summary.gas_by_chain.forEach { chain ->
                             Surface(color = AppColors.Background, shape = RoundedCornerShape(10.dp)) {
                                 Text(
-                                    "${chain.chain}: ${String.format(Locale.US, "$%,.0f", chain.gas_usd)}",
+                                    "${when (chain.chain.lowercase()) {
+                                        "ethereum" -> "Ethereum"
+                                        "bsc" -> "BNB Chain"
+                                        "arbitrum" -> "Arbitrum"
+                                        "optimism" -> "Optimism"
+                                        "base" -> "Base"
+                                        "polygon" -> "Polygon"
+                                        else -> chain.chain
+                                    }}: ${String.format(Locale.US, "$%,.0f", chain.gas_usd)}",
                                     Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
                                     color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
                                 )
@@ -157,7 +165,7 @@ private fun CommunityDashboardCard(summary: CommunitySnapshotSummaryDto?, isDemo
                         CommunityDistributionRows("收益区间分布", summary.reward_range_distribution, Color(0xFF31B77D))
                     }
                 }
-                Text("收益概况包含预估与实际数据，仅供参考", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                Text("收益概况包含预估与实际数据，仅供参考；贡献人数按匿名标识去重，换机/重装可能重新计数", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
