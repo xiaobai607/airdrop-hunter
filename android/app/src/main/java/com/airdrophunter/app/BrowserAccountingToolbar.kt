@@ -541,9 +541,9 @@ fun BrowserAccountingToolbar(
                         shape = RoundedCornerShape(13.dp)
                     )
                     Text("请手动填写最终实际收益；如果实际为零，也请明确输入 0。未填写不能确认入账。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                    if (selectedProject?.communityOfficialId != null &&
-                        ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(contributionNetwork) &&
-                        contributionHashValid) {
+                    if (ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+                            selectedProject?.communityOfficialId, ManualRewardKind.USD, contributionNetwork, bill.txHash
+                        )) {
                         Text("该项目属于社区目录，符合条件的记录将自动参与社区脱敏统计；链上核验通过后才计入公共数据。个人账单明细不会公开。",
                             color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
                     } else if (selectedProject?.communityOfficialId == null) {
@@ -625,9 +625,9 @@ fun BrowserAccountingToolbar(
                             val assetJson = LedgerAssetBreakdownCodec.encode(assets)
                             saving = true
                             scope.launch {
-                                val autoContribute = project.communityOfficialId != null &&
-                                    ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(contributionNetwork) &&
-                                    contributionHashValid
+                                val autoContribute = ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+                                    project.communityOfficialId, ManualRewardKind.USD, contributionNetwork, bill.txHash
+                                )
                                 val ok = runCatching {
                                     accountingRepository.confirmPendingBill(
                                         bill.id, project.id, project.communityOfficialId, project.name, safeGas, safeReward, assetJson,

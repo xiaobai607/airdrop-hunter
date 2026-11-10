@@ -691,12 +691,12 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     gasCostUsd = gas,
                                     txHash = accountingTxHashes[wallet.id].orEmpty(),
                                     reward = if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET) reward else null,
-                                    publicContributionOptIn = project.communityOfficialId != null &&
-                                        accountingRewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION) &&
-                                        ManualProjectAccountingPolicy.isTransactionHashFormatValid(
-                                            accountingWalletNetworks[wallet.id].orEmpty(),
-                                            accountingTxHashes[wallet.id].orEmpty()
-                                        )
+                                    publicContributionOptIn = ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+                                        project.communityOfficialId,
+                                        accountingRewardKind,
+                                        accountingWalletNetworks[wallet.id].orEmpty(),
+                                        accountingTxHashes[wallet.id].orEmpty()
+                                    )
                                 )
                             }
                             val totalReward = if (accountingAllocationMode == ManualRewardAllocationMode.EVEN_SPLIT_TOTAL) {

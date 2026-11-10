@@ -125,7 +125,7 @@ class ProjectsRepository(
             local.write("projects", gson.toJson(synchronized), guest = false)
             mergePnlProjects(synchronized, guest = false)
         } catch (_: Exception) {
-            // Preserve the local project; it can be retried by a later sync pass.
+            // Preserve the local project and pending marker for the explicit sync-retry flow.
             mergePnlProjects(updated, guest = false)
         }
     }

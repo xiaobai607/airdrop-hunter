@@ -65,6 +65,20 @@ class ProjectsRepositoryTest {
         ProjectDto(id, name, "", "tracking")
 
 
+
+    @Test fun browserProjectCreationCanPreserveItsStableLedgerId() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            val created = repository.createProject(
+                ProjectWriteRequest("Browser project", "local", "tracking"),
+                guest = true,
+                localId = "stable-ledger-project-id"
+            )
+            assertEquals("stable-ledger-project-id", created.single().id)
+        }
+    }
+
     @Test fun authenticatedProjectIsSavedLocallyWhenServerCreateFails() {
         val local = FakeLocal()
         val remote = object : FakeRemote() {
