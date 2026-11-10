@@ -563,7 +563,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     onClick = {
                                     accountingRewardKind = kind
                                     if (kind !in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION)) {
-                                        accountingWalletPublicOptIns = emptyMap()
                                     }
                                     rewardMenuExpanded = false
                                 }
@@ -632,7 +631,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                                 text = { Text(label) },
                                                 onClick = {
                                                     accountingWalletNetworks = accountingWalletNetworks + (wallet.id to network)
-                                                    accountingWalletPublicOptIns = accountingWalletPublicOptIns + (wallet.id to false)
                                                     networkMenuExpanded = false
                                                 }
                                             )
