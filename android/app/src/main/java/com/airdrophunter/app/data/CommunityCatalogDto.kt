@@ -8,7 +8,9 @@ data class CommunityProjectCatalogDto(
     val description: String,
     val tags: List<String>,
     val website_url: String,
-    val created_at: String = ""
+    val created_at: String = "",
+    val is_active: Boolean = true,
+    val sort_order: Int = 100
 )
 
 data class CommunityProjectSubmissionRequest(
