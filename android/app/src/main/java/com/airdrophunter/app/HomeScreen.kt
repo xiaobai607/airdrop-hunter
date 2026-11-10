@@ -514,10 +514,10 @@ private object HomeDashboardLayoutStore {
         val raw = context.getSharedPreferences("home_dashboard_layout", android.content.Context.MODE_PRIVATE)
             .getString("cards", null) ?: return defaults
         val type = object : TypeToken<List<HomeDashboardCard>>() {}.type
-        val parsed = runCatching { Gson().fromJson<List<HomeDashboardCard>>(raw, type) }.getOrNull().orEmpty()
+        val parsed = runCatching { Gson().fromJson<List<HomeDashboardCard>>(raw, type) }.getOrNull() ?: return defaults
         val valid = parsed.filter { it.id in supported }.distinctBy { it.id }
             .map { it.copy(size = it.size.takeIf { size -> size in setOf("small", "medium", "large") } ?: "small") }
-        return valid.ifEmpty { defaults }
+        return valid
     }
     fun save(context: android.content.Context, cards: List<HomeDashboardCard>) {
         val valid = cards.filter { it.id in supported }.distinctBy { it.id }

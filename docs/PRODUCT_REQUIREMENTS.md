@@ -52,7 +52,7 @@ The user's latest reference image is the visual source of truth. This is a **mob
 
 - Added a responsive quick-entry card layout while retaining the BTC/ETH market dashboard and its existing cache/freshness/error rendering unchanged.
 - The three default cards remain 空投导航、钱包管理、TRON 能量租赁. Users can add the existing 空投库 and 库管理 destinations, remove cards, cycle small/medium/large sizes, and long-press/drag cards to reorder them. A restore-default-layout action is available in edit mode.
-- Card order and sizes are stored in app-private SharedPreferences and remain local to this installation. No account, cloud, or public contribution data is involved.
+- Card order and sizes are stored in app-private SharedPreferences and remain local to this installation. Empty layouts are preserved, so removing every card is not silently undone on relaunch. No account, cloud, or public contribution data is involved.
 - The single global search field remains below the quick-entry cards and continues to call the existing global-search destination. No duplicate search card is offered.
 - Implementation submitted; exact-head Android build/unit tests and physical-device layout/drag acceptance are pending. Verify portrait/landscape, narrow widths, drag target selection, add/remove/resize/reorder persistence, and restore defaults before marking accepted.
 
