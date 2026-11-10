@@ -29,11 +29,8 @@ import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.airdrophunter.app.data.AccountingRepository
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
-import com.airdrophunter.app.data.CacheStoreAccountingLocalDataSource
-import com.airdrophunter.app.data.CommunityProjectRatingRequest
 import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.CommunityTokenAggregateDto
 import com.airdrophunter.app.data.formatCommunityTokenBreakdown
@@ -316,34 +313,21 @@ fun MicroCommunityScreen(
                     if (!canRate) {
                         Text("仅限真实参与该项目的用户打分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                     } else if (saved) {
-                        Text(if (isGuest) "已保存在本机" else "已提交全网星级评分", color = AppColors.Success, style = MaterialTheme.typography.labelMedium)
-                    } else if (isGuest) {
-                        Text("游客评分只保存在本机，不计入全网评分", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text("已保存在本机", color = AppColors.Success, style = MaterialTheme.typography.labelMedium)
                     } else {
-                        Text("账号私有账本将用于验证真实参与，公开只展示星级汇总", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text("评分仅保存在本机；当前版本不会上传个人账本或提交全网评分", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                     }
                     Button(
                         onClick = {
                             if (!participationChecked || !canRate) {
-                                Toast.makeText(context, "仅限真实参与该项目的用户打分", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "仅限本机有真实参与记账记录的用户打分", Toast.LENGTH_SHORT).show()
                             } else if (selectedScore in 1..5 && !saved && !saving) {
                                 saving = true
                                 scope.launch {
-                                    val ok = if (isGuest) {
-                                        CacheStore.saveProjectRating(projectOfficialId, wallet, selectedScore)
-                                    } else {
-                                        runCatching {
-                                            val repository = AccountingRepository(CacheStoreAccountingLocalDataSource(), ApiClient.service)
-                                            check(repository.syncPersonalLedger()) { "私人账本同步失败" }
-                                            communityStats = ApiClient.service.submitCommunityProjectRating(
-                                                projectOfficialId, CommunityProjectRatingRequest(selectedScore)
-                                            )
-                                            if (wallet.isBlank()) true else CacheStore.saveProjectRating(projectOfficialId, wallet, selectedScore)
-                                        }.getOrDefault(false)
-                                    }
+                                    val ok = CacheStore.saveProjectRating(projectOfficialId, wallet, selectedScore)
                                     saving = false
                                     saved = ok
-                                    if (!ok) Toast.makeText(context, if (isGuest) "本机评分保存失败" else "云端验证失败，请确认账本已同步", Toast.LENGTH_SHORT).show()
+                                    if (!ok) Toast.makeText(context, "本机评分保存失败", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
