@@ -84,7 +84,6 @@ fun BrowserAccountingToolbar(
     var rewardSymbol by remember { mutableStateOf("") }
     var rewardDecimals by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
-    var publicContributionOptIn by remember { mutableStateOf(false) }
     var creatingMockBill by remember { mutableStateOf(false) }
     var showToolManager by remember { mutableStateOf(false) }
     val toolOptions = listOf(
@@ -144,7 +143,6 @@ fun BrowserAccountingToolbar(
         gas = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 }?.let { String.format(Locale.US, "%.2f", it) }.orEmpty()
         reward = ""
         rewardUsdEdited = false
-        publicContributionOptIn = false
         val existingAssets = LedgerAssetBreakdownCodec.decode(bill.assetBreakdownJson)
         val gasAsset = existingAssets.firstOrNull { it.kind == "gas" }
         val rewardAsset = existingAssets.firstOrNull { it.kind == "reward" }
@@ -543,24 +541,17 @@ fun BrowserAccountingToolbar(
                         shape = RoundedCornerShape(13.dp)
                     )
                     Text("请手动填写最终实际收益；如果实际为零，也请明确输入 0。未填写不能确认入账。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = publicContributionOptIn,
-                            onCheckedChange = { publicContributionOptIn = it },
-                            enabled = !saving && selectedProject?.communityOfficialId != null &&
-                                ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(contributionNetwork) &&
-                                contributionHashValid
-                        )
-                        Text("将本笔数据匿名贡献至全网大盘（需链上核验）", color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                    if (selectedProject?.communityOfficialId == null ||
-                        !ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(contributionNetwork)) {
-                        Text("该项目或网络暂不支持公共链上核验；个人账本仍可正常保存。", color = AppColors.TextHelper,
-                            style = MaterialTheme.typography.labelSmall)
-                    } else if (!contributionHashValid) {
-                        Text("当前 Tx Hash 格式无效；取消授权仍可正常保存个人账本。",
-                            color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                    if (selectedProject?.communityOfficialId != null &&
+                        ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(contributionNetwork) &&
+                        contributionHashValid) {
+                        Text("该项目属于社区目录，符合条件的记录将自动参与社区脱敏统计；链上核验通过后才计入公共数据。个人账单明细不会公开。",
+                            color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                    } else if (selectedProject?.communityOfficialId == null) {
+                        Text("这是私人自建项目，仅保存到个人账本，不参与社区统计。",
+                            color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    } else {
+                        Text("当前交易暂不满足社区核验条件；个人账本仍可正常保存。",
+                            color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     }
                     Text("原生币种明细（不同币种分别记录，不相加）", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -602,7 +593,7 @@ fun BrowserAccountingToolbar(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Button(
-                        enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null && nativeAssetsValid && (!publicContributionOptIn || contributionHashValid),
+                        enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null && nativeAssetsValid,
                         onClick = {
                             val project = projects.firstOrNull { it.id == selectedProjectLocalId } ?: return@Button
                             val safeGas = gasValue ?: return@Button
@@ -634,10 +625,13 @@ fun BrowserAccountingToolbar(
                             val assetJson = LedgerAssetBreakdownCodec.encode(assets)
                             saving = true
                             scope.launch {
+                                val autoContribute = project.communityOfficialId != null &&
+                                    ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(contributionNetwork) &&
+                                    contributionHashValid
                                 val ok = runCatching {
                                     accountingRepository.confirmPendingBill(
                                         bill.id, project.id, project.communityOfficialId, project.name, safeGas, safeReward, assetJson,
-                                        publicContributionOptIn
+                                        autoContribute
                                     )
                                 }.getOrDefault(false)
                                 saving = false
@@ -645,7 +639,7 @@ fun BrowserAccountingToolbar(
                                     showConfirm = false
                                     activeBill = null
                                     Toast.makeText(context,
-                                        if (publicContributionOptIn) "私账已确认，匿名贡献等待链上核验" else "已确认入账",
+                                        if (autoContribute) "已确认入账；社区脱敏统计等待链上核验" else "已确认入账",
                                         Toast.LENGTH_SHORT).show()
                                 } else {
                                     Toast.makeText(context, "入账失败，请重试", Toast.LENGTH_SHORT).show()
