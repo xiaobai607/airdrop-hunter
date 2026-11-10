@@ -361,9 +361,6 @@ class ProjectsRepositoryTest {
         }
     }
 
-}
-
-
 
     @Test fun pendingAuthenticatedProjectRetriesWithStableIdempotencyKey() {
         val local = FakeLocal()
@@ -465,3 +462,5 @@ class ProjectsRepositoryTest {
             assertEquals(0, remoteDeleteCalls)
         }
     }
+
+}

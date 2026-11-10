@@ -9,7 +9,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     config = Config(str(backend_dir / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0017_verified_contrib"
+    assert scripts.get_current_head() == "0018_idempotent_project_creation"
     bootstrap = scripts.get_revision("0001_bootstrap")
     ledger = scripts.get_revision("0002_personal_ledger")
     nullable_reward = scripts.get_revision("0003_nullable_expected_reward")
@@ -27,6 +27,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     community_favorites = scripts.get_revision("0015_community_favorites")
     nullable_expected_gas = scripts.get_revision("0016_nullable_expected_gas")
     verified_contributions = scripts.get_revision("0017_verified_contrib")
+    idempotent_projects = scripts.get_revision("0018_idempotent_project_creation")
     assert bootstrap is not None and bootstrap.down_revision is None
     assert ledger is not None and ledger.down_revision == "0001_bootstrap"
     assert nullable_reward is not None and nullable_reward.down_revision == "0002_personal_ledger"
@@ -44,3 +45,4 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     assert community_favorites is not None and community_favorites.down_revision == "0014_discovery_source_status"
     assert nullable_expected_gas is not None and nullable_expected_gas.down_revision == "0015_community_favorites"
     assert verified_contributions is not None and verified_contributions.down_revision == "0016_nullable_expected_gas"
+    assert idempotent_projects is not None and idempotent_projects.down_revision == "0017_verified_contrib"
