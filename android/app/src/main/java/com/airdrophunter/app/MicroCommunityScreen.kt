@@ -207,6 +207,25 @@ fun MicroCommunityScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, CircleShape).padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            listOf("overall" to "总览", "3d" to "近3天", "1h" to "近1小时").forEach { (window, label) ->
+                                val selected = selectedPeriod == window
+                                Surface(
+                                    modifier = Modifier.weight(1f).clickable { selectedPeriod = window },
+                                    color = if (selected) Color(0xFF7A58FF) else Color.Transparent,
+                                    shape = CircleShape
+                                ) {
+                                    Box(Modifier.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
+                                        Text(label, color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                            style = MaterialTheme.typography.labelLarge)
+                                    }
+                                }
+                            }
+                        }
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("Gas / 收益统计", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -226,25 +245,6 @@ fun MicroCommunityScreen(
                         if (useDemoStats) {
                             Text("测试演示数据 · 不计入全网统计", color = MaterialTheme.colorScheme.tertiary,
                                 style = MaterialTheme.typography.labelSmall)
-                        }
-                        Row(
-                            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, CircleShape).padding(3.dp),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            listOf("overall" to "总览", "3d" to "近3天", "1h" to "近1小时").forEach { (window, label) ->
-                                val selected = selectedPeriod == window
-                                Surface(
-                                    modifier = Modifier.weight(1f).clickable { selectedPeriod = window },
-                                    color = if (selected) Color(0xFF7A58FF) else Color.Transparent,
-                                    shape = CircleShape
-                                ) {
-                                    Box(Modifier.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
-                                        Text(label, color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                            style = MaterialTheme.typography.labelLarge)
-                                    }
-                                }
-                            }
                         }
                         AnimatedContent(
                             targetState = selectedPeriod,
