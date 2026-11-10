@@ -2,12 +2,16 @@ name: Production deployment readiness
 
 on:
   workflow_dispatch:
+  schedule:
+    # Daily 09:00 Asia/Shanghai; skipped until both public endpoints are configured.
+    - cron: "0 1 * * *"
 
 permissions:
   contents: read
 
 jobs:
   smoke-test:
+    if: vars.API_BASE_URL != '' && vars.COMMUNITY_SNAPSHOT_BASE_URL != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:

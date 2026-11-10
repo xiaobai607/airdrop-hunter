@@ -2,6 +2,9 @@ name: Sync approved airdrop discovery sources
 
 on:
   workflow_dispatch:
+  schedule:
+    # 08:00 Asia/Shanghai (00:00 UTC), gated by source-rights and production configuration.
+    - cron: "0 0 * * *"
 
 permissions:
   contents: read
