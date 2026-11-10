@@ -40,7 +40,7 @@ The user's latest reference image is the visual source of truth. This is a **mob
 - The 我的 page previously exposed only toast-only “消息通知” and “安全设置” rows. It now has separate “设置”, “安全中心”, and “消息通知” destinations with truthful initial information/empty states; wallet management remains available. These are initial destination shells, not a claim that all settings, security-permission controls, or push notifications are implemented.
 - The external-wallet top-bar action now gives immediate launch feedback and catches/logs launch exceptions; the DApp-origin approval path also returns an error to the requesting page if AppKit launch fails. This is a diagnostic/feedback improvement, **not proof that the user's no-response issue is fixed**. Device verification is still required.
 - Code inspection found that the current browser tool strip is only a three-action accounting capsule (mock bill, copy address, pending bills), not the requested configurable floating dock. The movable/scrollable dock, tool management, address picker/QR/explorer utilities, and persisted configuration remain pending.
-- The Home desktop-style editable card grid (add/remove/resize/reorder/persist/restore) remains pending. Only the redundant search UI has been removed so far; the existing market cache and three core quick functions are preserved.
+- The Home desktop-style card grid was implemented in the feature branch: add/remove/reorder/persist/restore. Card dimensions are developer-defined and fixed per card type; end users cannot resize cards.
 - The website loading failure remains unresolved pending a complete device trace. Current code deliberately requires HTTPS, rejects TLS errors, gates external-origin navigation with user confirmation, and may retry with a different user agent. Do not weaken these safety rules as a shortcut. Investigate redirects, WebView provider compatibility, cookies/session behavior, page errors, and external-wallet return flow before changing navigation policy.
 - No Actions build has been triggered for this feature branch yet. Validate the complete related Android batch once rather than compiling after every small edit.
 
@@ -48,13 +48,18 @@ The user's latest reference image is the visual source of truth. This is a **mob
 
 ---
 
+### User correction — Home card dimensions are developer-controlled (2026-11-10)
+
+- End users must not see or use any card resize control. Remove small/medium/large cycling from the UI and from persisted card state.
+- Card dimensions and spans are chosen and adjusted by the developer in code, using fixed per-card design rules. End users may add/remove supported cards, reorder them, and restore defaults only.
+
 ### Home dashboard implementation — configurable local card layout (2026-11-10)
 
 - Added a responsive quick-entry card layout while retaining the BTC/ETH market dashboard and its existing cache/freshness/error rendering unchanged.
-- The three default cards remain 空投导航、钱包管理、TRON 能量租赁. Users can add the existing 空投库 and 库管理 destinations, remove cards, cycle small/medium/large sizes, and long-press/drag cards to reorder them. A restore-default-layout action is available in edit mode.
-- Card order and sizes are stored in app-private SharedPreferences and remain local to this installation. Empty layouts are preserved, so removing every card is not silently undone on relaunch. No account, cloud, or public contribution data is involved.
+- The three default cards remain 空投导航、钱包管理、TRON 能量租赁. Users can add the existing 空投库 and 库管理 destinations, remove cards, and long-press/drag cards to reorder them. Card sizes and spans are fixed by the app's design, not user-configurable. A restore-default-layout action is available in edit mode.
+- Card order is stored in app-private SharedPreferences and remains local to this installation. Card dimensions are fixed in code by card type. Empty layouts are preserved, so removing every card is not silently undone on relaunch. No account, cloud, or public contribution data is involved.
 - The single global search field remains below the quick-entry cards and continues to call the existing global-search destination. No duplicate search card is offered.
-- Implementation submitted; exact-head Android build/unit tests and physical-device layout/drag acceptance are pending. Verify portrait/landscape, narrow widths, drag target selection, add/remove/resize/reorder persistence, and restore defaults before marking accepted.
+- Implementation submitted; exact-head Android build/unit tests and physical-device layout/drag acceptance are pending. Verify portrait/landscape, narrow widths, drag target selection, add/remove/reorder persistence, and restore defaults before marking accepted.
 
 ### Home global-search entry correction (2026-11-10)
 
@@ -96,7 +101,7 @@ These requirements were added from the user's physical-device test screenshots a
 ### C. Home becomes a phone-desktop card dashboard
 - Keep exactly one global coin/DApp search field **below the quick-entry cards**, opening the existing GlobalSearchScreen. Remove only any duplicate global-search shortcut card from the quick-entry grid. Preserve search history, local/remote search, result navigation, and the dedicated search destination; do not delete the search field or search capability.
 - Keep the three default quick functions readily accessible: **空投导航、钱包管理、TRON 能量租赁**.
-- Rebuild the Home quick-entry area as a responsive, user-customizable phone-desktop card grid: users can add/remove supported cards, resize cards (small/medium/large or equivalent grid spans), reorder by drag, and combine cards freely. Layout adapts to screen width/orientation and does not overlap or clip. Persist layout locally and provide a restore-default-layout action.
+- Rebuild the Home quick-entry area as a responsive phone-desktop card grid: users can add/remove supported cards and reorder by drag. **Card size and grid span are developer-defined fixed design values; users cannot resize cards.** Layout adapts to screen width/orientation and does not overlap or clip. Persist card selection/order locally and provide a restore-default-layout action.
 - Retain the existing BTC/ETH market dashboard and its cache/freshness/error behavior unless the user later changes it. The card dashboard must coexist with it without duplicate search UI. The three default quick-function cards must remain readily accessible; do not remove the underlying wallet management or TRON energy-rental capabilities.
 
 ### D. Airdrop Library wording

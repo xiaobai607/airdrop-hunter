@@ -201,7 +201,7 @@ fun HomeScreen(
                         Text("恢复默认布局")
                     }
                 }
-                Text("长按卡片拖动排序；可调整尺寸或移除。", color = AppColors.TextHelper,
+                Text("长按卡片拖动排序；可添加或移除。", color = AppColors.TextHelper,
                     style = MaterialTheme.typography.labelSmall)
             }
             FlowRow(
@@ -223,8 +223,8 @@ fun HomeScreen(
                     Card(
                         onClick = { if (!editingDashboard) openDashboardCard(card.id) },
                         modifier = Modifier
-                            .fillMaxWidth(if (card.size == "small") 0.48f else 1f)
-                            .height(when (card.size) { "large" -> 208.dp; "medium" -> 180.dp; else -> 154.dp })
+                            .fillMaxWidth(if (card.id == "airdrop_navigation") 1f else 0.48f)
+                            .height(if (card.id == "airdrop_navigation") 180.dp else 154.dp)
                             .onGloballyPositioned { dashboardBounds[card.id] = it.boundsInRoot() }
                             .then(if (editingDashboard) Modifier.pointerInput(card.id, editingDashboard, dashboardCards) {
                                 detectDragGesturesAfterLongPress(
@@ -266,12 +266,6 @@ fun HomeScreen(
                                 Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(32.dp))
                                 Spacer(Modifier.weight(1f))
                                 if (editingDashboard) {
-                                    TextButton(onClick = {
-                                        val next = when (card.size) { "small" -> "medium"; "medium" -> "large"; else -> "small" }
-                                        saveDashboardCards(dashboardCards.map { if (it.id == card.id) it.copy(size = next) else it })
-                                    }, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                                        Text(when (card.size) { "small" -> "小"; "medium" -> "中"; else -> "大" })
-                                    }
                                     TextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
                                         contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = AppColors.Danger) }
                                 }
@@ -296,7 +290,7 @@ fun HomeScreen(
                         if (available.isEmpty()) Text("目前没有更多可添加的快捷功能。", color = AppColors.TextSecondary)
                         available.forEach { id ->
                             TextButton(onClick = {
-                                saveDashboardCards(dashboardCards + HomeDashboardCard(id, "small"))
+                                saveDashboardCards(dashboardCards + HomeDashboardCard(id))
                                 showAddDashboardCard = false
                             }) { Text(HomeDashboardLayoutStore.title(id), color = AppColors.Primary) }
                         }
@@ -484,13 +478,13 @@ private fun ShortcutCard(
 }
 
 
-private data class HomeDashboardCard(val id: String, val size: String = "small")
+private data class HomeDashboardCard(val id: String)
 
 private object HomeDashboardLayoutStore {
     val defaults = listOf(
-        HomeDashboardCard("airdrop_navigation", "medium"),
-        HomeDashboardCard("wallet_management", "small"),
-        HomeDashboardCard("tron_energy", "small")
+        HomeDashboardCard("airdrop_navigation"),
+        HomeDashboardCard("wallet_management"),
+        HomeDashboardCard("tron_energy")
     )
     private val supported = listOf("airdrop_navigation", "wallet_management", "tron_energy", "airdrop_library", "project_library")
     fun title(id: String) = when (id) {
@@ -515,9 +509,8 @@ private object HomeDashboardLayoutStore {
             .getString("cards", null) ?: return defaults
         val type = object : TypeToken<List<HomeDashboardCard>>() {}.type
         val parsed = runCatching { Gson().fromJson<List<HomeDashboardCard>>(raw, type) }.getOrNull() ?: return defaults
-        val valid = parsed.filter { it.id in supported }.distinctBy { it.id }
-            .map { it.copy(size = it.size.takeIf { size -> size in setOf("small", "medium", "large") } ?: "small") }
-        return valid
+        return parsed.filter { it.id in supported }.distinctBy { it.id }
+            .map { HomeDashboardCard(it.id) }
     }
     fun save(context: android.content.Context, cards: List<HomeDashboardCard>) {
         val valid = cards.filter { it.id in supported }.distinctBy { it.id }
