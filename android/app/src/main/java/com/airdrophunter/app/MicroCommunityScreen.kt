@@ -148,7 +148,9 @@ fun MicroCommunityScreen(
                 Text("Steam 式真实参与者评价 · 仅星级评分", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(
                     onClick = {
-                        scope.launch {
+                        if (isDemoProject) {
+                            Toast.makeText(context, "测试项目不会写入库管理", Toast.LENGTH_SHORT).show()
+                        } else scope.launch {
                             val added = runCatching {
                                 CacheStore.joinCommunityProject(projectOfficialId, projectName)
                             }.getOrDefault(false)
@@ -159,20 +161,24 @@ fun MicroCommunityScreen(
                             ).show()
                         }
                     },
-                    enabled = !isJoined,
+                    enabled = !isJoined && !isDemoProject,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(if (isJoined) Icons.Default.Check else Icons.Default.Add, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    Text(if (isJoined) "已添加到库管理" else "添加到库管理")
+                    Text(when {
+                        isDemoProject -> "测试项目 · 不会加入库管理"
+                        isJoined -> "已添加到库管理"
+                        else -> "添加到库管理"
+                    })
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(projectName, color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text(overallProject?.chain ?: "全网公开统计", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(overallProject?.chain ?: if (isDemoProject) "测试演示项目" else "全网公开统计", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                     overallProject?.logo?.takeIf { it.isNotBlank() }?.let { logo ->
                         Surface(shape = RoundedCornerShape(12.dp), color = AppColors.Surface) {
@@ -180,7 +186,9 @@ fun MicroCommunityScreen(
                         }
                     }
                 }
-                overallProject?.description?.takeIf { it.isNotBlank() }?.let {
+                val detailDescription = overallProject?.description?.takeIf { it.isNotBlank() }
+                    ?: if (isDemoProject) "这是用于界面与流程测试的虚构空投项目，不代表真实项目、真实奖励或真实参与数据。" else null
+                detailDescription?.let {
                     Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
                 overallProject?.website_url?.takeIf { it.startsWith("https://", true) }?.let { url ->
@@ -219,19 +227,22 @@ fun MicroCommunityScreen(
                             val projectSnapshot = snapshotProjects[window]
                             val gas = if (useDemoStats) demoStats.gas * demoScale else projectSnapshot?.gas_cost_usd_valuation ?: 0.0
                             val reward = if (useDemoStats) demoStats.reward * demoScale else projectSnapshot?.actual_reward_usd_valuation ?: 0.0
-                            val updateTime = periodSnapshots[window]?.update_time
-                            val verificationTiers = if (useDemoStats) emptyMap() else
-                                projectSnapshot?.gas_by_verification_tier?.takeIf { it.isNotEmpty() }
-                                    ?: if (window == "overall") communityStats?.gas_by_verification_tier.orEmpty() else emptyMap()
+                            val updateTime = if (useDemoStats) {
+                                when (window) {
+                                    "overall" -> "2026-11-11T03:00:00"
+                                    "7d" -> "2026-11-11T02:55:00"
+                                    "3d" -> "2026-11-11T02:50:00"
+                                    else -> "2026-11-11T02:45:00"
+                                }
+                            } else periodSnapshots[window]?.update_time
                             CommunitySnapshotPeriodMetric(
                                 title = title,
                                 gas = gas,
                                 reward = reward,
                                 updateTime = updateTime,
-                                showUpdateTime = window != "overall",
+                                showUpdateTime = true,
                                 gasTokens = if (useDemoStats) emptyList() else projectSnapshot?.gas_by_token.orEmpty(),
                                 rewardTokens = if (useDemoStats) emptyList() else projectSnapshot?.reward_by_token.orEmpty(),
-                                gasByVerificationTier = verificationTiers,
                                 hasData = useDemoStats || gas > 0.0 || reward > 0.0 ||
                                     !projectSnapshot?.gas_by_token.isNullOrEmpty() || !projectSnapshot?.reward_by_token.isNullOrEmpty()
                             )
