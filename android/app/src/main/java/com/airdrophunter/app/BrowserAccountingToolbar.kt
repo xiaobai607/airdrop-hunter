@@ -5,10 +5,13 @@ import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,6 +27,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -37,6 +45,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import kotlin.math.roundToInt
 import java.time.Instant
 
 @Composable
@@ -48,6 +57,13 @@ fun BrowserAccountingToolbar(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.roundToPx() }
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.roundToPx() }
+    val dockEdgePaddingPx = with(density) { 16.dp.roundToPx() }
+    var dockOffset by remember { mutableStateOf(IntOffset.Zero) }
+    var dockSizePx by remember { mutableStateOf(IntOffset.Zero) }
     val application = context.applicationContext as AirdropHunterApplication
     val accountingRepository = remember(application) { application.appContainer.accountingRepository }
     val pending by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -163,16 +179,49 @@ fun BrowserAccountingToolbar(
             isValidNativeAssetInput(rewardNative, rewardSymbol, rewardDecimals)
 
     Surface(
-        modifier = modifier,
-        color = Color(0xCCFFFFFF),
-        shape = CircleShape,
-        border = BorderStroke(1.dp, AppColors.Border.copy(alpha = 0.8f)),
-        shadowElevation = 5.dp
+        modifier = modifier
+            .widthIn(min = 304.dp, max = 360.dp)
+            .offset { dockOffset }
+            .onSizeChanged { dockSizePx = IntOffset(it.width, it.height) }
+            .pointerInput(screenWidthPx, screenHeightPx, dockSizePx, dockOffset) {
+                detectDragGesturesAfterLongPress(
+                    onDragEnd = {
+                        val centeredBaseX = ((screenWidthPx - dockSizePx.x) / 2).coerceAtLeast(0)
+                        val leftOffset = dockEdgePaddingPx - centeredBaseX
+                        val rightOffset = screenWidthPx - dockSizePx.x - dockEdgePaddingPx - centeredBaseX
+                        val snappedX = if (kotlin.math.abs(dockOffset.x - leftOffset) <= kotlin.math.abs(dockOffset.x - rightOffset)) {
+                            leftOffset
+                        } else rightOffset
+                        val topSafePx = with(density) { 72.dp.roundToPx() }
+                        val minOffsetY = (topSafePx - (screenHeightPx - dockSizePx.y)).coerceAtMost(0)
+                        dockOffset = IntOffset(snappedX, dockOffset.y.coerceIn(minOffsetY, 0))
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        val centeredBaseX = ((screenWidthPx - dockSizePx.x) / 2).coerceAtLeast(0)
+                        val leftLimit = dockEdgePaddingPx - centeredBaseX
+                        val rightLimit = screenWidthPx - dockSizePx.x - dockEdgePaddingPx - centeredBaseX
+                        val topSafePx = with(density) { 72.dp.roundToPx() }
+                        val minOffsetY = (topSafePx - (screenHeightPx - dockSizePx.y)).coerceAtMost(0)
+                        dockOffset = IntOffset(
+                            (dockOffset.x + dragAmount.x.roundToInt()).coerceIn(leftLimit, rightLimit),
+                            (dockOffset.y + dragAmount.y.roundToInt()).coerceIn(minOffsetY, 0)
+                        )
+                    }
+                )
+            },
+        color = Color(0xEFFFFFFF),
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(1.dp, AppColors.Border.copy(alpha = 0.9f)),
+        shadowElevation = 9.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp)
+            horizontalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             AccountingCapsuleButton(
                 description = "模拟抓取账单",
@@ -540,7 +589,7 @@ private fun AccountingCapsuleButton(
         enabled = !loading,
         shape = CircleShape,
         color = background.copy(alpha = 0.82f),
-        modifier = Modifier.size(40.dp),
+        modifier = Modifier.size(48.dp),
         border = BorderStroke(1.dp, tint.copy(alpha = 0.14f))
     ) {
         Box(contentAlignment = Alignment.Center) { content() }
