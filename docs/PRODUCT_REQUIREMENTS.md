@@ -663,7 +663,7 @@ Recommended next implementation order, based on shared-code dependencies:
 - **Timestamp presentation:** under each non-overall comparison row show its own “更新于 …” timestamp. Overall may also show its generated time.
 - **Data integrity:** snapshots aggregate only eligible anonymous public contributions and confirmed actual Gas/actual rewards; theoretical estimates, demo fixtures, private user details, and unconfirmed outcomes are excluded. Keep per-token amounts separate and label any USD conversion as an estimate/valuation. Missing data is shown as missing, not fabricated.
 - **Operational boundary:** scheduled aggregation and CDN publication are backend/ops responsibilities. Do not add a public APK secret, do not calculate aggregate snapshots on app-open, and do not claim a production CDN/Cron is configured until the deployment is actually verified.
-- **UI hierarchy:** concise project-list cards show identity, brief rating/reputation, and overall Gas-vs-actual-reward bar. Tapping opens a vertically scrolling detail page with the four windows above simultaneously visible; no tabs.
+- **UI hierarchy (superseded by 2026-11-11 detail-card override):** concise project-list cards follow the latest library-list rules. Tapping opens the individual project detail page, where one unified animated card exposes exactly three visible tabs (总览、近3天、近1小时); no separately stacked period cards. Backend snapshot generation may retain overall/7d/3d/1h windows for compatibility, but 7d is not a visible detail-page tab.
 
 
 ### Static community snapshot implementation (PRs #67, #69, and #70 merged; #68 superseded)
@@ -1142,7 +1142,7 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 
 ### Batch 09 — community UI and social metrics (current implementation)
 
-- Existing main code already provides compact project cards, project-detail waterfall layout with four windows, exact Gas/reward comparison bars, rating eligibility/reputation labels, rankings, favorites, and catalog adoption links. Reuse these features; do not rebuild them.
+- Existing main code already provides compact project cards, project-detail Gas/reward statistics, rating eligibility/reputation labels, rankings, favorites, and catalog adoption links. The 2026-11-11 override replaces the former four-window waterfall detail layout with one unified three-tab card (总览、近3天、近1小时). Reuse existing data/repository behavior while following the latest visible UI rule.
 - PR #119 added `gas_by_verification_tier` to static snapshots and Android DTOs. The project detail currently lists tier amounts as text, but the project cards do not show tier provenance and neither surface visualizes the relative split.
 - Current Batch 09 change adds a shared deterministic three-tier breakdown bar to both project cards and each project-detail time window: user-reported uses a translucent segment, transaction-linked uses a distinct amber segment, and amount-verified uses a solid segment. Amount labels remain explicit; invalid/negative/zero/unknown tiers do not create fabricated segments. The existing Gas-vs-reward comparison remains separate and unchanged.
 - Android unit tests cover stable tier ordering, exact normalized shares, invalid/negative/non-finite values, and preservation of original amounts.
