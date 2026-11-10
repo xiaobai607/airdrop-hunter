@@ -90,7 +90,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     var accountingRewardUnit by remember(project.id, sessionScopeKey) { mutableStateOf("") }
     var accountingRewardKind by remember(project.id, sessionScopeKey) { mutableStateOf(ManualRewardKind.USD) }
     var accountingAllocationMode by remember(project.id, sessionScopeKey) { mutableStateOf(ManualRewardAllocationMode.PER_WALLET) }
-    var accountingWalletPublicOptIns by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var accountingWalletNetworks by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var accountingTxHashes by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isSavingAccounting by remember(project.id, sessionScopeKey) { mutableStateOf(false) }
@@ -204,7 +203,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                             .intersect(accountingWallets.map { it.id }.toSet())
                                             .ifEmpty { accountingWallets.map { it.id }.toSet() }
                                         accountingTxHashes = emptyMap()
-                                        accountingWalletPublicOptIns = emptyMap()
                                         accountingBatchId = UUID.randomUUID().toString()
                                         showManualAccounting = true
                                     }
@@ -596,7 +594,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             enabled = !isSavingAccounting
                         )
                     }
-                    Text("匿名贡献需选择每个钱包实际发生交易的 EVM 网络，并填写该钱包自己的 Tx Hash；仅公共项目和完整 USD 奖励可参与。",
+                    Text("社区目录项目默认参与脱敏统计；选择支持的 EVM 网络并填写每个钱包自己的 Tx Hash，链上核验通过后才计入公共汇总。私人项目只进入个人账本。",
                         color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
                     selectedWallets.forEach { wallet ->
                         val selectedNetwork = accountingWalletNetworks[wallet.id].orEmpty()
