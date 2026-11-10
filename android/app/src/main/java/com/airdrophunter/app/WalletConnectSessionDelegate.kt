@@ -70,7 +70,7 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
         publishAccounts(emptyList())
     }
 
-    private fun parseAccounts(rawAccounts: List<String>, walletLabel: String): List<WalletConnectAccount> =
+    internal fun parseAccounts(rawAccounts: List<String>, walletLabel: String): List<WalletConnectAccount> =
         rawAccounts.mapNotNull { raw ->
             val parts = raw.split(":")
             if (parts.size < 3 || !parts[0].equals("eip155", ignoreCase = true)) return@mapNotNull null
@@ -81,5 +81,20 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
                 chainId = parts[1],
                 walletLabel = walletLabel.ifBlank { "External Wallet" }
             )
-        }.distinctBy { it.address.lowercase() }
+        }.distinctBy { "${it.chainId}:${it.address.lowercase()}" }
+
+    internal fun accountForChain(
+        accounts: List<WalletConnectAccount>,
+        chainReference: String?
+    ): WalletConnectAccount? {
+        val normalizedChain = chainReference
+            ?.removePrefix("eip155:")
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+        return if (normalizedChain == null) {
+            accounts.firstOrNull()
+        } else {
+            accounts.firstOrNull { it.chainId.removePrefix("eip155:") == normalizedChain }
+        }
+    }
 }

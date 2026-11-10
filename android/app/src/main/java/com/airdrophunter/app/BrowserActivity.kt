@@ -389,8 +389,15 @@ private fun BrowserScreen(
                                             DappProviderBridge.success(replyProxy, request.id, JSONArray(addresses))
                                         }
                                         "eth_chainId", "net_version" -> {
-                                            val rawChainReference = connectedDappAccounts.firstOrNull()?.chainId
-                                                ?: runCatching { AppKit.getSelectedChain()?.chainReference }.getOrNull()
+                                            val selectedChainReference = runCatching { AppKit.getSelectedChain()?.chainReference }.getOrNull()
+                                            val activeSessionAccount = WalletConnectSessionDelegate.accountForChain(
+                                                connectedDappAccounts, selectedChainReference
+                                            )
+                                            val rawChainReference = if (connectedDappAccounts.isNotEmpty()) {
+                                                activeSessionAccount?.chainId
+                                            } else {
+                                                selectedChainReference
+                                            }
                                             val chainReference = rawChainReference
                                                 ?.removePrefix("eip155:")
                                                 ?.trim()
@@ -419,9 +426,15 @@ private fun BrowserScreen(
                                             when {
                                                 DappProviderBridge.isSupportedExternalWalletMethod(request.method) -> {
                                                     val sessionTopic = activeWalletConnectTopic
-                                                    val account = connectedDappAccounts.firstOrNull()
+                                                    val selectedChainReference = AppKit.getSelectedChain()?.chainReference
+                                                    val account = WalletConnectSessionDelegate.accountForChain(
+                                                        connectedDappAccounts, selectedChainReference
+                                                    )
                                                     val authorized = authorizedDappOrigins[origin] == currentDappAuthorizationStamp()
-                                                    val connectedAddresses = connectedDappAccounts.map { it.address }.toSet()
+                                                    val connectedAddresses = connectedDappAccounts
+                                                        .filter { account != null && it.chainId == account.chainId }
+                                                        .map { it.address }
+                                                        .toSet()
                                                     val firstRequestParam = request.params.opt(0) as? String
                                                     val secondRequestParam = request.params.opt(1) as? String
                                                     val transactionFrom = request.params.optJSONObject(0)?.optString("from")
