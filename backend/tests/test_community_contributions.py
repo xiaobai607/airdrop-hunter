@@ -12,6 +12,7 @@ from app.api.community_stats import CommunityAssetAmount, normalize_public_asset
 from app.models import CommunityProjectStats, User
 from app.routers.auth import get_optional_current_user
 from app.services.transaction_verification import VerificationResult
+from app.services.community_privacy import anonymous_contributor_fingerprint
 
 
 @pytest.fixture(autouse=True)
@@ -40,6 +41,18 @@ def _headers(client, prefix: str):
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
+
+
+def test_contributor_id_is_hmac_fingerprinted_and_never_returned_raw(monkeypatch):
+    contributor_id = uuid4()
+    monkeypatch.setenv("COMMUNITY_CONTRIBUTOR_HMAC_SECRET", "test-secret-that-is-long-enough-123456")
+    first = anonymous_contributor_fingerprint(contributor_id)
+    second = anonymous_contributor_fingerprint(contributor_id)
+    other = anonymous_contributor_fingerprint(uuid4())
+    assert first == second
+    assert first != other
+    assert len(first) == 64
+    assert str(contributor_id) not in first
 
 
 def test_public_valuation_source_is_allowlisted_and_cannot_embed_private_identifiers():
