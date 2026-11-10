@@ -17,7 +17,8 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
     val hasError: Boolean = false,
-    val marketError: String? = null
+    val marketError: String? = null,
+    val lastSuccessfulUpdateAt: Long? = null
 )
 
 class HomeViewModel(
@@ -35,7 +36,7 @@ class HomeViewModel(
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
-                isLoading = true,
+                isLoading = _uiState.value.market.isEmpty(),
                 isRefreshing = true,
                 hasError = false,
                 marketError = null
@@ -43,10 +44,13 @@ class HomeViewModel(
 
             try {
                 val tickers = repository.fetchSpotTickers()
-                _uiState.value = HomeUiState(
-                    market = tickers,
+                _uiState.value = _uiState.value.copy(
+                    market = tickers.filter { it.symbol in setOf("BTC", "ETH") },
                     isLoading = false,
-                    isRefreshing = false
+                    isRefreshing = false,
+                    hasError = false,
+                    marketError = null,
+                    lastSuccessfulUpdateAt = System.currentTimeMillis()
                 )
             } catch (error: Exception) {
                 val message = when (error) {
@@ -54,8 +58,7 @@ class HomeViewModel(
                     is SocketTimeoutException -> "行情请求超时，请稍后点击重试。"
                     else -> error.message ?: "行情服务暂时不可用，请稍后重试。"
                 }
-                _uiState.value = HomeUiState(
-                    market = emptyList(),
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isRefreshing = false,
                     hasError = true,
