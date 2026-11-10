@@ -3,11 +3,9 @@ package com.airdrophunter.app
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
@@ -33,8 +31,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
-import com.airdrophunter.app.data.CommunitySnapshotSummaryDto
-import com.airdrophunter.app.data.CommunityRangeDistributionDto
 import com.airdrophunter.app.data.CommunityProjectSubmissionRequest
 import com.airdrophunter.app.ui.theme.AppColors
 import java.time.Instant
@@ -85,84 +81,6 @@ private fun CommunityDistributionRows(
                     }
                     Text("${row.count} · ${String.format(Locale.US, "%.0f%%", row.percentage)}", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CommunityDashboardCard(summary: CommunitySnapshotSummaryDto?, isDemo: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-        border = BorderStroke(1.dp, AppColors.Border),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("社区大盘", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.weight(1f))
-                Text(if (isDemo) "演示数据" else "脱敏汇总", color = if (isDemo) Color(0xFF9A5B12) else AppColors.Primary, style = MaterialTheme.typography.labelSmall)
-            }
-            if (summary == null) {
-                Text("社区统计快照暂不可用，联网后自动更新", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
-            } else {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Gas 总支出", color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall)
-                        Text(String.format(Locale.US, "$%,.0f", summary.gas_total_usd), color = AppColors.TextPrimary,
-                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text("收益总额", color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall)
-                        Text(String.format(Locale.US, "$%,.0f", summary.reward_total_usd), color = AppColors.TextPrimary,
-                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Text("Gas 分链支出", color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                if (summary.gas_by_chain.isEmpty()) {
-                    Text("暂无分链数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                } else {
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        summary.gas_by_chain.forEach { chain ->
-                            Surface(color = AppColors.Background, shape = RoundedCornerShape(10.dp)) {
-                                Text(
-                                    "${when (chain.chain.lowercase()) {
-                                        "ethereum" -> "Ethereum"
-                                        "bsc" -> "BNB Chain"
-                                        "arbitrum" -> "Arbitrum"
-                                        "optimism" -> "Optimism"
-                                        "base" -> "Base"
-                                        "polygon" -> "Polygon"
-                                        else -> chain.chain
-                                    }}: ${String.format(Locale.US, "$%,.0f", chain.gas_usd)}",
-                                    Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text("累计贡献人数", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                        Text(String.format(Locale.US, "%,d", summary.cumulative_contributors), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text("近 30 天活跃", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                        Text(String.format(Locale.US, "%,d", summary.active_30d_contributors), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        CommunityDistributionRows("Gas 支出分布", summary.gas_range_distribution, Color(0xFFE76565))
-                    }
-                    Column(Modifier.weight(1f)) {
-                        CommunityDistributionRows("收益区间分布", summary.reward_range_distribution, Color(0xFF31B77D))
-                    }
-                }
-                Text("收益概况包含预估与实际数据，仅供参考；贡献人数按匿名标识去重，换机/重装可能重新计数", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -378,9 +296,6 @@ fun CommunitySquareScreen(
             }
         }
         item {
-            CommunityDashboardCard(summary = displaySummary, isDemo = BuildConfig.DEBUG && useDemoData)
-        }
-        item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("社区榜单", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -534,34 +449,7 @@ fun CommunitySquareScreen(
                             }
                         }
                     }
-                    if (project.websiteUrl.isNotBlank()) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                project.websiteUrl,
-                                Modifier.weight(1f),
-                                color = AppColors.TextSecondary,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            TextButton(
-                                onClick = {
-                                    runCatching { uriHandler.openUri(project.websiteUrl) }
-                                        .onFailure {
-                                            Toast.makeText(context, "无法打开项目链接", Toast.LENGTH_SHORT).show()
-                                        }
-                                },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                            ) {
-                                Text("打开链接")
-                            }
-                        }
-                    } else {
-                        Text("项目链接待补充", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Text("查看评价  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                    }
+
 
                 }
             }
