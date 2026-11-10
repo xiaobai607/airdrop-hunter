@@ -3,8 +3,6 @@ package com.airdrophunter.app
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.json.JSONArray
-import org.json.JSONObject
 
 class DappProviderBridgeTest {
     @Test
@@ -44,22 +42,22 @@ class DappProviderBridgeTest {
         val account = "0x0123456789012345678901234567890123456789"
         val accounts = setOf(account)
         assertTrue(DappProviderBridge.isAuthorizedAccountRequest(
-            "personal_sign", JSONArray().put("0xdeadbeef").put(account), accounts
+            "personal_sign", "0xdeadbeef", account, null, accounts
         ))
         assertTrue(DappProviderBridge.isAuthorizedAccountRequest(
-            "eth_signTypedData_v4", JSONArray().put(account).put("{}"), accounts
+            "eth_signTypedData_v4", account, "{}", null, accounts
         ))
         assertTrue(DappProviderBridge.isAuthorizedAccountRequest(
-            "eth_sendTransaction", JSONArray().put(JSONObject().put("from", account)), accounts
+            "eth_sendTransaction", null, null, account, accounts
         ))
         assertEquals(false, DappProviderBridge.isAuthorizedAccountRequest(
-            "eth_sendTransaction", JSONArray().put(JSONObject().put("from", "0x9999999999999999999999999999999999999999")), accounts
+            "eth_sendTransaction", null, null, "0x9999999999999999999999999999999999999999", accounts
         ))
         assertEquals(false, DappProviderBridge.isAuthorizedAccountRequest(
-            "personal_sign", JSONArray().put("0xdeadbeef"), accounts
+            "personal_sign", "0xdeadbeef", null, null, accounts
         ))
         assertEquals(false, DappProviderBridge.isAuthorizedAccountRequest(
-            "personal_sign", JSONArray().put(account).put(account), accounts
+            "personal_sign", account, account, null, accounts
         ))
     }
 
