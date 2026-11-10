@@ -168,7 +168,7 @@ class ProjectsRepository(
         // confirmed P&L and interaction history intact when a project is removed.
         local.write("tasks:${project.id}", "[]", guest)
         runCatching { CacheStore.saveProjectWalletAssignments(project.id, emptySet()) }
-        return mergePnlProjects(updated)
+        return mergePnlProjects(updated, guest)
     }
 
     suspend fun readCachedTasks(projectId: String, guest: Boolean): List<TaskDto> =
