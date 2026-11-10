@@ -1470,6 +1470,23 @@ object CacheStore {
             dao.upsertAll(rows.map { it.copy(accountScope = scope, walletId = walletId, chain = chain.lowercase()) })
         }
     }
+    suspend fun readUnifiedAssetsForToken(walletId: String, chain: String, accessToken: String?): List<UnifiedAssetEntity> = withContext(Dispatchers.IO) {
+        val scope = accountScopeFromToken(accessToken)
+        if (scope == "invalid-session") emptyList()
+        else database?.unifiedAssetDao()?.getForWallet(scope, walletId, chain.lowercase()).orEmpty()
+    }
+    suspend fun replaceUnifiedAssetsForToken(
+        walletId: String, chain: String, rows: List<UnifiedAssetEntity>, accessToken: String?
+    ) = withContext(Dispatchers.IO) {
+        val db = database ?: return@withContext
+        val scope = accountScopeFromToken(accessToken)
+        if (scope == "invalid-session" || walletId.isBlank()) return@withContext
+        db.withTransaction {
+            val dao = db.unifiedAssetDao()
+            dao.clearForWallet(scope, walletId, chain.lowercase())
+            dao.upsertAll(rows.map { it.copy(accountScope = scope, walletId = walletId, chain = chain.lowercase()) })
+        }
+    }
     suspend fun readCacheMetadata(cacheKey: String, source: String): CacheMetadataEntity? = withContext(Dispatchers.IO) {
         database?.cacheMetadataDao()?.find(cacheKey, source)
     }
