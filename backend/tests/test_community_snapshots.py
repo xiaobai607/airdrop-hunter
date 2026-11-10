@@ -74,6 +74,50 @@ def test_snapshot_contains_money_ratings_and_catalog_metadata_only():
 
 
 
+def test_public_reward_uses_actual_when_confirmed_and_estimate_when_not():
+    now = datetime(2026, 11, 9, 8, 0, tzinfo=timezone.utc)
+    snapshot = assemble_snapshot(
+        "overall",
+        now,
+        [
+            {
+                "project_official_id": "actual-project",
+                "name": "Actual",
+                "chain": "Base",
+                "logo": "",
+                "description": "",
+                "website_url": "",
+                "created_at": now,
+                "tags": [],
+                "gas_cost_usd": 2.0,
+                "actual_reward_usd": 12.0,
+                "estimated_reward_usd": 4.0,
+                "reward_usd": 12.0,
+            },
+            {
+                "project_official_id": "estimate-project",
+                "name": "Estimate",
+                "chain": "Arbitrum",
+                "logo": "",
+                "description": "",
+                "website_url": "",
+                "created_at": now,
+                "tags": [],
+                "gas_cost_usd": 1.0,
+                "actual_reward_usd": 0.0,
+                "estimated_reward_usd": 8.0,
+                "reward_usd": 8.0,
+            },
+        ],
+        [],
+    )
+    projects = {row["project_official_id"]: row for row in snapshot["projects"]}
+    assert projects["actual-project"]["reward_usd_valuation"] == 12.0
+    assert projects["actual-project"]["estimated_reward_usd_valuation"] == 4.0
+    assert projects["estimate-project"]["reward_usd_valuation"] == 8.0
+    assert snapshot["summary"]["reward_total_usd"] == 20.0
+
+
 def test_range_distribution_uses_anonymous_quantile_buckets_without_individual_rows():
     distribution = _range_distribution([10, 20, 30, 40, 50, 60])
     assert sum(item["count"] for item in distribution) == 6
