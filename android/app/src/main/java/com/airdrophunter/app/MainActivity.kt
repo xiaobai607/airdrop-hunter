@@ -231,7 +231,8 @@ private fun AirdropHunterApp(
                     onOpenCommunity = { selectedCommunityProject = it },
                     sessionScopeKey = sessionScopeKey
                 )
-                tab == 0 -> HomeScreen(
+                tab == 0 -> tabStateHolder.SaveableStateProvider("bottom-tab-0") {
+                    HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     onOpenSources = { activeOverlay = AppOverlay.SOURCES },
                     onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
@@ -241,7 +242,8 @@ private fun AirdropHunterApp(
                     onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
                     isGuest = isGuest, onRequireAuth = onRequireAuth,
                     sessionScopeKey = sessionScopeKey
-                )
+                    )
+                }
                 else -> tabStateHolder.SaveableStateProvider("bottom-tab-$tab") {
                     when (tab) {
                         1 -> CommunitySquareScreen(
