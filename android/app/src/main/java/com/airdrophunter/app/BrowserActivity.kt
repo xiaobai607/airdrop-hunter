@@ -423,6 +423,10 @@ private fun BrowserScreen(
                                                             DappProviderBridge.error(replyProxy, request.id, -32002, "已有一笔外部钱包请求正在等待确认")
                                                         !DappProviderBridge.isAuthorizedAccountRequest(request.method, request.params, connectedAddresses) ->
                                                             DappProviderBridge.error(replyProxy, request.id, 4100, "请求使用的钱包地址未在当前外部钱包会话中授权")
+                                                        AppKit.getSelectedChain()?.chainReference
+                                                            ?.removePrefix("eip155:")
+                                                            ?.let { it != account.chainId.removePrefix("eip155:") } != false ->
+                                                            DappProviderBridge.error(replyProxy, request.id, 4901, "外部钱包当前网络与授权账户网络不一致，请在外部钱包切换网络后重新连接")
                                                         else -> {
                                                             val chainReference = account.chainId.let {
                                                                 if (it.startsWith("eip155:")) it else "eip155:$it"
@@ -439,11 +443,10 @@ private fun BrowserScreen(
                                                                 AppKit.request(
                                                                     request = ExternalWalletRequest(
                                                                         method = request.method,
-                                                                        params = request.params.toString(),
-                                                                        chainId = chainReference
+                                                                        params = request.params.toString()
                                                                     ),
-                                                                    onSuccess = {},
-                                                                    onError = { error ->
+                                                                    onSuccess = { _ -> },
+                                                                    onError = { error: Throwable ->
                                                                         dappRequestScope.launch {
                                                                             if (pendingDappExternalRequest?.request?.id == request.id) {
                                                                                 DappProviderBridge.error(
