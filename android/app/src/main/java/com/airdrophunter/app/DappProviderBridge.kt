@@ -132,7 +132,13 @@ internal object DappProviderBridge {
     fun isSupportedExternalWalletMethod(method: String): Boolean =
         method.trim().lowercase() in externalWalletMethods
 
-    fun isAuthorizedAccountRequest(method: String, params: JSONArray, accounts: Set<String>): Boolean {
+    fun isAuthorizedAccountRequest(
+        method: String,
+        firstParam: String?,
+        secondParam: String?,
+        transactionFrom: String?,
+        accounts: Set<String>
+    ): Boolean {
         if (accounts.isEmpty()) return false
         val normalizedAccounts = accounts.map { it.lowercase() }.toSet()
         fun isAuthorizedAddress(value: String?): Boolean =
@@ -142,28 +148,21 @@ internal object DappProviderBridge {
 
         return when (method.trim().lowercase()) {
             "personal_sign" -> {
-                val first = params.optString(0).takeIf { params.opt(0) is String }
-                val second = params.optString(1).takeIf { params.opt(1) is String }
                 val addressPattern = Regex("^0x[a-fA-F0-9]{40}$")
-                val firstLooksLikeAddress = first?.let(addressPattern::matches) == true
-                val secondLooksLikeAddress = second?.let(addressPattern::matches) == true
+                val firstLooksLikeAddress = firstParam?.let(addressPattern::matches) == true
+                val secondLooksLikeAddress = secondParam?.let(addressPattern::matches) == true
                 when {
-                    firstLooksLikeAddress && !secondLooksLikeAddress -> isAuthorizedAddress(first)
-                    secondLooksLikeAddress && !firstLooksLikeAddress -> isAuthorizedAddress(second)
+                    firstLooksLikeAddress && !secondLooksLikeAddress -> isAuthorizedAddress(firstParam)
+                    secondLooksLikeAddress && !firstLooksLikeAddress -> isAuthorizedAddress(secondParam)
                     else -> false
                 }
             }
             "eth_sign",
             "eth_signtypeddata",
             "eth_signtypeddata_v3",
-            "eth_signtypeddata_v4" -> isAuthorizedAddress(
-                params.optString(0).takeIf { params.opt(0) is String }
-            )
+            "eth_signtypeddata_v4" -> isAuthorizedAddress(firstParam)
             "eth_signtransaction",
-            "eth_sendtransaction" -> {
-                val transaction = params.optJSONObject(0)
-                isAuthorizedAddress(transaction?.optString("from"))
-            }
+            "eth_sendtransaction" -> isAuthorizedAddress(transactionFrom)
             else -> false
         }
     }
