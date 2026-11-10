@@ -413,9 +413,6 @@ class ProjectsRepositoryTest {
                 if (failCreate) throw IllegalStateException("offline")
                 return super.createProject(request)
             }
-            override suspend fun updateProject(projectId: String, request: ProjectWriteRequest): ProjectDto {
-                throw AssertionError("pending project must not call update before it has a remote ID")
-            }
         }
         val repository = ProjectsRepository(remote, local)
         kotlinx.coroutines.runBlocking {
@@ -436,6 +433,7 @@ class ProjectsRepositoryTest {
             val synced = repository.refreshProjects().single()
             assertEquals("Edited offline", synced.name)
             assertEquals("latest details", synced.description)
+            assertEquals("completed", synced.status)
             assertFalse(synced.syncPending)
         }
     }

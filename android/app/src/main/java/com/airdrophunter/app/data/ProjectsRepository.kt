@@ -88,6 +88,12 @@ class ProjectsRepository(
         cached.filter { it.syncPending }.forEach { pending ->
             try {
                 val response = remote.createProject(pending.toWriteRequest().copy(client_project_id = pending.id))
+                // A previous request may have committed before its response was lost.
+                // Reapply the latest local fields before clearing the pending marker.
+                remote.updateProject(
+                    response.id,
+                    pending.toWriteRequest().copy(client_project_id = pending.id)
+                )
                 cached = cached.map { current ->
                     if (current.id == pending.id) current.copy(
                         remoteId = response.id,
