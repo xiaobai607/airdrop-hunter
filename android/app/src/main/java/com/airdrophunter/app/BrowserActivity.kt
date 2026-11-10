@@ -165,7 +165,7 @@ private fun BrowserScreen(
     var pendingDappConnection by remember { mutableStateOf<PendingDappConnection?>(null) }
     var pendingDappExternalRequest by remember { mutableStateOf<PendingDappExternalRequest?>(null) }
     var waitingDappWalletApproval by remember { mutableStateOf(false) }
-    val authorizedDappOrigins = remember { mutableStateMapOf<String, String>() }
+    val authorizedDappOrigins by DappOriginPermissionStore.authorizedOrigins.collectAsState()
     val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsState()
     val connectedSessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsState()
     val activeWalletConnectTopic by WalletConnectSessionDelegate.sessionTopic.collectAsState()
@@ -256,7 +256,7 @@ private fun BrowserScreen(
                     connectedDappAccounts.isNotEmpty()
 
             if (!completingUserApprovedConnection) {
-                authorizedDappOrigins.clear()
+                DappOriginPermissionStore.revokeAll()
                 pendingDappExternalRequest?.let { pending ->
                     DappProviderBridge.error(pending.replyProxy, pending.request.id, 4100, "外部钱包会话已变化，请重新连接")
                     pendingDappExternalRequest = null
@@ -279,7 +279,7 @@ private fun BrowserScreen(
         if (waitingDappWalletApproval && connectedDappAccounts.isNotEmpty()) {
             val pending = pendingDappConnection
             if (pending != null) {
-                authorizedDappOrigins[pending.origin] = currentDappAuthorizationStamp()
+                DappOriginPermissionStore.grant(pending.origin, currentDappAuthorizationStamp())
                 val addresses = JSONArray(connectedDappAccounts.map { it.address }.distinct())
                 DappProviderBridge.success(pending.replyProxy, pending.request.id, addresses)
             }
@@ -540,7 +540,7 @@ private fun BrowserScreen(
                                     val previousOrigin = runCatching { DappProviderBridge.origin(Uri.parse(currentPageUrl)) }.getOrNull()
                                     val currentOrigin = runCatching { DappProviderBridge.origin(Uri.parse(it)) }.getOrNull()
                                     if (previousOrigin != null && currentOrigin != previousOrigin) {
-                                        authorizedDappOrigins.clear()
+                                        DappOriginPermissionStore.revokeAll()
                                     }
                                     if (isNewDocument) {
                                         pendingDappConnection?.let { pending ->
@@ -713,7 +713,7 @@ private fun BrowserScreen(
                 TextButton(onClick = {
                     val addresses = connectedDappAccounts.map { it.address }.distinct()
                     if (addresses.isNotEmpty()) {
-                        authorizedDappOrigins[pending.origin] = currentDappAuthorizationStamp()
+                        DappOriginPermissionStore.grant(pending.origin, currentDappAuthorizationStamp())
                         DappProviderBridge.success(pending.replyProxy, pending.request.id, JSONArray(addresses))
                         pendingDappConnection = null
                     } else {

@@ -25,6 +25,7 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
     val requestResponses = _requestResponses.asSharedFlow()
 
     private fun publishAccounts(accounts: List<WalletConnectAccount>) {
+        DappOriginPermissionStore.revokeAll()
         _accounts.value = accounts
         _sessionGeneration.value += 1L
     }

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -58,6 +59,7 @@ fun ProfileScreen(
     var selectedBackupUri by remember { mutableStateOf<Uri?>(null) }
     var pendingBackup by remember { mutableStateOf<LocalBackupSnapshot?>(null) }
     var backupBusy by remember { mutableStateOf(false) }
+    var activeProfileDestination by remember { mutableStateOf<ProfileDestination?>(null) }
 
     val createBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -195,13 +197,10 @@ fun ProfileScreen(
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("设置", color = AppColors.TextHelper, style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+            SettingRow("设置", Icons.Default.Settings) { activeProfileDestination = ProfileDestination.SETTINGS }
+            SettingRow("安全中心", Icons.Default.Security) { activeProfileDestination = ProfileDestination.SECURITY }
+            SettingRow("消息通知", Icons.Default.NotificationsNone) { activeProfileDestination = ProfileDestination.NOTIFICATIONS }
             SettingRow("钱包管理", Icons.Default.Wallet, onManageWallets)
-            SettingRow("消息通知", Icons.Default.NotificationsNone) {
-                Toast.makeText(context, "消息通知功能正在开发中", Toast.LENGTH_SHORT).show()
-            }
-            SettingRow("安全设置", Icons.Default.Security) {
-                Toast.makeText(context, "安全设置功能正在开发中", Toast.LENGTH_SHORT).show()
-            }
             SettingRow("关于", Icons.Default.Info) {
                 Toast.makeText(context, "关于页面正在开发中", Toast.LENGTH_SHORT).show()
             }
@@ -308,6 +307,9 @@ fun ProfileScreen(
                 dismissButton = { TextButton(onClick = { showRestoreConfirmDialog = false; pendingBackup = null; selectedBackupUri = null }) { Text("取消") } }
             )
         }
+    }
+    activeProfileDestination?.let { destination ->
+        ProfileDestinationDialog(destination = destination) { activeProfileDestination = null }
     }
 }
 
