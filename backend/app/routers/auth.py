@@ -1,0 +1,149 @@
+import re
+import secrets
+from typing import Annotated
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt.exceptions import InvalidTokenError
+from pydantic import BaseModel, field_validator
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from app.database import get_db
+from app.models import User
+from app.security import create_access_token, decode_access_token, hash_password, verify_password
+
+router = APIRouter(prefix="/api/auth", tags=["authentication"])
+bearer_scheme = HTTPBearer(auto_error=False)
+limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
+
+
+class AuthRequest(BaseModel):
+    username: str
+    password: str
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, value: str) -> str:
+        if re.fullmatch(r"[A-Za-z0-9]{4,20}", value) is None:
+            raise ValueError("账号只能由4到20位英文字母和数字组成")
+        return value.lower()
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if not 8 <= len(value) <= 30:
+            raise ValueError("密码长度必须为8到30位")
+        return value
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user_id: str
+    username: str
+    uid: str
+
+
+def auth_response(user: User) -> AuthResponse:
+    return AuthResponse(
+        access_token=create_access_token(user.id),
+        user_id=str(user.id),
+        username=user.username,
+        uid=user.uid,
+    )
+
+
+async def get_current_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
+    unauthorized = HTTPException(
+        401,
+        "登录状态无效或已过期，请重新登录",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise unauthorized
+    try:
+        user_id: UUID = decode_access_token(credentials.credentials)
+    except (InvalidTokenError, ValueError, TypeError):
+        raise unauthorized
+    user = await db.scalar(select(User).where(User.id == user_id))
+    if user is None:
+        raise unauthorized
+    return user
+
+
+async def get_optional_current_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User | None:
+    if credentials is None:
+        return None
+    return await get_current_user(credentials, db)
+
+
+@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/hour")
+@limiter.limit("3/minute")
+async def register(
+    request: Request,
+    payload: AuthRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AuthResponse:
+    if not getattr(request.app.state, "allow_registration", False):
+        raise HTTPException(status_code=403, detail="注册功能开发中，请等待后续更新")
+
+    username = payload.username
+    existing = await db.scalar(select(User).where(User.username == username))
+    if existing is not None:
+        raise HTTPException(400, "该账号已存在")
+
+    # Six-digit IDs are allocated randomly and protected by a database unique index.
+    for _ in range(10):
+        uid = f"{secrets.randbelow(900000) + 100000:06d}"
+        user = User(
+            username=username,
+            uid=uid,
+            email=None,
+            display_name=username,
+            password_hash=hash_password(payload.password),
+        )
+        db.add(user)
+        try:
+            await db.commit()
+            await db.refresh(user)
+            return auth_response(user)
+        except IntegrityError:
+            await db.rollback()
+            duplicate = await db.scalar(select(User).where(User.username == username))
+            if duplicate is not None:
+                raise HTTPException(400, "该账号已存在")
+    raise HTTPException(503, "暂时无法分配用户编号，请稍后重试")
+
+
+@router.post("/login", response_model=AuthResponse)
+@limiter.limit("20/hour")
+@limiter.limit("5/minute")
+async def login(
+    request: Request,
+    payload: AuthRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AuthResponse:
+    username = payload.username
+    user = await db.scalar(select(User).where(User.username == username))
+    if user is None or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(401, "账号或密码错误", headers={"WWW-Authenticate": "Bearer"})
+    return auth_response(user)
+
+
+@router.get("/me")
+async def get_me(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    user = await get_current_user(credentials, db)
+    return {"user_id": str(user.id), "username": user.username, "uid": user.uid}

@@ -1,0 +1,48 @@
+name: Publish community static snapshots
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every five minutes; the job remains disabled until production storage is configured.
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: community-static-snapshot-publisher
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: vars.COMMUNITY_SNAPSHOT_PUBLISH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      COMMUNITY_SNAPSHOT_S3_BUCKET: ${{ vars.COMMUNITY_SNAPSHOT_S3_BUCKET }}
+      COMMUNITY_SNAPSHOT_S3_ENDPOINT_URL: ${{ vars.COMMUNITY_SNAPSHOT_S3_ENDPOINT_URL }}
+      COMMUNITY_SNAPSHOT_S3_ACCESS_KEY_ID: ${{ secrets.COMMUNITY_SNAPSHOT_S3_ACCESS_KEY_ID }}
+      COMMUNITY_SNAPSHOT_S3_SECRET_ACCESS_KEY: ${{ secrets.COMMUNITY_SNAPSHOT_S3_SECRET_ACCESS_KEY }}
+      COMMUNITY_SNAPSHOT_PUBLIC_BASE_URL: ${{ vars.COMMUNITY_SNAPSHOT_PUBLIC_BASE_URL }}
+      COMMUNITY_SNAPSHOT_S3_REGION: ${{ vars.COMMUNITY_SNAPSHOT_S3_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install snapshot publisher
+        run: pip install .
+      - name: Build and publish due snapshots
+        shell: bash
+        run: |
+          if [[ -z "$DATABASE_URL" || -z "$COMMUNITY_SNAPSHOT_S3_BUCKET" || -z "$COMMUNITY_SNAPSHOT_S3_ENDPOINT_URL" || -z "$COMMUNITY_SNAPSHOT_S3_ACCESS_KEY_ID" || -z "$COMMUNITY_SNAPSHOT_S3_SECRET_ACCESS_KEY" || -z "$COMMUNITY_SNAPSHOT_PUBLIC_BASE_URL" ]]; then
+            echo "::notice::Snapshot publishing is not configured yet; skipping without touching the public manifest."
+            exit 0
+          fi
+          python -m scripts.publish_community_snapshots
