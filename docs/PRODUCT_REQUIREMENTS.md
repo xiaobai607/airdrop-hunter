@@ -6,8 +6,8 @@
 ### Reference-image-matched browser dock — detailed UI and behavior (2026-11-10)
 
 The user's latest reference image is the visual source of truth. This is a **mobile app-launcher dock**, not a row of tiny floating action buttons:
-- Outer frame: one long horizontal, pale blue / lightly translucent rounded-rectangle tray with generous corner radius, subtle border and shadow. Target height about 100 dp and width about 94% of the available phone width (capped on larger screens).
-- Inner tools: consistent rounded-square icon tiles, approximately 68 dp touch targets, balanced spacing, recognizable single-color pictograms and soft individual tile backgrounds. Avoid undersized glyphs, compressed spacing, or circular-only icon buttons.
+- Outer frame: one long horizontal glass-effect capsule with a semi-transparent white fill (about 35% opacity), a 1 dp white highlight border (about 60% opacity), a 12 dp black-tinted ambient/spot shadow, and a 50%-rounded capsule shape. Keep the target height about 100 dp and width about 94% of the available phone width (capped at 420 dp); leave about 24 dp below it.
+- Inner tools: each action keeps an approximately 68 dp touch target and contains a 48 dp rounded-square app icon with a 16 dp corner radius, a saturated solid-color background unique to the action, and a centered 24 dp solid white Material icon. Do not use thin line glyphs, emoji, pale icon backgrounds, or circular-only icon buttons. Keep the action label below the icon.
 - The tray scrolls horizontally internally. A final plus tile opens an add/manage dialog. Available actions include mock bill, copy wallet address, pending bills, refresh page, copy page URL and open current page externally. The selected tool set is saved independently of the dock's position.
 - Long-press and drag the tray itself to reposition it; release snaps its horizontal position to the nearest screen side and keeps it within the safe vertical area. Normal horizontal swipes should scroll the inner tool row.
 - The tray defaults to the bottom of the browser viewport. Its coordinates are transient Compose state only and must not be written to preferences/database; leaving and re-entering the browser resets it to the bottom.
@@ -93,8 +93,8 @@ These requirements were added from the user's physical-device test screenshots a
 
 ### B. Airdrop Navigation horizontal floating dock — current approved scope
 
-- The dock is one horizontal pale-blue translucent rounded tray, approximately 100 dp high, 94% of available width (maximum 420 dp), with consistent rounded-square tool tiles around 68 dp.
-- Tool tiles scroll horizontally inside the tray. A plus tile opens tool management. Users can add/remove the six currently approved actions, reorder them, and restore defaults.
+- The dock is one horizontal glass-effect capsule with a 35%-opacity white fill, 60%-opacity white highlight border, 12 dp black-tinted shadow, 50%-rounded capsule shape, approximately 100 dp high, 94% of available width (maximum 420 dp), and about 24 dp bottom spacing. Each approximately 68 dp tool target contains a 48 dp, 16 dp-rounded saturated solid-color icon tile with a centered 24 dp solid white Material icon; labels sit below.
+- Tool tiles scroll horizontally inside the tray. The add tile uses a white/light translucent background and a dark-gray plus icon, and opens tool management. Users can add/remove the six currently approved actions, reorder them, and restore defaults.
 - The six approved actions are: mock bill, copy current wallet address, pending bills, refresh current page, copy current page URL, and open current page externally.
 - The whole tray moves only after a long press and drag; normal horizontal swipes scroll its inner row. On release, it snaps horizontally to the nearest side and stays within the browser viewport's safe vertical bounds.
 - The dock starts at the bottom on every fresh browser entry. Only selected tool IDs/order may persist; drag coordinates and position/orientation must never be persisted.
@@ -1287,3 +1287,10 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - This cleanup does not delete historical completed-feature evidence or shared data models that remain in use. Delete only code proven unreachable/obsolete; preserve migrations, persisted-data compatibility, and required accounting flows.
 - Validation is still pending for the latest Android code cleanup. PR #135 remains draft/unmerged; do not treat a docs-only update or prior cancelled CI run as validation.
 
+### Browser dock visual style — latest user correction (2026-11-10)
+
+- This visual specification supersedes the earlier pale-blue/soft-tint icon treatment. Keep the dock's existing behavior and developer-controlled 100 dp overall height / 94% width / 420 dp maximum width; do not let users resize it.
+- Every action tile remains an approximately 68 dp touch target. Its icon itself must be a 48 dp square `Box` with a 16 dp rounded rectangle clip, a saturated solid-color background, and a centered 24 dp solid white Material icon. Use distinct strong colors by action; do not use thin-line icons, emoji glyphs, or pale low-contrast icon backgrounds.
+- The add tile is the exception: use a white or very lightly translucent background and a dark-gray plus icon.
+- The outer dock is a horizontal capsule: semi-transparent white fill (about 35% opacity), 1 dp white highlight border (about 60% opacity), 12 dp black-tinted ambient/spot shadow, capsule corner shape, and approximately 24 dp spacing from the viewport bottom.
+- Preserve internal horizontal scrolling, long-press whole-dock dragging, horizontal edge snapping, safe vertical bounds, selected-tool persistence, and non-persistence of dock coordinates. Preserve all six actions and the accounting dialogs/data flow.
