@@ -12,12 +12,19 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from app.routers.auth import limiter
 from app.routers.wallet import identify_chain
+from app.services.provider_resilience import (
+    ProviderResponseError,
+    post_json_rpc_with_provider_failover,
+    request_with_provider_failover,
+)
 
 router = APIRouter(prefix="/api/wallet-activity", tags=["wallet activity"])
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 TRONGRID = "https://api.trongrid.io"
 BLOCKSTREAM = "https://blockstream.info/api"
 SOLANA_RPC = "https://api.mainnet-beta.solana.com"
+SOLANA_RPC_PROVIDERS = (SOLANA_RPC, "https://solana-rpc.publicnode.com")
+BITCOIN_API_PROVIDERS = (BLOCKSTREAM, "https://mempool.space/api")
 SATOSHIS_PER_BTC = Decimal("100000000")
 COINPAPRIKA_BASE = "https://api.coinpaprika.com/v1/tickers/"
 COINPAPRIKA_ETH = COINPAPRIKA_BASE + "eth-ethereum"
@@ -251,18 +258,15 @@ async def tron_transactions(client: httpx.AsyncClient, address: str, limit: int)
 async def solana_transactions(client: httpx.AsyncClient, address: str, limit: int):
     # The public Solana RPC has practical request limits. Keep one refresh bounded
     # and return only confirmed signatures with a readable transaction receipt.
-    response = await client.post(
-        SOLANA_RPC,
-        json={
+    payload, _ = await post_json_rpc_with_provider_failover(
+        client, SOLANA_RPC_PROVIDERS, {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "getSignaturesForAddress",
             "params": [address, {"limit": min(limit, 20), "commitment": "confirmed"}],
-        },
+        }
     )
-    response.raise_for_status()
-    payload = response.json()
-    signatures = (payload.get("result") if isinstance(payload, dict) else None)
+    signatures = payload.get("result") if isinstance(payload, dict) else None
     if not isinstance(signatures, list):
         raise HTTPException(502, "Solana 交易列表响应格式无效")
 
@@ -271,9 +275,8 @@ async def solana_transactions(client: httpx.AsyncClient, address: str, limit: in
         signature = str(item.get("signature") or "") if isinstance(item, dict) else ""
         if not re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]{64,90}", signature):
             continue
-        tx_response = await client.post(
-            SOLANA_RPC,
-            json={
+        tx_payload, _ = await post_json_rpc_with_provider_failover(
+            client, SOLANA_RPC_PROVIDERS, {
                 "jsonrpc": "2.0",
                 "id": 1,
                 "method": "getTransaction",
@@ -285,10 +288,8 @@ async def solana_transactions(client: httpx.AsyncClient, address: str, limit: in
                         "maxSupportedTransactionVersion": 0,
                     },
                 ],
-            },
+            }
         )
-        tx_response.raise_for_status()
-        tx_payload = tx_response.json()
         result = tx_payload.get("result") if isinstance(tx_payload, dict) else None
         if not isinstance(result, dict):
             continue
@@ -371,8 +372,10 @@ def build_solana_transactions(rows, address: str, price: Decimal | None, limit: 
 
 
 async def bitcoin_transactions(client: httpx.AsyncClient, address: str, limit: int):
-    response = await client.get(f"{BLOCKSTREAM}/address/{address}/txs")
-    response.raise_for_status()
+    response, selected_provider = await request_with_provider_failover(
+        client, "GET",
+        [f"{base}/address/{address}/txs" for base in BITCOIN_API_PROVIDERS],
+    )
     first_page = response.json()
     if not isinstance(first_page, list):
         raise HTTPException(502, "Bitcoin 交易服务返回无效数据")
@@ -388,10 +391,13 @@ async def bitcoin_transactions(client: httpx.AsyncClient, address: str, limit: i
         last_seen = str(confirmed_rows[-1].get("txid") or "")
         if not re.fullmatch(r"[0-9a-fA-F]{64}", last_seen):
             break
-        page_response = await client.get(
-            f"{BLOCKSTREAM}/address/{address}/txs/chain/{last_seen}"
+        provider_order = (selected_provider, *(
+            base for base in BITCOIN_API_PROVIDERS if base != selected_provider
+        ))
+        page_response, _ = await request_with_provider_failover(
+            client, "GET",
+            [f"{base}/address/{address}/txs/chain/{last_seen}" for base in provider_order],
         )
-        page_response.raise_for_status()
         page = page_response.json()
         if not isinstance(page, list) or not page:
             break
@@ -626,3 +632,5 @@ async def list_wallet_transactions(
         raise HTTPException(503, "链上数据服务暂时不可用") from exc
     except httpx.HTTPError as exc:
         raise HTTPException(503, "链上数据服务连接失败") from exc
+    except ProviderResponseError as exc:
+        raise HTTPException(503, "链上节点暂时返回无效数据，请稍后重试") from exc

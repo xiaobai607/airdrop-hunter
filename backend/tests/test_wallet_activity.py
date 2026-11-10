@@ -198,6 +198,8 @@ def test_solana_rpc_parser_reads_confirmed_fee_and_first_account_fee_payer():
     class FakeResponse:
         def __init__(self, payload):
             self.payload = payload
+            self.status_code = 200
+            self.headers = {}
 
         def raise_for_status(self):
             return None
@@ -208,6 +210,10 @@ def test_solana_rpc_parser_reads_confirmed_fee_and_first_account_fee_payer():
     class FakeClient:
         def __init__(self):
             self.calls = 0
+
+        async def request(self, method, url, **kwargs):
+            assert method == "POST"
+            return await self.post(url, kwargs["json"])
 
         async def post(self, url, json):
             self.calls += 1
@@ -267,3 +273,52 @@ def test_tron_provider_row_normalization_enforces_requested_limit():
         1_700_000_000_004,
         1_700_000_000_003,
     ]
+
+
+def test_bitcoin_history_rotates_to_mempool_esplora_after_blockstream_failure():
+    import asyncio
+    import httpx
+    from app.routers.wallet_activity import bitcoin_transactions
+
+    async def run():
+        calls = []
+
+        async def handler(request):
+            calls.append(request.url.host)
+            if request.url.host == "blockstream.info":
+                return httpx.Response(503, request=request)
+            return httpx.Response(200, json=[], request=request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            rows = await bitcoin_transactions(client, WALLET, 10)
+        return rows, calls
+
+    rows, calls = asyncio.run(run())
+    assert rows == []
+    assert calls == ["blockstream.info", "mempool.space"]
+
+
+def test_solana_history_rotates_after_json_rpc_provider_error():
+    import asyncio
+    import httpx
+    from app.routers.wallet_activity import solana_transactions
+
+    async def run():
+        calls = []
+
+        async def handler(request):
+            calls.append(request.url.host)
+            if request.url.host == "api.mainnet-beta.solana.com":
+                return httpx.Response(
+                    200, json={"jsonrpc": "2.0", "error": {"code": -32005, "message": "busy"}},
+                    request=request,
+                )
+            return httpx.Response(200, json={"jsonrpc": "2.0", "result": []}, request=request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            rows = await solana_transactions(client, WALLET, 10)
+        return rows, calls
+
+    rows, calls = asyncio.run(run())
+    assert rows == []
+    assert calls == ["api.mainnet-beta.solana.com", "solana-rpc.publicnode.com"]
