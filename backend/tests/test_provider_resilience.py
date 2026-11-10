@@ -71,9 +71,17 @@ def test_json_rpc_provider_failover_rejects_rpc_error_payload():
                 {"jsonrpc": "2.0", "id": 1, "method": "eth_getBalance", "params": ["0xabc", "latest"]},
                 sleep=no_wait, jitter=lambda: 1.0,
             )
+            second_result, second_provider = await post_json_rpc_with_provider_failover(
+                client,
+                ["https://primary.example", "https://backup.example"],
+                {"jsonrpc": "2.0", "id": 1, "method": "eth_getBalance", "params": ["0xabc", "latest"]},
+                sleep=no_wait, jitter=lambda: 1.0,
+            )
         assert result["result"] == "0x1"
         assert provider == "https://backup.example"
-        assert calls == ["primary.example", "backup.example"]
+        assert second_result["result"] == "0x1"
+        assert second_provider == "https://backup.example"
+        assert calls == ["primary.example", "backup.example", "backup.example"]
 
     asyncio.run(run())
 

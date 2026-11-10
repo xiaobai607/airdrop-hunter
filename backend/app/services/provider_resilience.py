@@ -122,7 +122,7 @@ async def post_json_rpc_with_provider_failover(
     jitter: Callable[[], float] = lambda: random.uniform(0.8, 1.2),
 ) -> tuple[dict[str, Any], str]:
     last_error: Exception | None = None
-    candidates = list(urls)[:3]
+    candidates = _provider_candidates(urls, 3)
     if not candidates:
         raise ValueError("No public RPC endpoints configured")
     for index, url in enumerate(candidates):
