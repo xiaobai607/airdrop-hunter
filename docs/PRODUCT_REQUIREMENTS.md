@@ -10,6 +10,7 @@ The following decisions are newer than the older baseline below. Where older sec
 - All detailed personal data for every user, including guests and any existing authenticated session, is stored on the phone in the local Room database for this release.
 - Do not upload personal ledgers, personal wallet lists, personal project records, task details, transaction details, or personal P&L to a private cloud service. Do not build or expose private-ledger cloud sync, account-based personal-data persistence, or cross-device cloud restore in this phase.
 - The server receives only the minimum anonymous/de-identified aggregate contribution data required for public community statistics. Never include wallet addresses, transaction hashes, individual ledger rows, account identity, or personal details in public payloads.
+- Project ratings in this release are also local-only: eligibility is checked against the user's locally stored confirmed participation record, and the 1–5 star choice is saved in Room. Do not sync a private ledger or submit a rating through the authenticated/global-rating endpoint. Public rating aggregates remain read-only until a separate anonymous, privacy-preserving eligibility-proof flow is designed and validated; do not weaken real-participant or anti-abuse checks to work around this boundary.
 - Do not expose registration or login in the current release. Existing authentication/account/private-sync code may remain in the repository for a later phase, but it is not an active current-release personal-data path and must not be expanded or presented as available. The app starts in local mode; a legacy token may remain only as a local Room namespace key and must never be sent to the server. The approved device-migration path is the encrypted local backup/import file in Section 1.
 
 ### Community public dashboard — confirmed presentation and aggregation
@@ -1453,3 +1454,12 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Keep the individual project card's single continuous red/green Gas/reward comparison bar, but remove the two text labels and USD amounts beneath it (“Gas USD 估值” and “收益 USD 估值”). Do not replace the bar with numbers or percentages.
 - Do not show project website URLs, “项目链接待补充”, or an “打开链接” action on the project list card. Website and qualification links are shown only after opening the individual project detail page.
 - Remove the “查看评价” action from project list cards. Do not remove the detail-page content merely because this list shortcut is removed.
+
+
+### 2026-11-11 — local-only project rating correction
+
+- Source audit found the real-account rating branch still called `AccountingRepository.syncPersonalLedger()` before submitting a global rating. This contradicted the current-release local-only personal-data rule.
+- All eligible local ratings now use the same Room save path for guest and legacy-account scopes. Eligibility still requires an existing locally stored project P&L/participation record; demo projects remain ineligible.
+- Removed the personal-ledger sync and global rating submission from the rating action. The UI now truthfully says ratings are local-only in this release.
+- Public rating aggregates remain read-only. A future global-rating write path requires a separate anonymous, privacy-preserving participation proof and anti-abuse design; it must not upload private ledgers or wallet identifiers.
+- Exact-head Android/backend CI and physical-device validation are pending.
