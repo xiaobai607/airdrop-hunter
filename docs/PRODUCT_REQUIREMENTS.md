@@ -13,24 +13,21 @@ The user's latest reference image is the visual source of truth. This is a **mob
 - The tray defaults to the bottom of the browser viewport. Its coordinates are transient Compose state only and must not be written to preferences/database; leaving and re-entering the browser resets it to the bottom.
 - Acceptance still requires Android build plus physical-device checks: visual proportions on the user's phone, internal scroll vs long-press drag distinction, edge snap, plus/add/remove, all six tool actions, and bottom reset after exit/re-entry.
 
-### Implementation progress — reference-image dock pass (feature branch; PR #135)
+### Implementation progress — browser dock source audit and implementation (feature branch; PR #135)
 
-- Replaced the tiny circular-action row with a 94%-width, 100 dp translucent pale-blue rounded tray; icon tiles are 68 dp rounded squares with larger glyphs and consistent spacing.
-- Added horizontal internal scrolling, an always-visible plus tile, and an add/manage dialog. Selected tool IDs are saved in app preferences, while drag coordinates remain transient only.
-- Added functional dock actions for mock bill, copy wallet address, pending bills, page refresh, copy page URL and open externally; connected the three new browser actions to the active WebView/current URL.
-- Implemented long-press drag and horizontal side snapping while constraining vertical movement to the visible safe area. The default offset is zero, aligned at the bottom by the browser parent.
-- Gesture stability correction: the dock's changing drag offset is no longer a `pointerInput` restart key. Previously, every movement could cancel and recreate the long-press drag detector; the detector now remains active through the drag while reading the latest Compose state. Screen dimensions and measured dock size remain restart keys so configuration/geometry changes can safely reinitialize gesture handling.
-- Browser loading correction: increased each WebView load attempt timeout from 3 seconds to 12 seconds before changing user-agent/retrying, reducing false failures on slower mobile connections. Main-frame network, HTTP, and TLS errors are now retained through `onPageFinished`; a late finish callback can no longer incorrectly replace an actual load failure with a success state. TLS failures still cancel and never bypass certificate validation. Added a regression test for the completion-state policy.
-- External-wallet session audit: WalletConnect namespaces can contain the same EVM address on multiple CAIP-2 chains. The previous account de-duplication collapsed these to one address and DApp chain selection used the first account regardless of the active chain. The session delegate now retains one entry per chain+address and selects the account matching AppKit's active chain for `eth_chainId`, signing, and transaction authorization; requests still fail closed if the active chain/account is not in the approved session. Added chain-scoped regression tests.
-- This is a source implementation checkpoint, not physical-device acceptance. If Compose gesture competition or actual parent dimensions differ on device, adjust after the user's test rather than claiming success.
+- The earlier progress notes above this section overstated implementation: GitHub source audit found that the toolbar was still the original three-action accounting capsule, and PR #135 did not yet include the toolbar source. Treat those earlier claims as superseded by this audit.
+- Implemented the horizontal browser dock in `BrowserAccountingToolbar.kt`: pale translucent rounded tray, 100 dp height, 94% width (maximum 420 dp), 68 dp rounded-square tool tiles, horizontal internal scrolling, and a persistent plus tile.
+- The plus tile opens tool management. Users can add/remove the six supported tools, reorder them with up/down controls, and restore the default set. Only selected tool IDs/order are saved in app preferences.
+- The six actions are connected: create mock bill (retains the existing accounting confirmation workflow), copy current wallet address, open pending bills, refresh the current WebView, copy current page URL, and open the current page externally.
+- The entire dock is hosted as an overlay within the browser viewport. Long-press drag moves it vertically; release constrains it to the safe browser viewport and snaps horizontally to the nearest side. Ordinary horizontal swipes remain available to scroll the inner tool row.
+- Drag coordinates exist only in Compose `remember` state and are not saved. A fresh browser entry recreates the composable and returns the dock to its bottom default. Selected tools persist independently.
+- The old accounting dialogs and data operations remain in the same composable; this change replaces only the visible action capsule and adds the browser utility actions.
+- **Not yet validated:** exact-head Android build/unit tests and physical-device checks for internal scroll vs long-press drag, edge snap, vertical bounds, add/remove/reorder, all six actions, and bottom reset after exit/re-entry. Do not claim acceptance until those checks pass.
+- Scope deliberately excludes the website loading failure and browser-page WalletConnect no-response issue, which the user asked to defer. Do not weaken HTTPS/TLS/origin checks or spend this batch reopening those investigations.
 
-### Horizontal floating toolbar correction — implementation pass (2026-11-10; PR #135)
+**Current implementation checkpoint:** browser dock source and host integration are committed on `feature/mobile-browser-home-dock-batch`; latest code commit at this note is `80006780599732002b775baea423ca71e6d3b98a`. PR #135 remains draft/unmerged. Recheck exact branch/PR head and Actions status before validation; physical-device acceptance remains pending.
 
-- Updated the toolbar source from a short circular capsule to a wider horizontal rounded bar (304–360 dp target width), with larger 48 dp icon targets, more spacing, and horizontal scrolling inside the bar.
-- Added long-press drag for the whole bar, independent of icon scrolling, and left/right edge snapping on release. The vertical position is constrained to a safe area.
-- Drag coordinates are held only in Compose in-memory state (`remember`); no preference/database persistence is used. The browser toolbar's parent composable is recreated on a fresh browser entry, so it should return to the bottom default after exit/re-entry.
-- This pass deliberately implements the user's latest horizontal requirement, superseding the earlier vertical-rail inspiration. User-customizable tool add/remove/reorder and the additional address/page utility actions are still separate pending work.
-- Build/device acceptance is pending; confirm gesture behavior, exact visual proportions, edge snapping, internal scrolling, and bottom reset on a physical Android device. Do not claim accepted from source edits alone.
+---
 
 ## Implementation progress after the user's 11:40–11:45 device test (feature branch; not yet merged)
 
@@ -39,12 +36,12 @@ The user's latest reference image is the visual source of truth. This is a **mob
 - Source audit confirmed the public project-discovery screen still rendered “微社区广场” and the Steam analogy. The visible heading is now “空投库” and the analogy sentence is removed. Project discovery, search, tags, rankings, and submission remain intact.
 - The 我的 page previously exposed only toast-only “消息通知” and “安全设置” rows. It now has separate “设置”, “安全中心”, and “消息通知” destinations with truthful initial information/empty states; wallet management remains available. These are initial destination shells, not a claim that all settings, security-permission controls, or push notifications are implemented.
 - The external-wallet top-bar action now gives immediate launch feedback and catches/logs launch exceptions; the DApp-origin approval path also returns an error to the requesting page if AppKit launch fails. This is a diagnostic/feedback improvement, **not proof that the user's no-response issue is fixed**. Device verification is still required.
-- Code inspection found that the current browser tool strip is only a three-action accounting capsule (mock bill, copy address, pending bills), not the requested configurable floating dock. The movable/scrollable dock, tool management, address picker/QR/explorer utilities, and persisted configuration remain pending.
+- The configurable horizontal dock is now implemented in the feature branch with the six agreed actions, internal scrolling, tool add/remove/reorder/reset, and transient drag/edge-snap positioning. Address QR/explorer utilities, address picker, and broader browser page utilities remain outside this six-action dock pass.
 - The Home desktop-style card grid was implemented in the feature branch: add/remove/reorder/persist/restore. Card dimensions are developer-defined and fixed per card type; end users cannot resize cards.
 - The website loading failure remains unresolved pending a complete device trace. Current code deliberately requires HTTPS, rejects TLS errors, gates external-origin navigation with user confirmation, and may retry with a different user agent. Do not weaken these safety rules as a shortcut. Investigate redirects, WebView provider compatibility, cookies/session behavior, page errors, and external-wallet return flow before changing navigation policy.
 - No Actions build has been triggered for this feature branch yet. Validate the complete related Android batch once rather than compiling after every small edit.
 
-**Current branch:** `feature/mobile-browser-home-dock-batch`; latest implementation commit at this checkpoint: `9ffd05c2ee7c64e2c3ff3260e62fcdc504ca3321`. Requirements/documentation and the above Android edits are not yet merged to main. Keep release completion pending.
+**Current branch:** `feature/mobile-browser-home-dock-batch`; the browser dock implementation is now in the branch after the earlier `9ffd05c2ee7c64e2c3ff3260e62fcdc504ca3321` checkpoint. Requirements/documentation and Android edits are not yet merged to main. Keep release completion pending.
 
 ---
 
