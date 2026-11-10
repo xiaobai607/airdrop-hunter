@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -58,6 +59,7 @@ fun ProfileScreen(
     var selectedBackupUri by remember { mutableStateOf<Uri?>(null) }
     var pendingBackup by remember { mutableStateOf<LocalBackupSnapshot?>(null) }
     var backupBusy by remember { mutableStateOf(false) }
+    var profileDestination by remember { mutableStateOf<String?>(null) }
 
     val createBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -195,17 +197,33 @@ fun ProfileScreen(
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("设置", color = AppColors.TextHelper, style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+            SettingRow("设置", Icons.Default.Settings) { profileDestination = "设置" }
+            SettingRow("安全中心", Icons.Default.Security) { profileDestination = "安全中心" }
+            SettingRow("消息通知", Icons.Default.NotificationsNone) { profileDestination = "消息通知" }
             SettingRow("钱包管理", Icons.Default.Wallet, onManageWallets)
-            SettingRow("消息通知", Icons.Default.NotificationsNone) {
-                Toast.makeText(context, "消息通知功能正在开发中", Toast.LENGTH_SHORT).show()
-            }
-            SettingRow("安全设置", Icons.Default.Security) {
-                Toast.makeText(context, "安全设置功能正在开发中", Toast.LENGTH_SHORT).show()
-            }
-            SettingRow("关于", Icons.Default.Info) {
-                Toast.makeText(context, "关于页面正在开发中", Toast.LENGTH_SHORT).show()
-            }
+            SettingRow("关于", Icons.Default.Info) { profileDestination = "关于" }
         }
+        profileDestination?.let { destination ->
+            AlertDialog(
+                onDismissRequest = { profileDestination = null },
+                title = { Text(destination, color = AppColors.TextPrimary) },
+                text = {
+                    Text(
+                        when (destination) {
+                            "设置" -> "应用设置入口已建立。主题外观、浏览器工具栏、首页卡片布局、缓存与通知偏好将在对应功能接入后开放。"
+                            "安全中心" -> "Airdrop Hunter 不保存私钥或助记词。DApp 连接与签名由外部钱包处理；请在外部钱包核对网站域名、网络和请求内容。站点权限与会话管理正在接入。"
+                            "消息通知" -> "暂无消息。收到应用内通知后会在这里显示；推送通知尚未启用。"
+                            else -> "Airdrop Hunter 空投管理与账本工具。"
+                        },
+                        color = AppColors.TextSecondary
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { profileDestination = null }) { Text("知道了") }
+                }
+            )
+        }
+
         if (showBackupPasswordDialog) {
             AlertDialog(
                 onDismissRequest = { showBackupPasswordDialog = false; backupPassword = ""; backupPasswordConfirm = "" },
