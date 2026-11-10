@@ -100,17 +100,22 @@ fun CommunitySquareScreen(
 
         fun applyOverallSnapshot(snapshot: com.airdrophunter.app.data.CommunitySnapshotDto?) {
             if (snapshot == null) return
-            catalogEntries = snapshot.projects.map { project ->
-                com.airdrophunter.app.data.CommunityProjectCatalogDto(
-                    project_official_id = project.project_official_id,
-                    name = project.name,
-                    chain = project.chain,
-                    logo = project.logo,
-                    description = project.description,
-                    tags = project.tags,
-                    website_url = project.website_url,
-                    created_at = project.created_at
-                )
+            // A snapshot is a metrics source, not the authoritative directory. It is
+            // only a first-install display fallback until the directory endpoint responds.
+            if (catalogEntries.isEmpty()) {
+                catalogEntries = snapshot.projects.map { project ->
+                    com.airdrophunter.app.data.CommunityProjectCatalogDto(
+                        project_official_id = project.project_official_id,
+                        name = project.name,
+                        chain = project.chain,
+                        logo = project.logo,
+                        description = project.description,
+                        tags = project.tags,
+                        website_url = project.website_url,
+                        created_at = project.created_at,
+                        is_active = true
+                    )
+                }
             }
             communityStats = snapshot.projects.associate { project ->
                 project.project_official_id to CommunityProjectStatsDto(
@@ -127,13 +132,25 @@ fun CommunitySquareScreen(
             }
         }
 
-        // Room is the first paint. CDN revalidation happens silently afterwards.
+        // The official directory and public metric snapshots are separate datasets.
+        // Paint the last successful Room directory immediately; network failure never
+        // changes an entry's active state or removes a locally cached official ID.
+        val cachedCatalog = com.airdrophunter.app.data.CommunityCatalogRepository.readCatalog()
+        if (!cachedCatalog.isNullOrEmpty()) catalogEntries = cachedCatalog.filter { it.is_active }
         val cachedOverall = com.airdrophunter.app.data.CommunitySnapshotRepository.readSnapshot("overall")
         applyOverallSnapshot(cachedOverall)
         try {
+            val refreshedCatalog = com.airdrophunter.app.data.CommunityCatalogRepository.refreshCatalog()
+            catalogEntries = refreshedCatalog.filter { it.is_active }
+            catalogError = null
+        } catch (_: Exception) {
+            if (catalogEntries.isEmpty() && cachedOverall == null) {
+                catalogError = "社区目录暂不可用，联网后会自动重试"
+            }
+        }
+        try {
             val refreshed = com.airdrophunter.app.data.CommunitySnapshotRepository.refreshSnapshots()
             applyOverallSnapshot(refreshed["overall"] ?: cachedOverall)
-            if (catalogEntries.isEmpty()) catalogError = "静态社区快照暂不可用，联网后会自动重试"
         } catch (_: Exception) {
             // A failed CDN request must never erase the last good Room snapshot.
             applyOverallSnapshot(cachedOverall)
@@ -474,7 +491,7 @@ fun CommunitySquareScreen(
                                 ).show()
                                 if (result.status == "published") {
                                     runCatching {
-                                        catalogEntries = ApiClient.service.getCommunityCatalog()
+                                        catalogEntries = com.airdrophunter.app.data.CommunityCatalogRepository.refreshCatalog().filter { it.is_active }
                                     }
                                 }
                                 submissionName = ""
