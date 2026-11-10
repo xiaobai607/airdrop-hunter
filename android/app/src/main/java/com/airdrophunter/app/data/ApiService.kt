@@ -52,6 +52,11 @@ interface ApiService {
         @Header("Authorization") authorizationHeader: String? = null,
         @Header("X-Airdrop-Auth-Mode") authMode: String? = null
     ): List<WalletTransactionDto>
+    @GET("api/wallet-assets/{chain}/{address}") suspend fun getWalletAssets(
+        @Path("chain") chain: String,
+        @Path("address") address: String,
+        @Header("X-Airdrop-Auth-Mode") authMode: String? = null
+    ): WalletAssetsResponseDto
     @GET("api/wallet/check") suspend fun checkWallet(@Query("address") address: String): WalletCheckResponse
     @GET("api/wallets") suspend fun getWallets(@Header("Authorization") authorizationHeader: String? = null, @Header("X-Airdrop-Auth-Mode") authMode: String? = null): List<WalletDto>
     @POST("api/wallets") suspend fun addWallet(@Body request: WalletWriteRequest): WalletDto

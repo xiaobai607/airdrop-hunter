@@ -34,6 +34,7 @@ fun WalletDetailScreen(
     isGuest: Boolean = false
 ) {
     val clipboard = LocalClipboardManager.current
+    var showAssetDialog by remember(wallet.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(AppColors.Background)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -54,12 +55,14 @@ fun WalletDetailScreen(
                     style = MaterialTheme.typography.labelSmall
                 )
             }
+            TextButton(onClick = { showAssetDialog = true }) { Text("资产", color = AppColors.Primary) }
             IconButton(onClick = { clipboard.setText(AnnotatedString(wallet.address)) }) {
                 Icon(Icons.Default.ContentCopy, "复制地址", tint = AppColors.Primary)
             }
         }
         WalletActivityPanel(wallet, Modifier.weight(1f), isGuest)
     }
+    if (showAssetDialog) WalletAssetDetailDialog(wallet = wallet, onDismiss = { showAssetDialog = false })
 }
 
 @Composable
