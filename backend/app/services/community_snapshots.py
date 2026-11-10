@@ -277,6 +277,15 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
         (CommunityContribution.actual_reward_confirmed.is_(True), CommunityContribution.actual_reward_usd),
         else_=func.coalesce(CommunityContribution.estimated_reward_usd, 0),
     )
+    summary_conditions = [CommunityContribution.user_id.is_(None)]
+    if duration is not None:
+        summary_conditions.append(CommunityContribution.created_at >= now - duration)
+    summary_totals_stmt = select(
+        func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_total_usd"),
+        func.coalesce(func.sum(public_reward_expr), 0).label("reward_total_usd"),
+    ).where(and_(*summary_conditions))
+    summary_totals = (await db.execute(summary_totals_stmt)).mappings().one()
+
     chain_conditions = [CommunityContribution.user_id.is_(None)]
     if duration is not None:
         chain_conditions.append(CommunityContribution.created_at >= now - duration)
@@ -323,12 +332,12 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
     ) or 0
 
     summary = {
-        "gas_total_usd": sum(_number(row["gas_cost_usd"]) for row in metric_rows),
+        "gas_total_usd": _number(summary_totals["gas_total_usd"]),
         "gas_by_chain": [
             {"chain": str(row["network"] or "unknown"), "gas_usd": _number(row["gas_usd"])}
             for row in chain_rows
         ],
-        "reward_total_usd": sum(_number(row.get("reward_usd")) for row in metric_rows),
+        "reward_total_usd": _number(summary_totals["reward_total_usd"]),
         "gas_range_distribution": _range_distribution([_number(row["gas_usd"]) for row in contributor_rows]),
         "reward_range_distribution": _range_distribution([_number(row["reward_usd"]) for row in contributor_rows]),
         "cumulative_contributors": int(all_contributor_count),
