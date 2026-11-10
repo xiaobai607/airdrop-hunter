@@ -145,12 +145,12 @@ fun MicroCommunityScreen(
         if (myRating != null) { selectedScore = myRating.score; saved = true }
     }
 
-    Column(modifier.fillMaxSize().background(AppColors.Background)) {
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(projectName, color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Steam 式真实参与者评价 · 仅星级评分", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Text(projectName, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("Steam 式真实参与者评价 · 仅星级评分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(
                     onClick = {
                         if (isDemoProject) {
@@ -187,7 +187,7 @@ fun MicroCommunityScreen(
                     }
                     overallProject?.logo?.takeIf { it.isNotBlank() }?.let { logo ->
                         Surface(shape = RoundedCornerShape(12.dp), color = AppColors.Surface) {
-                            Text(logo, Modifier.padding(10.dp), color = AppColors.Primary, fontWeight = FontWeight.Bold)
+                            Text(logo, Modifier.padding(10.dp), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -280,7 +280,7 @@ fun MicroCommunityScreen(
                         }
                     }
                 }
-            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface)) {
+            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
                     Text("本机已保存的评分", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(
@@ -316,7 +316,7 @@ fun MicroCommunityScreen(
                         }
                     }
                     if (!canRate) {
-                        Text("仅限真实参与该项目的用户打分", color = AppColors.TextHelper, style = MaterialTheme.typography.labelMedium)
+                        Text("仅限真实参与该项目的用户打分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                     } else if (saved) {
                         Text(if (isGuest) "已保存在本机" else "已提交全网星级评分", color = AppColors.Success, style = MaterialTheme.typography.labelMedium)
                     } else if (isGuest) {
