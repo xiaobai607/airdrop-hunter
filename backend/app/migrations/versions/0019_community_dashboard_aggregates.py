@@ -1,12 +1,12 @@
 """Add anonymous contributor and estimated reward fields for public dashboard.
 
-Revision ID: 0019_community_dashboard_aggregates
+Revision ID: 0019_comm_dash
 Revises: 0018_idempotent_project_creation
 """
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0019_community_dashboard_aggregates"
+revision = "0019_comm_dash"
 down_revision = "0018_idempotent_project_creation"
 branch_labels = None
 depends_on = None
