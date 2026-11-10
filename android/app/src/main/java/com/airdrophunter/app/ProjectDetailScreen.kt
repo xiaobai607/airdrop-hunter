@@ -646,21 +646,13 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             Text("该钱包网络暂不支持公共链上核验，仍可保存个人账本。",
                                 color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = accountingWalletPublicOptIns[wallet.id] == true,
-                                onCheckedChange = { checked ->
-                                    accountingWalletPublicOptIns = accountingWalletPublicOptIns + (wallet.id to checked)
-                                },
-                                enabled = !isSavingAccounting &&
-                                    project.communityOfficialId != null &&
-                                    accountingRewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION) &&
-                                    ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)
-                            )
-                            Text("授权 " + wallet.wallet_name.ifBlank { "该钱包" } + " 匿名贡献",
-                                color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        if (project.communityOfficialId != null &&
+                            ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)) {
+                            Text("社区目录项目默认参与脱敏统计；填写该钱包的 Tx Hash 后，系统会先核验交易，再决定是否计入公共汇总。",
+                                color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
                         }
-                        if (accountingWalletPublicOptIns[wallet.id] == true) {
+                        if (project.communityOfficialId != null &&
+                            ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)) {
                             OutlinedTextField(
                                 value = accountingTxHashes[wallet.id].orEmpty(),
                                 onValueChange = { value -> accountingTxHashes = accountingTxHashes + (wallet.id to value.trim()) },
@@ -699,11 +691,11 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     gasCostUsd = gas,
                                     txHash = accountingTxHashes[wallet.id].orEmpty(),
                                     reward = if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET) reward else null,
-                                    publicContributionOptIn = accountingWalletPublicOptIns[wallet.id] == true &&
-                                        project.communityOfficialId != null &&
+                                    publicContributionOptIn = project.communityOfficialId != null &&
                                         accountingRewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION) &&
-                                        ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(
-                                            accountingWalletNetworks[wallet.id].orEmpty()
+                                        ManualProjectAccountingPolicy.isTransactionHashFormatValid(
+                                            accountingWalletNetworks[wallet.id].orEmpty(),
+                                            accountingTxHashes[wallet.id].orEmpty()
                                         )
                                 )
                             }

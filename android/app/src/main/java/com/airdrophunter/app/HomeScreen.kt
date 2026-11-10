@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -71,6 +72,7 @@ fun HomeScreen(
     onOpenProjects: () -> Unit,
     onOpenAirdropHub: () -> Unit = {},
     onOpenTronEnergy: () -> Unit = {},
+    onOpenAccounting: () -> Unit = onOpenProjects,
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
     sessionScopeKey: String = "guest",
@@ -165,6 +167,37 @@ fun HomeScreen(
                 style = MaterialTheme.typography.labelSmall
             )
         }
+        Card(
+            onClick = onOpenAccounting,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+            border = BorderStroke(1.dp, AppColors.Border),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFE8F3F1)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = AppColors.Primary,
+                        modifier = Modifier.size(23.dp))
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("记账", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium)
+                    Text("选择项目，记录 Gas 消耗与实际收益", color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                Text("去记账  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold)
+            }
+        }
+
         var dashboardCards by remember { mutableStateOf(HomeDashboardLayoutStore.load(context)) }
         var editingDashboard by remember { mutableStateOf(false) }
         var showAddDashboardCard by remember { mutableStateOf(false) }

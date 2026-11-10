@@ -240,6 +240,7 @@ private fun AirdropHunterApp(
                     onOpenProjects = { tab = 2 },
                     onOpenAirdropHub = { activeOverlay = AppOverlay.AIRDROP_HUB },
                     onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
+                    onOpenAccounting = { tab = 2 },
                     isGuest = isGuest, onRequireAuth = onRequireAuth,
                     sessionScopeKey = sessionScopeKey
                     )

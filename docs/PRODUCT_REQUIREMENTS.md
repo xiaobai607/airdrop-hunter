@@ -1341,3 +1341,11 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Its project creation action delegates to `AccountingRepository`, which in the application composition root uses the same `ProjectsRepository` as the project library.
 - The accounting project list is loaded from the canonical repository and uses the same guest/account cache boundary and local-first project creation path.
 - The old `pnl_projects` reader remains only as a migration/compatibility source; new browser-created projects are written to `projects`.
+
+
+### Home accounting entry and default community contribution (2026-11-10)
+
+- Home now has a prominent standalone **记账** entry immediately after the market panel. It opens the project library, where the user selects a project and starts its existing `＋记一笔` flow; it does not create a second ledger implementation.
+- For a project carrying a canonical `communityOfficialId`, eligible EVM-network manual records no longer require a separate per-wallet contribution opt-in. The UI requests each wallet's transaction hash and automatically marks the row for verification when the hash format and confirmed USD reward conditions are satisfied.
+- Private/custom projects remain private by default. Community contribution still requires server-side chain verification; raw wallet/transaction details are used only for verification and are not part of the public aggregate model.
+- Ineligible or unverified rows remain in the personal ledger and do not count as verified public aggregate data.
