@@ -1252,3 +1252,10 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - User-persisted Home layout data contains only supported card IDs and their order. It must not contain width, height, span, scale, or other user-editable size fields.
 - The user may add/remove supported cards, reorder them, and restore the default card set/order. This does not grant permission to change card dimensions.
 - This supersedes any wording that could be interpreted as permanently hardcoding dimensions in a way that prevents future developer changes. "Fixed" means fixed for end users, not immutable for the developer.
+
+### Source audit correction — browser load-policy implementation status (2026-11-10)
+
+- A later direct source read of the current `main` and feature-branch `BrowserActivity.kt` found the file still uses a 3-second loading timeout and does not reference `BrowserPageLoadPolicy`; the expected policy source file is not present at the documented package path.
+- Therefore, the earlier statement above that a 12-second policy and main-frame completion guard were added is not supported by the current source tree and must not be treated as implemented. The previously recorded CI pass does not prove that missing source behavior exists.
+- The user has asked to defer the website-loading investigation. Do not reopen it in this dock batch; preserve HTTPS/TLS/origin protections and revisit only when explicitly requested.
+
