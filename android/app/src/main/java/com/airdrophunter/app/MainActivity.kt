@@ -178,17 +178,17 @@ private fun AirdropHunterApp(
                 activeOverlay == AppOverlay.GLOBAL_SEARCH -> GlobalSearchScreen(
                     modifier = Modifier.fillMaxSize(),
                     onCancel = { activeOverlay = AppOverlay.NONE },
-                    onSearch = { url ->
+                    onCoinSelected = { symbol ->
+                        selectedMarketSymbol = symbol
+                        activeOverlay = AppOverlay.MARKET_DETAIL
+                    },
+                    onDappSelected = { name, url ->
                         activeOverlay = AppOverlay.NONE
                         context.startActivity(
                             Intent(context, BrowserActivity::class.java)
                                 .putExtra(BrowserActivity.EXTRA_URL, url)
-                                .putExtra(BrowserActivity.EXTRA_TITLE, "OKLink 全链搜索")
+                                .putExtra(BrowserActivity.EXTRA_TITLE, name)
                         )
-                    },
-                    onCoinSelected = { symbol ->
-                        selectedMarketSymbol = symbol
-                        activeOverlay = AppOverlay.MARKET_DETAIL
                     }
                 )
                 activeOverlay == AppOverlay.MARKET_DETAIL -> CoinMarketDetailScreen(

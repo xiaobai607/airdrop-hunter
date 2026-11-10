@@ -678,9 +678,9 @@ The user explicitly requires development to proceed as **15 substantial function
 6. **Guest local data and retained account infrastructure** — local-only guest private data and existing account isolation/sync code. New registration and cross-device restore are deferred from the current release; retain the existing code without presenting those capabilities as available.
 7. **Anonymous public contribution** — eligibility, privacy minimization, idempotency, retries, exclusion of estimates/demo/unconfirmed rows and separation from private ledgers. Batch 07 plus transaction-verification extension are merged in PR #109 and PR #119; exact-head Android/backend CI passed for PR #119 (run 42716740435, head 5c62468). Live EVM provider/deployment validation and Render secret configuration remain pending.
 8. **Community snapshot data pipeline** — four windows (overall/7d/3d/1h), scheduled aggregation, static JSON publication, version manifest and cache integrity. Code is implemented in PR #69 and tier-aware aggregate fields were extended in PR #119; production CDN/R2, database variables, and scheduled publishing remain pending.
-9. **Community UI and social metrics** — waterfall project detail, rating eligibility/reputation, exact Gas/reward comparison, rankings, favorites and privacy. Existing base UI is implemented across PRs #48–#70 and #88; provenance visualization is being completed in the current Batch 09 change.
-10. **Project discovery and submissions** — safe user submission/deduplication/moderation, approved free data providers only, attribution and source-health reporting; no arbitrary-site crawler or paid source.
-11. **Global search, market dashboard, and unified asset detail** — BTC/ETH dashboard, BTC/ETH/SOL/BNB/XRP market data, 300 ms local-first search across coin/DApp categories, hot-coin cache, search history, unified EVM/Solana/Bitcoin asset model and limited asset-detail presentation.
+9. **Community UI and social metrics** — waterfall project detail, rating eligibility/reputation, exact Gas/reward comparison, rankings, favorites and privacy. Existing base UI is implemented across PRs #48–#70 and #88; PR #120 adds three-tier Gas provenance bars to project cards and all four detail windows and is merged with passing Android CI.
+10. **Project discovery and submissions** — safe user submission/deduplication/moderation, approved free data providers only, attribution and source-health reporting; no arbitrary-site crawler or paid source. Code is implemented across PRs #60–#63, #78–#79 and follow-up hardening; source-rights approval and scheduled production activation remain operational gates.
+11. **Global search, market dashboard, and unified asset detail** — BTC/ETH dashboard, BTC/ETH/SOL/BNB/XRP market data, 300 ms local-first search across coin/DApp categories, hot-coin cache, search history, unified EVM/Solana/Bitcoin asset model and limited asset-detail presentation. Core implementation is in progress in the current Batch 11 branch; persistent cache freshness/retry/failover remains Batch 12.
 12. **Background sync, Room cache, and reliability** — WorkManager coordination, 15-minute SWR for market/search/asset query data, 30-second per-key manual refresh throttle, cache metadata/updated labels, provider node rotation, bounded exponential backoff, offline queue and account-scope safety. Cross-device private-ledger recovery is deferred. Community snapshot schedules remain independent.
 13. **Backend/API/data integrity** — authentication/authorization, schema/migrations, idempotency, validation, limits, tests and end-to-end contract consistency.
 14. **Production operations and recovery** — CDN/storage/Cron configuration, readiness/smoke checks, backup/restore drill and rollback evidence.
@@ -932,4 +932,31 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Current Batch 09 change adds a shared deterministic three-tier breakdown bar to both project cards and each project-detail time window: user-reported uses a translucent segment, transaction-linked uses a distinct amber segment, and amount-verified uses a solid segment. Amount labels remain explicit; invalid/negative/zero/unknown tiers do not create fabricated segments. The existing Gas-vs-reward comparison remains separate and unchanged.
 - Android unit tests cover stable tier ordering, exact normalized shares, invalid/negative/non-finite values, and preservation of original amounts.
 - **Status: in progress pending exact-head Android CI.** Production CDN configuration and real-device visual acceptance remain separate gates.
+
+
+
+## Latest continuation audit (2026-11-10, after PR #120)
+
+### Batch 09 — community UI and social metrics (merged)
+
+- PR #120 merged to `main` as `6a3da69221a3cf671db23143a3008b573ae7b33b`. Final head `a9f807960ce7f8c444d4c035705946501a0d6cf9` passed Android unit tests and Debug APK assembly in Actions run `42724504142`.
+- The same deterministic three-tier Gas provenance bar is now shown on community project cards and each project-detail time window. Tier 1 user-reported is translucent, Tier 2 transaction-linked is amber, and Tier 3 amount-verified is solid; labels and exact USD values remain visible. Existing Gas-versus-reward comparison is unchanged.
+- **Status: complete in code and CI.** Real-device visual acceptance remains part of Batch 15.
+
+### Batch 10 — project discovery and submissions audit
+
+- Existing code provides safe HTTPS project submissions, canonical URL/name duplicate checks, rate limits, suspicious shortener/IDN/nonstandard-port review holds, and no automatic crawling of submitted websites.
+- RSS/Atom ingestion requires both an exact HTTPS host allowlist and an exact source-name content-reuse approval. Requests do not follow redirects; feed bodies are streamed with byte/item limits; malformed or oversized feeds are isolated per source; candidates remain pending until an admin-token-protected review action approves or rejects them.
+- Source-health metadata records attempt/success timestamps, item counts, and sanitized error class only; query strings and fragments are removed from stored source URLs. Review credentials remain server-only and are never embedded in the APK.
+- The scheduled discovery workflow is deliberately disabled unless `AIRDROP_DISCOVERY_SYNC_ENABLED=true`; no feeds are enabled by default. **Status: complete in code; pending explicit feed-rights approval, production variables/database configuration, and scheduled-run verification.** Do not activate a source until its reuse rights are confirmed.
+
+### Batch 11 — global search, market dashboard, and unified asset detail (current implementation)
+
+- Main-branch audit found the old global search was a generic OKLink handoff, included a stock placeholder, had no Coin/DApp category split or 300 ms debounce, and used DataStore rather than Room for history. Home placed shortcuts before the market dashboard and showed five coins rather than the requested compact BTC/ETH pair.
+- Current Batch 11 implementation changes the home hierarchy to BTC/ETH first, followed immediately by the pill-shaped Coin/DApp search entry; the five-coin list remains available in global search and individual market details.
+- Global search now separates Coin and DApp categories, performs local Room/cached-catalog matching first, then debounces remote lookups by 300 ms. Coin selection opens market detail; DApp selection opens its validated HTTPS URL in the built-in browser. Search history is Room-backed, account-scope isolated, deduplicated by category+normalized query, recency ordered, and capped at ten.
+- Room version 19 introduces `MarketCoinEntity`, `HotCoinCacheEntity`, `SearchHistoryEntity`, `UnifiedAssetEntity`, and `CacheMetadataEntity`, with an explicit 18→19 migration and account/wallet scope keys for personal asset/history records.
+- Unified asset domain/presentation policy hides unverified, unpriced, and sub-$0.10 dust from the normal list; the distribution helper returns the five largest verified priced assets plus Others and returns no chart for Bitcoin. **This does not add a cross-wallet portfolio dashboard.**
+- **Remaining Batch 11 integration gate:** connect verified asset-balance provider adapters to the limited per-wallet asset-detail presentation. No unsupported or unverified token balance may be fabricated. Provider rotation, persistent TTL/SWR, refresh throttling, offline retry, and stale-cache retention belong to Batch 12.
+- **Status: in progress pending Android unit tests + Debug APK build.**
 

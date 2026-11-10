@@ -94,11 +94,76 @@ fun HomeScreen(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("首页", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
                 color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
-            IconButton(onClick = onOpenGlobalSearch) {
-                Icon(Icons.Default.Search, "搜索", tint = AppColors.TextSecondary)
-            }
             IconButton(onClick = { showNotifications = true }) {
                 Icon(Icons.Default.NotificationsNone, "通知", tint = AppColors.TextSecondary)
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("行情看板", color = AppColors.TextPrimary,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                Text(if (state.isRefreshing) "更新中" else "刷新",
+                    modifier = Modifier.clickable { homeViewModel.refresh(isGuest) }.padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
+                    color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+            }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                border = BorderStroke(1.dp, AppColors.Border),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                when {
+                    state.isLoading && state.market.isEmpty() -> Box(
+                        Modifier.fillMaxWidth().padding(22.dp), contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator(color = AppColors.Primary) }
+                    state.market.isEmpty() -> Column(
+                        Modifier.fillMaxWidth().padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("无法获取实时行情", color = AppColors.TextPrimary,
+                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(state.marketError ?: "请检查网络连接后重试。",
+                            color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
+                            Text("点击重试", color = AppColors.Primary)
+                        }
+                    }
+                    else -> Column {
+                        state.market.filter { it.symbol == "BTC" || it.symbol == "ETH" }.forEachIndexed { index, ticker ->
+                            MarketRow(ticker)
+                            if (index != state.market.lastIndex) HorizontalDivider(color = AppColors.Border)
+                        }
+                    }
+                }
+            }
+            Text(
+                when {
+                    state.isRefreshing && state.lastSuccessfulUpdateAt != null -> "行情更新中 · 保留上次数据"
+                    state.marketError != null && state.lastSuccessfulUpdateAt != null -> "更新失败 · 显示上次成功数据"
+                    state.lastSuccessfulUpdateAt != null -> "数据更新于 " + java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L))
+                    state.marketError != null -> "行情暂不可用"
+                    else -> "等待行情数据"
+                },
+                color = AppColors.TextHelper,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        Surface(
+            modifier = Modifier.fillMaxWidth().clickable { onOpenGlobalSearch() },
+            shape = RoundedCornerShape(999.dp),
+            color = AppColors.Surface,
+            border = BorderStroke(1.dp, AppColors.Border)
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.TextHelper)
+                Spacer(Modifier.width(10.dp))
+                Text("搜索币种或 DApp", color = AppColors.TextHelper, style = MaterialTheme.typography.bodyMedium)
             }
         }
 
@@ -148,59 +213,6 @@ fun HomeScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("行情看板", color = AppColors.TextPrimary,
-                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.weight(1f))
-                TextButton(
-                    onClick = {
-                        context.startActivity(
-                            Intent(context, BrowserActivity::class.java)
-                                .putExtra(BrowserActivity.EXTRA_URL, "https://m.coinmarketcap.com/")
-                                .putExtra(BrowserActivity.EXTRA_TITLE, "CoinMarketCap 行情")
-                        )
-                    },
-                    contentPadding = PaddingValues(horizontal = 5.dp, vertical = 4.dp)
-                ) {
-                    Text("全部行情 / 自主搜索", style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                }
-                Text(if (state.isRefreshing) "更新中" else "刷新",
-                    modifier = Modifier.clickable { homeViewModel.refresh(isGuest) }.padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
-                    color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
-            }
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border),
-                elevation = CardDefaults.cardElevation(0.dp)
-            ) {
-                when {
-                    state.isLoading && state.market.isEmpty() -> Box(
-                        Modifier.fillMaxWidth().padding(22.dp), contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator(color = AppColors.Primary) }
-                    state.market.isEmpty() -> Column(
-                        Modifier.fillMaxWidth().padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("无法获取实时行情", color = AppColors.TextPrimary,
-                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text(state.marketError ?: "请检查网络连接后重试。",
-                            color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
-                            Text("点击重试", color = AppColors.Primary)
-                        }
-                    }
-                    else -> Column {
-                        state.market.forEachIndexed { index, ticker ->
-                            MarketRow(ticker)
-                            if (index != state.market.lastIndex) HorizontalDivider(color = AppColors.Border)
-                        }
-                    }
-                }
-            }
-        }
         Spacer(Modifier.height(8.dp))
     }
     }

@@ -146,6 +146,53 @@ interface CacheDao {
     suspend fun delete(key: String)
 }
 
+
+@Dao
+interface MarketCoinDao {
+    @Query("SELECT * FROM market_coins ORDER BY CASE WHEN rank IS NULL THEN 1 ELSE 0 END, rank ASC, symbol COLLATE NOCASE ASC")
+    suspend fun getAll(): List<MarketCoinEntity>
+    @Query("DELETE FROM market_coins") suspend fun clear()
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertAll(rows: List<MarketCoinEntity>)
+}
+
+@Dao
+interface HotCoinCacheDao {
+    @Query("SELECT * FROM hot_coin_cache WHERE cacheKey = :cacheKey ORDER BY sortOrder ASC")
+    suspend fun getAll(cacheKey: String): List<HotCoinCacheEntity>
+    @Query("DELETE FROM hot_coin_cache WHERE cacheKey = :cacheKey") suspend fun clear(cacheKey: String)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertAll(rows: List<HotCoinCacheEntity>)
+}
+
+@Dao
+interface SearchHistoryDao {
+    @Query("SELECT * FROM search_history WHERE accountScope = :scope ORDER BY lastUsedAt DESC")
+    fun observeAll(scope: String): Flow<List<SearchHistoryEntity>>
+    @Query("SELECT * FROM search_history WHERE accountScope = :scope ORDER BY lastUsedAt DESC")
+    suspend fun getAll(scope: String): List<SearchHistoryEntity>
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsert(row: SearchHistoryEntity)
+    @Query("DELETE FROM search_history WHERE accountScope = :scope AND category = :category AND normalizedQuery = :normalizedQuery")
+    suspend fun delete(scope: String, category: String, normalizedQuery: String)
+    @Query("DELETE FROM search_history WHERE accountScope = :scope") suspend fun clear(scope: String)
+}
+
+@Dao
+interface UnifiedAssetDao {
+    @Query("SELECT * FROM unified_assets WHERE accountScope = :scope AND walletId = :walletId AND chain = :chain ORDER BY usdValue DESC")
+    fun observeForWallet(scope: String, walletId: String, chain: String): Flow<List<UnifiedAssetEntity>>
+    @Query("SELECT * FROM unified_assets WHERE accountScope = :scope AND walletId = :walletId AND chain = :chain ORDER BY usdValue DESC")
+    suspend fun getForWallet(scope: String, walletId: String, chain: String): List<UnifiedAssetEntity>
+    @Query("DELETE FROM unified_assets WHERE accountScope = :scope AND walletId = :walletId AND chain = :chain")
+    suspend fun clearForWallet(scope: String, walletId: String, chain: String)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertAll(rows: List<UnifiedAssetEntity>)
+}
+
+@Dao
+interface CacheMetadataDao {
+    @Query("SELECT * FROM cache_metadata WHERE cacheKey = :cacheKey AND source = :source LIMIT 1")
+    suspend fun find(cacheKey: String, source: String): CacheMetadataEntity?
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsert(row: CacheMetadataEntity)
+}
+
 @Dao
 interface PendingBillDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -304,7 +351,7 @@ interface LocalBackupDao {
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectWalletAssignments(rows:List<ProjectWalletAssignmentEntity>)
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class], version = 18, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class], version = 19, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -316,6 +363,11 @@ abstract class CacheDatabase : RoomDatabase() {
     abstract fun userInteractionDao(): UserInteractionDao
     abstract fun communitySyncOutboxDao(): CommunitySyncOutboxDao
     abstract fun localBackupDao(): LocalBackupDao
+    abstract fun marketCoinDao(): MarketCoinDao
+    abstract fun hotCoinCacheDao(): HotCoinCacheDao
+    abstract fun searchHistoryDao(): SearchHistoryDao
+    abstract fun unifiedAssetDao(): UnifiedAssetDao
+    abstract fun cacheMetadataDao(): CacheMetadataDao
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -575,13 +627,27 @@ object CacheStore {
         }
     }
 
+    private val MIGRATION_18_19 = object : Migration(18, 19) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS market_coins (sourceId TEXT NOT NULL, source TEXT NOT NULL, symbol TEXT NOT NULL, name TEXT NOT NULL, priceUsd REAL, change24hPercent REAL, marketCapUsd REAL, rank INTEGER, contractAddress TEXT, network TEXT, logoUrl TEXT, fetchedAt INTEGER NOT NULL, PRIMARY KEY(sourceId))")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_market_coins_symbol ON market_coins(symbol)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_market_coins_name ON market_coins(name)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS hot_coin_cache (cacheKey TEXT NOT NULL, symbol TEXT NOT NULL, name TEXT NOT NULL, lastPrice REAL NOT NULL, change24hPercent REAL NOT NULL, logoUrl TEXT, contractAddress TEXT, network TEXT, sortOrder INTEGER NOT NULL, fetchedAt INTEGER NOT NULL, PRIMARY KEY(cacheKey, symbol))")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_hot_coin_cache_cacheKey_sortOrder ON hot_coin_cache(cacheKey, sortOrder)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS search_history (accountScope TEXT NOT NULL DEFAULT 'guest', category TEXT NOT NULL, normalizedQuery TEXT NOT NULL, query TEXT NOT NULL, lastUsedAt INTEGER NOT NULL, PRIMARY KEY(accountScope, category, normalizedQuery))")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_accountScope_lastUsedAt ON search_history(accountScope, lastUsedAt)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS unified_assets (accountScope TEXT NOT NULL DEFAULT 'guest', walletId TEXT NOT NULL, chain TEXT NOT NULL, assetId TEXT NOT NULL, contractAddress TEXT, symbol TEXT NOT NULL, name TEXT NOT NULL, decimals INTEGER, rawQuantity TEXT NOT NULL, formattedQuantity TEXT NOT NULL, priceUsd REAL, usdValue REAL, isVerified INTEGER NOT NULL, source TEXT NOT NULL, fetchedAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, PRIMARY KEY(accountScope, walletId, chain, assetId))")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_unified_assets_accountScope_walletId_chain_usdValue ON unified_assets(accountScope, walletId, chain, usdValue)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS cache_metadata (cacheKey TEXT NOT NULL, source TEXT NOT NULL, fetchedAt INTEGER, expiresAt INTEGER, ttlMillis INTEGER NOT NULL, refreshStatus TEXT NOT NULL, lastError TEXT, lastManualRefreshAt INTEGER, PRIMARY KEY(cacheKey, source))")
+        }
+    }
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -1343,6 +1409,73 @@ object CacheStore {
         if (scope == "guest") listOf("guest:", "signed-out:")
         else listOf("$scope:", "${scope.removePrefix("user:")}:")
 
+
+    suspend fun readMarketCoins(): List<MarketCoinEntity> = withContext(Dispatchers.IO) {
+        database?.marketCoinDao()?.getAll().orEmpty()
+    }
+    suspend fun replaceMarketCoins(rows: List<MarketCoinEntity>) = withContext(Dispatchers.IO) {
+        val db = database ?: return@withContext
+        db.withTransaction {
+            val dao = db.marketCoinDao()
+            dao.clear()
+            dao.upsertAll(rows)
+        }
+    }
+    suspend fun readHotCoins(cacheKey: String): List<HotCoinCacheEntity> = withContext(Dispatchers.IO) {
+        database?.hotCoinCacheDao()?.getAll(cacheKey).orEmpty()
+    }
+    suspend fun replaceHotCoins(cacheKey: String, rows: List<HotCoinCacheEntity>) = withContext(Dispatchers.IO) {
+        val db = database ?: return@withContext
+        db.withTransaction {
+            val dao = db.hotCoinCacheDao()
+            dao.clear(cacheKey)
+            dao.upsertAll(rows)
+        }
+    }
+    fun observeSearchHistory(): Flow<List<SearchHistoryEntity>> = observeAccountScope().flatMapLatest { scope ->
+        database?.searchHistoryDao()?.observeAll(scope) ?: flowOf(emptyList())
+    }
+    suspend fun saveSearchHistory(query: String, category: String) = withContext(Dispatchers.IO) {
+        val value = query.trim().take(160)
+        val normalized = normalizeSearchText(value)
+        val kind = category.trim().lowercase().take(16)
+        val scope = currentAccountScope()
+        val db = database ?: return@withContext
+        if (scope == "invalid-session" || normalized.isBlank() || kind !in setOf("coin", "dapp")) return@withContext
+        db.withTransaction {
+            val dao = db.searchHistoryDao()
+            dao.upsert(SearchHistoryEntity(scope, kind, normalized, value, System.currentTimeMillis()))
+            dao.getAll(scope).drop(10).forEach { dao.delete(scope, it.category, it.normalizedQuery) }
+        }
+    }
+    suspend fun clearSearchHistory() = withContext(Dispatchers.IO) {
+        val scope = currentAccountScope()
+        if (scope != "invalid-session") database?.searchHistoryDao()?.clear(scope)
+    }
+    fun observeUnifiedAssets(walletId: String, chain: String): Flow<List<UnifiedAssetEntity>> =
+        observeAccountScope().flatMapLatest { scope ->
+            database?.unifiedAssetDao()?.observeForWallet(scope, walletId, chain.lowercase()) ?: flowOf(emptyList())
+        }
+    suspend fun readUnifiedAssets(walletId: String, chain: String): List<UnifiedAssetEntity> = withContext(Dispatchers.IO) {
+        val scope = currentAccountScope()
+        if (scope == "invalid-session") emptyList() else database?.unifiedAssetDao()?.getForWallet(scope, walletId, chain.lowercase()).orEmpty()
+    }
+    suspend fun replaceUnifiedAssets(walletId: String, chain: String, rows: List<UnifiedAssetEntity>) = withContext(Dispatchers.IO) {
+        val db = database ?: return@withContext
+        val scope = currentAccountScope()
+        if (scope == "invalid-session" || walletId.isBlank()) return@withContext
+        db.withTransaction {
+            val dao = db.unifiedAssetDao()
+            dao.clearForWallet(scope, walletId, chain.lowercase())
+            dao.upsertAll(rows.map { it.copy(accountScope = scope, walletId = walletId, chain = chain.lowercase()) })
+        }
+    }
+    suspend fun readCacheMetadata(cacheKey: String, source: String): CacheMetadataEntity? = withContext(Dispatchers.IO) {
+        database?.cacheMetadataDao()?.find(cacheKey, source)
+    }
+    suspend fun writeCacheMetadata(metadata: CacheMetadataEntity) = withContext(Dispatchers.IO) {
+        database?.cacheMetadataDao()?.upsert(metadata)
+    }
     // Public community snapshots are shared across guest and signed-in sessions.
     suspend fun readPublic(key: String): String? = withContext(Dispatchers.IO) {
         runCatching { database?.cacheDao()?.read("public:community:$key") }.getOrNull()
