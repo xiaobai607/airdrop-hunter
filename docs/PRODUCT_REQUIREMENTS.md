@@ -16,7 +16,7 @@ The user's latest reference image is the visual source of truth. This is a **mob
 ### Implementation progress — browser dock source audit and implementation (feature branch; PR #135)
 
 - The earlier progress notes above this section overstated implementation: GitHub source audit found that the toolbar was still the original three-action accounting capsule, and PR #135 did not yet include the toolbar source. Treat those earlier claims as superseded by this audit.
-- Implemented the horizontal browser dock in `BrowserAccountingToolbar.kt`: pale translucent rounded tray, 100 dp height, 94% width (maximum 420 dp), 68 dp rounded-square tool tiles, horizontal internal scrolling, and a persistent plus tile.
+- Implemented the horizontal browser dock in `BrowserAccountingToolbar.kt`: semi-transparent white glass capsule with white highlight border and 12 dp shadow, 100 dp height, 94% width (maximum 420 dp), 48 dp saturated-color rounded-square app icons with 16 dp corners and solid white pictograms, 68 dp touch targets, horizontal internal scrolling, and a white/light plus tile with a dark-gray icon.
 - The plus tile opens tool management. Users can add/remove the six supported tools, reorder them with up/down controls, and restore the default set. Only selected tool IDs/order are saved in app preferences.
 - The six actions are connected: create mock bill (retains the existing accounting confirmation workflow), copy current wallet address, open pending bills, refresh the current WebView, copy current page URL, and open the current page externally.
 - The entire dock is hosted as an overlay within the browser viewport. Long-press drag moves it vertically; release constrains it to the safe browser viewport and snaps horizontally to the nearest side. Ordinary horizontal swipes remain available to scroll the inner tool row.
@@ -25,7 +25,7 @@ The user's latest reference image is the visual source of truth. This is a **mob
 - **Not yet validated:** exact-head Android build/unit tests and physical-device checks for internal scroll vs long-press drag, edge snap, vertical bounds, add/remove/reorder, all six actions, and bottom reset after exit/re-entry. Do not claim acceptance until those checks pass.
 - Scope deliberately excludes the website loading failure and browser-page WalletConnect no-response issue, which the user asked to defer. Do not weaken HTTPS/TLS/origin checks or spend this batch reopening those investigations.
 
-**Current implementation checkpoint:** browser dock source and host integration are committed on `feature/mobile-browser-home-dock-batch`; latest code commit at this note is `80006780599732002b775baea423ca71e6d3b98a`. PR #135 remains draft/unmerged. Recheck exact branch/PR head and Actions status before validation; physical-device acceptance remains pending.
+**Current implementation checkpoint:** browser dock code commit `98781cf546b028c1d9d263de3a06965089238f0b`; latest visual-spec documentation commit `16ed7c8b440a5fa50d9335f24bff815c3288b1c2`. Exact code commit's Android debug build and unit-test job passed in Actions run `42773766449` (run #783). This is automated build/test evidence only; physical-device acceptance remains pending. PR #135 remains draft/unmerged.
 
 ---
 
