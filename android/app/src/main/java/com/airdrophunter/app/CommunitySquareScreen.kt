@@ -154,7 +154,7 @@ fun CommunitySquareScreen(
             chain = entry.chain,
             logo = entry.logo.ifBlank { entry.name.take(1).uppercase() },
             websiteUrl = entry.website_url,
-            reward = stats?.total_actual_reward_usd ?: 0.0,
+            reward = stats?.total_reward_usd ?: stats?.total_actual_reward_usd ?: 0.0,
             gas = stats?.total_gas_cost_usd ?: 0.0,
             createdAt = entry.created_at,
             tags = entry.tags,
