@@ -133,6 +133,13 @@ def test_project_create_is_idempotent_for_same_user_and_client_id():
         listed = client.get("/api/projects", headers=alice)
         assert [item["id"] for item in listed.json()].count(first_project["id"]) == 1
 
+        # Ordinary edits from older clients omit the key; it must remain immutable.
+        updated = client.put(f"/api/projects/{first_project['id']}", headers=alice, json={
+            "name": "Edited project",
+        })
+        assert updated.status_code == 200
+        assert updated.json()["client_project_id"] == client_id
+
         other_user = client.post("/api/projects", headers=bob, json={
             "name": "Different account project",
             "client_project_id": client_id,
