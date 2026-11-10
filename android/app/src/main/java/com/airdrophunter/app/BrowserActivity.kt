@@ -174,6 +174,7 @@ private fun BrowserScreen(
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var loadAttempt by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
+    var mainFrameLoadFailed by remember(url) { mutableStateOf(false) }
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
     var approvedExternalEntry by remember(url) { mutableStateOf(false) }
     var approvedOrigin by remember(url) { mutableStateOf(DappProviderBridge.origin(Uri.parse(url))) }
@@ -193,7 +194,7 @@ private fun BrowserScreen(
 
     LaunchedEffect(pageState, loadAttempt, approvedExternalEntry) {
         if (approvedExternalEntry && pageState == BrowserPageState.Loading) {
-            kotlinx.coroutines.delay(3_000)
+            kotlinx.coroutines.delay(BrowserPageLoadPolicy.ATTEMPT_TIMEOUT_MS)
             if (pageState == BrowserPageState.Loading) {
                 val web = browser
                 if (loadAttempt == 0 && web != null) {
@@ -563,13 +564,18 @@ private fun BrowserScreen(
                                     }
                                     currentPageUrl = it
                                 }
+                                mainFrameLoadFailed = false
                                 pageState = BrowserPageState.Loading
                                 Log.d("AirdropBrowser", "Page started: $pageUrl")
                             }
 
                             override fun onPageFinished(view: WebView?, pageUrl: String?) {
                                 pageUrl?.let { currentPageUrl = it }
-                                pageState = BrowserPageState.Success
+                                pageState = if (BrowserPageLoadPolicy.shouldMarkSuccessful(mainFrameLoadFailed)) {
+                                    BrowserPageState.Success
+                                } else {
+                                    BrowserPageState.Error
+                                }
                                 loadAttempt = 0
                                 view?.settings?.userAgentString = CHROME_MOBILE_USER_AGENT
                                 Log.d("AirdropBrowser", "Page finished: $pageUrl")
@@ -582,6 +588,7 @@ private fun BrowserScreen(
                             ) {
                                 super.onReceivedError(view, request, error)
                                 if (request?.isForMainFrame == true) {
+                                    mainFrameLoadFailed = true
                                     pageState = BrowserPageState.Error
                                     Log.e("AirdropBrowser", "Main-frame load error: ${error?.errorCode} ${error?.description}")
                                 }
@@ -594,6 +601,7 @@ private fun BrowserScreen(
                             ) {
                                 super.onReceivedHttpError(view, request, errorResponse)
                                 if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 200) >= 400) {
+                                    mainFrameLoadFailed = true
                                     pageState = BrowserPageState.Error
                                     Log.e("AirdropBrowser", "Main-frame HTTP error: ${errorResponse?.statusCode}")
                                 }
@@ -602,6 +610,8 @@ private fun BrowserScreen(
                             override fun onReceivedSslError(view: WebView?, handler: android.webkit.SslErrorHandler?, error: android.net.http.SslError?) {
                                 // Never allow a WebView page to bypass TLS certificate validation.
                                 handler?.cancel()
+                                mainFrameLoadFailed = true
+                                pageState = BrowserPageState.Error
                                 Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed: $error")
                             }
                         }

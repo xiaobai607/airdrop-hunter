@@ -12,6 +12,14 @@ internal data class DappRpcRequest(
     val params: JSONArray
 )
 
+internal object BrowserPageLoadPolicy {
+    // Allow slow mobile connections before trying the alternate browser user agent.
+    const val ATTEMPT_TIMEOUT_MS = 12_000L
+
+    // WebView may still call onPageFinished after a main-frame HTTP/network/TLS error.
+    fun shouldMarkSuccessful(mainFrameFailed: Boolean): Boolean = !mainFrameFailed
+}
+
 internal object DappProviderBridge {
     const val JS_OBJECT_NAME = "ahWalletBridge"
     val HTTPS_ORIGIN_RULES = setOf("*")

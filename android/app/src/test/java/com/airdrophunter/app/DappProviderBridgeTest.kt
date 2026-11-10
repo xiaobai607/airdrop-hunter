@@ -6,6 +6,12 @@ import org.junit.Test
 
 class DappProviderBridgeTest {
     @Test
+    fun mainFrameErrorsAreNotOverwrittenByPageFinishedCallbacks() {
+        assertTrue(BrowserPageLoadPolicy.shouldMarkSuccessful(mainFrameFailed = false))
+        assertEquals(false, BrowserPageLoadPolicy.shouldMarkSuccessful(mainFrameFailed = true))
+    }
+
+    @Test
     fun originRulesUseTheWebViewSupportedGlobalWildcardSyntax() {
         assertEquals(setOf("*"), DappProviderBridge.HTTPS_ORIGIN_RULES)
     }
