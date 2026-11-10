@@ -31,6 +31,7 @@ import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.rememberModalBottomSheetState
 import com.google.accompanist.navigation.material.BottomSheetNavigator
 import com.reown.appkit.client.AppKit
+import com.reown.appkit.client.Modal
 import com.reown.appkit.client.models.request.Request as ExternalWalletRequest
 import com.reown.appkit.ui.appKitGraph
 import com.reown.appkit.ui.openAppKit
