@@ -404,3 +404,64 @@ class ProjectsRepositoryTest {
             assertFalse(refreshed.single().syncPending)
         }
     }
+
+
+
+    @Test fun pendingAuthenticatedProjectCanBeEditedOfflineAndSyncsLatestValues() {
+        val local = FakeLocal()
+        var failCreate = true
+        val remote = object : FakeRemote() {
+            override suspend fun createProject(request: ProjectWriteRequest): ProjectDto {
+                projectCreateCalls++
+                if (failCreate) throw IllegalStateException("offline")
+                return super.createProject(request)
+            }
+            override suspend fun updateProject(projectId: String, request: ProjectWriteRequest): ProjectDto {
+                throw AssertionError("pending project must not call update before it has a remote ID")
+            }
+        }
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val pending = repository.createProject(
+                ProjectWriteRequest("Original", "old", "tracking"), guest = false
+            ).single()
+            assertTrue(pending.syncPending)
+            val edited = repository.updateProject(
+                pending,
+                ProjectWriteRequest("Edited offline", "latest details", "completed"),
+                guest = false
+            ).single()
+            assertEquals("Edited offline", edited.name)
+            assertEquals("latest details", edited.description)
+            assertTrue(edited.syncPending)
+
+            failCreate = false
+            val synced = repository.refreshProjects().single()
+            assertEquals("Edited offline", synced.name)
+            assertEquals("latest details", synced.description)
+            assertFalse(synced.syncPending)
+        }
+    }
+
+    @Test fun deletingPendingAuthenticatedProjectDoesNotCallRemoteDelete() {
+        val local = FakeLocal()
+        var remoteDeleteCalls = 0
+        val remote = object : FakeRemote() {
+            override suspend fun createProject(request: ProjectWriteRequest): ProjectDto {
+                throw IllegalStateException("offline")
+            }
+            override suspend fun deleteProject(projectId: String) {
+                remoteDeleteCalls++
+            }
+        }
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val pending = repository.createProject(
+                ProjectWriteRequest("Delete offline", "", "tracking"), guest = false
+            ).single()
+            assertTrue(pending.syncPending)
+            val remaining = repository.deleteProject(pending, guest = false)
+            assertTrue(remaining.isEmpty())
+            assertEquals(0, remoteDeleteCalls)
+        }
+    }

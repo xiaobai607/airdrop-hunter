@@ -86,7 +86,7 @@ class ProjectsRepository(
         // Retry only projects marked pending. The stable local ID is the server-side
         // idempotency key, so a lost response cannot create a second server project.
         cached.filter { it.syncPending }.forEach { pending ->
-            runCatching {
+            try {
                 val response = remote.createProject(pending.toWriteRequest().copy(client_project_id = pending.id))
                 cached = cached.map { current ->
                     if (current.id == pending.id) current.copy(
@@ -96,6 +96,10 @@ class ProjectsRepository(
                     ) else current
                 }
                 local.write("projects", gson.toJson(cached), guest = false)
+            } catch (cancelled: java.util.concurrent.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Keep the pending row visible; the next refresh safely retries the same key.
             }
         }
         val fetched = remote.getProjects()
@@ -169,8 +173,8 @@ class ProjectsRepository(
         guest: Boolean
     ): List<ProjectDto> {
         val normalized = normalizeProjectRequest(request)
-        if (guest) {
-            val current = decodeList<ProjectDto>(local.read("projects", true), projectsType)
+        if (guest || project.syncPending) {
+            val current = decodeList<ProjectDto>(local.read("projects", guest), projectsType)
             require(current.any { it.id == project.id }) { "项目不存在或不是本地自建项目" }
             val updatedProject = project.copy(
                 name = normalized.name,
@@ -185,7 +189,7 @@ class ProjectsRepository(
                 actual_income = normalized.actual_income
             )
             val updated = current.map { if (it.id == project.id) updatedProject else it }
-            local.write("projects", gson.toJson(updated), guest = true)
+            local.write("projects", gson.toJson(updated), guest)
             return mergePnlProjects(updated, guest)
         }
         remote.updateProject(project.remoteId ?: project.id, normalized)
@@ -193,7 +197,7 @@ class ProjectsRepository(
     }
 
     suspend fun deleteProject(project: ProjectDto, guest: Boolean): List<ProjectDto> {
-        if (!guest) remote.deleteProject(project.remoteId ?: project.id)
+        if (!guest && !project.syncPending) remote.deleteProject(project.remoteId ?: project.id)
         val current = readCachedProjects(guest)
         val updated = current.filterNot { it.id == project.id }
         local.write("projects", gson.toJson(updated), guest)
