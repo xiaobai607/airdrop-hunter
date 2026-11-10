@@ -18,7 +18,6 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.runtime.*
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -63,36 +62,11 @@ private enum class CommunityRanking(val title: String) {
 }
 
 @Composable
-private fun CommunityDistributionRows(
-    title: String,
-    rows: List<CommunityRangeDistributionDto>,
-    tint: Color
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-        if (rows.isEmpty()) {
-            Text("暂无足够样本", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-        } else {
-            rows.forEach { row ->
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(row.range_label, modifier = Modifier.widthIn(min = 54.dp, max = 92.dp), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                    Box(Modifier.weight(1f).height(6.dp).background(AppColors.Border, RoundedCornerShape(99.dp))) {
-                        Box(Modifier.fillMaxWidth((row.percentage / 100.0).toFloat().coerceIn(0f, 1f)).fillMaxHeight().background(tint, RoundedCornerShape(99.dp)))
-                    }
-                    Text("${row.count} · ${String.format(Locale.US, "%.0f%%", row.percentage)}", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun CommunitySquareScreen(
     modifier: Modifier = Modifier,
     onProjectSelected: (String, String, String) -> Unit
 ) {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val joinedIds by CacheStore.observeUserProjects().collectAsStateWithLifecycle(initialValue = emptyList())
     val favorites by CacheStore.observeCommunityFavorites().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -100,7 +74,6 @@ fun CommunitySquareScreen(
     val joinedOfficialIds = remember(joinedIds) { joinedIds.mapNotNull { it.projectOfficialId }.toSet() }
     var catalogEntries by remember { mutableStateOf<List<com.airdrophunter.app.data.CommunityProjectCatalogDto>>(emptyList()) }
     var communityStats by remember { mutableStateOf<Map<String, CommunityProjectStatsDto>>(emptyMap()) }
-    var overallSummary by remember { mutableStateOf<CommunitySnapshotSummaryDto?>(null) }
     var statsLoading by remember { mutableStateOf(true) }
     var catalogError by remember { mutableStateOf<String?>(null) }
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
@@ -123,7 +96,6 @@ fun CommunitySquareScreen(
 
         fun applyOverallSnapshot(snapshot: com.airdrophunter.app.data.CommunitySnapshotDto?) {
             if (snapshot == null) return
-            overallSummary = snapshot.summary
             catalogEntries = snapshot.projects.map { project ->
                 com.airdrophunter.app.data.CommunityProjectCatalogDto(
                     project_official_id = project.project_official_id,
@@ -186,36 +158,6 @@ fun CommunitySquareScreen(
     }
     // Synthetic projects exist only in the DEBUG test mode. They never enter the catalog,
     // API, personal project library, ledger, or contribution outbox.
-    val demoSummary = remember {
-        CommunitySnapshotSummaryDto(
-            gas_total_usd = 286420.0,
-            gas_by_chain = listOf(
-                com.airdrophunter.app.data.CommunityChainGasDto("ethereum", 126800.0),
-                com.airdrophunter.app.data.CommunityChainGasDto("arbitrum", 68420.0),
-                com.airdrophunter.app.data.CommunityChainGasDto("base", 51200.0),
-                com.airdrophunter.app.data.CommunityChainGasDto("optimism", 40000.0)
-            ),
-            reward_total_usd = 842600.0,
-            gas_range_distribution = listOf(
-                CommunityRangeDistributionDto("$0–$50", 180, 42.0),
-                CommunityRangeDistributionDto("$50–$200", 126, 29.4),
-                CommunityRangeDistributionDto("$200–$500", 74, 17.3),
-                CommunityRangeDistributionDto("$500–$1K", 32, 7.5),
-                CommunityRangeDistributionDto("$1K+", 16, 3.8)
-            ),
-            reward_range_distribution = listOf(
-                CommunityRangeDistributionDto("$0–$100", 120, 28.0),
-                CommunityRangeDistributionDto("$100–$500", 142, 33.2),
-                CommunityRangeDistributionDto("$500–$1K", 82, 19.2),
-                CommunityRangeDistributionDto("$1K–$5K", 62, 14.5),
-                CommunityRangeDistributionDto("$5K+", 22, 5.1)
-            ),
-            cumulative_contributors = 428,
-            active_30d_contributors = 216,
-            contributor_count_basis = "anonymous_installation_fingerprint"
-        )
-    }
-    val displaySummary = if (BuildConfig.DEBUG && useDemoData) demoSummary else overallSummary
     val demoProjects = listOf(
         CommunityProject("demo:novalayer", "NovaLayer", "Arbitrum", "N", "", 184.20, 42.80,
             "2026-11-10T08:00:00Z", listOf("Layer2", "DeFi", "测试网"), true, 4.8),
@@ -441,6 +383,29 @@ fun CommunitySquareScreen(
                             color = if (project.ratingCount > 0) Color(0xFFB7791F) else AppColors.TextHelper,
                             style = MaterialTheme.typography.labelSmall
                         )
+                    }
+                    val totalGasReward = project.gas.coerceAtLeast(0.0) + project.reward.coerceAtLeast(0.0)
+                    if (totalGasReward > 0.0) {
+                        val gasShare = (project.gas.coerceAtLeast(0.0) / totalGasReward).toFloat().coerceIn(0f, 1f)
+                        Box(
+                            Modifier.fillMaxWidth().height(10.dp)
+                                .background(AppColors.Border, RoundedCornerShape(999.dp))
+                        ) {
+                            Row(Modifier.fillMaxSize()) {
+                                if (gasShare > 0f) {
+                                    Box(
+                                        Modifier.fillMaxWidth(gasShare).fillMaxHeight()
+                                            .background(Color(0xFFE76565))
+                                    )
+                                }
+                                if (gasShare < 1f) {
+                                    Box(
+                                        Modifier.fillMaxWidth(1f - gasShare).fillMaxHeight()
+                                            .background(Color(0xFF31B77D))
+                                    )
+                                }
+                            }
+                        }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         project.tags.forEach { tag ->
