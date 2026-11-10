@@ -402,7 +402,7 @@ private fun CommunitySnapshotPeriodMetric(
                     Box(
                         Modifier.weight(gasWeight).fillMaxHeight().background(
                             gasColor,
-                            if (rewardWeight == 0f) CircleShape else RoundedCornerShape(topStart = 50, bottomStart = 50, topEnd = 0, bottomEnd = 0)
+                            if (rewardWeight == 0f) CircleShape else RoundedCornerShape(topStart = 50.dp, bottomStart = 50.dp, topEnd = 0.dp, bottomEnd = 0.dp)
                         ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -416,7 +416,7 @@ private fun CommunitySnapshotPeriodMetric(
                     Box(
                         Modifier.weight(rewardWeight).fillMaxHeight().background(
                             rewardColor,
-                            if (gasWeight == 0f) CircleShape else RoundedCornerShape(topStart = 0, bottomStart = 0, topEnd = 50, bottomEnd = 50)
+                            if (gasWeight == 0f) CircleShape else RoundedCornerShape(topStart = 0.dp, bottomStart = 0.dp, topEnd = 50.dp, bottomEnd = 50.dp)
                         ),
                         contentAlignment = Alignment.Center
                     ) {
