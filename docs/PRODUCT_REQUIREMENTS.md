@@ -27,7 +27,7 @@ The user's latest reference image is the visual source of truth. This is a **mob
 - **Not yet validated:** exact-head Android build/unit tests and physical-device checks for internal scroll vs long-press drag, edge snap, vertical bounds, add/remove/reorder, all six actions, and bottom reset after exit/re-entry. Do not claim acceptance until those checks pass.
 - Scope deliberately excludes the website loading failure and browser-page WalletConnect no-response issue, which the user asked to defer. Do not weaken HTTPS/TLS/origin checks or spend this batch reopening those investigations.
 
-**Current implementation checkpoint:** browser dock code commit `c51395144f66216f914c2411560017b7998f1ca2` includes the saturated app-icon/glass-capsule styling and unconditional edge snap. The prior visual-only code commit passed Android debug build and unit tests in Actions run `42773766449` (run #783); this latest edge-snap correction still requires one exact-commit build. Physical-device acceptance remains pending. PR #135 remains draft/unmerged.
+**Current implementation checkpoint:** browser dock code commit `c51395144f66216f914c2411560017b7998f1ca2` includes the saturated app-icon/glass-capsule styling and unconditional edge snap. The prior visual-only code commit passed Android debug build and unit tests in Actions run `42773766449` (run #783). The exact edge-snap commit's Actions run `42779422216` (run #786) was cancelled when the following documentation-only commit updated the same PR; GitHub rejected retrying that cancelled run, so the edge-snap correction is not yet covered by an exact-commit build. Physical-device acceptance remains pending. PR #135 remains draft/unmerged.
 
 ---
 
