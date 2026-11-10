@@ -1210,3 +1210,11 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - The bridge forwards only the approved external-wallet methods (`personal_sign`, `eth_sign`, typed-data signing v1/v3/v4 where supported by the bridge allowlist, `eth_signTransaction`, and `eth_sendTransaction`) after HTTPS origin authorization, live WalletConnect session validation, authorized-account matching, and chain consistency checks. Wallet approval/signing/broadcast remains with the external wallet. Unsupported/raw transaction submission and app-owned private-key signing remain blocked.
 - DApp responses/errors are returned to the requesting page; requests are serialized, timed out, and cancelled on navigation/session change. JVM tests cover the method allowlist/blocklist and account authorization checks.
 - **Acceptance limitation:** CI proves compilation, unit tests, and APK packaging only. Physical-device validation with MetaMask, OKX Wallet, and Trust Wallet is still required for connect, sign, send, reject, timeout, and DApp callback behavior. Do not mark external-wallet compatibility fully accepted until this is performed.
+
+
+### Browser loading compile correction — 2026-11-10
+
+- Exact-head CI for the browser loading and WalletConnect multi-chain batch exposed a Kotlin compile failure: `BrowserActivity` referenced `BrowserPageLoadPolicy`, but the policy implementation had not been included in the source tree.
+- Added the missing package-local policy with the intended 12-second per-attempt timeout and the main-frame-failure completion guard. Added focused JVM tests for both rules.
+- This is a build-integrity correction, not a relaxation of HTTPS, TLS, origin, WalletConnect session, account, or chain authorization checks.
+- Validation status: correction committed; exact-head Android unit tests and Debug APK build must pass before this batch is considered CI-complete. Physical-device DApp and external-wallet acceptance remains outstanding.
