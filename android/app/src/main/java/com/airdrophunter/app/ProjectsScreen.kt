@@ -28,6 +28,8 @@ import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.CommunityProjectCatalog
 import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.CommunityCatalogRepository
 import com.airdrophunter.app.data.shouldShowAccountingReminder
 import androidx.compose.runtime.collectAsState
 import com.airdrophunter.app.ui.theme.AppColors
@@ -52,6 +54,7 @@ fun ProjectsScreen(
     val pnlRecords by CacheStore.observePnlRecords().collectAsState(initial = emptyList())
     val savedProjects by CacheStore.observeUserProjects().collectAsState(initial = emptyList())
     val allRatings by CacheStore.observeAllProjectRatings().collectAsState(initial = emptyList())
+    var communityDirectory by remember { mutableStateOf(emptyList<com.airdrophunter.app.data.CommunityProjectCatalogDto>()) }
     var selectedFilter by remember { mutableStateOf("全部") }
     var showAddDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
@@ -67,6 +70,13 @@ fun ProjectsScreen(
     var editProjectClaimUrl by remember { mutableStateOf("") }
     var editProjectTwitterUrl by remember { mutableStateOf("") }
     var editProjectStatus by remember { mutableStateOf("tracking") }
+
+    LaunchedEffect(Unit) {
+        ApiClient.initialize(context)
+        communityDirectory = CommunityCatalogRepository.readCatalog().orEmpty()
+        runCatching { CommunityCatalogRepository.refreshCatalog() }
+            .onSuccess { communityDirectory = it }
+    }
 
     LaunchedEffect(isGuest, sessionScopeKey) {
         actionProject = null
@@ -95,8 +105,13 @@ fun ProjectsScreen(
             communityOfficialId = saved.projectOfficialId
         )
     }
+    val delistedOfficialIds = remember(communityDirectory) {
+        communityDirectory.filterNot { it.is_active }.map { it.project_official_id }.toSet()
+    }
     val visibleProjects = (savedProjectDtos + state.projects).distinctBy {
         it.communityOfficialId?.let { officialId -> "official:$officialId" } ?: "local:${it.id}"
+    }.map { project ->
+        project.copy(communityDelisted = project.communityOfficialId in delistedOfficialIds)
     }
 
     val filterOptions = listOf("全部" to visibleProjects.size) +
@@ -208,6 +223,13 @@ fun ProjectsScreen(
                                         Text(statusLabel, Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                             color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                                     }
+                                    if (project.communityDelisted) {
+                                        Surface(color = Color(0xFFFFE8E8), shape = RoundedCornerShape(999.dp)) {
+                                            Text("社区已下架", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                                color = Color(0xFFB42318), style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
                                     if (showAccountingReminder) {
                                         Surface(color = Color(0xFFFFF4E5), shape = RoundedCornerShape(999.dp)) {
                                             Text("待记账", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
@@ -233,16 +255,21 @@ fun ProjectsScreen(
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Surface(onClick = {
-                                    if (project.communityOfficialId != null) onOpenCommunity(project)
-                                    else Toast.makeText(context, "这是纯本地项目，尚未关联社区标准项目", Toast.LENGTH_SHORT).show()
+                                    when {
+                                        project.communityDelisted -> Toast.makeText(context, "社区已下架，项目仍保留在本地私人模式", Toast.LENGTH_SHORT).show()
+                                        project.communityOfficialId != null -> onOpenCommunity(project)
+                                        else -> Toast.makeText(context, "这是纯本地项目，尚未关联社区标准项目", Toast.LENGTH_SHORT).show()
+                                    }
                                 }, shape = RoundedCornerShape(999.dp),
                                     color = Color(0xFFFFF4E5), border = BorderStroke(1.dp, Color(0xFFFFD9A8))) {
                                     Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(if (project.communityOfficialId != null) "微社区" else "本地项目", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
-                                        Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12),
-                                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        Text(if (project.communityDelisted) "私人模式" else if (project.communityOfficialId != null) "微社区" else "本地项目", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        if (!project.communityDelisted && project.communityOfficialId != null) {
+                                            Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
+                                            Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12),
+                                                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                                 Text(communityLabel, color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
