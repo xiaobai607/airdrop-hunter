@@ -3,6 +3,14 @@
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
 
+### Horizontal floating toolbar correction — implementation pass (2026-11-10; PR #135)
+
+- Updated the toolbar source from a short circular capsule to a wider horizontal rounded bar (304–360 dp target width), with larger 48 dp icon targets, more spacing, and horizontal scrolling inside the bar.
+- Added long-press drag for the whole bar, independent of icon scrolling, and left/right edge snapping on release. The vertical position is constrained to a safe area.
+- Drag coordinates are held only in Compose in-memory state (`remember`); no preference/database persistence is used. The browser toolbar's parent composable is recreated on a fresh browser entry, so it should return to the bottom default after exit/re-entry.
+- This pass deliberately implements the user's latest horizontal requirement, superseding the earlier vertical-rail inspiration. User-customizable tool add/remove/reorder and the additional address/page utility actions are still separate pending work.
+- Build/device acceptance is pending; confirm gesture behavior, exact visual proportions, edge snapping, internal scrolling, and bottom reset on a physical Android device. Do not claim accepted from source edits alone.
+
 ## Implementation progress after the user's 11:40–11:45 device test (feature branch; not yet merged)
 
 - The new test corrections are recorded above in the authoritative requirements document before implementation.
