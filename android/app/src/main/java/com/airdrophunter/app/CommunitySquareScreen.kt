@@ -218,7 +218,7 @@ fun CommunitySquareScreen(
                     project_official_id = project.project_official_id,
                     total_gas_cost_usd = project.gas_cost_usd_valuation,
                     total_actual_reward_usd = project.actual_reward_usd_valuation,
-                    total_reward_usd = project.reward_usd_valuation,
+                    total_reward_usd = project.reward_usd_valuation.takeIf { it > 0.0 } ?: project.actual_reward_usd_valuation,
                     total_estimated_reward_usd = project.estimated_reward_usd_valuation,
                     gas_by_verification_tier = project.gas_by_verification_tier,
                     data_quality = snapshot.data_quality,
