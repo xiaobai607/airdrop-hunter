@@ -905,18 +905,20 @@ private fun GasRewardComparisonBar(gasUsd: Double, rewardUsd: Double?) {
             Modifier.fillMaxWidth().height(12.dp)
                 .background(AppColors.Border, RoundedCornerShape(999.dp))
         ) {
-            Row(Modifier.fillMaxSize()) {
-                if (gasShare > 0f) {
-                    Box(
-                        Modifier.width(maxWidth * gasShare).fillMaxHeight()
-                            .background(AppColors.Danger)
-                    )
-                }
-                if (reward != null && gasShare < 1f) {
-                    Box(
-                        Modifier.weight(1f).fillMaxHeight()
-                            .background(AppColors.Success)
-                    )
+            if (total > 0.0) {
+                Row(Modifier.fillMaxSize()) {
+                    if (gasShare > 0f) {
+                        Box(
+                            Modifier.width(maxWidth * gasShare).fillMaxHeight()
+                                .background(AppColors.Danger)
+                        )
+                    }
+                    if (reward != null && gasShare < 1f) {
+                        Box(
+                            Modifier.weight(1f).fillMaxHeight()
+                                .background(AppColors.Success)
+                        )
+                    }
                 }
             }
         }
