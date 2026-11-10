@@ -359,7 +359,6 @@ private fun CommunitySnapshotPeriodMetric(
     showUpdateTime: Boolean,
     gasTokens: List<CommunityTokenAggregateDto>,
     rewardTokens: List<CommunityTokenAggregateDto>,
-    gasByVerificationTier: Map<String, Double>,
     hasData: Boolean
 ) {
     val total = gas + reward
@@ -372,21 +371,23 @@ private fun CommunitySnapshotPeriodMetric(
                 Text(title, Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                 Text("USD 估值", color = Color(0xFFB9C8C0), style = MaterialTheme.typography.labelSmall)
             }
-            if (hasComparableAmounts && gas > 0.0 && reward > 0.0) {
-                Row(Modifier.fillMaxWidth().height(18.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Box(Modifier.weight(gasWeight).fillMaxHeight().background(Color(0xFFEF6262), RoundedCornerShape(6.dp)))
-                    Box(Modifier.weight(rewardWeight).fillMaxHeight().background(Color(0xFF31C48D), RoundedCornerShape(6.dp)))
-                }
-            } else if (hasComparableAmounts) {
-                Box(
-                    Modifier.fillMaxWidth().height(18.dp).background(
-                        if (gas > 0.0) Color(0xFFEF6262) else Color(0xFF31C48D),
-                        RoundedCornerShape(6.dp)
+            if (hasComparableAmounts) {
+                val comparisonBrush = when {
+                    gasWeight <= 0f -> SolidColor(Color(0xFF31C48D))
+                    rewardWeight <= 0f -> SolidColor(Color(0xFFEF6262))
+                    else -> Brush.horizontalGradient(
+                        colorStops = arrayOf(
+                            0f to Color(0xFFEF6262),
+                            gasWeight to Color(0xFFEF6262),
+                            gasWeight to Color(0xFF31C48D),
+                            1f to Color(0xFF31C48D)
+                        )
                     )
-                )
+                }
+                Box(Modifier.fillMaxWidth().height(18.dp).background(comparisonBrush, RoundedCornerShape(6.dp)))
             } else {
                 Text(
-                    if (hasData) "暂无可比较的 Gas / 实际收益金额" else "暂无该时间窗口的确认贡献",
+                    if (hasData) "暂无可比较的 Gas / 收益金额" else "暂无该时间窗口的统计数据",
                     color = Color(0xFFB9C8C0),
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -397,7 +398,7 @@ private fun CommunitySnapshotPeriodMetric(
                     Text(String.format(java.util.Locale.US, "$%,.2f", gas), color = Color.White, fontWeight = FontWeight.Bold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("实际收益 USD估值", color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
+                    Text("收益 USD估值", color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
                     Text(String.format(java.util.Locale.US, "$%,.2f", reward), color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
@@ -408,9 +409,6 @@ private fun CommunitySnapshotPeriodMetric(
             if (rewardTokens.isNotEmpty()) {
                 Text("收益代币：${formatCommunityTokenBreakdown(rewardTokens)}",
                     color = Color(0xFF9FE7C9), style = MaterialTheme.typography.labelSmall)
-            }
-            if (gasByVerificationTier.isNotEmpty()) {
-                CommunityVerificationTierBar(values = gasByVerificationTier, compact = false)
             }
             if (showUpdateTime) {
                 Text(
