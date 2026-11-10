@@ -78,7 +78,10 @@ data class UserInteractionEntity(
     val rewardQuoteSource: String? = null,
     val rewardQuoteTimestamp: Long? = null,
     @ColumnInfo(defaultValue = "1") val usdProfitComplete: Boolean = true,
-    @ColumnInfo(defaultValue = "0") val publicContributionOptIn: Boolean = false
+    @ColumnInfo(defaultValue = "0") val publicContributionOptIn: Boolean = false,
+    @ColumnInfo(defaultValue = "'private'") val publicContributionStatus: String = "private",
+    val publicContributionTier: String? = null,
+    val publicContributionError: String? = null
 )
 
 @Entity(tableName = "community_sync_outbox", primaryKeys = ["accountScope", "id"], indices = [Index(value = ["accountScope", "createdAt"])])
@@ -256,6 +259,8 @@ interface UserInteractionDao {
     suspend fun getAll(accountScope: String): List<UserInteractionEntity>
     @Query("SELECT * FROM user_interactions WHERE accountScope = :accountScope AND id = :id LIMIT 1")
     suspend fun findById(id: String, accountScope: String): UserInteractionEntity?
+    @Query("UPDATE user_interactions SET publicContributionStatus = :status, publicContributionTier = :verificationTier, publicContributionError = :error WHERE id = :id AND accountScope = :accountScope")
+    suspend fun updateContributionStatus(id: String, accountScope: String, status: String, verificationTier: String?, error: String?): Int
     @Query("SELECT EXISTS(SELECT 1 FROM user_interactions WHERE accountScope = :accountScope AND LOWER(network) = LOWER(:network) AND ((LOWER(:network) = 'solana' AND txHash = :txHash) OR (LOWER(:network) != 'solana' AND LOWER(txHash) = LOWER(:txHash))) AND ((LOWER(:network) IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND LOWER(walletAddress) = LOWER(:walletAddress)) OR (LOWER(:network) NOT IN ('ethereum', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche') AND walletAddress = :walletAddress)))")
     suspend fun hasTransaction(accountScope: String, network: String, walletAddress: String, txHash: String): Boolean
 }
@@ -351,7 +356,7 @@ interface LocalBackupDao {
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectWalletAssignments(rows:List<ProjectWalletAssignmentEntity>)
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class], version = 19, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class], version = 20, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -641,13 +646,20 @@ object CacheStore {
             db.execSQL("CREATE TABLE IF NOT EXISTS cache_metadata (cacheKey TEXT NOT NULL, source TEXT NOT NULL, fetchedAt INTEGER, expiresAt INTEGER, ttlMillis INTEGER NOT NULL, refreshStatus TEXT NOT NULL, lastError TEXT, lastManualRefreshAt INTEGER, PRIMARY KEY(cacheKey, source))")
         }
     }
+    private val MIGRATION_19_20 = object : Migration(19, 20) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN publicContributionStatus TEXT NOT NULL DEFAULT 'private'")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN publicContributionTier TEXT")
+            db.execSQL("ALTER TABLE user_interactions ADD COLUMN publicContributionError TEXT")
+        }
+    }
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -879,6 +891,9 @@ object CacheStore {
         error: String? = null
     ) {
         val db = database ?: return
+        val interactionUpdated = db.userInteractionDao().updateContributionStatus(
+            id, accountScope, status, verificationTier, error?.takeIf { it.isNotBlank() }?.take(240)
+        ) > 0
         val ledgerKey = "$accountScope:local:personal_ledger"
         val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
         val gson = Gson()
@@ -891,14 +906,14 @@ object CacheStore {
             changed = true
             val metadata = entry.extra.toMutableMap()
             metadata["public_contribution_status"] = status
-            verificationTier?.let { metadata["public_contribution_tier"] = it }
-            error?.takeIf { it.isNotBlank() }?.let { metadata["public_contribution_error"] = it.take(240) }
+            if (verificationTier.isNullOrBlank()) metadata.remove("public_contribution_tier")
+            else metadata["public_contribution_tier"] = verificationTier
+            if (error.isNullOrBlank()) metadata.remove("public_contribution_error")
+            else metadata["public_contribution_error"] = error.take(240)
             entry.copy(extra = metadata)
         }
-        if (changed) {
-            db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(updated), System.currentTimeMillis()))
-            if (accountScope.startsWith("user:")) schedulePrivateLedgerSync()
-        }
+        if (changed) db.cacheDao().write(CachedPayload(ledgerKey, gson.toJson(updated), System.currentTimeMillis()))
+        if ((changed || interactionUpdated) && accountScope.startsWith("user:")) schedulePrivateLedgerSync()
     }
 
     suspend fun completeCommunitySync(
@@ -918,6 +933,7 @@ object CacheStore {
         database?.communitySyncOutboxDao()?.markAttemptById(
             id, accountScope, System.currentTimeMillis(), error.take(500)
         )
+        updatePublicContributionLedgerStatus(id, accountScope, "pending_verification", error = error)
     }
 
     suspend fun markCommunitySyncTerminalFailure(
@@ -1071,7 +1087,8 @@ object CacheStore {
                     assetBreakdownJson = effectiveAssetBreakdown,
                     expectedGasCostUsd = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 },
                     expectedRewardUsd = null,
-                    publicContributionOptIn = publicContributionOptIn
+                    publicContributionOptIn = publicContributionOptIn,
+                    publicContributionStatus = if (publicContributionOptIn) "pending_verification" else "private"
                 )
             )
             if (publicContributionOptIn) {
@@ -1201,7 +1218,8 @@ object CacheStore {
                     rewardAmount = reward.amount?.toDouble(), rewardUnit = reward.unit,
                     rewardUsdValuation = rewardUsd, rewardQuoteSource = reward.quoteSource,
                     rewardQuoteTimestamp = reward.quoteTimestamp, usdProfitComplete = complete,
-                    publicContributionOptIn = entry.publicContributionOptIn
+                    publicContributionOptIn = entry.publicContributionOptIn,
+                    publicContributionStatus = if (entry.publicContributionOptIn && complete && officialId != null) "pending_verification" else if (entry.publicContributionOptIn) "not_eligible" else "private"
                 ))
                 if (entry.publicContributionOptIn && complete) {
                     db.communitySyncOutboxDao().insert(

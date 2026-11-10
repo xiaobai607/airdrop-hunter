@@ -6,6 +6,15 @@ import org.junit.Test
 
 class CommunityVerificationTierTest {
     @Test
+    fun contributionStatusShowsPendingVerifiedAndRejectedStates() {
+        assertEquals("等待链上核验", communityContributionStatusLabel("pending_verification", null))
+        assertEquals("链上精确核验", communityContributionStatusLabel("verified", "amount_verified"))
+        assertEquals("链上已确认", communityContributionStatusLabel("verified", "transaction_linked"))
+        assertEquals("核验拒绝", communityContributionStatusLabel("rejected", null))
+        assertEquals("不符合公共贡献条件", communityContributionStatusLabel("not_eligible", null))
+    }
+
+    @Test
     fun segmentsKeepStableTrustOrderAndExactShares() {
         val segments = communityVerificationTierSegments(
             mapOf("amount_verified" to 75.0, "user_reported" to 25.0, "transaction_linked" to 0.0)

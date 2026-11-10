@@ -1028,4 +1028,21 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Gap found: coin market detail called OKX directly and bypassed Room, TTL, SWR, refresh throttling, and metadata. This batch routes coin-detail loads through the shared cache coordinator and stores its payload in Room-backed cached payloads; detail UI renders cache first, keeps it visible on refresh failure, shows the cache metadata timestamp/state, and throttles manual refresh through the shared policy.
 - Gap found: OKX's raw HTTP adapter converted HTTP statuses into generic `IllegalStateException`, preventing the coordinator from recognizing retryable 408/429/5xx responses or reading `Retry-After`. It now emits a typed IOException for retryable statuses and exposes the response header to the shared retry policy; ordinary non-retryable 4xx remain terminal.
 - No new Room migration is needed: market detail payload uses the existing `cached_payloads` table under a dedicated `remote:` namespace, separate from public community snapshot keys.
-- **Status: in progress pending exact-head Android/backend CI.** Real-device offline/airplane-mode, account-switch, throttling, and stale-label acceptance remains a later release gate. Batch 12 is not complete until all market/search/asset surfaces are checked and CI passes.
+- PR #131 merged to `main` as `6943a28de6cb1bfaf615939c9e1fee7afb41a6bf`; exact head `fbb6b33e8277bfb097b1a1d25d5a84bb1c311c87` passed Android unit tests, Debug APK assembly, and backend tests in Actions run `42745283342`.
+- **Status: complete in code and CI.** Real-device offline/airplane-mode, account-switch, throttling, and stale-label acceptance remains Batch 15.
+
+
+### Batch 15 — unified navigation, account-scope messaging, and backup hardening (2026-11-10; in progress)
+
+- Main navigation already uses the required four destinations in the required order, and community/library/project screens are hosted in saveable state providers. The Home destination was outside that provider and lost its saveable UI state when switching tabs; it now uses the same independent `bottom-tab-0` state holder.
+- Correct the visible tab labels to the user-confirmed Chinese names: 首页 → 空投库 → 库管理 → 我的.
+- The current release disables new registration. The login screen already shows the exact development notice and does not submit registration; the guest profile entry previously still said “登录 / 注册”. It now offers login only; the login screen continues to display the exact registration-development notice.
+- Complete the offline backup format contract: include and validate JSON `app_name: "AirdropHunter"` using an explicit serialized field name, advance the encrypted format version, and normalize wrong-password, marker, JSON, and integrity failures to “文件损坏或密码错误，导入失败”. Keep AES-256-GCM, PBKDF2-HMAC-SHA256, file-size/record bounds, pre-restore validation, and atomic restore unchanged.
+- The document picker already accepts `*/*`; the profile now explicitly documents support for both `.ahbackup` and `.hunter` selections. Password state is cleared on both picker success and cancellation paths.
+- Automated validation is pending on this batch's exact PR head. Batch 15 remains open for the remaining cross-screen regression and real-device acceptance; this entry does not claim final release acceptance.
+
+
+- Batch 15 correction: the serialized backup identity key is exactly `app_name` (not Kotlin's default `appName`); `@SerializedName("app_name")` and a JSON-contract regression test are included in PR #132. PR #132 remains open until Android unit tests and Debug APK assembly pass on its latest exact head.
+
+
+- Batch 15 contribution-status UI integration: Room schema 19→20 adds account-scoped verification status/tier/error fields to each private interaction. The existing contribution worker now updates both the private-ledger metadata and the corresponding interaction row for pending/retry, verified, and terminal-rejected outcomes. Project accounting history visibly distinguishes “等待链上核验”, “链上已确认”, “链上精确核验”, and “核验拒绝”; rejection detail is shown only in the owner's private ledger. A pure status-label regression test covers the state mapping. This does not expose raw wallet addresses or transaction hashes publicly and does not alter manual event settlement confirmation.
