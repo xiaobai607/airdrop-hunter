@@ -134,7 +134,7 @@ class AccountingRepository(
             local.writeLocal("pnl_projects", gson.toJson(updated))
             return updated
         }
-        val guest = accessTokenProvider().isNullOrBlank()
+        val guest = !privateCloudSyncEnabled || accessTokenProvider().isNullOrBlank()
         val request = ProjectWriteRequest(
             name = project.name,
             description = project.description,
