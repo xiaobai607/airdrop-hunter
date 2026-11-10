@@ -1246,3 +1246,12 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 
 
 - **Validation update (2026-11-10):** the exact corrective head `5e3b4ac7d24379cb48bb59d86da3f36c7536ee99` passed Actions run `42757528490`: Android build, `:app:testDebugUnitTest`, `:app:assembleDebug`, and Debug APK artifact upload all succeeded. Artifact: `airdrop-hunter-debug-apk` (44,334,094 bytes). The earlier failing head `597dcee` is superseded; do not use its failure as the current status. This establishes CI completion only. Browser redirects, website login, WalletConnect connect/sign/send/reject/timeout callbacks, and chain switching still require physical-device acceptance with supported external wallets.
+
+
+### Home card sizing — developer-controlled and future-extensible (user correction, 2026-11-10)
+
+- Card dimensions are controlled exclusively by developer-owned code specifications per card type. End users must never receive resize controls or persist custom dimensions.
+- Keep the dimension specification centralized and extensible: when adding a new Home feature/card, the developer can set its width fraction, height, and future layout properties in the card-spec registry without changing user preference data.
+- User-persisted Home layout data contains only supported card IDs and their order. It must not contain width, height, span, scale, or other user-editable size fields.
+- The user may add/remove supported cards, reorder them, and restore the default card set/order. This does not grant permission to change card dimensions.
+- This supersedes any wording that could be interpreted as permanently hardcoding dimensions in a way that prevents future developer changes. "Fixed" means fixed for end users, not immutable for the developer.
