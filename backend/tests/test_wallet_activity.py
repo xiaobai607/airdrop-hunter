@@ -198,6 +198,8 @@ def test_solana_rpc_parser_reads_confirmed_fee_and_first_account_fee_payer():
     class FakeResponse:
         def __init__(self, payload):
             self.payload = payload
+            self.status_code = 200
+            self.headers = {}
 
         def raise_for_status(self):
             return None
@@ -208,6 +210,10 @@ def test_solana_rpc_parser_reads_confirmed_fee_and_first_account_fee_payer():
     class FakeClient:
         def __init__(self):
             self.calls = 0
+
+        async def request(self, method, url, **kwargs):
+            assert method == "POST"
+            return await self.post(url, kwargs["json"])
 
         async def post(self, url, json):
             self.calls += 1
