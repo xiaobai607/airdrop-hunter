@@ -26,6 +26,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,7 +49,7 @@ private data class CommunityProject(
     val averageRating: Double? = null, val ratingCount: Long = 0,
     val gasByVerificationTier: Map<String, Double> = emptyMap()
 ) {
-    val label: String get() = if (isDemo) "测试演示" else if (gas > 0.0 || reward > 0.0) "真实贡献" else "暂无贡献"
+    val label: String get() = if (isDemo) "测试演示" else if (gas > 0.0 || reward > 0.0) "全网数据" else "暂无贡献"
     val metricWeights: Pair<Float, Float> get() = communityMetricWeights(gas, reward)
     val gasWeight: Float get() = metricWeights.first
     val rewardWeight: Float get() = metricWeights.second
@@ -156,27 +158,42 @@ fun CommunitySquareScreen(
         }
     }
 
-    val combinedProjects = catalogEntries.map { entry ->
-        val demo = communityDemoMetrics[entry.project_official_id]
+    val realProjects = catalogEntries.map { entry ->
         val stats = communityStats[entry.project_official_id]
-        val showDemo = BuildConfig.DEBUG && useDemoData && demo != null
         CommunityProject(
             id = entry.project_official_id,
             name = entry.name,
             chain = entry.chain,
             logo = entry.logo.ifBlank { entry.name.take(1).uppercase() },
             websiteUrl = entry.website_url,
-            reward = if (showDemo) demo!!.reward else stats?.total_actual_reward_usd ?: 0.0,
-            gas = if (showDemo) demo!!.gas else stats?.total_gas_cost_usd ?: 0.0,
+            reward = stats?.total_actual_reward_usd ?: 0.0,
+            gas = stats?.total_gas_cost_usd ?: 0.0,
             createdAt = entry.created_at,
             tags = entry.tags,
-            isDemo = showDemo,
-            demoScore = demo?.score ?: 0.0,
+            isDemo = false,
             averageRating = stats?.average_rating,
             ratingCount = stats?.rating_count ?: 0L,
-            gasByVerificationTier = if (showDemo) emptyMap() else stats?.gas_by_verification_tier.orEmpty()
+            gasByVerificationTier = stats?.gas_by_verification_tier.orEmpty()
         )
     }
+    // Synthetic projects exist only in the DEBUG test mode. They never enter the catalog,
+    // API, personal project library, ledger, or contribution outbox.
+    val demoProjects = listOf(
+        CommunityProject("demo:novalayer", "NovaLayer", "Arbitrum", "N", "", 184.20, 42.80,
+            "2026-11-10T08:00:00Z", listOf("Layer2", "DeFi", "测试网"), true, 4.8),
+        CommunityProject("demo:orbitfi", "OrbitFi", "Base", "O", "", 128.60, 38.60,
+            "2026-11-09T08:00:00Z", listOf("DeFi", "零成本", "生态"), true, 4.6),
+        CommunityProject("demo:zetabridge", "ZetaBridge", "Optimism", "Z", "", 156.00, 62.00,
+            "2026-11-08T08:00:00Z", listOf("跨链", "Layer2"), true, 4.2),
+        CommunityProject("demo:pixelquest", "PixelQuest", "BNB Chain", "P", "", 98.00, 51.00,
+            "2026-11-07T08:00:00Z", listOf("GameFi", "测试网"), true, 3.8),
+        CommunityProject("demo:aetherrollup", "Aether Rollup", "Ethereum", "A", "", 226.00, 73.00,
+            "2026-11-06T08:00:00Z", listOf("Layer2", "空投", "生态"), true, 4.9),
+        CommunityProject("demo:lumenprotocol", "Lumen Protocol", "Polygon", "L", "", 64.00, 18.50,
+            "2026-11-05T08:00:00Z", listOf("DeFi", "零成本"), true, 4.0)
+    )
+    // Demo and real datasets are mutually exclusive; the mode switch never mixes them.
+    val combinedProjects = if (BuildConfig.DEBUG && useDemoData) demoProjects else realProjects
     val displayedProjects = combinedProjects.filter {
         (selectedTag == null || selectedTag in it.tags) &&
             (!favoritesOnly || it.id in favoriteIds) &&
@@ -226,7 +243,7 @@ fun CommunitySquareScreen(
                 )
                 Surface(color = if (useDemoData) Color(0xFFFFF4E5) else Color(0xFFE8F7EF), shape = RoundedCornerShape(999.dp)) {
                     Text(
-                        if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网统计仅累计用户手动确认的真实贡献",
+                        if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网真实数据 · 脱敏汇总",
                         Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         color = if (useDemoData) Color(0xFF9A5B12) else Color(0xFF19764F),
                         style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
@@ -258,9 +275,9 @@ fun CommunitySquareScreen(
                 }
                 Text(when {
                     useDemoData -> "按测试演示样本的收益和 Gas 排列"
-                    statsLoading -> "正在读取全网已确认统计…"
-                    ranking == CommunityRanking.REWARD -> "按全网用户确认的实际收益排列"
-                    ranking == CommunityRanking.GAS -> "按全网用户确认的 Gas 消耗排列"
+                    statsLoading -> "正在读取全网统计…"
+                    ranking == CommunityRanking.REWARD -> "按全网收益概况排列（含预估与实际）"
+                    ranking == CommunityRanking.GAS -> "按全网 Gas 支出排列"
                     else -> "按项目收录时间排列"
                 }, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
             }
@@ -338,7 +355,7 @@ fun CommunitySquareScreen(
                             }
                         }
                         IconButton(
-                            enabled = project.id in joinedOfficialIds || project.id !in addingProjectIds,
+                            enabled = !project.isDemo && (project.id in joinedOfficialIds || project.id !in addingProjectIds),
                             onClick = {
                                 if (project.id !in joinedOfficialIds) scope.launch {
                                     addingProjectIds = addingProjectIds + project.id
@@ -362,9 +379,8 @@ fun CommunitySquareScreen(
                         }
                         IconButton(onClick = {
                             scope.launch {
-                                if (CacheStore.toggleCommunityFavorite(project.id, project.name)) {
-                                    CacheStore.syncCommunityFavorites()
-                                }
+                                // Favorites are personal local data in the current release.
+                                CacheStore.toggleCommunityFavorite(project.id, project.name)
                             }
                         }) {
                             Icon(
@@ -389,23 +405,25 @@ fun CommunitySquareScreen(
                         )
                     }
                     if (project.gas > 0.0 || project.reward > 0.0) {
-                        Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            if (project.gasWeight > 0f) {
-                                Box(Modifier.weight(project.gasWeight).fillMaxHeight().background(Color(0xFFE76565), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))
-                            }
-                            if (project.rewardWeight > 0f) {
-                                Box(Modifier.weight(project.rewardWeight).fillMaxHeight().background(Color(0xFF31B77D), RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)))
-                            }
+                        val comparisonBrush = when {
+                            project.gasWeight <= 0f -> SolidColor(Color(0xFF31B77D))
+                            project.rewardWeight <= 0f -> SolidColor(Color(0xFFE76565))
+                            else -> Brush.horizontalGradient(
+                                colorStops = arrayOf(
+                                    0f to Color(0xFFE76565),
+                                    project.gasWeight to Color(0xFFE76565),
+                                    project.gasWeight to Color(0xFF31B77D),
+                                    1f to Color(0xFF31B77D)
+                                )
+                            )
                         }
+                        Box(Modifier.fillMaxWidth().height(12.dp).background(comparisonBrush, RoundedCornerShape(8.dp)))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(String.format(Locale.US, "Gas USD估值 $%,.2f", project.gas), color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                            Text(String.format(Locale.US, "实际收益 USD估值 $%,.2f", project.reward), color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                        }
-                        if (!project.isDemo && project.gasByVerificationTier.isNotEmpty()) {
-                            CommunityVerificationTierBar(values = project.gasByVerificationTier, compact = true)
+                            Text(String.format(Locale.US, "收益 USD估值 $%,.2f", project.reward), color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                         }
                     } else {
-                        Text("暂无已确认 Gas / 实际收益数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                        Text("暂无 Gas / 收益数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         project.tags.forEach { tag ->
