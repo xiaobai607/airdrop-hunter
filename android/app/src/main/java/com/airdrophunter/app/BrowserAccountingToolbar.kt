@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -221,14 +220,20 @@ fun BrowserAccountingToolbar(
                 .pointerInput(maxWidth, maxHeight) {
                     detectDragGesturesAfterLongPress(
                         onDragEnd = {
-                            if (maxHorizontalDrag > 0f) {
-                                dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
+                            when {
+                                maxHorizontalDrag <= 0f -> dragOffsetX = 0f
+                                dragOffsetX < -1f -> dragOffsetX = -maxHorizontalDrag
+                                dragOffsetX > 1f -> dragOffsetX = maxHorizontalDrag
+                                else -> dragOffsetX = 0f
                             }
                             dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
                         },
                         onDragCancel = {
-                            if (maxHorizontalDrag > 0f) {
-                                dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
+                            when {
+                                maxHorizontalDrag <= 0f -> dragOffsetX = 0f
+                                dragOffsetX < -1f -> dragOffsetX = -maxHorizontalDrag
+                                dragOffsetX > 1f -> dragOffsetX = maxHorizontalDrag
+                                else -> dragOffsetX = 0f
                             }
                             dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
                         }
