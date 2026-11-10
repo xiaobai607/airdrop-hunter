@@ -10,7 +10,7 @@ The following decisions are newer than the older baseline below. Where older sec
 - All detailed personal data for every user, including guests and any existing authenticated session, is stored on the phone in the local Room database for this release.
 - Do not upload personal ledgers, personal wallet lists, personal project records, task details, transaction details, or personal P&L to a private cloud service. Do not build or expose private-ledger cloud sync, account-based personal-data persistence, or cross-device cloud restore in this phase.
 - The server receives only the minimum anonymous/de-identified aggregate contribution data required for public community statistics. Never include wallet addresses, transaction hashes, individual ledger rows, account identity, or personal details in public payloads.
-- Existing authentication/account/private-sync code may remain in the repository for a later phase, but it is not an active current-release personal-data storage path and must not be expanded or presented as available. New registration remains disabled. The approved device-migration path is the encrypted local backup/import file in Section 1.
+- Do not expose registration or login in the current release. Existing authentication/account/private-sync code may remain in the repository for a later phase, but it is not an active current-release personal-data path and must not be expanded or presented as available. The app starts in local mode and retires any previously stored login token. The approved device-migration path is the encrypted local backup/import file in Section 1.
 
 ### Community public dashboard — confirmed presentation and aggregation
 - Gas: show one community-wide total in USD plus a per-chain Gas breakdown. Also show a participant Gas-spend range distribution (bucket counts/percentages), without exposing individual records.
@@ -213,9 +213,10 @@ This checkpoint is the current handoff state and must be refreshed whenever impl
 ### Current-release account and recovery scope (user-confirmed, 2026-11-10)
 
 - Do not allow new users to register in the current release. Hide or disable registration entry points; if a user reaches one, show **“注册功能开发中，请等待后续更新”** and do not start an account-creation request.
-- Guest mode must not be blocked by forced login: guests can use the app's full non-cloud product experience, including Home, Micro Community, Airdrop Library, personal library/projects, tasks, wallet-address management, accounting, and eligible anonymous public contribution. Login is only for account-scoped cloud storage/sync and future account services; it is not a prerequisite for core use. Guest private ledger, wallets, and project data remain app-private/local; clearing app data or uninstalling loses those details.
-- Defer user-facing cross-device private-cloud restore. Do not advertise cloud recovery, show a restore entry point, or make cross-device recovery a release acceptance condition.
-- Do not delete already-implemented authentication, account-isolation, or sync code merely because registration/restore is deferred. Preserve it for a later phase; any existing account flow must not be expanded or described as offering cross-device restore.
+- The current release has no registration or login entry point. All users use local mode and the complete non-cloud product experience, including Home, Micro Community, Airdrop Library, personal library/projects, tasks, wallet-address management, accounting, and eligible anonymous public contribution.
+- Every user's private ledger, wallets, projects, tasks, favorites, and personal records remain in the phone's local Room database. Clearing app data or uninstalling loses those details unless the user has made an encrypted local backup.
+- Defer all private cloud storage, private-ledger upload/sync, account-based personal-data persistence, and cross-device cloud restore. Do not advertise cloud recovery or make it a release acceptance condition.
+- Do not delete already-implemented authentication, account-isolation, or sync code merely because these features are deferred. Preserve it for a later phase, but guard it so current-release user flows cannot invoke private cloud sync.
 - This deferral applies to cloud-based private user data recovery only. Offline encrypted file backup/import is separately approved below. It does not cancel the separate PostgreSQL backup/restore drill for production operations, nor anonymous public aggregate contribution.
 
 
@@ -245,13 +246,13 @@ This checkpoint is the current handoff state and must be refreshed whenever impl
 
 This policy is authoritative across Android storage, API requests, database models, sync workers, tests, and UI explanations.
 
-| Data layer | Guest | Logged-in user |
+| Data layer | All current-release users |
 |---|---|---|
-| Detailed personal ledger (wallet addresses, Gas details, rewards, project participation, transaction references, timestamps) | Stored on the phone in the local Room database only | Stored on the phone in the local Room database only; no private cloud upload in this release |
-| Private cloud restore | Not available; clearing app data or uninstalling loses local details | Not available in this release; clearing app data or uninstalling loses local details |
-| Portable local backup | User can export an encrypted backup file and import it on another device; file/password remain under the user's control | Same, scoped to the active session; no credentials are exported |
-| Public community contribution | Valid confirmed Gas, actual rewards, and project participation may contribute | Same |
-| Public contribution storage | Anonymous aggregate only; no wallet address, tx hash, personal ledger row, or account identity | Same; must not be linked to the user's account |
+| Detailed personal ledger (wallet addresses, Gas details, rewards, project participation, transaction references, timestamps) | Stored on the phone in the local Room database only |
+| Private cloud restore | Not available; clearing app data or uninstalling loses local details |
+| Portable local backup | User can export an encrypted backup file and import it on another device; file/password remain under the user's control |
+| Public community contribution | Eligible anonymous statistics from official community projects may contribute by default |
+| Public contribution storage | Anonymous aggregate only; no wallet address, tx hash, personal ledger row, or account identity |
 | Clearing/uninstalling app data | Local private data is lost; no server copy exists | Do not promise cross-device recovery in the current release; explain that this capability is deferred |
 
 Additional rules:
@@ -323,7 +324,7 @@ Additional rules:
 - Link imported chain transactions to a project only with user selection; never infer a project without evidence.
 - Prefill actual Gas only when payer attribution is reliable. Ambiguous/shared fees require manual review.
 - Project-level accounting, cost, actual rewards, net P&L, interaction history, and day/week/month statistics.
-- All private accounting remains local-only for this release, regardless of guest/authentication state. Private cloud ledger sync is deferred.
+- All private accounting remains local-only for this release. Private cloud ledger sync is deferred.
 
 ## 5.1 Quick manual accounting and batch wallet entry (new user-confirmed requirements, 2026-11-10)
 
@@ -580,8 +581,8 @@ The main data path is intentionally one-way at each boundary:
 
 1. **Wallet/address layer:** user adds a public address -> account/guest-scoped wallet repository -> read-only chain activity refresh/cache.
 2. **Accounting layer:** user selects a transaction or enters an interaction -> pending bill -> user manually reviews/enters actual Gas and actual reward -> one Room transaction updates the private ledger, project P&L, interaction history, and (only if eligible) public-contribution outbox.
-3. **Private sync layer:** existing authenticated API and account-isolation code is retained; guests do not sync private ledger details to any cloud endpoint. New-user registration and cross-device restore are deferred from the current release and must not be surfaced as available.
-4. **Public contribution layer:** both guest and authenticated sessions may send only project ID + confirmed aggregate Gas/actual reward + an opaque event ID for idempotency. The server stores public contribution rows with no account identity; idempotency prevents duplicate retries.
+3. **Private data layer:** every current-release user stores personal data locally only. Existing authenticated API/account-isolation code is dormant and retained for a future phase; no private ledger or personal record is uploaded.
+4. **Public contribution layer:** local sessions may send only eligible official project IDs, anonymous aggregate Gas/reward values, provenance metadata, and an opaque event ID for idempotency. The server stores public aggregate rows with no account identity; idempotency prevents duplicate retries.
 5. **Community presentation layer:** server-side scheduled jobs aggregate anonymous contributions into static JSON; Android Room cache renders first and CDN revalidation updates silently. Community UI must not bypass this path with live per-project aggregation.
 6. **Project/task layer:** project and task ownership, project-to-wallet assignments, and ledger links are separate from public project metadata. A transaction is linked to a project only by explicit user selection.
 7. **Discovery layer:** provider APIs/RSS candidates and user submissions populate project metadata only. They must never fabricate participation, Gas, rewards, ratings, or P&L.
@@ -685,7 +686,7 @@ Recommended next implementation order, based on shared-code dependencies:
 - Each confirmed accounting event may retain a structured asset breakdown: kind (gas or reward), native amount, token symbol, token decimals, USD valuation (nullable), valuation timestamp, and valuation source.
 - Imported Gas amounts use chain-native precision metadata (EVM 18, TRON 6, Bitcoin 8, Solana 9); a current USD quote is explicitly labelled with its provider and observation timestamp.
 - Reward token amounts and symbols are entered or confirmed by the user. Unknown token precision or unavailable USD valuation remains null; never fabricate either.
-- Private ledger asset detail is retained locally and in the authenticated account's cloud ledger. Guest details remain local; only confirmed anonymous aggregates enter public contribution rows.
+- Private ledger asset detail remains local-only for all current-release users; only eligible anonymous aggregate contributions enter public contribution rows.
 - Public snapshots group native amounts by kind, symbol, and decimals. ETH, BNB, BTC, TRX, SOL, and project tokens remain separate; USD valuations may be summed only as labelled USD estimates.
 - Project detail displays native token breakdowns for each confirmed time window; project list cards retain concise USD-valuation summaries.
 - PR #75 passed Android debug build/unit tests and backend tests before merge. Real-device verification of imported native precision, local persistence, account cloud restore, and token-separated public snapshot display remains pending.
@@ -769,7 +770,7 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 
 - One app-level WorkManager dispatcher replaces independently registered periodic schedulers. It runs on a connected network every 15 minutes and schedules each source into its own unique WorkManager queue, preventing overlapping copies of the same source job.
 - The coordinated sources are anonymous public contribution delivery, read-only wallet activity refresh, authenticated private-ledger sync, and authenticated community favorites reconciliation. They run independently so a failure in one source cannot block progress in another.
-- Per-source cadence is retained: public contribution outbox at 15 minutes; wallet activity, private ledger, and favorites at 8 hours. Wallet, private-ledger, and favorites cadence keys are scoped to the guest/account identity, so signing into a different account does not inherit the previous account's last-sync timestamp. Successful timestamps are persisted locally; a failed task is not marked successful and WorkManager retries with exponential backoff.
+- Current-release background work retains the public contribution outbox and read-only wallet-activity refresh cadence. Private-ledger and favorite cloud-sync workers are disabled; their historical implementations remain dormant for a future phase.
 - A task that is not yet due exits successfully without network calls. The dispatcher does not change manual refresh behavior.
 - All chain requests require network connectivity. Existing event-driven ledger/contribution enqueue entry points now request the global chain, rather than creating parallel standalone worker schedules.
 - Guest private ledger data is never uploaded; guest public contribution remains anonymous and idempotent; guest favorites remain local-only. Wallet activity remains bound to the session token captured when its worker starts. Private ledger and favorites remain authenticated and account-scoped.
@@ -1409,3 +1410,11 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - List cards and detail rows now render one seamless red/green comparison bar using a single continuous gradient (red=Gas, green=reward); the previous two-box gap and the extra verification-tier bar in the comparison module are removed. Supporting Gas/reward amounts and token breakdown text remain alongside the bar; no percentage numerals replace the bar.
 - Detail keeps the four simultaneous waterfall rows (overall, 7d, 3d, 1h), removes Today, and shows an update-time line for every row including overall. No manual refresh control was added; Room-first silent snapshot revalidation remains.
 - **Status:** source changes committed on `feature/mobile-browser-home-dock-batch`; exact-head Android/backend CI has not yet been checked. Public dashboard aggregate additions (per-chain Gas, range distributions, contributor counts, approximate income including estimates) and the app-wide enforcement of local-only private storage remain implementation work, not complete.
+
+
+### 2026-11-11 — current-release local-only enforcement (implementation in progress)
+
+- MainActivity now starts every session in local mode, clears any legacy stored login token before composing the app, and no longer opens the login screen. The 我的 page no longer offers a login button and explains the local-only boundary.
+- The app-wide dispatcher no longer enqueues private-ledger or favorite cloud-sync workers. Both legacy workers also fail closed as successful no-ops under `CurrentReleaseDataPolicy`. `AccountingRepository` returns before private cloud upload/restore paths while the policy is disabled. The public anonymous contribution outbox and read-only wallet-activity refresh remain available.
+- The Micro Community screen no longer triggers favorite cloud reconciliation; favorites remain local. The project/library UI receives local mode, so private project/task/wallet/ledger paths use the Room-backed local repositories.
+- **Status:** code changes committed on the feature branch; exact-head CI and a complete call-site audit are still pending. Recheck all direct cloud calls, anonymous contribution payloads, local backup round-trip, and app startup with a legacy token before marking complete.
