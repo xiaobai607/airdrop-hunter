@@ -150,7 +150,9 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert first.status_code == 200
         assert first.json()["total_gas_cost_usd"] == 2.5
         assert first.json()["total_actual_reward_usd"] == 12.0
-        assert first.json()["data_quality"] == "user_confirmed"
+        assert first.json()["total_reward_usd"] == 12.0
+        assert first.json()["total_estimated_reward_usd"] == 0.0
+        assert first.json()["data_quality"] == "approximate_actual_and_estimated"
         assert first.json()["verification_tier"] == "amount_verified"
         assert first.json()["gas_by_verification_tier"]["amount_verified"] == 2.5
         assert "total_interactions" not in first.json()
@@ -178,6 +180,30 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert public.status_code == 200
         assert "total_interactions" not in public.json()
         assert "contribution_count" not in public.json()
+
+
+def test_estimated_reward_contributes_to_approximate_public_income_without_becoming_actual():
+    with TestClient(app) as client:
+        payload = {
+            "event_id": str(uuid4()),
+            "network": "base",
+            "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
+            "tx_hash": "0x" + "e" * 64,
+            "public_contribution_opt_in": True,
+            "gas_cost_usd": "1.25",
+            "actual_reward_usd": "0",
+            "estimated_reward_usd": "18.75",
+            "actual_reward_confirmed": False,
+            "contributor_id": str(uuid4()),
+        }
+        response = client.post("/api/community/projects/estimate-test/contributions", json=payload)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_gas_cost_usd"] == 1.25
+        assert body["total_actual_reward_usd"] == 0.0
+        assert body["total_estimated_reward_usd"] == 18.75
+        assert body["total_reward_usd"] == 18.75
+        assert body["data_quality"] == "approximate_actual_and_estimated"
 
 
 def test_guest_can_contribute_to_public_stats_idempotently():
