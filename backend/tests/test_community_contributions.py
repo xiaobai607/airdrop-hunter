@@ -404,7 +404,7 @@ def test_same_transaction_hash_cannot_be_reused_for_another_event():
         first = client.post("/api/community/projects/zksync/contributions", json=first_payload)
         assert first.status_code == 200
         second_payload = {**first_payload, "event_id": str(uuid4())}
-        second = client.post("/api/community/projects/replay-test/contributions", json=second_payload)
+        second = client.post("/api/community/projects/base/contributions", json=second_payload)
         assert second.status_code == 409
 
 
