@@ -196,7 +196,7 @@ class AccountingRepositoryTest {
             ledgerEntry("cloud-$index", request = request)
         }.toMutableList()
         val remote = FakePersonalLedgerRemoteDataSource(cloudEntries = cloudRows)
-        val repository = AccountingRepository(source, accessTokenProvider = { "token-account-A" }, personalLedgerRemote = remote)
+        val repository = AccountingRepository(source, accessTokenProvider = { "token-account-A" }, personalLedgerRemote = remote, privateCloudSyncEnabled = true)
 
         assertTrue(repository.syncPersonalLedger())
         assertEquals(2, remote.getCalls)
