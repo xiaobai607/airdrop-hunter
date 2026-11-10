@@ -44,7 +44,7 @@ def _headers(client, prefix: str):
 
 def test_public_valuation_source_is_allowlisted_and_cannot_embed_private_identifiers():
     address = "0x1234567890abcdef1234567890abcdef12345678"
-    tx_hash = "0x" + "a" * 64
+    tx_hash = "0x" + "a" * 62
 
     def asset(source):
         return CommunityAssetAmount(
