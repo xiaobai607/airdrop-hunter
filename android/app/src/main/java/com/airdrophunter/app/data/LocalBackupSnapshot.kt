@@ -1,7 +1,9 @@
 package com.airdrophunter.app.data
 
+import com.google.gson.annotations.SerializedName
+
 data class LocalBackupSnapshot(
- val appName:String=APP_NAME, val formatVersion:Int=CURRENT_VERSION, val createdAt:Long, val sourceScope:String,
+ @SerializedName("app_name") val appName:String=APP_NAME, val formatVersion:Int=CURRENT_VERSION, val createdAt:Long, val sourceScope:String,
  val cachedPayloads:List<CachedPayload> = emptyList(),
  val pendingBills:List<PendingBillEntity> = emptyList(),
  val pnlRecords:List<PnlRecordEntity> = emptyList(),
