@@ -3,6 +3,7 @@ package com.airdrophunter.app
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
@@ -326,10 +327,10 @@ fun BrowserAccountingToolbar(
                                 .size(48.dp)
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(Color.White.copy(alpha = 0.88f))
-                                .then(
-                                    Modifier
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(Color.Transparent)
+                                .border(
+                                    width = 1.dp,
+                                    color = Color.White.copy(alpha = 0.95f),
+                                    shape = RoundedCornerShape(16.dp)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
