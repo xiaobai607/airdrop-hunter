@@ -209,7 +209,7 @@ def test_estimated_reward_contributes_to_approximate_public_income_without_becom
             "actual_reward_confirmed": False,
             "contributor_id": str(uuid4()),
         }
-        response = client.post("/api/community/projects/estimate-test/contributions", json=payload)
+        response = client.post("/api/community/projects/base/contributions", json=payload)
         assert response.status_code == 200
         body = response.json()
         assert body["total_gas_cost_usd"] == 1.25
@@ -294,7 +294,7 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
     try:
         with TestClient(app) as client:
             response = client.post(
-                "/api/community/projects/anonymous-test/contributions",
+                "/api/community/projects/linea/contributions",
                 json={
                     "event_id": str(event_id),
                     "network": "ethereum",
@@ -384,7 +384,7 @@ def test_same_transaction_hash_cannot_be_reused_for_another_event():
             "gas_cost_usd": "1.00",
             "actual_reward_usd": "2.00",
         }
-        first = client.post("/api/community/projects/replay-test/contributions", json=first_payload)
+        first = client.post("/api/community/projects/zksync/contributions", json=first_payload)
         assert first.status_code == 200
         second_payload = {**first_payload, "event_id": str(uuid4())}
         second = client.post("/api/community/projects/replay-test/contributions", json=second_payload)
@@ -404,7 +404,7 @@ def test_community_contribution_requires_transaction_link_fields():
 def test_public_contribution_requires_explicit_opt_in():
     with TestClient(app) as client:
         response = client.post(
-            "/api/community/projects/consent-test/contributions",
+            "/api/community/projects/linea/contributions",
             json={
                 "event_id": str(uuid4()),
                 "network": "ethereum",
