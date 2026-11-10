@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,10 +55,19 @@ fun BrowserAccountingToolbar(
     walletAddress: String,
     chainName: String,
     onCopyAddress: () -> Unit,
+    onReloadPage: () -> Unit,
+    onCopyPageUrl: () -> Unit,
+    onOpenExternal: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val dockPreferences = remember(context) { context.getSharedPreferences("browser_dock_tools", android.content.Context.MODE_PRIVATE) }
+    val defaultDockTools = setOf("mock_bill", "copy_address", "pending_bills")
+    var dockTools by remember {
+        mutableStateOf(dockPreferences.getStringSet("selected_tools", null)?.toSet() ?: defaultDockTools)
+    }
+    var showAddToolDialog by remember { mutableStateOf(false) }
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.roundToPx() }
@@ -178,9 +189,19 @@ fun BrowserAccountingToolbar(
         isValidNativeAssetInput(gasNative, gasSymbol, gasDecimals) &&
             isValidNativeAssetInput(rewardNative, rewardSymbol, rewardDecimals)
 
+    val dockActions = listOf(
+        Triple("mock_bill", "模拟账单", Color(0xFFEAF7F1)),
+        Triple("copy_address", "复制地址", Color(0xFFEDF3FF)),
+        Triple("pending_bills", "待确认", Color(0xFFFFF4E8)),
+        Triple("reload_page", "刷新网页", Color(0xFFEAF5FF)),
+        Triple("copy_page_url", "复制网址", Color(0xFFF2EDFF)),
+        Triple("open_external", "外部打开", Color(0xFFFFF0E8))
+    )
     Surface(
         modifier = modifier
-            .widthIn(min = 304.dp, max = 360.dp)
+            .fillMaxWidth(0.94f)
+            .widthIn(max = 420.dp)
+            .height(100.dp)
             .offset { dockOffset }
             .onSizeChanged { dockSizePx = IntOffset(it.width, it.height) }
             .pointerInput(screenWidthPx, screenHeightPx, dockSizePx, dockOffset) {
@@ -189,12 +210,11 @@ fun BrowserAccountingToolbar(
                         val centeredBaseX = ((screenWidthPx - dockSizePx.x) / 2).coerceAtLeast(0)
                         val leftOffset = dockEdgePaddingPx - centeredBaseX
                         val rightOffset = screenWidthPx - dockSizePx.x - dockEdgePaddingPx - centeredBaseX
-                        val snappedX = if (kotlin.math.abs(dockOffset.x - leftOffset) <= kotlin.math.abs(dockOffset.x - rightOffset)) {
-                            leftOffset
-                        } else rightOffset
+                        val snappedX = if (kotlin.math.abs(dockOffset.x - leftOffset) <= kotlin.math.abs(dockOffset.x - rightOffset)) leftOffset else rightOffset
                         val topSafePx = with(density) { 72.dp.roundToPx() }
+                        val bottomSafePx = with(density) { 112.dp.roundToPx() }
                         val minOffsetY = (topSafePx - (screenHeightPx - dockSizePx.y)).coerceAtMost(0)
-                        dockOffset = IntOffset(snappedX, dockOffset.y.coerceIn(minOffsetY, 0))
+                        dockOffset = IntOffset(snappedX, dockOffset.y.coerceIn(minOffsetY, bottomSafePx))
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
@@ -202,54 +222,97 @@ fun BrowserAccountingToolbar(
                         val leftLimit = dockEdgePaddingPx - centeredBaseX
                         val rightLimit = screenWidthPx - dockSizePx.x - dockEdgePaddingPx - centeredBaseX
                         val topSafePx = with(density) { 72.dp.roundToPx() }
+                        val bottomSafePx = with(density) { 112.dp.roundToPx() }
                         val minOffsetY = (topSafePx - (screenHeightPx - dockSizePx.y)).coerceAtMost(0)
                         dockOffset = IntOffset(
                             (dockOffset.x + dragAmount.x.roundToInt()).coerceIn(leftLimit, rightLimit),
-                            (dockOffset.y + dragAmount.y.roundToInt()).coerceIn(minOffsetY, 0)
+                            (dockOffset.y + dragAmount.y.roundToInt()).coerceIn(minOffsetY, bottomSafePx)
                         )
                     }
                 )
             },
-        color = Color(0xEFFFFFFF),
-        shape = RoundedCornerShape(28.dp),
-        border = BorderStroke(1.dp, AppColors.Border.copy(alpha = 0.9f)),
-        shadowElevation = 9.dp
+        color = Color(0xE6DDF5FC),
+        shape = RoundedCornerShape(34.dp),
+        border = BorderStroke(1.dp, Color(0xBFFFFFFF)),
+        shadowElevation = 12.dp
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(18.dp)
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            AccountingCapsuleButton(
-                description = "模拟抓取账单",
-                background = Color(0xFFEAF7F1),
-                tint = Color(0xFF16845B),
-                loading = creatingMockBill,
-                onClick = ::createMockBill
-            ) {
-                if (creatingMockBill) CircularProgressIndicator(Modifier.size(19.dp), color = Color(0xFF16845B), strokeWidth = 2.dp)
-                else Icon(Icons.Default.FlashOn, contentDescription = "模拟抓取账单", tint = Color(0xFF16845B), modifier = Modifier.size(20.dp))
+            dockActions.filter { it.first in dockTools }.forEach { (id, label, background) ->
+                Surface(
+                    onClick = {
+                        when (id) {
+                            "mock_bill" -> createMockBill()
+                            "copy_address" -> onCopyAddress()
+                            "pending_bills" -> showBillList = true
+                            "reload_page" -> onReloadPage()
+                            "copy_page_url" -> onCopyPageUrl()
+                            "open_external" -> onOpenExternal()
+                        }
+                    },
+                    enabled = id != "mock_bill" || !creatingMockBill,
+                    modifier = Modifier.size(68.dp),
+                    shape = RoundedCornerShape(19.dp),
+                    color = background,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f))
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        when (id) {
+                            "mock_bill" -> if (creatingMockBill) CircularProgressIndicator(Modifier.size(24.dp), color = Color(0xFF16845B), strokeWidth = 2.dp)
+                                else Icon(Icons.Default.FlashOn, contentDescription = label, tint = Color(0xFF16845B), modifier = Modifier.size(30.dp))
+                            "copy_address" -> Icon(Icons.Default.ContentCopy, contentDescription = label, tint = Color(0xFF356BC5), modifier = Modifier.size(28.dp))
+                            "pending_bills" -> Icon(Icons.Default.Add, contentDescription = label, tint = Color(0xFF9A5A16), modifier = Modifier.size(30.dp))
+                            "reload_page" -> Icon(Icons.Default.Refresh, contentDescription = label, tint = Color(0xFF237A9B), modifier = Modifier.size(30.dp))
+                            "copy_page_url" -> Icon(Icons.Default.ContentCopy, contentDescription = label, tint = Color(0xFF7451A6), modifier = Modifier.size(28.dp))
+                            "open_external" -> Icon(Icons.Default.OpenInBrowser, contentDescription = label, tint = Color(0xFFB56A32), modifier = Modifier.size(30.dp))
+                        }
+                    }
+                }
             }
-            AccountingCapsuleButton(
-                description = "复制钱包地址",
-                background = Color(0xFFEDF3FF),
-                tint = Color(0xFF356BC5),
-                onClick = onCopyAddress
+            Surface(
+                onClick = { showAddToolDialog = true },
+                modifier = Modifier.size(68.dp),
+                shape = RoundedCornerShape(19.dp),
+                color = Color(0xFFB8D9DF),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f))
             ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "复制钱包地址", tint = Color(0xFF356BC5), modifier = Modifier.size(18.dp))
-            }
-            AccountingCapsuleButton(
-                description = "待确认账单",
-                background = Color(0xFFFFF4E8),
-                tint = Color(0xFF9A5A16),
-                onClick = { showBillList = true }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "待确认账单", tint = Color(0xFF9A5A16), modifier = Modifier.size(20.dp))
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Add, contentDescription = "添加小工具", tint = Color.White, modifier = Modifier.size(38.dp))
+                }
             }
         }
+    }
+
+    if (showAddToolDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddToolDialog = false },
+            title = { Text("添加或管理小工具") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    dockActions.forEach { (id, label, _) ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = id in dockTools,
+                                onCheckedChange = { checked ->
+                                    val updated = if (checked) dockTools + id else dockTools - id
+                                    dockTools = updated
+                                    dockPreferences.edit().putStringSet("selected_tools", updated).apply()
+                                }
+                            )
+                            Text(label, color = AppColors.TextPrimary)
+                        }
+                    }
+                    Text("工具栏位置不会保存；下次进入空投导航会回到屏幕下方。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = { TextButton(onClick = { showAddToolDialog = false }) { Text("完成") } }
+        )
     }
 
     if (showBillList) {
