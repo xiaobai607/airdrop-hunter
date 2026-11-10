@@ -15,6 +15,8 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -226,6 +228,18 @@ fun HomeScreen(
                             .fillMaxWidth(if (card.id == "airdrop_navigation") 1f else 0.48f)
                             .height(if (card.id == "airdrop_navigation") 180.dp else 154.dp)
                             .onGloballyPositioned { dashboardBounds[card.id] = it.boundsInRoot() }
+                            .graphicsLayer {
+                                if (activeDragCard == card.id) {
+                                    translationX = dashboardDragOffset.x
+                                    translationY = dashboardDragOffset.y
+                                    shadowElevation = 18.dp.toPx()
+                                } else {
+                                    translationX = 0f
+                                    translationY = 0f
+                                    shadowElevation = 0f
+                                }
+                            }
+                            .zIndex(if (activeDragCard == card.id) 1f else 0f)
                             .then(if (editingDashboard) Modifier.pointerInput(card.id, editingDashboard, dashboardCards) {
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { activeDragCard = card.id; dashboardDragOffset = Offset.Zero },

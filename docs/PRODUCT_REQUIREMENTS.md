@@ -48,6 +48,12 @@ The user's latest reference image is the visual source of truth. This is a **mob
 
 ---
 
+### Home dashboard drag feedback completion (2026-11-10)
+
+- During edit mode, the long-pressed card now follows the user's finger visually with elevated shadow and foreground z-order. The existing nearest-card target calculation still commits the new order on release.
+- Card dimensions remain developer-controlled and fixed by card type; no user resize control or size preference is present.
+- Exact-head Android CI and physical-device gesture validation are pending. Confirm long-press activation, finger-following translation, reorder target, tap behavior outside edit mode, and persistence on a real device.
+
 ### User correction — Home card dimensions are developer-controlled (2026-11-10)
 
 - End users must not see or use any card resize control. Remove small/medium/large cycling from the UI and from persisted card state.
