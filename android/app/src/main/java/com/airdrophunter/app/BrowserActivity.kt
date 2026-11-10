@@ -653,6 +653,16 @@ private fun BrowserScreen(
                         Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
                     }
                 },
+                onReloadPage = { browser?.reload() },
+                onCopyPageUrl = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Page URL", currentPageUrl))
+                    Toast.makeText(context, "网址已复制", Toast.LENGTH_SHORT).show()
+                },
+                onOpenExternal = {
+                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(currentPageUrl))) }
+                        .onFailure { Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show() }
+                },
                 modifier = Modifier.align(Alignment.CenterHorizontally).navigationBarsPadding().padding(bottom = 8.dp)
             )
         }
