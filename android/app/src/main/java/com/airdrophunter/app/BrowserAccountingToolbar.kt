@@ -252,12 +252,12 @@ fun BrowserAccountingToolbar(
                         else -> Color(0xFFEAF1FF)
                     }
                     val action: () -> Unit = when (id) {
-                        "mock_bill" -> ::createMockBill
-                        "copy_address" -> onCopyAddress
-                        "pending_bills" -> { { showBillList = true } }
-                        "refresh_page" -> onRefreshPage
-                        "copy_url" -> onCopyPageUrl
-                        else -> onOpenPageExternally
+                        "mock_bill" -> { createMockBill() }
+                        "copy_address" -> { onCopyAddress() }
+                        "pending_bills" -> { showBillList = true }
+                        "refresh_page" -> { onRefreshPage() }
+                        "copy_url" -> { onCopyPageUrl() }
+                        else -> { onOpenPageExternally() }
                     }
                     Surface(
                         onClick = action,
