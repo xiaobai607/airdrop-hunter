@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
  * A lightweight dispatcher runs every 15 minutes and schedules each source into
  * its own unique WorkManager queue. Failures retry independently. Individual
  * workers decide whether their own data source is due:
- * public contributions 15m; wallet activity/private ledger/favorites 8h.
+ * public contributions 15m; wallet activity 8h. Personal cloud sync is disabled in this release.
  */
 class GlobalSyncDispatcherWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
@@ -28,6 +28,11 @@ class GlobalSyncDispatcherWorker(appContext: Context, params: WorkerParameters) 
         GlobalSyncScheduler.enqueueSyncTasks(applicationContext)
         return Result.success()
     }
+}
+
+/** Current release stores every personal record locally; private cloud sync is deferred. */
+internal object CurrentReleaseDataPolicy {
+    const val PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED = false
 }
 
 object GlobalSyncScheduler {
@@ -74,16 +79,7 @@ object GlobalSyncScheduler {
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
-        val personalLedger = OneTimeWorkRequestBuilder<PersonalLedgerSyncWorker>()
-            .setInputData(workDataOf(FORCE_KEY to forcePersonalLedger))
-            .setConstraints(network)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
-        val favorites = OneTimeWorkRequestBuilder<CommunityFavoriteSyncWorker>()
-            .setInputData(workDataOf(FORCE_KEY to forceFavorites))
-            .setConstraints(network)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
+
 
         // Each source has its own unique queue. A failure in one source retries
         // independently and cannot block unrelated ledger, wallet, or favorite work.
@@ -97,16 +93,7 @@ object GlobalSyncScheduler {
             if (forceWalletActivity) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
             walletActivity
         )
-        workManager.enqueueUniqueWork(
-            "global-sync-private-ledger",
-            if (forcePersonalLedger) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
-            personalLedger
-        )
-        workManager.enqueueUniqueWork(
-            "global-sync-community-favorites",
-            if (forceFavorites) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
-            favorites
-        )
+
     }
 }
 
