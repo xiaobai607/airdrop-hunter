@@ -48,6 +48,14 @@ The user's latest reference image is the visual source of truth. This is a **mob
 
 ---
 
+### Home dashboard implementation — configurable local card layout (2026-11-10)
+
+- Added a responsive quick-entry card layout while retaining the BTC/ETH market dashboard and its existing cache/freshness/error rendering unchanged.
+- The three default cards remain 空投导航、钱包管理、TRON 能量租赁. Users can add the existing 空投库 and 库管理 destinations, remove cards, cycle small/medium/large sizes, and long-press/drag cards to reorder them. A restore-default-layout action is available in edit mode.
+- Card order and sizes are stored in app-private SharedPreferences and remain local to this installation. No account, cloud, or public contribution data is involved.
+- The single global search field remains below the quick-entry cards and continues to call the existing global-search destination. No duplicate search card is offered.
+- Implementation submitted; exact-head Android build/unit tests and physical-device layout/drag acceptance are pending. Verify portrait/landscape, narrow widths, drag target selection, add/remove/resize/reorder persistence, and restore defaults before marking accepted.
+
 ### Home global-search entry correction (2026-11-10)
 
 - The user clarified that “remove duplicate global search from quick entries” means remove only the duplicate quick-entry card, **not** remove the Home search field.
@@ -86,8 +94,8 @@ These requirements were added from the user's physical-device test screenshots a
 - Do not expose private-key/seed-phrase entry, in-app signing, or automatic transaction approval. Destructive actions (clear cookies/session, remove saved site, disconnect) require clear confirmation where appropriate.
 
 ### C. Home becomes a phone-desktop card dashboard
-- Remove the redundant Home search field (“搜索币种或 DApp”) because it duplicates the global search entry. Remove the **global-search shortcut card** from the Home quick-entry grid. This is a Home-layout change only: preserve the dedicated coin/DApp search capability in its appropriate existing destination; do not delete coin/DApp search from the product.
-- Keep the three remaining quick functions: **空投导航、钱包管理、TRON 能量租赁**.
+- Keep exactly one global coin/DApp search field **below the quick-entry cards**, opening the existing GlobalSearchScreen. Remove only any duplicate global-search shortcut card from the quick-entry grid. Preserve search history, local/remote search, result navigation, and the dedicated search destination; do not delete the search field or search capability.
+- Keep the three default quick functions readily accessible: **空投导航、钱包管理、TRON 能量租赁**.
 - Rebuild the Home quick-entry area as a responsive, user-customizable phone-desktop card grid: users can add/remove supported cards, resize cards (small/medium/large or equivalent grid spans), reorder by drag, and combine cards freely. Layout adapts to screen width/orientation and does not overlap or clip. Persist layout locally and provide a restore-default-layout action.
 - Retain the existing BTC/ETH market dashboard and its cache/freshness/error behavior unless the user later changes it. The card dashboard must coexist with it without duplicate search UI. The three default quick-function cards must remain readily accessible; do not remove the underlying wallet management or TRON energy-rental capabilities.
 

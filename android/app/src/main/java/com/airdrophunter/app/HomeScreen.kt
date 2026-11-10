@@ -10,6 +10,14 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -52,6 +60,7 @@ import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
@@ -155,43 +164,146 @@ fun HomeScreen(
                 style = MaterialTheme.typography.labelSmall
             )
         }
+        var dashboardCards by remember { mutableStateOf(HomeDashboardLayoutStore.load(context)) }
+        var editingDashboard by remember { mutableStateOf(false) }
+        var showAddDashboardCard by remember { mutableStateOf(false) }
+        val dashboardBounds = remember { mutableStateMapOf<String, Rect>() }
+        var activeDragCard by remember { mutableStateOf<String?>(null) }
+        var dashboardDragOffset by remember { mutableStateOf(Offset.Zero) }
+
+        fun saveDashboardCards(updated: List<HomeDashboardCard>) {
+            dashboardCards = updated
+            scope.launch { withContext(Dispatchers.IO) { HomeDashboardLayoutStore.save(context, updated) } }
+        }
+        fun openDashboardCard(id: String) {
+            when (id) {
+                "airdrop_navigation" -> { showNavOverlay = true; navContentVisible = true }
+                "wallet_management" -> onOpenWallet()
+                "tron_energy" -> onOpenTronEnergy()
+                "airdrop_library" -> onOpenAirdropHub()
+                "project_library" -> onOpenProjects()
+            }
+        }
+
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("快捷入口", color = AppColors.TextPrimary,
-                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Card(
-                    onClick = { showNavOverlay = true; navContentVisible = true },
-                    modifier = Modifier.weight(1f).wrapContentHeight(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                    border = BorderStroke(1.dp, AppColors.Border),
-                    elevation = CardDefaults.cardElevation(1.dp)
-                ) {
-                    Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            sites.sortedByDescending { it.clickCount }.take(4).forEach { FaviconTile(it, Modifier.size(25.dp)) }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("快捷入口", color = AppColors.TextPrimary,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = { editingDashboard = !editingDashboard }) {
+                    Text(if (editingDashboard) "完成" else "编辑", color = AppColors.Primary)
+                }
+            }
+            if (editingDashboard) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { showAddDashboardCard = true }) { Text("＋ 添加卡片") }
+                    TextButton(onClick = { saveDashboardCards(HomeDashboardLayoutStore.defaults) }) {
+                        Text("恢复默认布局")
+                    }
+                }
+                Text("长按卡片拖动排序；可调整尺寸或移除。", color = AppColors.TextHelper,
+                    style = MaterialTheme.typography.labelSmall)
+            }
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                maxItemsInEachRow = 2,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                dashboardCards.forEach { card ->
+                    val title = HomeDashboardLayoutStore.title(card.id)
+                    val subtitle = HomeDashboardLayoutStore.subtitle(card.id)
+                    val icon = when (card.id) {
+                        "wallet_management" -> Icons.Default.AccountBalanceWallet
+                        "tron_energy" -> Icons.Default.Shield
+                        "airdrop_library" -> Icons.Default.NotificationsNone
+                        "project_library" -> Icons.Default.Search
+                        else -> Icons.Default.Search
+                    }
+                    Card(
+                        onClick = { if (!editingDashboard) openDashboardCard(card.id) },
+                        modifier = Modifier
+                            .fillMaxWidth(if (card.size == "small") 0.48f else 1f)
+                            .height(when (card.size) { "large" -> 208.dp; "medium" -> 180.dp; else -> 154.dp })
+                            .onGloballyPositioned { dashboardBounds[card.id] = it.boundsInRoot() }
+                            .then(if (editingDashboard) Modifier.pointerInput(card.id, editingDashboard, dashboardCards) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { activeDragCard = card.id; dashboardDragOffset = Offset.Zero },
+                                    onDrag = { change, amount -> change.consume(); dashboardDragOffset += amount },
+                                    onDragEnd = {
+                                        val source = dashboardBounds[card.id]
+                                        val center = source?.center?.plus(dashboardDragOffset)
+                                        val target = if (center == null) null else dashboardBounds
+                                            .filterKeys { it != card.id && dashboardCards.any { item -> item.id == it } }
+                                            .minByOrNull { (_, bounds) ->
+                                                val dx = bounds.center.x - center.x
+                                                val dy = bounds.center.y - center.y
+                                                dx * dx + dy * dy
+                                            }?.key
+                                        if (target != null) {
+                                            val mutable = dashboardCards.toMutableList()
+                                            val from = mutable.indexOfFirst { it.id == card.id }
+                                            val to = mutable.indexOfFirst { it.id == target }
+                                            if (from >= 0 && to >= 0 && from != to) {
+                                                val moved = mutable.removeAt(from)
+                                                mutable.add(to, moved)
+                                                saveDashboardCards(mutable)
+                                            }
+                                        }
+                                        activeDragCard = null
+                                        dashboardDragOffset = Offset.Zero
+                                    },
+                                    onDragCancel = { activeDragCard = null; dashboardDragOffset = Offset.Zero }
+                                )
+                            } else Modifier),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                        border = BorderStroke(1.dp, AppColors.Border),
+                        elevation = CardDefaults.cardElevation(if (activeDragCard == card.id) 5.dp else 1.dp)
+                    ) {
+                        Column(Modifier.fillMaxSize().padding(13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(32.dp))
+                                Spacer(Modifier.weight(1f))
+                                if (editingDashboard) {
+                                    TextButton(onClick = {
+                                        val next = when (card.size) { "small" -> "medium"; "medium" -> "large"; else -> "small" }
+                                        saveDashboardCards(dashboardCards.map { if (it.id == card.id) it.copy(size = next) else it })
+                                    }, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                                        Text(when (card.size) { "small" -> "小"; "medium" -> "中"; else -> "大" })
+                                    }
+                                    TextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
+                                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = AppColors.Danger) }
+                                }
+                            }
+                            Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold)
+                            Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                         }
-                        Text("空投导航", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text("常用活动网站", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ShortcutCard(
-                    icon = Icons.Default.AccountBalanceWallet,
-                    title = "钱包管理",
-                    subtitle = "管理已保存地址",
-                    onClick = onOpenWallet,
-                    modifier = Modifier.weight(1f)
-                )
-                ShortcutCard(
-                    icon = Icons.Default.Shield,
-                    title = "⚡️ TRON 能量租赁",
-                    subtitle = "租赁前核对转出地址",
-                    onClick = onOpenTronEnergy,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+        }
+
+        if (showAddDashboardCard) {
+            val available = HomeDashboardLayoutStore.available(dashboardCards.map { it.id }.toSet())
+            AlertDialog(
+                onDismissRequest = { showAddDashboardCard = false },
+                containerColor = AppColors.Surface,
+                title = { Text("添加快捷卡片", color = AppColors.TextPrimary) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (available.isEmpty()) Text("目前没有更多可添加的快捷功能。", color = AppColors.TextSecondary)
+                        available.forEach { id ->
+                            TextButton(onClick = {
+                                saveDashboardCards(dashboardCards + HomeDashboardCard(id, "small"))
+                                showAddDashboardCard = false
+                            }) { Text(HomeDashboardLayoutStore.title(id), color = AppColors.Primary) }
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { showAddDashboardCard = false }) { Text("关闭") } }
+            )
         }
 
         // Keep exactly one Home entry point for the existing global coin/DApp search.
@@ -368,5 +480,48 @@ private fun ShortcutCard(
             Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
+    }
+}
+
+
+private data class HomeDashboardCard(val id: String, val size: String = "small")
+
+private object HomeDashboardLayoutStore {
+    val defaults = listOf(
+        HomeDashboardCard("airdrop_navigation", "medium"),
+        HomeDashboardCard("wallet_management", "small"),
+        HomeDashboardCard("tron_energy", "small")
+    )
+    private val supported = listOf("airdrop_navigation", "wallet_management", "tron_energy", "airdrop_library", "project_library")
+    fun title(id: String) = when (id) {
+        "airdrop_navigation" -> "空投导航"
+        "wallet_management" -> "钱包管理"
+        "tron_energy" -> "⚡ TRON 能量租赁"
+        "airdrop_library" -> "空投库"
+        "project_library" -> "库管理"
+        else -> "快捷入口"
+    }
+    fun subtitle(id: String) = when (id) {
+        "airdrop_navigation" -> "常用活动网站"
+        "wallet_management" -> "管理已保存地址"
+        "tron_energy" -> "租赁前核对转出地址"
+        "airdrop_library" -> "发现和浏览空投项目"
+        "project_library" -> "管理个人项目与任务"
+        else -> ""
+    }
+    fun available(selected: Set<String>) = supported.filterNot { it in selected }
+    fun load(context: android.content.Context): List<HomeDashboardCard> {
+        val raw = context.getSharedPreferences("home_dashboard_layout", android.content.Context.MODE_PRIVATE)
+            .getString("cards", null) ?: return defaults
+        val type = object : TypeToken<List<HomeDashboardCard>>() {}.type
+        val parsed = runCatching { Gson().fromJson<List<HomeDashboardCard>>(raw, type) }.getOrNull().orEmpty()
+        val valid = parsed.filter { it.id in supported }.distinctBy { it.id }
+            .map { it.copy(size = it.size.takeIf { size -> size in setOf("small", "medium", "large") } ?: "small") }
+        return valid.ifEmpty { defaults }
+    }
+    fun save(context: android.content.Context, cards: List<HomeDashboardCard>) {
+        val valid = cards.filter { it.id in supported }.distinctBy { it.id }
+        context.getSharedPreferences("home_dashboard_layout", android.content.Context.MODE_PRIVATE)
+            .edit().putString("cards", Gson().toJson(valid)).apply()
     }
 }
