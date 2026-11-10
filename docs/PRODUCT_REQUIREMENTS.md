@@ -3,6 +3,22 @@
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
 
+## Implementation progress after the user's 11:40–11:45 device test (feature branch; not yet merged)
+
+- The new test corrections are recorded above in the authoritative requirements document before implementation.
+- Source audit confirmed the Home screen still had both a dedicated “搜索币种或 DApp” pill and a “全局搜索” quick card. The Home-only duplicate pill and quick card have now been removed in code; the dedicated global coin/DApp search destination and its underlying functionality are preserved.
+- Source audit confirmed the public project-discovery screen still rendered “微社区广场” and the Steam analogy. The visible heading is now “空投库” and the analogy sentence is removed. Project discovery, search, tags, rankings, and submission remain intact.
+- The 我的 page previously exposed only toast-only “消息通知” and “安全设置” rows. It now has separate “设置”, “安全中心”, and “消息通知” destinations with truthful initial information/empty states; wallet management remains available. These are initial destination shells, not a claim that all settings, security-permission controls, or push notifications are implemented.
+- The external-wallet top-bar action now gives immediate launch feedback and catches/logs launch exceptions; the DApp-origin approval path also returns an error to the requesting page if AppKit launch fails. This is a diagnostic/feedback improvement, **not proof that the user's no-response issue is fixed**. Device verification is still required.
+- Code inspection found that the current browser tool strip is only a three-action accounting capsule (mock bill, copy address, pending bills), not the requested configurable floating dock. The movable/scrollable dock, tool management, address picker/QR/explorer utilities, and persisted configuration remain pending.
+- The Home desktop-style editable card grid (add/remove/resize/reorder/persist/restore) remains pending. Only the redundant search UI has been removed so far; the existing market cache and three core quick functions are preserved.
+- The website loading failure remains unresolved pending a complete device trace. Current code deliberately requires HTTPS, rejects TLS errors, gates external-origin navigation with user confirmation, and may retry with a different user agent. Do not weaken these safety rules as a shortcut. Investigate redirects, WebView provider compatibility, cookies/session behavior, page errors, and external-wallet return flow before changing navigation policy.
+- No Actions build has been triggered for this feature branch yet. Validate the complete related Android batch once rather than compiling after every small edit.
+
+**Current branch:** `feature/mobile-browser-home-dock-batch`; latest implementation commit at this checkpoint: `9ffd05c2ee7c64e2c3ff3260e62fcdc504ca3321`. Requirements/documentation and the above Android edits are not yet merged to main. Keep release completion pending.
+
+---
+
 ## Latest user-confirmed mobile test corrections (2026-11-10; supersedes conflicting UI assumptions)
 
 These requirements were added from the user's physical-device test screenshots and observations on 2026-11-10. They are additive: preserve every unrelated existing feature, data rule, and security boundary.
