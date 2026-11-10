@@ -204,7 +204,7 @@ fun BrowserAccountingToolbar(
             .height(100.dp)
             .offset { dockOffset }
             .onSizeChanged { dockSizePx = IntOffset(it.width, it.height) }
-            .pointerInput(screenWidthPx, screenHeightPx, dockSizePx, dockOffset) {
+            .pointerInput(screenWidthPx, screenHeightPx, dockSizePx) {
                 detectDragGesturesAfterLongPress(
                     onDragEnd = {
                         val centeredBaseX = ((screenWidthPx - dockSizePx.x) / 2).coerceAtLeast(0)

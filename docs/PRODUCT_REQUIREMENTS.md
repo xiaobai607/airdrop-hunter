@@ -19,6 +19,7 @@ The user's latest reference image is the visual source of truth. This is a **mob
 - Added horizontal internal scrolling, an always-visible plus tile, and an add/manage dialog. Selected tool IDs are saved in app preferences, while drag coordinates remain transient only.
 - Added functional dock actions for mock bill, copy wallet address, pending bills, page refresh, copy page URL and open externally; connected the three new browser actions to the active WebView/current URL.
 - Implemented long-press drag and horizontal side snapping while constraining vertical movement to the visible safe area. The default offset is zero, aligned at the bottom by the browser parent.
+- Gesture stability correction: the dock's changing drag offset is no longer a `pointerInput` restart key. Previously, every movement could cancel and recreate the long-press drag detector; the detector now remains active through the drag while reading the latest Compose state. Screen dimensions and measured dock size remain restart keys so configuration/geometry changes can safely reinitialize gesture handling.
 - This is a source implementation checkpoint, not physical-device acceptance. If Compose gesture competition or actual parent dimensions differ on device, adjust after the user's test rather than claiming success.
 
 ### Horizontal floating toolbar correction — implementation pass (2026-11-10; PR #135)
