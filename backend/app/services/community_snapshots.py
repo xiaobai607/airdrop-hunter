@@ -288,10 +288,18 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
     summary_conditions = [CommunityContribution.user_id.is_(None)]
     if duration is not None:
         summary_conditions.append(CommunityContribution.created_at >= now - duration)
-    summary_totals_stmt = select(
-        func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_total_usd"),
-        func.coalesce(func.sum(public_reward_expr), 0).label("reward_total_usd"),
-    ).where(and_(*summary_conditions))
+    summary_totals_stmt = (
+        select(
+            func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_total_usd"),
+            func.coalesce(func.sum(public_reward_expr), 0).label("reward_total_usd"),
+        )
+        .select_from(CommunityContribution)
+        .join(
+            CommunityProjectCatalogEntry,
+            CommunityProjectCatalogEntry.project_official_id == CommunityContribution.project_official_id,
+        )
+        .where(and_(*summary_conditions))
+    )
     summary_totals = (await db.execute(summary_totals_stmt)).mappings().one()
 
     chain_conditions = [CommunityContribution.user_id.is_(None)]
@@ -301,6 +309,11 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
         select(
             CommunityContribution.network,
             func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_usd"),
+        )
+        .select_from(CommunityContribution)
+        .join(
+            CommunityProjectCatalogEntry,
+            CommunityProjectCatalogEntry.project_official_id == CommunityContribution.project_official_id,
         )
         .where(and_(*chain_conditions))
         .group_by(CommunityContribution.network)
@@ -320,19 +333,36 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
             func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_usd"),
             func.coalesce(func.sum(public_reward_expr), 0).label("reward_usd"),
         )
+        .select_from(CommunityContribution)
+        .join(
+            CommunityProjectCatalogEntry,
+            CommunityProjectCatalogEntry.project_official_id == CommunityContribution.project_official_id,
+        )
         .where(and_(*contributor_conditions))
         .group_by(CommunityContribution.contributor_fingerprint)
     )
     contributor_rows = (await db.execute(contributor_stmt)).mappings().all()
 
     all_contributor_count = await db.scalar(
-        select(func.count(func.distinct(CommunityContribution.contributor_fingerprint))).where(
+        select(func.count(func.distinct(CommunityContribution.contributor_fingerprint)))
+        .select_from(CommunityContribution)
+        .join(
+            CommunityProjectCatalogEntry,
+            CommunityProjectCatalogEntry.project_official_id == CommunityContribution.project_official_id,
+        )
+        .where(
             CommunityContribution.user_id.is_(None),
             CommunityContribution.contributor_fingerprint.is_not(None),
         )
     ) or 0
     active_contributor_count = await db.scalar(
-        select(func.count(func.distinct(CommunityContribution.contributor_fingerprint))).where(
+        select(func.count(func.distinct(CommunityContribution.contributor_fingerprint)))
+        .select_from(CommunityContribution)
+        .join(
+            CommunityProjectCatalogEntry,
+            CommunityProjectCatalogEntry.project_official_id == CommunityContribution.project_official_id,
+        )
+        .where(
             CommunityContribution.user_id.is_(None),
             CommunityContribution.contributor_fingerprint.is_not(None),
             CommunityContribution.created_at >= now - timedelta(days=30),
