@@ -21,9 +21,17 @@ def upgrade() -> None:
         "community_contributions",
         sa.Column("estimated_reward_usd", sa.Numeric(20, 8), nullable=True),
     )
+    # Preserve legacy rows as confirmed actual values, but make every new row
+    # unconfirmed unless the user explicitly confirms the realized reward.
     op.add_column(
         "community_contributions",
         sa.Column("actual_reward_confirmed", sa.Boolean(), nullable=False, server_default=sa.true()),
+    )
+    op.alter_column(
+        "community_contributions",
+        "actual_reward_confirmed",
+        existing_type=sa.Boolean(),
+        server_default=sa.false(),
     )
     op.add_column(
         "community_contributions",
