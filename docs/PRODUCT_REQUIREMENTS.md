@@ -48,7 +48,7 @@ This checkpoint is the current handoff state and must be refreshed whenever impl
 ### Current-release account and recovery scope (user-confirmed, 2026-11-10)
 
 - Do not allow new users to register in the current release. Hide or disable registration entry points; if a user reaches one, show **“注册功能开发中，请等待后续更新”** and do not start an account-creation request.
-- Keep guest mode fully available for the app's core functions. Guest personal ledger, wallets, and project data remain app-private/local; clearing app data or uninstalling loses those details.
+- Guest mode must not be blocked by forced login: guests can use the app's full non-cloud product experience, including Home, Micro Community, Airdrop Library, personal library/projects, tasks, wallet-address management, accounting, and eligible anonymous public contribution. Login is only for account-scoped cloud storage/sync and future account services; it is not a prerequisite for core use. Guest private ledger, wallets, and project data remain app-private/local; clearing app data or uninstalling loses those details.
 - Defer user-facing cross-device private-cloud restore. Do not advertise cloud recovery, show a restore entry point, or make cross-device recovery a release acceptance condition.
 - Do not delete already-implemented authentication, account-isolation, or sync code merely because registration/restore is deferred. Preserve it for a later phase; any existing account flow must not be expanded or described as offering cross-device restore.
 - This deferral applies to cloud-based private user data recovery only. Offline encrypted file backup/import is separately approved below. It does not cancel the separate PostgreSQL backup/restore drill for production operations, nor anonymous public aggregate contribution.
@@ -58,7 +58,7 @@ This checkpoint is the current handoff state and must be refreshed whenever impl
 - Stack: Android Kotlin + Jetpack Compose, FastAPI, PostgreSQL/Neon, Render, and GitHub Actions APK builds.
 - Keep the project affordable for a solo developer. Prefer free tiers, cache responsibly, batch coherent changes, and avoid unnecessary CI runs.
 - Guest use is the primary experience. **New-user registration is disabled for the current release**; if a registration entry is reached, show exactly: “注册功能开发中，请等待后续更新”. Do not submit registration requests or imply that account creation is available. Keep the existing guest experience fully usable. Existing authentication/backend code is retained, but registration and cross-device cloud recovery are deferred.
-- No custody, seed phrase/private-key collection, signing, transfers, swaps, or approvals.
+- Never build an in-app custodial wallet or collect/store seed phrases or private keys. DApp connection and user-requested signing must be routed to an external wallet app (for example MetaMask, OKX Wallet, or Trust Wallet); the user reviews and approves there, and signing/broadcast happens outside Airdrop Hunter. Airdrop Hunter must never sign with an app-held key. Do not add a standalone in-app custody, transfer, or swap service.
 - Public wallet addresses and read-only public chain data only.
 - Test data must never contaminate real private ledgers or public statistics.
 
@@ -125,7 +125,7 @@ Additional rules:
 - Read-only chain activity and transaction history.
 - Supported activity ecosystems currently include EVM networks (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche), TRON, Bitcoin, and Solana.
 - Manual chain selection and basic format validation are acceptable. Automatic address recognition is deferred.
-- No seed phrase/private key entry, wallet custody, signing, transfers, swaps, or approvals.
+- No seed phrase/private-key entry or wallet custody. External wallet connection and DApp signing are allowed only by waking/invoking the user's chosen external wallet; the external wallet performs the signature and obtains the user's approval. No in-app key-based signing or custodial transaction execution.
 
 ## 4. Browser and DApp interaction
 
@@ -134,8 +134,8 @@ Additional rules:
 - User can choose/switch the address used by a DApp and enter project claim flows.
 - Associate browser interaction with a project and later with its on-chain transaction/accounting record.
 - HTTPS-only navigation and strict TLS failure handling; never bypass certificate errors.
-- No signing or transaction submission capabilities in the current product boundary.
-- Real-device validation of WalletConnect/Reown, WebView lifecycle, origin boundaries, session expiry, and DApp compatibility remains required.
+- DApp signing/transaction requests are supported only through the external-wallet handoff: Airdrop Hunter may relay the user's explicit DApp request, but the external wallet displays the request and performs the final approval, signature, and broadcast. Never inject or use an app-owned private key.
+- Real-device validation of WalletConnect/Reown external-wallet handoff, actual external signing approval, WebView lifecycle, origin boundaries, session expiry, and DApp compatibility remains required. A connection-only test does not prove the external signing flow.
 
 ## 5. Personal accounting, Gas, rewards, and project history
 
@@ -180,11 +180,11 @@ Additional rules:
 - The checkbox is per accounting entry/batch row. For multi-wallet batch entry, each wallet row must have its own matching transaction hash; never reuse one hash across several selected addresses. Preserve atomic private-ledger batch behavior, but public verification failures must not erase or roll back private accounting data.
 
 - Keep theoretical estimates, user-entered actual amounts, and transaction-verification status as separate fields. A valid transaction link must not automatically confirm an event or replace the user's existing manual final-result confirmation.
-- The public dashboard may aggregate only eligible values and must disclose that Gas/reward amounts are user-declared unless a future approved receipt parser verifies them. Do not infer a Gas amount from transaction existence alone.
+- The public dashboard may aggregate only eligible values from a canonical public/official project that the accounting row is explicitly linked to. A user-created custom project has `projectOfficialId = null`: its bills and ledger remain private/local and must never be uploaded to or counted in Micro Community public statistics. Only a bill explicitly associated with an official public project and manually confirmed by the user may enter the anonymous public contribution flow. The dashboard must disclose that Gas/reward amounts are user-declared unless a receipt parser verifies them; do not infer a Gas amount from transaction existence alone.
 
 ## 6. Projects and tasks
 
-- Project directory, project details, statuses, personal project tracking, and history.
+- Project directory, project details, statuses, personal project tracking, and history. User-created custom projects with `projectOfficialId = null` are private/local-only: their bills are not uploaded and do not enter public community metrics. Public contribution is permitted only when the user explicitly links a confirmed bill to a canonical official project.
 - Create/edit/complete/delete tasks with progress tracking and project ownership checks.
 - Associate projects with wallets/addresses, chains, Gas, rewards, and interaction history.
 - Project totals include Gas, actual rewards, and net P&L.
@@ -298,6 +298,17 @@ Additional rules:
 - Community chat, groups, DMs, mentoring, and teaching/social features (deferred).
 - AI analysis is not a confirmed requirement.
 - Old PR #31 page is not to be merged; obsolete/unsafe PR #36 is not to be merged directly.
+
+### Later user corrections consolidated (source-of-truth overrides)
+
+These later user statements supersede any earlier conflicting draft text or assistant assumptions:
+
+- **External wallet signing (user-confirmed 2026-11-07):** absolutely no built-in wallet and no private-key custody. MetaMask, OKX Wallet, Trust Wallet, and other supported external wallets must be invoked for DApp signing. Airdrop Hunter does not hold keys or sign transactions itself; the external wallet presents the request and performs approval/signing/broadcast. The earlier blanket statement that the product has “no signing” is incorrect and is superseded.
+- **Guest access (user-confirmed 2026-11-07):** no forced login. Guests can use the full non-cloud app experience, including browsing, Micro Community, Airdrop Library, project/task management, wallet-address management, accounting, and eligible anonymous public contribution. Registration remains disabled in the current release; login is not required for core use.
+- **Custom project privacy (user-confirmed 2026-11-07):** a custom project has `projectOfficialId = null`; its bills stay private/local, are never uploaded, and never enter Micro Community public metrics. Only manually confirmed bills explicitly linked to an official public project can contribute anonymous aggregates. This rule is distinct from guest-vs-authenticated private-ledger ownership.
+- **Guest data boundary (latest explicit correction, 2026-11-09 00:09):** “游客的数据我们不保存，我只是游客参与空投的gas，收益 等空投收益 数据要贡献到大盘里面 他的数据我们不保存”. Therefore guest detailed personal records are not uploaded or retained by a private cloud vault; only eligible anonymous aggregate contribution data is sent to the public dashboard. This later correction supersedes the earlier 2026-11-08 request that guest detailed bills also be uploaded to cloud.
+- **Community time windows (user-confirmed 2026-11-09):** remove “今日” and the standalone “24小时热度” metric. Keep overall, last 7 days, last 3 days, and last 1 hour. A market coin's 24-hour price-change percentage is a separate market field and is not the cancelled community heat metric.
+- **Crash regression (user-reported 2026-11-08):** the user reported that navigating to multiple areas (Airdrop navigation/site, coin/chain-browser search, wallet management, project management, and My) could close the entire app, while Micro Community worked. PR #103 fixed one confirmed WebView origin-rule crash at source level, but that does not prove every reported route is fixed. Keep a cross-screen physical-device crash regression gate open until every affected route is exercised on-device; do not mark the broad crash report resolved from the single WebView fix alone.
 
 ## 12. Verified implementation ledger (as of 2026-11-09)
 
