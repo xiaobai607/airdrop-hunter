@@ -6,7 +6,7 @@ services:
     rootDir: backend
     buildCommand: pip install .
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /health
+    healthCheckPath: /health/ready
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -14,3 +14,7 @@ services:
         generateValue: true
       - key: JWT_EXPIRE_MINUTES
         value: "10080"
+      - key: ETHERSCAN_API_KEY
+        sync: false
+      - key: COMMUNITY_TX_FINGERPRINT_SECRET
+        sync: false

@@ -2,6 +2,9 @@ name: Publish community static snapshots
 
 on:
   workflow_dispatch:
+  schedule:
+    # Every five minutes; the job remains disabled until production storage is configured.
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: read
