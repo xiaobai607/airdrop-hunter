@@ -212,9 +212,8 @@ fun BrowserAccountingToolbar(
                         val rightOffset = screenWidthPx - dockSizePx.x - dockEdgePaddingPx - centeredBaseX
                         val snappedX = if (kotlin.math.abs(dockOffset.x - leftOffset) <= kotlin.math.abs(dockOffset.x - rightOffset)) leftOffset else rightOffset
                         val topSafePx = with(density) { 72.dp.roundToPx() }
-                        val bottomSafePx = with(density) { 112.dp.roundToPx() }
                         val minOffsetY = (topSafePx - (screenHeightPx - dockSizePx.y)).coerceAtMost(0)
-                        dockOffset = IntOffset(snappedX, dockOffset.y.coerceIn(minOffsetY, bottomSafePx))
+                        dockOffset = IntOffset(snappedX, dockOffset.y.coerceIn(minOffsetY, 0))
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
@@ -222,11 +221,10 @@ fun BrowserAccountingToolbar(
                         val leftLimit = dockEdgePaddingPx - centeredBaseX
                         val rightLimit = screenWidthPx - dockSizePx.x - dockEdgePaddingPx - centeredBaseX
                         val topSafePx = with(density) { 72.dp.roundToPx() }
-                        val bottomSafePx = with(density) { 112.dp.roundToPx() }
                         val minOffsetY = (topSafePx - (screenHeightPx - dockSizePx.y)).coerceAtMost(0)
                         dockOffset = IntOffset(
                             (dockOffset.x + dragAmount.x.roundToInt()).coerceIn(leftLimit, rightLimit),
-                            (dockOffset.y + dragAmount.y.roundToInt()).coerceIn(minOffsetY, bottomSafePx)
+                            (dockOffset.y + dragAmount.y.roundToInt()).coerceIn(minOffsetY, 0)
                         )
                     }
                 )
