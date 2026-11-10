@@ -31,6 +31,7 @@ import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.rememberModalBottomSheetState
 import com.google.accompanist.navigation.material.BottomSheetNavigator
 import com.reown.appkit.client.AppKit
+import com.reown.appkit.client.models.request.Request as ExternalWalletRequest
 import com.reown.appkit.ui.appKitGraph
 import com.reown.appkit.ui.openAppKit
 import androidx.compose.animation.core.animateFloatAsState
@@ -71,6 +72,14 @@ private data class BrowserWallet(
     val networkIcon: String,
     val walletName: String,
     val address: String
+)
+
+private data class PendingDappExternalRequest(
+    val request: DappRpcRequest,
+    val origin: String,
+    val replyProxy: JavaScriptReplyProxy,
+    val sessionTopic: String,
+    val chainId: String
 )
 
 class BrowserActivity : ComponentActivity() {
@@ -153,10 +162,13 @@ private fun BrowserScreen(
     }
     var showWalletPicker by remember { mutableStateOf(false) }
     var pendingDappConnection by remember { mutableStateOf<PendingDappConnection?>(null) }
+    var pendingDappExternalRequest by remember { mutableStateOf<PendingDappExternalRequest?>(null) }
     var waitingDappWalletApproval by remember { mutableStateOf(false) }
     val authorizedDappOrigins = remember { mutableStateMapOf<String, String>() }
     val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsState()
     val connectedSessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsState()
+    val activeWalletConnectTopic by WalletConnectSessionDelegate.sessionTopic.collectAsState()
+    val dappRequestScope = rememberCoroutineScope()
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var loadAttempt by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
@@ -200,6 +212,35 @@ private fun BrowserScreen(
         mutableStateOf(connectedSessionGeneration)
     }
 
+    LaunchedEffect(Unit) {
+        WalletConnectSessionDelegate.requestResponses.collect { response ->
+            val pending = pendingDappExternalRequest
+            if (pending != null &&
+                response.topic == pending.sessionTopic &&
+                response.method.equals(pending.request.method, ignoreCase = true) &&
+                (response.chainId.isNullOrBlank() || response.chainId == pending.chainId)
+            ) {
+                when (val result = response.result) {
+                    is Modal.Model.JsonRpcResponse.JsonRpcResult ->
+                        DappProviderBridge.success(pending.replyProxy, pending.request.id, result.result)
+                    is Modal.Model.JsonRpcResponse.JsonRpcError ->
+                        DappProviderBridge.error(pending.replyProxy, pending.request.id, result.code, result.message)
+                }
+                pendingDappExternalRequest = null
+            }
+        }
+    }
+
+    LaunchedEffect(pendingDappExternalRequest?.request?.id) {
+        val requestId = pendingDappExternalRequest?.request?.id ?: return@LaunchedEffect
+        kotlinx.coroutines.delay(120_000)
+        val pending = pendingDappExternalRequest
+        if (pending?.request?.id == requestId) {
+            DappProviderBridge.error(pending.replyProxy, requestId, 4001, "外部钱包请求超时或已取消")
+            pendingDappExternalRequest = null
+        }
+    }
+
     LaunchedEffect(waitingDappWalletApproval, connectedDappAccounts, connectedSessionGeneration) {
         if (connectedSessionGeneration != lastObservedSessionGeneration) {
             lastObservedSessionGeneration = connectedSessionGeneration
@@ -215,6 +256,10 @@ private fun BrowserScreen(
 
             if (!completingUserApprovedConnection) {
                 authorizedDappOrigins.clear()
+                pendingDappExternalRequest?.let { pending ->
+                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4100, "外部钱包会话已变化，请重新连接")
+                    pendingDappExternalRequest = null
+                }
                 val accountsChanged = JSONObject()
                     .put("type", "event")
                     .put("event", "accountsChanged")
@@ -273,7 +318,7 @@ private fun BrowserScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background)
                 )
                 Surface(Modifier.fillMaxWidth(), color = Color(0xFF9F2525)) {
-                    Text("⚠️ 安全提醒：本 App 不保存私钥。当前为第三方网页，当前版本仅提供公开地址连接，不提供签名或发送交易。",
+                    Text("⚠️ 安全提醒：本 App 不保存私钥。签名和交易请求会交由外部钱包展示并由您确认；请仔细核对网站域名与请求内容。",
                         Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
                         color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 }
@@ -361,12 +406,68 @@ private fun BrowserScreen(
                                             replyProxy, request.id, 4200, "Switch networks in the connected wallet, then reconnect this site"
                                         )
                                         else -> {
-                                            val message = if (DappProviderBridge.isSigningOrTransactionMethod(request.method)) {
-                                                "当前版本仅支持公开地址连接，不支持消息签名、交易签名或发送交易"
-                                            } else {
-                                                "Unsupported wallet method: ${request.method}"
+                                            when {
+                                                DappProviderBridge.isSupportedExternalWalletMethod(request.method) -> {
+                                                    val sessionTopic = activeWalletConnectTopic
+                                                    val account = connectedDappAccounts.firstOrNull()
+                                                    val authorized = authorizedDappOrigins[origin] == currentDappAuthorizationStamp()
+                                                    val connectedAddresses = connectedDappAccounts.map { it.address }.toSet()
+                                                    when {
+                                                        !authorized || account == null ->
+                                                            DappProviderBridge.error(replyProxy, request.id, 4100, "请先在当前网站授权连接外部钱包")
+                                                        sessionTopic.isNullOrBlank() ->
+                                                            DappProviderBridge.error(replyProxy, request.id, 4200, "当前钱包连接方式暂不支持 DApp 签名转发，请使用 WalletConnect 外部钱包连接")
+                                                        pendingDappExternalRequest != null ->
+                                                            DappProviderBridge.error(replyProxy, request.id, -32002, "已有一笔外部钱包请求正在等待确认")
+                                                        !DappProviderBridge.isAuthorizedAccountRequest(request.method, request.params, connectedAddresses) ->
+                                                            DappProviderBridge.error(replyProxy, request.id, 4100, "请求使用的钱包地址未在当前外部钱包会话中授权")
+                                                        else -> {
+                                                            val chainReference = account.chainId.let {
+                                                                if (it.startsWith("eip155:")) it else "eip155:$it"
+                                                            }
+                                                            val pending = PendingDappExternalRequest(
+                                                                request = request,
+                                                                origin = origin,
+                                                                replyProxy = replyProxy,
+                                                                sessionTopic = sessionTopic,
+                                                                chainId = chainReference
+                                                            )
+                                                            pendingDappExternalRequest = pending
+                                                            runCatching {
+                                                                AppKit.request(
+                                                                    request = ExternalWalletRequest(
+                                                                        method = request.method,
+                                                                        params = request.params.toString(),
+                                                                        chainId = chainReference
+                                                                    ),
+                                                                    onSuccess = {},
+                                                                    onError = { error ->
+                                                                        dappRequestScope.launch {
+                                                                            if (pendingDappExternalRequest?.request?.id == request.id) {
+                                                                                DappProviderBridge.error(
+                                                                                    replyProxy, request.id, 4001,
+                                                                                    error.localizedMessage ?: "外部钱包请求失败或被拒绝"
+                                                                                )
+                                                                                pendingDappExternalRequest = null
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                )
+                                                            }.onFailure { error ->
+                                                                DappProviderBridge.error(
+                                                                    replyProxy, request.id, 4001,
+                                                                    error.localizedMessage ?: "无法打开外部钱包请求"
+                                                                )
+                                                                pendingDappExternalRequest = null
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                DappProviderBridge.isBlockedRawSubmissionMethod(request.method) ->
+                                                    DappProviderBridge.error(replyProxy, request.id, 4200, "不支持原始已签名交易或批量智能账户提交；请使用由外部钱包审核的标准签名/交易请求")
+                                                else ->
+                                                    DappProviderBridge.error(replyProxy, request.id, 4200, "Unsupported wallet method: ${request.method}")
                                             }
-                                            DappProviderBridge.error(replyProxy, request.id, 4200, message)
                                         }
                                     }
                                 }
@@ -435,7 +536,11 @@ private fun BrowserScreen(
                                         pendingDappConnection?.let { pending ->
                                             DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "The page navigated before wallet access was approved")
                                         }
+                                        pendingDappExternalRequest?.let { pending ->
+                                            DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "网页已跳转，外部钱包请求已取消")
+                                        }
                                         pendingDappConnection = null
+                                        pendingDappExternalRequest = null
                                         waitingDappWalletApproval = false
                                     }
                                     currentPageUrl = it
