@@ -62,10 +62,10 @@ fun ProfileScreen(
     val createBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
+        val password = backupPassword
+        backupPassword = ""
+        backupPasswordConfirm = ""
         if (uri != null) {
-            val password = backupPassword
-            backupPassword = ""
-            backupPasswordConfirm = ""
             coroutineScope.launch {
                 backupBusy = true
                 runCatching { LocalBackupRepository.writeBackup(context, uri, password) }
@@ -82,6 +82,10 @@ fun ProfileScreen(
             selectedBackupUri = uri
             importPassword = ""
             showImportPasswordDialog = true
+        } else {
+            selectedBackupUri = null
+            importPassword = ""
+            showImportPasswordDialog = false
         }
     }
 
@@ -110,7 +114,7 @@ fun ProfileScreen(
                     fontWeight = FontWeight.Bold)
                 Text(
                     when {
-                        isGuest -> "登录 / 注册账户，使用账户服务"
+                        isGuest -> "登录账户，使用账户服务"
                         state.profile != null -> "ID: " + state.profile!!.uid
                         state.isLoading -> "正在加载账户信息…"
                         else -> "账户信息暂时无法加载"
@@ -171,7 +175,7 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("导入数据") }
                 Text(
-                    "备份文件经过密码加密。换机时选择备份文件并输入相同密码即可恢复；请妥善保存文件和密码。",
+                    "支持 .ahbackup 和 .hunter 文件。备份文件经过密码加密；换机时选择文件并输入相同密码即可恢复，请妥善保存文件和密码。",
                     color = AppColors.TextHelper,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -179,8 +183,8 @@ fun ProfileScreen(
         }
 
         if (isGuest) {
-            Text("游客个人账本仅保存在本机；登录后才会启用账号私有云同步", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
-            Button(onClick = onRequireAuth, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("登录 / 注册") }
+            Text("游客个人账本仅保存在本机；登录后可使用账号私有账本服务", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+            Button(onClick = onRequireAuth, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("登录账户") }
         }
 
         if (state.hasError && !isGuest) {
