@@ -1,0 +1,172 @@
+package com.airdrophunter.app.data
+
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import retrofit2.HttpException
+import java.io.IOException
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import kotlin.random.Random
+
+object CacheRefreshPolicy {
+    const val DEFAULT_TTL_MILLIS = 15 * 60 * 1000L
+    const val MANUAL_REFRESH_THROTTLE_MILLIS = 30 * 1000L
+    const val FAILURE_COOLDOWN_MILLIS = 30 * 1000L
+    const val MAX_RETRY_ATTEMPTS = 3
+    const val MAX_RETRY_DELAY_MILLIS = 8_000L
+
+    fun isFresh(metadata: CacheMetadataEntity?, now: Long): Boolean {
+        if (metadata?.refreshStatus != "ready") return false
+        val fetchedAt = metadata.fetchedAt ?: return false
+        val expiresAt = metadata.expiresAt ?: return false
+        return now >= fetchedAt && now < expiresAt
+    }
+
+    fun isFailureCooldownActive(metadata: CacheMetadataEntity?, now: Long): Boolean {
+        if (metadata?.refreshStatus !in setOf("stale", "error")) return false
+        val retryAt = metadata?.expiresAt ?: return false
+        return now >= 0L && now < retryAt
+    }
+
+    fun isManualRefreshThrottled(metadata: CacheMetadataEntity?, now: Long): Boolean {
+        val last = metadata?.lastManualRefreshAt ?: return false
+        return now >= last && now - last < MANUAL_REFRESH_THROTTLE_MILLIS
+    }
+
+    fun retryDelayMillis(attempt: Int, retryAfterMillis: Long? = null, jitterFactor: Double = 1.0): Long {
+        val exponential = (500L shl attempt.coerceIn(0, 4)).coerceAtMost(MAX_RETRY_DELAY_MILLIS)
+        val requested = retryAfterMillis?.coerceIn(0L, MAX_RETRY_DELAY_MILLIS) ?: exponential
+        return (requested * jitterFactor.coerceIn(0.8, 1.2)).toLong()
+            .coerceIn(250L, MAX_RETRY_DELAY_MILLIS)
+    }
+
+    fun isRetryable(error: Throwable): Boolean = when (error) {
+        is IOException -> true
+        is HttpException -> error.code() in setOf(408, 425, 429) || error.code() in 500..599
+        else -> false
+    }
+
+    fun retryAfterMillis(error: Throwable, now: Long): Long? {
+        val value = (error as? HttpException)?.response()?.headers()?.get("Retry-After") ?: return null
+        value.trim().toLongOrNull()?.let { return it.coerceIn(0L, 8L) * 1_000L }
+        return runCatching {
+            ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME)
+                .toInstant().toEpochMilli() - now
+        }.getOrNull()?.coerceIn(0L, MAX_RETRY_DELAY_MILLIS)
+    }
+}
+
+data class CacheRefreshResult<T>(
+    val data: T?,
+    val stale: Boolean,
+    val errorMessage: String? = null,
+    val throttled: Boolean = false
+)
+
+/** Persistent stale-while-revalidate coordinator for market/search and per-wallet asset caches. */
+class CacheRefreshCoordinator(
+    private val clock: () -> Long = System::currentTimeMillis,
+    private val wait: suspend (Long) -> Unit = { delay(it) },
+    private val jitter: () -> Double = { Random.nextDouble(0.8, 1.2) }
+) {
+    // Fixed stripes bound memory while ensuring same-key work never runs concurrently.
+    private val locks = Array(64) { Mutex() }
+
+    suspend fun <T> load(
+        cacheKey: String,
+        source: String,
+        ttlMillis: Long = CacheRefreshPolicy.DEFAULT_TTL_MILLIS,
+        manual: Boolean = false,
+        readCache: suspend () -> T?,
+        fetch: suspend () -> T,
+        save: suspend (T) -> Unit
+    ): CacheRefreshResult<T> {
+        val initialCached = readCache()
+        var metadata = CacheStore.readCacheMetadata(cacheKey, source)
+        val initialNow = clock()
+        val initialFresh = CacheRefreshPolicy.isFresh(metadata, initialNow)
+        if (!manual && initialCached != null && initialFresh) return CacheRefreshResult(initialCached, false)
+        if (!manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, initialNow)) {
+            return CacheRefreshResult(initialCached, stale = true, errorMessage = metadata?.lastError)
+        }
+        if (manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, initialNow)) {
+            return CacheRefreshResult(initialCached, stale = !initialFresh, throttled = true)
+        }
+
+        val lock = locks[(("$source:$cacheKey").hashCode() and Int.MAX_VALUE) % locks.size]
+        return lock.withLock {
+            var cached = readCache()
+            metadata = CacheStore.readCacheMetadata(cacheKey, source)
+            val lockedNow = clock()
+            val fresh = CacheRefreshPolicy.isFresh(metadata, lockedNow)
+            if (!manual && cached != null && fresh) return@withLock CacheRefreshResult(cached, false)
+            if (!manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, lockedNow)) {
+                return@withLock CacheRefreshResult(cached, stale = true, errorMessage = metadata?.lastError)
+            }
+            if (manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, lockedNow)) {
+                return@withLock CacheRefreshResult(cached, stale = !fresh, throttled = true)
+            }
+
+            val lastManual = if (manual) lockedNow else metadata?.lastManualRefreshAt
+            CacheStore.writeCacheMetadata(
+                CacheMetadataEntity(cacheKey, source, metadata?.fetchedAt, metadata?.expiresAt,
+                    ttlMillis, "refreshing", null, lastManual)
+            )
+
+            try {
+                var result: T? = null
+                var failure: Exception? = null
+                for (attempt in 0 until CacheRefreshPolicy.MAX_RETRY_ATTEMPTS) {
+                    try {
+                        result = fetch()
+                        failure = null
+                        break
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        failure = error
+                        if (!CacheRefreshPolicy.isRetryable(error) ||
+                            attempt == CacheRefreshPolicy.MAX_RETRY_ATTEMPTS - 1) break
+                        wait(CacheRefreshPolicy.retryDelayMillis(
+                            attempt, CacheRefreshPolicy.retryAfterMillis(error, clock()), jitter()
+                        ))
+                    }
+                }
+                val value = result ?: throw (failure ?: IllegalStateException("缓存刷新未返回数据"))
+                save(value)
+                val completedAt = clock()
+                val safeTtl = ttlMillis.coerceAtLeast(1L)
+                CacheStore.writeCacheMetadata(
+                    CacheMetadataEntity(cacheKey, source, completedAt, completedAt + safeTtl,
+                        safeTtl, "ready", null, lastManual)
+                )
+                CacheRefreshResult(value, false)
+            } catch (cancelled: CancellationException) {
+                CacheStore.writeCacheMetadata(
+                    CacheMetadataEntity(cacheKey, source, metadata?.fetchedAt, metadata?.expiresAt,
+                        ttlMillis, "idle", null, lastManual)
+                )
+                throw cancelled
+            } catch (error: Exception) {
+                cached = readCache()
+                val failedAt = clock()
+                CacheStore.writeCacheMetadata(
+                    CacheMetadataEntity(
+                        cacheKey, source, metadata?.fetchedAt,
+                        failedAt + CacheRefreshPolicy.FAILURE_COOLDOWN_MILLIS,
+                        ttlMillis, if (cached != null) "stale" else "error",
+                        (error.message ?: "刷新失败").take(160), lastManual
+                    )
+                )
+                if (cached != null) CacheRefreshResult(cached, true, error.message ?: "刷新失败，暂时显示上次数据")
+                else CacheRefreshResult(null, true, error.message ?: "刷新失败")
+            }
+        }
+    }
+
+    companion object {
+        val shared = CacheRefreshCoordinator()
+    }
+}
