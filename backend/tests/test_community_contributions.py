@@ -146,6 +146,7 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
             "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
             "tx_hash": "0x" + "a" * 64,
             "public_contribution_opt_in": True,
+            "actual_reward_confirmed": True,
             "gas_cost_usd": "2.50",
             "actual_reward_usd": "12.00",
             "asset_breakdown": [
@@ -227,6 +228,7 @@ def test_guest_can_contribute_to_public_stats_idempotently():
             "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
             "tx_hash": "0x" + "b" * 64,
             "public_contribution_opt_in": True,
+            "actual_reward_confirmed": True,
             "gas_cost_usd": "0.75",
             "actual_reward_usd": "3.25",
         }
