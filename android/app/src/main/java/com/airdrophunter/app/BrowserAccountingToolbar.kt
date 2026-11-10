@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -651,27 +650,6 @@ fun BrowserAccountingToolbar(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun AccountingCapsuleButton(
-    description: String,
-    background: Color,
-    tint: Color,
-    loading: Boolean = false,
-    onClick: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        enabled = !loading,
-        shape = CircleShape,
-        color = background.copy(alpha = 0.82f),
-        modifier = Modifier.size(40.dp),
-        border = BorderStroke(1.dp, tint.copy(alpha = 0.14f))
-    ) {
-        Box(contentAlignment = Alignment.Center) { content() }
     }
 }
 
