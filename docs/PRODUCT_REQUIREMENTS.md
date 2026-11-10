@@ -29,7 +29,7 @@ This document remains the complete source of truth. The optimization below adds 
 - **Refresh/cache/reliability:** Section 9.
 - **Implementation evidence and 15-batch roadmap:** Sections 12–14.
 - **Naming rule:** the user-facing personal-project destination is named **“库管理”**. “空投库” is the public project-discovery/catalog destination. This is a display/navigation rename only; it does not remove or alter project management, tasks, wallet associations, ledger history, or any other existing capability.
-- **Code status at this baseline:** Batches 01–07 have merged code-level implementations; exact CI evidence is recorded below. Device acceptance, production configuration, and newly captured follow-up flows remain separately tracked. Batches 08–15 have not been declared complete.
+- **Code status at this baseline:** Batches 01–13 have merged code-level implementations with their recorded CI evidence. Batch 14 is partial in code and awaits production configuration, live smoke checks, backup/restore drill, and rollback evidence. Batch 15 implementation and exact-head CI are complete after PR #132; real-device acceptance remains pending. Do not conflate code/CI completion with production or device acceptance.
 
 ## 1. Product and engineering boundaries
 
@@ -993,7 +993,7 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - PR #125 extends provider rotation to wallet-activity reads for Solana JSON-RPC and Bitcoin Esplora. Etherscan V2 and TRONGrid remain single configured sources in this free-provider release; no unapproved paid or credential-dependent alternate is silently substituted.
 - **Status: Batch 12 implementation complete in code and CI after PR #125 validation.** Real-device offline/account-switch acceptance remains Batch 15. Do not apply this public cache coordinator to personal ledger or task CRUD; those are not public market cache surfaces.
 
-### Batch 13 — backend/API/data integrity audit (2026-11-10; in progress)
+### Batch 13 — backend/API/data integrity audit (2026-11-10; complete in code and CI)
 
 - Main-branch audit confirms FastAPI router registration, PostgreSQL-only async database URL normalization, JWT signature/expiry validation, Argon2 password hashing, account-owned project/task/wallet/ledger queries, private-ledger idempotency key (user_id, client_record_id), and a linear Alembic migration chain through 0017_verified_contrib. Existing cross-account negative tests cover projects, tasks, wallets, private ledger, and project-wallet assignments.
 - A concrete public-data integrity defect was found in POST /api/community/projects/{id}/contributions: the server verified the transaction Gas amount but trusted client-supplied reward token rows independently of the authoritative actual_reward_usd. The snapshot builder aggregates those token rows into reward_by_token, so one contribution could publish a project reward total that disagreed with its token-level reward valuation. The previous code also rewrote every client-supplied Gas row to the full verified fee, allowing duplicate Gas token rows in snapshots.
@@ -1032,17 +1032,19 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - **Status: complete in code and CI.** Real-device offline/airplane-mode, account-switch, throttling, and stale-label acceptance remains Batch 15.
 
 
-### Batch 15 — unified navigation, account-scope messaging, and backup hardening (2026-11-10; in progress)
+### Batch 15 — unified navigation, account-scope messaging, and backup hardening (2026-11-10; implementation and exact-head CI complete; device acceptance pending)
 
 - Main navigation already uses the required four destinations in the required order, and community/library/project screens are hosted in saveable state providers. The Home destination was outside that provider and lost its saveable UI state when switching tabs; it now uses the same independent `bottom-tab-0` state holder.
 - Correct the visible tab labels to the user-confirmed Chinese names: 首页 → 空投库 → 库管理 → 我的.
 - The current release disables new registration. The login screen already shows the exact development notice and does not submit registration; the guest profile entry previously still said “登录 / 注册”. It now offers login only; the login screen continues to display the exact registration-development notice.
 - Complete the offline backup format contract: include and validate JSON `app_name: "AirdropHunter"` using an explicit serialized field name, advance the encrypted format version, and normalize wrong-password, marker, JSON, and integrity failures to “文件损坏或密码错误，导入失败”. Keep AES-256-GCM, PBKDF2-HMAC-SHA256, file-size/record bounds, pre-restore validation, and atomic restore unchanged.
 - The document picker already accepts `*/*`; the profile now explicitly documents support for both `.ahbackup` and `.hunter` selections. Password state is cleared on both picker success and cancellation paths.
-- Automated validation is pending on this batch's exact PR head. Batch 15 remains open for the remaining cross-screen regression and real-device acceptance; this entry does not claim final release acceptance.
+- PR #132 was merged to `main` as `57a03f90d87b06628eed8c94ef24097a88364023`. Its exact final head `d2cba715d488a16e2d3f40c2f07599ba4dbb6854` passed Android unit tests and Debug APK assembly in Actions run `42746641763`; the `airdrop-hunter-debug-apk` artifact (44,309,877 bytes) uploaded successfully. Backend tests were correctly skipped because this PR changed Android and documentation only. The PR is closed/merged; Batch 15 code and CI are complete, not the remaining real-device acceptance.
 
 
-- Batch 15 correction: the serialized backup identity key is exactly `app_name` (not Kotlin's default `appName`); `@SerializedName("app_name")` and a JSON-contract regression test are included in PR #132. PR #132 remains open until Android unit tests and Debug APK assembly pass on its latest exact head.
+- Batch 15 correction: the serialized backup identity key is exactly `app_name` (not Kotlin's default `appName`); `@SerializedName("app_name")` and a JSON-contract regression test are included in PR #132 and passed on its exact final head.
 
 
 - Batch 15 contribution-status UI integration: Room schema 19→20 adds account-scoped verification status/tier/error fields to each private interaction. The existing contribution worker now updates both the private-ledger metadata and the corresponding interaction row for pending/retry, verified, and terminal-rejected outcomes. Project accounting history visibly distinguishes “等待链上核验”, “链上已确认”, “链上精确核验”, and “核验拒绝”; rejection detail is shown only in the owner's private ledger. A pure status-label regression test covers the state mapping. This does not expose raw wallet addresses or transaction hashes publicly and does not alter manual event settlement confirmation.
+
+- **Remaining Batch 15 acceptance (not yet performed):** install the exact merged Debug APK on a physical Android device and verify bottom-tab order/state retention; guest profile/login copy; backup and import picker cancellation; `.ahbackup` and `.hunter` selection; successful backup→restore round-trip; wrong-password and corrupted-file rejection without data mutation; contribution status labels and private-only rejection detail; offline/airplane-mode cache behavior; account-scope isolation; wallet/activity/asset refresh throttling and stale-cache labels; and the core project/accounting flows. CI does not substitute for this device pass.
