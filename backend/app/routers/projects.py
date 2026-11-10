@@ -139,7 +139,7 @@ async def create_project(payload: ProjectWrite, db: Annotated[AsyncSession, Depe
 @router.put("/projects/{project_id}", response_model=ProjectResponse)
 async def update_project(project_id: UUID, payload: ProjectWrite, db: Annotated[AsyncSession, Depends(get_db)], user: User = Depends(get_current_user)):
     p = await owned_project(project_id, user, db)
-    for key, value in payload.model_dump().items(): setattr(p, key, value.strip() if isinstance(value, str) else value)
+    for key, value in payload.model_dump(exclude={"client_project_id"}).items(): setattr(p, key, value.strip() if isinstance(value, str) else value)
     if not p.name: raise HTTPException(422, "项目名称不能为空")
     if p.claim_url and (urlparse(p.claim_url).scheme != "https" or not urlparse(p.claim_url).hostname):
         raise HTTPException(422, "资格查询入口必须是 HTTPS URL")

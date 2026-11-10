@@ -10,5 +10,6 @@ data class ProjectWriteRequest(
     val deadline: String? = null,
     val expected_income: Double = 0.0,
     val gas_cost: Double = 0.0,
-    val actual_income: Double = 0.0
+    val actual_income: Double = 0.0,
+    val client_project_id: String? = null
 )
