@@ -16,9 +16,13 @@ def _provider_candidates(urls: list[str] | tuple[str, ...], max_attempts: int) -
     now = time.monotonic()
     candidates = list(dict.fromkeys(urls))
     healthy = [url for url in candidates if _PROVIDER_COOLDOWNS.get(url, 0.0) <= now]
-    if not healthy:
-        healthy = sorted(candidates, key=lambda url: _PROVIDER_COOLDOWNS.get(url, 0.0))
-    return healthy[:max(1, max_attempts)]
+    cooling = sorted(
+        (url for url in candidates if url not in healthy),
+        key=lambda url: _PROVIDER_COOLDOWNS.get(url, 0.0),
+    )
+    # Prefer healthy endpoints, but keep cooling endpoints as last-resort fallback
+    # if every currently healthy endpoint fails during this request.
+    return (healthy + cooling)[:max(1, max_attempts)]
 
 
 def _mark_provider_failure(url: str, retry_after: str | None = None) -> None:

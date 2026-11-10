@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import httpx
 
@@ -146,6 +147,37 @@ def test_provider_cooldown_skips_a_recently_failing_primary_endpoint():
         assert first_provider == "https://backup.example/data"
         assert second_provider == "https://backup.example/data"
         assert calls == ["primary.example", "backup.example", "backup.example"]
+        _PROVIDER_COOLDOWNS.clear()
+
+    asyncio.run(run())
+
+
+
+def test_cooling_provider_remains_last_resort_if_healthy_endpoint_fails():
+    async def run():
+        _PROVIDER_COOLDOWNS.clear()
+        _PROVIDER_COOLDOWNS["https://primary.example/data"] = time.monotonic() + 30
+        calls = []
+
+        async def handler(request):
+            calls.append(request.url.host)
+            if request.url.host == "backup.example":
+                return httpx.Response(503, request=request)
+            return httpx.Response(200, json={"ok": True}, request=request)
+
+        async def no_wait(_seconds):
+            return None
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            response, provider = await request_with_provider_failover(
+                client, "GET",
+                ["https://primary.example/data", "https://backup.example/data"],
+                sleep=no_wait, jitter=lambda: 1.0,
+            )
+
+        assert response.status_code == 200
+        assert provider == "https://primary.example/data"
+        assert calls == ["backup.example", "primary.example"]
         _PROVIDER_COOLDOWNS.clear()
 
     asyncio.run(run())
