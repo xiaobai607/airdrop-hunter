@@ -31,6 +31,18 @@ This document remains the complete source of truth. The optimization below adds 
 - **Naming rule:** the user-facing personal-project destination is named **“库管理”**. “空投库” is the public project-discovery/catalog destination. This is a display/navigation rename only; it does not remove or alter project management, tasks, wallet associations, ledger history, or any other existing capability.
 - **Code status at this baseline:** Batches 01–13 have merged code-level implementations with their recorded CI evidence. Batch 14 is partial in code and awaits production configuration, live smoke checks, backup/restore drill, and rollback evidence. Batch 15 implementation and exact-head CI are complete after PR #132; real-device acceptance remains pending. Do not conflate code/CI completion with production or device acceptance.
 
+### Latest continuation checkpoint (2026-11-10)
+
+This checkpoint is the current handoff state and must be refreshed whenever implementation or verification advances.
+
+- Latest main-branch audit found **no open pull requests**.
+- PR #132 (Batch 15 Android navigation, offline backup contract, contribution-status UI) is merged. Exact-head Actions run `42746641763` passed Android unit tests and Debug APK assembly; artifact `airdrop-hunter-debug-apk` uploaded successfully. Physical-device acceptance is still outstanding.
+- PR #133 (Batch 14 PostgreSQL restore-target preflight) is merged. Exact-head Actions run `42747428235` passed backend pytest (**153 passed**); Android build was correctly skipped because the PR did not change Android code.
+- The production-configuration checklist and safe activation order are recorded in Batch 14 below. The latest schedule audit found seven community-snapshot cron runs, all `skipped`; production publishing and live readiness have not been proven.
+- **Next work order:** (1) complete Batch 15 physical-device acceptance using the exact merged APK; record each pass/fail and fix any confirmed defect in a coherent batch; (2) complete Batch 14 production secrets/storage configuration, live readiness smoke, isolated PostgreSQL backup/restore drill, and rollback evidence; (3) re-audit all confirmed requirements and their cross-module flows before declaring release readiness.
+- **Release status:** not complete. Do not announce “全部开发完毕，可以进行下一步工作了。” until both implementation and all required device/production acceptance gates in this document are satisfied.
+
+
 ## 1. Product and engineering boundaries
 
 ### Current-release account and recovery scope (user-confirmed, 2026-11-10)
