@@ -1296,3 +1296,11 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - The add tile is the exception: use a white or very lightly translucent background and a dark-gray plus icon.
 - The outer dock is a horizontal capsule: semi-transparent white fill (about 35% opacity), 1 dp white highlight border (about 60% opacity), 12 dp black-tinted ambient/spot shadow, capsule corner shape, and approximately 24 dp spacing from the viewport bottom.
 - Preserve internal horizontal scrolling, long-press whole-dock dragging, horizontal edge snapping, safe vertical bounds, selected-tool persistence, and non-persistence of dock coordinates. Preserve all six actions and the accounting dialogs/data flow.
+
+
+### PR #135 exact-head validation and backup-import normalization — 2026-11-10
+
+- The current PR head `086ef474e491a88f7dd27d1c71c634bbee4e85d2` passed exact-head GitHub Actions run `42785932876` (run #790): Android build and unit tests succeeded, Debug APK assembly succeeded, and the APK artifact upload succeeded. Backend tests were skipped because this PR changes Android code and documentation only.
+- The browser dock horizontal-drag correction is also covered by successful Android CI run #789 (`42784975381`) on its exact commit. A vertical-only drag retains its horizontal position; horizontal movement triggers edge snapping.
+- Backup import codec normalization is included in the current PR head: short passwords now use the same safe failure message as wrong passwords, invalid markers, malformed JSON, decompression/integrity errors, and schema validation failures. A regression test covers the short-password path. Existing AES-256-GCM/PBKDF2, app identity validation, unrestricted document picker for `.ahbackup` and `.hunter`, and atomic restore behavior are retained.
+- **Status: current PR code and exact-head CI complete.** This is not physical-device acceptance. The dock gesture/action tests and backup picker, both extensions, successful restore, wrong-password/corrupt-file rejection, and no-data-mutation checks still require installation and verification on the user's Android device. PR #135 remains draft/open/unmerged; do not merge without the user's approval.
