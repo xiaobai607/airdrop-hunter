@@ -99,7 +99,7 @@ fun HomeScreen(
         modifier.fillMaxSize().background(AppColors.Background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("首页", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
@@ -186,7 +186,7 @@ fun HomeScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("快捷入口", color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
@@ -208,8 +208,8 @@ fun HomeScreen(
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 maxItemsInEachRow = 2,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 dashboardCards.forEach { card ->
                     val title = HomeDashboardLayoutStore.title(card.id)
@@ -275,18 +275,52 @@ fun HomeScreen(
                         border = BorderStroke(1.dp, AppColors.Border),
                         elevation = CardDefaults.cardElevation(if (activeDragCard == card.id) 5.dp else 1.dp)
                     ) {
-                        Column(Modifier.fillMaxSize().padding(13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(32.dp))
-                                Spacer(Modifier.weight(1f))
+                        if (card.id == "airdrop_navigation") {
+                            Row(
+                                Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(icon, contentDescription = null, tint = AppColors.Primary,
+                                    modifier = Modifier.size(30.dp))
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(title, color = AppColors.TextPrimary,
+                                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                    Text(subtitle, color = AppColors.TextSecondary,
+                                        style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                }
                                 if (editingDashboard) {
                                     TextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
-                                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = AppColors.Danger) }
+                                        contentPadding = PaddingValues(horizontal = 4.dp)) {
+                                        Text("移除", color = AppColors.Danger)
+                                    }
+                                } else {
+                                    Text("打开  ›", color = AppColors.Primary,
+                                        style = MaterialTheme.typography.labelMedium)
                                 }
                             }
-                            Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold)
-                            Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        } else {
+                            Column(
+                                Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 9.dp),
+                                verticalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(icon, contentDescription = null, tint = AppColors.Primary,
+                                        modifier = Modifier.size(26.dp))
+                                    Spacer(Modifier.weight(1f))
+                                    if (editingDashboard) {
+                                        TextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
+                                            contentPadding = PaddingValues(horizontal = 4.dp)) {
+                                            Text("移除", color = AppColors.Danger)
+                                        }
+                                    }
+                                }
+                                Text(title, color = AppColors.TextPrimary,
+                                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1)
+                                Text(subtitle, color = AppColors.TextSecondary,
+                                    style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                            }
                         }
                     }
                 }
@@ -318,10 +352,11 @@ fun HomeScreen(
         // The search implementation and dedicated destination remain in GlobalSearchScreen.
         Row(
             Modifier.fillMaxWidth()
+                .height(54.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(AppColors.Surface)
                 .clickable(onClick = onOpenGlobalSearch)
-                .padding(horizontal = 16.dp, vertical = 15.dp),
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(11.dp)
         ) {
@@ -506,15 +541,15 @@ private data class HomeDashboardCardSpec(
 
 private object HomeDashboardLayoutStore {
     private val cardSpecs = mapOf(
-        "airdrop_navigation" to HomeDashboardCardSpec(widthFraction = 1f, heightDp = 180),
-        "wallet_management" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 154),
-        "tron_energy" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 154),
-        "airdrop_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 154),
-        "project_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 154)
+        "airdrop_navigation" to HomeDashboardCardSpec(widthFraction = 1f, heightDp = 76),
+        "wallet_management" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
+        "tron_energy" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
+        "airdrop_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
+        "project_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104)
     )
 
     fun layout(id: String): HomeDashboardCardSpec =
-        cardSpecs[id] ?: HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 154)
+        cardSpecs[id] ?: HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104)
 
     val defaults = listOf(
         HomeDashboardCard("airdrop_navigation"),

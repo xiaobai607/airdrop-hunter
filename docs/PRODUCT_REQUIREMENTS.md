@@ -1312,3 +1312,13 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Exact-head Actions #792 (`42789509384`) failed at Kotlin compilation. Root cause: `BrowserActivity`, `ProfileDestinations`, and `WalletConnectSessionDelegate` referenced `DappOriginPermissionStore`, but the store declaration was absent from the committed source file. The downstream type-inference/MatchGroup diagnostics in `BrowserActivity` are compile cascades from the unresolved store type; no APK was produced.
 - Added the missing store as a dedicated source file with a typed `StateFlow<Map<String, String>>`; existing session lifecycle hooks and unit tests now resolve against this shared implementation. This is a compile correction within the same profile/security module, not a new feature scope.
 - **Validation status:** exact-head CI must be rerun after this correction. Do not treat Actions #792 as a pass. PR #135 remains draft/open/unmerged; physical-device acceptance is still outstanding.
+
+
+### Home visual correction — compact first-screen layout (2026-11-10)
+
+- User's physical-device screenshots showed that the full-width 空投导航 card (180 dp) and paired wallet/TRON cards (154 dp each) consumed excessive vertical space, leaving the only global search field below the initial viewport.
+- Updated the developer-owned card specifications: 空投导航 is a compact 76 dp horizontal row; wallet/TRON and other half-width shortcuts are 104 dp. Shortcut spacing and overall Home section spacing are reduced while retaining readable touch targets and card hierarchy.
+- The 空投导航 card now uses a horizontal icon/title/subtitle treatment instead of a large empty vertical panel. Wallet and TRON cards retain a compact vertical content hierarchy.
+- The existing single global search remains directly after the shortcut cards, with a fixed 54 dp field height. It is not removed, duplicated, or moved into a hidden screen.
+- User customization remains limited to adding/removing/reordering shortcut cards and restoring defaults. Card dimensions remain developer-controlled.
+- This is a layout correction based on the supplied screenshots. Exact-head Android CI and physical-device visual acceptance are pending; do not claim the new composition is verified until installed and checked on-device.
