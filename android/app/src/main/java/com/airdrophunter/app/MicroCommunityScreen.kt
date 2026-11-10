@@ -226,7 +226,7 @@ fun MicroCommunityScreen(
                         periodDefinitions.forEach { (window, title, demoScale) ->
                             val projectSnapshot = snapshotProjects[window]
                             val gas = if (useDemoStats) demoStats.gas * demoScale else projectSnapshot?.gas_cost_usd_valuation ?: 0.0
-                            val reward = if (useDemoStats) demoStats.reward * demoScale else projectSnapshot?.reward_usd_valuation ?: projectSnapshot?.actual_reward_usd_valuation ?: 0.0
+                            val reward = if (useDemoStats) demoStats.reward * demoScale else projectSnapshot?.reward_usd_valuation?.takeIf { it > 0.0 } ?: projectSnapshot?.actual_reward_usd_valuation ?: 0.0
                             val updateTime = if (useDemoStats) {
                                 when (window) {
                                     "overall" -> "2026-11-11T03:00:00"
