@@ -162,18 +162,24 @@ fun CommunitySquareScreen(
     // Synthetic projects exist only in the DEBUG test mode. They never enter the catalog,
     // API, personal project library, ledger, or contribution outbox.
     val demoProjects = listOf(
-        CommunityProject("demo:novalayer", "NovaLayer", "Arbitrum", "N", "", 184.20, 42.80,
-            "2026-11-10T08:00:00Z", listOf("Layer2", "DeFi", "测试网"), true, 4.8),
-        CommunityProject("demo:orbitfi", "OrbitFi", "Base", "O", "", 128.60, 38.60,
-            "2026-11-09T08:00:00Z", listOf("DeFi", "零成本", "生态"), true, 4.6),
-        CommunityProject("demo:zetabridge", "ZetaBridge", "Optimism", "Z", "", 156.00, 62.00,
-            "2026-11-08T08:00:00Z", listOf("跨链", "Layer2"), true, 4.2),
-        CommunityProject("demo:pixelquest", "PixelQuest", "BNB Chain", "P", "", 98.00, 51.00,
-            "2026-11-07T08:00:00Z", listOf("GameFi", "测试网"), true, 3.8),
-        CommunityProject("demo:aetherrollup", "Aether Rollup", "Ethereum", "A", "", 226.00, 73.00,
-            "2026-11-06T08:00:00Z", listOf("Layer2", "空投", "生态"), true, 4.9),
-        CommunityProject("demo:lumenprotocol", "Lumen Protocol", "Polygon", "L", "", 64.00, 18.50,
-            "2026-11-05T08:00:00Z", listOf("DeFi", "零成本"), true, 4.0)
+        CommunityProject(id = "demo:novalayer", name = "NovaLayer", chain = "Arbitrum", logo = "N",
+            reward = 184.20, gas = 42.80, createdAt = "2026-11-10T08:00:00Z",
+            tags = listOf("Layer2", "DeFi", "测试网"), isDemo = true, demoScore = 4.8),
+        CommunityProject(id = "demo:orbitfi", name = "OrbitFi", chain = "Base", logo = "O",
+            reward = 128.60, gas = 38.60, createdAt = "2026-11-09T08:00:00Z",
+            tags = listOf("DeFi", "零成本", "生态"), isDemo = true, demoScore = 4.6),
+        CommunityProject(id = "demo:zetabridge", name = "ZetaBridge", chain = "Optimism", logo = "Z",
+            reward = 156.00, gas = 62.00, createdAt = "2026-11-08T08:00:00Z",
+            tags = listOf("跨链", "Layer2"), isDemo = true, demoScore = 4.2),
+        CommunityProject(id = "demo:pixelquest", name = "PixelQuest", chain = "BNB Chain", logo = "P",
+            reward = 98.00, gas = 51.00, createdAt = "2026-11-07T08:00:00Z",
+            tags = listOf("GameFi", "测试网"), isDemo = true, demoScore = 3.8),
+        CommunityProject(id = "demo:aetherrollup", name = "Aether Rollup", chain = "Ethereum", logo = "A",
+            reward = 226.00, gas = 73.00, createdAt = "2026-11-06T08:00:00Z",
+            tags = listOf("Layer2", "空投", "生态"), isDemo = true, demoScore = 4.9),
+        CommunityProject(id = "demo:lumenprotocol", name = "Lumen Protocol", chain = "Polygon", logo = "L",
+            reward = 64.00, gas = 18.50, createdAt = "2026-11-05T08:00:00Z",
+            tags = listOf("DeFi", "零成本"), isDemo = true, demoScore = 4.0)
     )
     // Demo and real datasets are mutually exclusive; the mode switch never mixes them.
     val combinedProjects = if (BuildConfig.DEBUG && useDemoData) demoProjects else realProjects
