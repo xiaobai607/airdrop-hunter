@@ -96,6 +96,34 @@ private fun CommunityDistributionRows(
 }
 
 @Composable
+private fun CommunityGasRewardBar(gasUsd: Double, rewardUsd: Double) {
+    val gas = gasUsd.coerceAtLeast(0.0)
+    val reward = rewardUsd.coerceAtLeast(0.0)
+    val total = gas + reward
+    val gasShare = if (total <= 0.0) 0.5f else (gas / total).toFloat().coerceIn(0f, 1f)
+    val barBrush = when {
+        gas <= 0.0 && reward <= 0.0 -> SolidColor(AppColors.Border)
+        gas <= 0.0 -> SolidColor(Color(0xFF31B77D))
+        reward <= 0.0 -> SolidColor(Color(0xFFE76565))
+        else -> Brush.horizontalGradient(
+            colorStops = arrayOf(
+                0f to Color(0xFFE76565),
+                gasShare to Color(0xFFE76565),
+                gasShare to Color(0xFF31B77D),
+                1f to Color(0xFF31B77D)
+            )
+        )
+    }
+    Box(Modifier.fillMaxWidth().height(12.dp).background(barBrush, RoundedCornerShape(8.dp)))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text("Gas 约 $%,.0f".format(Locale.US, gas), color = Color(0xFFD34F4F),
+            style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+        Text("收益 约 $%,.0f".format(Locale.US, reward), color = Color(0xFF16845B),
+            style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
 private fun CommunityDashboardCard(summary: CommunitySnapshotSummaryDto?, isDemo: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -113,16 +141,8 @@ private fun CommunityDashboardCard(summary: CommunitySnapshotSummaryDto?, isDemo
             if (summary == null) {
                 Text("社区统计快照暂不可用，联网后自动更新", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Gas 总支出", color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall)
-                        Text(String.format(Locale.US, "$%,.2f", summary.gas_total_usd), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text("社区总收益", color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall)
-                        Text(String.format(Locale.US, "$%,.2f", summary.reward_total_usd), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
-                }
+                Text("Gas / 收益对比", color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                CommunityGasRewardBar(summary.gas_total_usd, summary.reward_total_usd)
                 Text("Gas 分链支出", color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                 if (summary.gas_by_chain.isEmpty()) {
                     Text("暂无分链数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
