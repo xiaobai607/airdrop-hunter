@@ -1,6 +1,8 @@
 package com.airdrophunter.app.data
 
 import org.junit.Assert.assertEquals
+import com.google.gson.Gson
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -10,6 +12,11 @@ class LocalBackupCodecTest {
   cachedPayloads=listOf(CachedPayload("guest:local:wallets","""[{"id":"w1"}]""",123L)),
   pendingBills=listOf(PendingBillEntity("bill-1","0xabc","0xwallet",1.25,"manual",456L,accountScope="guest"))
  )
+ @Test fun jsonUsesRequiredSnakeCaseAppIdentity() {
+  val json=Gson().toJson(sample())
+  assertTrue(json.contains("\"app_name\":\"AirdropHunter\""))
+  assertTrue(!json.contains("\"appName\""))
+ }
  @Test fun encryptedBackupRoundTripsWithoutPlaintext() {
   val bytes=LocalBackupCodec.encode(sample(),"correct-horse-1")
   val restored=LocalBackupCodec.decode(bytes,"correct-horse-1")
