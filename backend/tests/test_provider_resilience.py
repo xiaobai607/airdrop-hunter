@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import httpx
 
@@ -7,6 +8,7 @@ from app.services.provider_resilience import (
     post_json_rpc_with_provider_failover,
     request_with_provider_failover,
     retry_delay_seconds,
+    _PROVIDER_COOLDOWNS,
 )
 
 
@@ -28,6 +30,7 @@ def test_only_transient_http_statuses_trigger_provider_rotation():
 
 def test_http_provider_failover_uses_second_endpoint_after_503():
     async def run():
+        _PROVIDER_COOLDOWNS.clear()
         calls = []
         async def handler(request):
             calls.append(request.url.host)
@@ -53,6 +56,7 @@ def test_http_provider_failover_uses_second_endpoint_after_503():
 
 def test_json_rpc_provider_failover_rejects_rpc_error_payload():
     async def run():
+        _PROVIDER_COOLDOWNS.clear()
         calls = []
         async def handler(request):
             calls.append(request.url.host)
@@ -70,15 +74,24 @@ def test_json_rpc_provider_failover_rejects_rpc_error_payload():
                 {"jsonrpc": "2.0", "id": 1, "method": "eth_getBalance", "params": ["0xabc", "latest"]},
                 sleep=no_wait, jitter=lambda: 1.0,
             )
+            second_result, second_provider = await post_json_rpc_with_provider_failover(
+                client,
+                ["https://primary.example", "https://backup.example"],
+                {"jsonrpc": "2.0", "id": 1, "method": "eth_getBalance", "params": ["0xabc", "latest"]},
+                sleep=no_wait, jitter=lambda: 1.0,
+            )
         assert result["result"] == "0x1"
         assert provider == "https://backup.example"
-        assert calls == ["primary.example", "backup.example"]
+        assert second_result["result"] == "0x1"
+        assert second_provider == "https://backup.example"
+        assert calls == ["primary.example", "backup.example", "backup.example"]
 
     asyncio.run(run())
 
 
 def test_json_rpc_does_not_retry_non_transient_http_400():
     async def run():
+        _PROVIDER_COOLDOWNS.clear()
         calls = []
         async def handler(request):
             calls.append(request.url.host)
@@ -100,5 +113,71 @@ def test_json_rpc_does_not_retry_non_transient_http_400():
             else:
                 raise AssertionError("HTTP 400 must be terminal")
         assert calls == ["primary.example"]
+
+    asyncio.run(run())
+
+
+
+def test_provider_cooldown_skips_a_recently_failing_primary_endpoint():
+    async def run():
+        calls = []
+        _PROVIDER_COOLDOWNS.clear()
+
+        async def handler(request):
+            calls.append(request.url.host)
+            if request.url.host == "primary.example":
+                return httpx.Response(503, request=request)
+            return httpx.Response(200, json={"ok": True}, request=request)
+
+        async def no_wait(_seconds):
+            return None
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            _, first_provider = await request_with_provider_failover(
+                client, "GET",
+                ["https://primary.example/data", "https://backup.example/data"],
+                sleep=no_wait, jitter=lambda: 1.0,
+            )
+            _, second_provider = await request_with_provider_failover(
+                client, "GET",
+                ["https://primary.example/data", "https://backup.example/data"],
+                sleep=no_wait, jitter=lambda: 1.0,
+            )
+
+        assert first_provider == "https://backup.example/data"
+        assert second_provider == "https://backup.example/data"
+        assert calls == ["primary.example", "backup.example", "backup.example"]
+        _PROVIDER_COOLDOWNS.clear()
+
+    asyncio.run(run())
+
+
+
+def test_cooling_provider_remains_last_resort_if_healthy_endpoint_fails():
+    async def run():
+        _PROVIDER_COOLDOWNS.clear()
+        _PROVIDER_COOLDOWNS["https://primary.example/data"] = time.monotonic() + 30
+        calls = []
+
+        async def handler(request):
+            calls.append(request.url.host)
+            if request.url.host == "backup.example":
+                return httpx.Response(503, request=request)
+            return httpx.Response(200, json={"ok": True}, request=request)
+
+        async def no_wait(_seconds):
+            return None
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            response, provider = await request_with_provider_failover(
+                client, "GET",
+                ["https://primary.example/data", "https://backup.example/data"],
+                sleep=no_wait, jitter=lambda: 1.0,
+            )
+
+        assert response.status_code == 200
+        assert provider == "https://primary.example/data"
+        assert calls == ["backup.example", "primary.example"]
+        _PROVIDER_COOLDOWNS.clear()
 
     asyncio.run(run())

@@ -76,8 +76,14 @@ class CacheRefreshPolicyTest {
     }
 
     @Test
-    fun onlyTransientTransportFailuresAreRetried() {
+    fun onlyTransientTransportAndHttpFailuresAreRetried() {
         assertTrue(CacheRefreshPolicy.isRetryable(IOException("offline")))
+        assertTrue(CacheRefreshPolicy.isRetryable(ProviderHttpException(429, "3", "rate limited")))
+        assertTrue(CacheRefreshPolicy.isRetryable(ProviderHttpException(503, null, "unavailable")))
+        assertFalse(CacheRefreshPolicy.isRetryable(ProviderHttpException(400, null, "bad request")))
         assertFalse(CacheRefreshPolicy.isRetryable(IllegalArgumentException("bad request")))
+        assertEquals(3_000L, CacheRefreshPolicy.retryAfterMillis(
+            ProviderHttpException(429, "3", "rate limited"), 0L
+        ))
     }
 }

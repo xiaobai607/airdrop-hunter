@@ -12,6 +12,12 @@ import kotlin.random.Random
 
 enum class CacheDisplayStatus { FRESH, REFRESHING, STALE, ERROR, UNKNOWN }
 
+class ProviderHttpException(
+    val statusCode: Int,
+    val retryAfterHeader: String?,
+    message: String
+) : IOException(message)
+
 object CacheRefreshPolicy {
     fun walletAssetCacheKey(accountScope: String, walletId: String, chain: String): String =
         "wallet-assets:$accountScope:$walletId:${chain.lowercase()}"
@@ -58,13 +64,18 @@ object CacheRefreshPolicy {
     }
 
     fun isRetryable(error: Throwable): Boolean = when (error) {
+        is ProviderHttpException -> error.statusCode in setOf(408, 425, 429) || error.statusCode in 500..599
         is IOException -> true
         is HttpException -> error.code() in setOf(408, 425, 429) || error.code() in 500..599
         else -> false
     }
 
     fun retryAfterMillis(error: Throwable, now: Long): Long? {
-        val value = (error as? HttpException)?.response()?.headers()?.get("Retry-After") ?: return null
+        val value = when (error) {
+            is ProviderHttpException -> error.retryAfterHeader
+            is HttpException -> error.response()?.headers()?.get("Retry-After")
+            else -> null
+        } ?: return null
         value.trim().toLongOrNull()?.let { return it.coerceIn(0L, 8L) * 1_000L }
         return runCatching {
             ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME)
