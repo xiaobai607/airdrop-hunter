@@ -795,6 +795,7 @@ object CacheStore {
      * remain fixed for the entire operation, including a concurrent account switch.
      */
     suspend fun syncCommunityFavorites(): Boolean = withContext(Dispatchers.IO) {
+        if (!CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED) return@withContext false
         val token = TokenStore.readTokenBlocking()
         val scope = accountScopeFromToken(token)
         if (token.isNullOrBlank() || scope == "guest" || scope == "invalid-session") return@withContext false
