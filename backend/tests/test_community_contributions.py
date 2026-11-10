@@ -391,6 +391,50 @@ def test_same_transaction_hash_cannot_be_reused_for_another_event():
         assert second.status_code == 409
 
 
+def test_inactive_or_unknown_catalog_project_cannot_receive_new_contributions(monkeypatch):
+    monkeypatch.setenv("COMMUNITY_CATALOG_ADMIN_TOKEN", "catalog-test-secret")
+    headers = {"X-Catalog-Admin-Token": "catalog-test-secret"}
+    catalog_payload = {
+        "project_official_id": "inactive-contribution-test",
+        "name": "Inactive Contribution Test",
+        "chain": "Ethereum L2",
+        "logo": "I",
+        "description": "Test only",
+        "tags": ["test"],
+        "website_url": "https://example.org",
+        "is_active": True,
+        "sort_order": 999,
+    }
+    with TestClient(app) as client:
+        created = client.post("/api/community/catalog", headers=headers, json=catalog_payload)
+        assert created.status_code == 201
+        deactivated = client.put(
+            "/api/community/catalog/inactive-contribution-test",
+            headers=headers,
+            json={**catalog_payload, "is_active": False},
+        )
+        assert deactivated.status_code == 200
+
+        payload = {
+            "event_id": str(uuid4()),
+            "network": "ethereum",
+            "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
+            "tx_hash": "0x" + "f" * 64,
+            "public_contribution_opt_in": True,
+            "gas_cost_usd": "1.00",
+            "actual_reward_usd": "2.00",
+        }
+        inactive = client.post(
+            "/api/community/projects/inactive-contribution-test/contributions",
+            json=payload,
+        )
+        assert inactive.status_code == 404
+        assert inactive.json()["detail"] == "该项目不在当前有效社区目录中，不能新增公共贡献"
+
+        unknown = client.post("/api/community/projects/not-in-catalog/contributions", json=payload)
+        assert unknown.status_code == 404
+
+
 def test_community_contribution_requires_transaction_link_fields():
     with TestClient(app) as client:
         response = client.post(
