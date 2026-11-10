@@ -2,6 +2,9 @@ package com.airdrophunter.app
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -13,6 +16,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -191,18 +201,28 @@ fun BrowserAccountingToolbar(
     ) {
         val dockWidth = minOf(maxWidth * 0.94f, 420.dp)
         val maxHorizontalDrag = with(density) { ((maxWidth - dockWidth) / 2f).toPx() }
-        val maxVerticalDrag = with(density) { (maxHeight - 100.dp).coerceAtLeast(0.dp).toPx() }
+        val maxVerticalDrag = with(density) { (maxHeight - 124.dp).coerceAtLeast(0.dp).toPx() }
+        val dockShape = RoundedCornerShape(50)
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .padding(bottom = 24.dp)
                 .fillMaxWidth(0.94f)
                 .widthIn(max = 420.dp)
                 .height(100.dp)
+                .shadow(
+                    elevation = 12.dp,
+                    shape = dockShape,
+                    ambientColor = Color.Black.copy(alpha = 0.20f),
+                    spotColor = Color.Black.copy(alpha = 0.24f)
+                )
                 .offset { IntOffset(dragOffsetX.roundToInt(), dragOffsetY.roundToInt()) }
                 .pointerInput(maxWidth, maxHeight) {
                     detectDragGesturesAfterLongPress(
                         onDragEnd = {
-                            if (abs(dragOffsetX) > maxHorizontalDrag * 0.15f) dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
+                            if (abs(dragOffsetX) > maxHorizontalDrag * 0.15f) {
+                                dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
+                            }
                             dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
                         },
                         onDragCancel = {
@@ -217,67 +237,116 @@ fun BrowserAccountingToolbar(
                         dragOffsetY = (dragOffsetY + amount.y).coerceIn(-maxVerticalDrag, 0f)
                     }
                 },
-            color = Color(0xDDEAF4FF),
-            shape = RoundedCornerShape(28.dp),
-            border = BorderStroke(1.dp, Color(0xFFB9D3EA).copy(alpha = 0.8f)),
-            shadowElevation = 9.dp
+            color = Color.White.copy(alpha = 0.35f),
+            shape = dockShape,
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
+            shadowElevation = 0.dp
         ) {
             Row(
-                modifier = Modifier.fillMaxSize().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 selectedToolIds.forEach { id ->
                     val option = toolOptions.firstOrNull { it.first == id } ?: return@forEach
-                    val glyph = when (id) {
-                        "mock_bill" -> "⚡"
-                        "copy_address" -> "▣"
-                        "pending_bills" -> "▤"
-                        "refresh_page" -> "↻"
-                        "copy_url" -> "🔗"
-                        else -> "↗"
+                    val icon = when (id) {
+                        "mock_bill" -> Icons.Filled.Bolt
+                        "copy_address" -> Icons.Filled.ContentCopy
+                        "pending_bills" -> Icons.Filled.ReceiptLong
+                        "refresh_page" -> Icons.Filled.Refresh
+                        "copy_url" -> Icons.Filled.Link
+                        else -> Icons.Filled.OpenInNew
                     }
-                    val tint = when (id) {
-                        "mock_bill", "open_external" -> Color(0xFF16845B)
-                        "pending_bills" -> Color(0xFF9A5A16)
-                        else -> Color(0xFF356BC5)
-                    }
-                    val background = when (id) {
-                        "mock_bill", "open_external" -> Color(0xFFE5F5ED)
-                        "pending_bills" -> Color(0xFFFFF1DF)
-                        else -> Color(0xFFEAF1FF)
+                    val iconBackground = when (id) {
+                        "mock_bill" -> Color(0xFFFF8A00)
+                        "copy_address" -> Color(0xFF2563EB)
+                        "pending_bills" -> Color(0xFF7C3AED)
+                        "refresh_page" -> Color(0xFF0891B2)
+                        "copy_url" -> Color(0xFF059669)
+                        else -> Color(0xFFEA580C)
                     }
                     val action: () -> Unit = when (id) {
-                        "mock_bill" -> { createMockBill() }
-                        "copy_address" -> { onCopyAddress() }
-                        "pending_bills" -> { showBillList = true }
-                        "refresh_page" -> { onRefreshPage() }
-                        "copy_url" -> { onCopyPageUrl() }
-                        else -> { onOpenPageExternally() }
+                        "mock_bill" -> { { createMockBill() } }
+                        "copy_address" -> { { onCopyAddress() } }
+                        "pending_bills" -> { { showBillList = true } }
+                        "refresh_page" -> { { onRefreshPage() } }
+                        "copy_url" -> { { onCopyPageUrl() } }
+                        else -> { { onOpenPageExternally() } }
                     }
                     Surface(
                         onClick = action,
                         enabled = !(id == "mock_bill" && creatingMockBill),
-                        modifier = Modifier.size(68.dp),
-                        shape = RoundedCornerShape(19.dp),
-                        color = background,
-                        border = BorderStroke(1.dp, tint.copy(alpha = 0.16f))
+                        modifier = Modifier.size(width = 68.dp, height = 78.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        color = Color.Transparent
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Text(glyph, color = tint, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text(option.second, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(iconBackground),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                option.second,
+                                color = AppColors.TextPrimary,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
                 Surface(
                     onClick = { showToolManager = true },
-                    modifier = Modifier.size(68.dp),
-                    shape = RoundedCornerShape(19.dp),
-                    color = Color(0xFFE8EDF4),
-                    border = BorderStroke(1.dp, Color(0xFFB7C4D3).copy(alpha = 0.6f))
+                    modifier = Modifier.size(width = 68.dp, height = 78.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.Transparent
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("+", color = Color(0xFF486581), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.White.copy(alpha = 0.88f))
+                                .then(
+                                    Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Color.Transparent)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "添加工具",
+                                tint = Color(0xFF374151),
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            "添加",
+                            color = AppColors.TextPrimary,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1
+                        )
                     }
                 }
             }
