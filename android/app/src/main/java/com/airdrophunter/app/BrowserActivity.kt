@@ -64,6 +64,7 @@ import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
