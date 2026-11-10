@@ -41,7 +41,7 @@ class CommunityContribution(Base):
     gas_cost_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
     actual_reward_usd: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
     estimated_reward_usd: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
-    actual_reward_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    actual_reward_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     contributor_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     asset_breakdown: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     tx_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
