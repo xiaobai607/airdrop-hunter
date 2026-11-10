@@ -197,8 +197,9 @@ fun BrowserAccountingToolbar(
     BoxWithConstraints(
         modifier = modifier.fillMaxSize()
     ) {
-        val maxHorizontalDrag = with(density) { (configuration.screenWidthDp * 0.03f).dp.toPx() }
-        val maxVerticalDrag = with(density) { (configuration.screenHeightDp - 180).coerceAtLeast(0).dp.toPx() }
+        val dockWidth = minOf(maxWidth * 0.94f, 420.dp)
+        val maxHorizontalDrag = with(density) { ((maxWidth - dockWidth) / 2f).toPx() }
+        val maxVerticalDrag = with(density) { (maxHeight - 100.dp).coerceAtLeast(0.dp).toPx() }
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -213,7 +214,10 @@ fun BrowserAccountingToolbar(
                             dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
                         },
                         onDragCancel = {
-                            dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
+                            if (abs(dragOffsetX) > maxHorizontalDrag * 0.15f) {
+                                dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
+                            }
+                            dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
                         }
                     ) { change, amount ->
                         change.consume()
