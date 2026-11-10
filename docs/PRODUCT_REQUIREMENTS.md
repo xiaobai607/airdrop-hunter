@@ -1473,3 +1473,12 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Removed the wallet-address suffix from locally displayed rating labels; the detail UI now identifies them simply as local rating records.
 - Updated rating empty-state copy to state accurately that this release does not submit global ratings.
 - Exact-head CI and physical-device theme verification are pending.
+
+
+### 2026-11-11 — official community directory Room cache and explicit delisting state
+
+- Separated the official project directory from the CDN metric snapshots. The catalog is cached independently in the existing Room-backed public cache and is read before network revalidation.
+- The public catalog API now returns both active and inactive entries with explicit `is_active` and `sort_order` fields. An inactive entry remains addressable by its stable `project_official_id`; it is not deleted from the directory response.
+- The Android catalog cache merges by exact official ID. Official metadata from a successful response replaces cached official metadata, while an ID omitted from a response is preserved and is never inferred to be inactive. Network/API failure leaves the last successful cache untouched.
+- The Community Square now uses the cached/refreshed official directory for project membership and uses CDN snapshots only for public metric values. Inactive entries are hidden from the active discovery list; local project records and their stable official IDs are not deleted by directory refresh.
+- Added Android merge-policy tests and backend coverage for explicit inactive status. CI validation and physical-device/offline/relisting acceptance remain pending.
