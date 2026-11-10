@@ -17,7 +17,9 @@ data class ProjectDto(
     /** Stable local key for ledger references; remoteId maps it to the account API. */
     val remoteId: String? = null,
     /** Authenticated project remains visible locally while server sync is pending. */
-    val syncPending: Boolean = false
+    val syncPending: Boolean = false,
+    /** Server echo of the stable client key used for idempotent create/recovery. */
+    val client_project_id: String? = null
 )
 
 /** Stable local project key. It is deliberately distinct from the optional community ID. */

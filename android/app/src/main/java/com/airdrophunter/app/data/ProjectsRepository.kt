@@ -82,14 +82,34 @@ class ProjectsRepository(
     }
 
     suspend fun refreshProjects(): List<ProjectDto> {
+        var cached = decodeList<ProjectDto>(local.read("projects", guest = false), projectsType)
+        // Retry only projects marked pending. The stable local ID is the server-side
+        // idempotency key, so a lost response cannot create a second server project.
+        cached.filter { it.syncPending }.forEach { pending ->
+            runCatching {
+                val response = remote.createProject(pending.toWriteRequest().copy(client_project_id = pending.id))
+                cached = cached.map { current ->
+                    if (current.id == pending.id) current.copy(
+                        remoteId = response.id,
+                        syncPending = false,
+                        client_project_id = pending.id
+                    ) else current
+                }
+                local.write("projects", gson.toJson(cached), guest = false)
+            }
+        }
         val fetched = remote.getProjects()
-        val cached = decodeList<ProjectDto>(local.read("projects", guest = false), projectsType)
-        // Keep stable local IDs used by historical bills. Server IDs are transport keys.
+        // Match by the server-echoed idempotency key first, then the known transport ID.
         val merged = fetched.map { server ->
-            cached.firstOrNull { it.remoteId == server.id || (it.remoteId == null && it.id == server.id) }
-                ?.let { server.copy(id = it.id, remoteId = server.id, syncPending = false) }
-                ?: server.copy(remoteId = server.id, syncPending = false)
-        } + cached.filter { it.syncPending }
+            cached.firstOrNull {
+                it.id == server.client_project_id ||
+                    it.remoteId == server.id ||
+                    (it.remoteId == null && it.id == server.id)
+            }?.let {
+                server.copy(id = it.id, remoteId = server.id, syncPending = false,
+                    client_project_id = it.id)
+            } ?: server.copy(remoteId = server.id, syncPending = false)
+        } + cached.filter { it.syncPending && fetched.none { server -> server.client_project_id == it.id } }
         val unique = merged.distinctBy { it.id }
         local.write("projects", gson.toJson(unique), guest = false)
         return mergePnlProjects(unique, guest = false)
@@ -118,9 +138,9 @@ class ProjectsRepository(
         if (guest) return mergePnlProjects(updated, guest = true)
 
         return try {
-            val serverProject = remote.createProject(normalized)
+            val serverProject = remote.createProject(normalized.copy(client_project_id = created.id))
             val synchronized = updated.map {
-                if (it.id == created.id) it.copy(remoteId = serverProject.id, syncPending = false) else it
+                if (it.id == created.id) it.copy(remoteId = serverProject.id, syncPending = false, client_project_id = created.id) else it
             }
             local.write("projects", gson.toJson(synchronized), guest = false)
             mergePnlProjects(synchronized, guest = false)
@@ -129,6 +149,19 @@ class ProjectsRepository(
             mergePnlProjects(updated, guest = false)
         }
     }
+
+    private fun ProjectDto.toWriteRequest() = ProjectWriteRequest(
+        name = name,
+        description = description,
+        status = status,
+        official_url = official_url,
+        claim_url = claim_url,
+        twitter_url = twitter_url,
+        deadline = deadline,
+        expected_income = expected_income,
+        gas_cost = gas_cost,
+        actual_income = actual_income
+    )
 
     suspend fun updateProject(
         project: ProjectDto,

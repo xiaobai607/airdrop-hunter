@@ -23,8 +23,14 @@ class ProjectsRepositoryTest {
         override suspend fun getProjects() = projects.toList()
         override suspend fun createProject(request: ProjectWriteRequest): ProjectDto {
             projectCreateCalls++
-            return ProjectDto("remote-${projectCreateCalls}", request.name, request.description, request.status)
-                .also { projects.add(it) }
+            val existing = request.client_project_id?.let { key ->
+                projects.firstOrNull { it.client_project_id == key }
+            }
+            if (existing != null) return existing
+            return ProjectDto(
+                "remote-${projectCreateCalls}", request.name, request.description, request.status,
+                client_project_id = request.client_project_id
+            ).also { projects.add(it) }
         }
         override suspend fun updateProject(projectId: String, request: ProjectWriteRequest): ProjectDto =
             projects.first { it.id == projectId }.copy(
@@ -356,3 +362,45 @@ class ProjectsRepositoryTest {
     }
 
 }
+
+
+
+    @Test fun pendingAuthenticatedProjectRetriesWithStableIdempotencyKey() {
+        val local = FakeLocal()
+        var failFirst = true
+        val remote = object : FakeRemote() {
+            override suspend fun createProject(request: ProjectWriteRequest): ProjectDto {
+                projectCreateCalls++
+                if (failFirst) {
+                    failFirst = false
+                    // Simulate server committed but response was lost: retain the row,
+                    // then throw as a transport timeout would.
+                    val committed = ProjectDto(
+                        "remote-stable", request.name, request.description, request.status,
+                        client_project_id = request.client_project_id
+                    )
+                    projects.add(committed)
+                    throw IllegalStateException("response timeout")
+                }
+                val existing = projects.firstOrNull { it.client_project_id == request.client_project_id }
+                return existing ?: super.createProject(request)
+            }
+        }
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val created = repository.createProject(
+                ProjectWriteRequest("Retry safely", "details", "tracking"),
+                guest = false,
+                localId = "7b7d6b55-06d6-4d91-a1db-5fb7f55b4d01"
+            ).single()
+            assertTrue(created.syncPending)
+            assertEquals(1, remote.projectCreateCalls)
+
+            val refreshed = repository.refreshProjects()
+            assertEquals(2, remote.projectCreateCalls)
+            assertEquals(1, refreshed.size)
+            assertEquals(created.id, refreshed.single().id)
+            assertEquals("remote-stable", refreshed.single().remoteId)
+            assertFalse(refreshed.single().syncPending)
+        }
+    }
