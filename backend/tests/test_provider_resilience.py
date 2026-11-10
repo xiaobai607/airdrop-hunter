@@ -75,3 +75,30 @@ def test_json_rpc_provider_failover_rejects_rpc_error_payload():
         assert calls == ["primary.example", "backup.example"]
 
     asyncio.run(run())
+
+
+def test_json_rpc_does_not_retry_non_transient_http_400():
+    async def run():
+        calls = []
+        async def handler(request):
+            calls.append(request.url.host)
+            return httpx.Response(400, request=request)
+
+        async def no_wait(_seconds):
+            return None
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            try:
+                await post_json_rpc_with_provider_failover(
+                    client,
+                    ["https://primary.example", "https://backup.example"],
+                    {"jsonrpc": "2.0", "id": 1, "method": "eth_getBalance", "params": ["0xabc", "latest"]},
+                    sleep=no_wait, jitter=lambda: 1.0,
+                )
+            except httpx.HTTPStatusError as error:
+                assert error.response.status_code == 400
+            else:
+                raise AssertionError("HTTP 400 must be terminal")
+        assert calls == ["primary.example"]
+
+    asyncio.run(run())

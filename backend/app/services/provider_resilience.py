@@ -1,7 +1,7 @@
 import asyncio
 import random
 import time
-from datetime import datetime, timezone
+from datetime import timezone
 from email.utils import parsedate_to_datetime
 from typing import Any, Awaitable, Callable
 
@@ -107,13 +107,18 @@ async def post_json_rpc_with_provider_failover(
             if not isinstance(data, dict) or data.get("error") is not None or "result" not in data:
                 raise ProviderResponseError("RPC provider returned an invalid result")
             return data, used_url
-        except (httpx.HTTPError, ValueError, ProviderResponseError) as error:
+        except httpx.HTTPStatusError as error:
+            if not is_retryable_http_status(error.response.status_code):
+                raise
             last_error = error
             if index < len(candidates) - 1:
-                retry_after = None
-                if isinstance(error, httpx.HTTPStatusError):
-                    retry_after = error.response.headers.get("Retry-After")
-                await sleep(retry_delay_seconds(index, retry_after, jitter()))
+                await sleep(retry_delay_seconds(
+                    index, error.response.headers.get("Retry-After"), jitter()
+                ))
+        except (httpx.TransportError, ValueError, ProviderResponseError) as error:
+            last_error = error
+            if index < len(candidates) - 1:
+                await sleep(retry_delay_seconds(index, None, jitter()))
     if last_error:
         raise last_error
     raise ProviderResponseError("All public RPC providers failed")
