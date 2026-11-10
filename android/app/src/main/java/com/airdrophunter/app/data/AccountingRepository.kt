@@ -109,7 +109,7 @@ class AccountingRepository(
         syncAndScheduleIfNeeded()
         val repository = projectsRepository
         if (repository != null) {
-            val guest = accessTokenProvider().isNullOrBlank()
+            val guest = !privateCloudSyncEnabled || accessTokenProvider().isNullOrBlank()
             val cached = repository.readCachedProjects(guest)
             if (guest) return cached
             return runCatching { repository.refreshProjects() }.getOrDefault(cached)
