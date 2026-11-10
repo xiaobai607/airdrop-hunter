@@ -633,7 +633,6 @@ private fun BrowserScreen(
                     }
                 )
             }
-            }
             BrowserAccountingToolbar(
                 walletAddress = quickCopyAddress.ifBlank { selectedWallet?.address.orEmpty() },
                 chainName = selectedWallet?.chain.orEmpty(),
@@ -660,8 +659,10 @@ private fun BrowserScreen(
                         Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier.align(Alignment.CenterHorizontally).navigationBarsPadding().padding(bottom = 8.dp)
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 8.dp)
             )
+            }
+
         }
     }
 
