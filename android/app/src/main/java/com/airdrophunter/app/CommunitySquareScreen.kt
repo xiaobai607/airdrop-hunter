@@ -35,6 +35,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
+import com.airdrophunter.app.data.CommunitySnapshotSummaryDto
+import com.airdrophunter.app.data.CommunityRangeDistributionDto
 import com.airdrophunter.app.data.CommunityProjectSubmissionRequest
 import com.airdrophunter.app.ui.theme.AppColors
 import java.time.Instant
@@ -69,6 +71,97 @@ private enum class CommunityRanking(val title: String) {
     REWARD("🔥 吸金榜"), GAS("💀 避坑榜"), NEW("🚀 新星榜")
 }
 
+@Composable
+private fun CommunityDistributionRows(
+    title: String,
+    rows: List<CommunityRangeDistributionDto>,
+    tint: Color
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        if (rows.isEmpty()) {
+            Text("暂无足够样本", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+        } else {
+            rows.forEach { row ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(row.range_label, modifier = Modifier.widthIn(min = 54.dp, max = 92.dp), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    Box(Modifier.weight(1f).height(6.dp).background(AppColors.Border, RoundedCornerShape(99.dp))) {
+                        Box(Modifier.fillMaxWidth((row.percentage / 100.0).toFloat().coerceIn(0f, 1f)).fillMaxHeight().background(tint, RoundedCornerShape(99.dp)))
+                    }
+                    Text("${row.count} · ${String.format(Locale.US, "%.0f%%", row.percentage)}", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommunityDashboardCard(summary: CommunitySnapshotSummaryDto?, isDemo: Boolean) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+        border = BorderStroke(1.dp, AppColors.Border),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("社区大盘", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                Text(if (isDemo) "演示数据" else "脱敏汇总", color = if (isDemo) Color(0xFF9A5B12) else AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+            }
+            if (summary == null) {
+                Text("社区统计快照暂不可用，联网后自动更新", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Gas 总支出", color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall)
+                        Text(String.format(Locale.US, "$%,.2f", summary.gas_total_usd), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("社区总收益", color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall)
+                        Text(String.format(Locale.US, "$%,.2f", summary.reward_total_usd), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Text("Gas 分链支出", color = AppColors.TextPrimary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                if (summary.gas_by_chain.isEmpty()) {
+                    Text("暂无分链数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                } else {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        summary.gas_by_chain.forEach { chain ->
+                            Surface(color = AppColors.Background, shape = RoundedCornerShape(10.dp)) {
+                                Text(
+                                    "${chain.chain}: ${String.format(Locale.US, "$%,.0f", chain.gas_usd)}",
+                                    Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("累计贡献人数", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text(String.format(Locale.US, "%,d", summary.cumulative_contributors), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("近 30 天活跃", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text(String.format(Locale.US, "%,d", summary.active_30d_contributors), color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        CommunityDistributionRows("Gas 支出分布", summary.gas_range_distribution, Color(0xFFE76565))
+                    }
+                    Column(Modifier.weight(1f)) {
+                        CommunityDistributionRows("收益区间分布", summary.reward_range_distribution, Color(0xFF31B77D))
+                    }
+                }
+                Text("收益概况包含预估与实际数据，仅供参考", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
 
 @Composable
 fun CommunitySquareScreen(
@@ -84,6 +177,7 @@ fun CommunitySquareScreen(
     val joinedOfficialIds = remember(joinedIds) { joinedIds.mapNotNull { it.projectOfficialId }.toSet() }
     var catalogEntries by remember { mutableStateOf<List<com.airdrophunter.app.data.CommunityProjectCatalogDto>>(emptyList()) }
     var communityStats by remember { mutableStateOf<Map<String, CommunityProjectStatsDto>>(emptyMap()) }
+    var overallSummary by remember { mutableStateOf<CommunitySnapshotSummaryDto?>(null) }
     var statsLoading by remember { mutableStateOf(true) }
     var catalogError by remember { mutableStateOf<String?>(null) }
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
@@ -106,6 +200,7 @@ fun CommunitySquareScreen(
 
         fun applyOverallSnapshot(snapshot: com.airdrophunter.app.data.CommunitySnapshotDto?) {
             if (snapshot == null) return
+            overallSummary = snapshot.summary
             catalogEntries = snapshot.projects.map { project ->
                 com.airdrophunter.app.data.CommunityProjectCatalogDto(
                     project_official_id = project.project_official_id,
@@ -123,6 +218,8 @@ fun CommunitySquareScreen(
                     project_official_id = project.project_official_id,
                     total_gas_cost_usd = project.gas_cost_usd_valuation,
                     total_actual_reward_usd = project.actual_reward_usd_valuation,
+                    total_reward_usd = project.reward_usd_valuation,
+                    total_estimated_reward_usd = project.estimated_reward_usd_valuation,
                     gas_by_verification_tier = project.gas_by_verification_tier,
                     data_quality = snapshot.data_quality,
                     average_rating = project.average_rating,
@@ -166,6 +263,36 @@ fun CommunitySquareScreen(
     }
     // Synthetic projects exist only in the DEBUG test mode. They never enter the catalog,
     // API, personal project library, ledger, or contribution outbox.
+    val demoSummary = remember {
+        CommunitySnapshotSummaryDto(
+            gas_total_usd = 286420.0,
+            gas_by_chain = listOf(
+                com.airdrophunter.app.data.CommunityChainGasDto("ethereum", 126800.0),
+                com.airdrophunter.app.data.CommunityChainGasDto("arbitrum", 68420.0),
+                com.airdrophunter.app.data.CommunityChainGasDto("base", 51200.0),
+                com.airdrophunter.app.data.CommunityChainGasDto("optimism", 40000.0)
+            ),
+            reward_total_usd = 842600.0,
+            gas_range_distribution = listOf(
+                CommunityRangeDistributionDto("$0–$50", 180, 42.0),
+                CommunityRangeDistributionDto("$50–$200", 126, 29.4),
+                CommunityRangeDistributionDto("$200–$500", 74, 17.3),
+                CommunityRangeDistributionDto("$500–$1K", 32, 7.5),
+                CommunityRangeDistributionDto("$1K+", 16, 3.8)
+            ),
+            reward_range_distribution = listOf(
+                CommunityRangeDistributionDto("$0–$100", 120, 28.0),
+                CommunityRangeDistributionDto("$100–$500", 142, 33.2),
+                CommunityRangeDistributionDto("$500–$1K", 82, 19.2),
+                CommunityRangeDistributionDto("$1K–$5K", 62, 14.5),
+                CommunityRangeDistributionDto("$5K+", 22, 5.1)
+            ),
+            cumulative_contributors = 428,
+            active_30d_contributors = 216,
+            contributor_count_basis = "anonymous_installation_fingerprint"
+        )
+    }
+    val displaySummary = if (BuildConfig.DEBUG && useDemoData) demoSummary else overallSummary
     val demoProjects = listOf(
         CommunityProject("demo:novalayer", "NovaLayer", "Arbitrum", "N", "", 184.20, 42.80,
             "2026-11-10T08:00:00Z", listOf("Layer2", "DeFi", "测试网"), true, 4.8),
@@ -244,6 +371,9 @@ fun CommunitySquareScreen(
                     FilterChip(selected = !useDemoData, onClick = { useDemoData = false }, label = { Text("全网真实") })
                 }
             }
+        }
+        item {
+            CommunityDashboardCard(summary = displaySummary, isDemo = BuildConfig.DEBUG && useDemoData)
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
