@@ -221,13 +221,13 @@ fun BrowserAccountingToolbar(
                 .pointerInput(maxWidth, maxHeight) {
                     detectDragGesturesAfterLongPress(
                         onDragEnd = {
-                            if (abs(dragOffsetX) > maxHorizontalDrag * 0.15f) {
+                            if (maxHorizontalDrag > 0f) {
                                 dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
                             }
                             dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
                         },
                         onDragCancel = {
-                            if (abs(dragOffsetX) > maxHorizontalDrag * 0.15f) {
+                            if (maxHorizontalDrag > 0f) {
                                 dragOffsetX = if (dragOffsetX < 0f) -maxHorizontalDrag else maxHorizontalDrag
                             }
                             dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
