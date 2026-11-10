@@ -8,6 +8,26 @@ from typing import Any, Awaitable, Callable
 import httpx
 
 RETRYABLE_HTTP_STATUSES = {408, 425, 429}
+_PROVIDER_COOLDOWNS: dict[str, float] = {}
+_PROVIDER_COOLDOWN_SECONDS = 30.0
+
+
+def _provider_candidates(urls: list[str] | tuple[str, ...], max_attempts: int) -> list[str]:
+    now = time.monotonic()
+    candidates = list(dict.fromkeys(urls))
+    healthy = [url for url in candidates if _PROVIDER_COOLDOWNS.get(url, 0.0) <= now]
+    if not healthy:
+        healthy = sorted(candidates, key=lambda url: _PROVIDER_COOLDOWNS.get(url, 0.0))
+    return healthy[:max(1, max_attempts)]
+
+
+def _mark_provider_failure(url: str, retry_after: str | None = None) -> None:
+    delay = retry_delay_seconds(0, retry_after, jitter_factor=1.0)
+    _PROVIDER_COOLDOWNS[url] = time.monotonic() + max(_PROVIDER_COOLDOWN_SECONDS, delay)
+
+
+def _mark_provider_success(url: str) -> None:
+    _PROVIDER_COOLDOWNS.pop(url, None)
 
 
 class ProviderResponseError(RuntimeError):
@@ -50,13 +70,15 @@ async def request_with_provider_failover(
     jitter: Callable[[], float] = lambda: random.uniform(0.8, 1.2),
     **kwargs: Any,
 ) -> tuple[httpx.Response, str]:
-    candidates = list(urls)[:max(1, max_attempts)]
+    candidates = _provider_candidates(urls, max_attempts)
     if not candidates:
         raise ValueError("No public provider endpoints configured")
     last_error: Exception | None = None
     for index, url in enumerate(candidates):
         try:
             response = await client.request(method, url, **kwargs)
+            if is_retryable_http_status(response.status_code):
+                _mark_provider_failure(url, response.headers.get("Retry-After"))
             if is_retryable_http_status(response.status_code) and index < len(candidates) - 1:
                 last_error = httpx.HTTPStatusError(
                     f"Provider returned HTTP {response.status_code}",
@@ -68,14 +90,19 @@ async def request_with_provider_failover(
                 ))
                 continue
             response.raise_for_status()
+            _mark_provider_success(url)
             return response, url
         except httpx.TransportError as error:
+            _mark_provider_failure(url)
             last_error = error
             if index >= len(candidates) - 1:
                 raise
             await sleep(retry_delay_seconds(index, None, jitter()))
         except httpx.HTTPStatusError as error:
-            if not is_retryable_http_status(error.response.status_code) or index >= len(candidates) - 1:
+            if not is_retryable_http_status(error.response.status_code):
+                raise
+            _mark_provider_failure(url, error.response.headers.get("Retry-After"))
+            if index >= len(candidates) - 1:
                 raise
             last_error = error
             await sleep(retry_delay_seconds(
@@ -105,7 +132,9 @@ async def post_json_rpc_with_provider_failover(
             )
             data = response.json()
             if not isinstance(data, dict) or data.get("error") is not None or "result" not in data:
+                _mark_provider_failure(used_url)
                 raise ProviderResponseError("RPC provider returned an invalid result")
+            _mark_provider_success(used_url)
             return data, used_url
         except httpx.HTTPStatusError as error:
             if not is_retryable_http_status(error.response.status_code):
@@ -116,6 +145,7 @@ async def post_json_rpc_with_provider_failover(
                     index, error.response.headers.get("Retry-After"), jitter()
                 ))
         except (httpx.TransportError, ValueError, ProviderResponseError) as error:
+            _mark_provider_failure(url)
             last_error = error
             if index < len(candidates) - 1:
                 await sleep(retry_delay_seconds(index, None, jitter()))

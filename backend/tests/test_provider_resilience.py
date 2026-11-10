@@ -7,6 +7,7 @@ from app.services.provider_resilience import (
     post_json_rpc_with_provider_failover,
     request_with_provider_failover,
     retry_delay_seconds,
+    _PROVIDER_COOLDOWNS,
 )
 
 
@@ -100,5 +101,40 @@ def test_json_rpc_does_not_retry_non_transient_http_400():
             else:
                 raise AssertionError("HTTP 400 must be terminal")
         assert calls == ["primary.example"]
+
+    asyncio.run(run())
+
+
+
+def test_provider_cooldown_skips_a_recently_failing_primary_endpoint():
+    async def run():
+        calls = []
+        _PROVIDER_COOLDOWNS.clear()
+
+        async def handler(request):
+            calls.append(request.url.host)
+            if request.url.host == "primary.example":
+                return httpx.Response(503, request=request)
+            return httpx.Response(200, json={"ok": True}, request=request)
+
+        async def no_wait(_seconds):
+            return None
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            _, first_provider = await request_with_provider_failover(
+                client, "GET",
+                ["https://primary.example/data", "https://backup.example/data"],
+                sleep=no_wait, jitter=lambda: 1.0,
+            )
+            _, second_provider = await request_with_provider_failover(
+                client, "GET",
+                ["https://primary.example/data", "https://backup.example/data"],
+                sleep=no_wait, jitter=lambda: 1.0,
+            )
+
+        assert first_provider == "https://backup.example/data"
+        assert second_provider == "https://backup.example/data"
+        assert calls == ["primary.example", "backup.example", "backup.example"]
+        _PROVIDER_COOLDOWNS.clear()
 
     asyncio.run(run())

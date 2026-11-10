@@ -1493,6 +1493,15 @@ object CacheStore {
     suspend fun writeCacheMetadata(metadata: CacheMetadataEntity) = withContext(Dispatchers.IO) {
         database?.cacheMetadataDao()?.upsert(metadata)
     }
+    suspend fun readRemoteCache(key: String): String? = withContext(Dispatchers.IO) {
+        runCatching { database?.cacheDao()?.read("remote:$key") }.getOrNull()
+    }
+    suspend fun writeRemoteCache(key: String, payload: String) = withContext(Dispatchers.IO) {
+        runCatching {
+            database?.cacheDao()?.write(CachedPayload("remote:$key", payload, System.currentTimeMillis()))
+        }
+        Unit
+    }
     // Public community snapshots are shared across guest and signed-in sessions.
     suspend fun readPublic(key: String): String? = withContext(Dispatchers.IO) {
         runCatching { database?.cacheDao()?.read("public:community:$key") }.getOrNull()

@@ -1,5 +1,6 @@
 package com.airdrophunter.app.data
 
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -23,7 +24,34 @@ data class OkxTicker(
     }
 }
 
-class OkxMarketRepository {
+class OkxMarketRepository(
+    private val cacheRefresh: CacheRefreshCoordinator = CacheRefreshCoordinator.shared
+) {
+    private val gson = Gson()
+
+    suspend fun readCachedSpotTickerDetail(symbol: String): OkxTickerDetail? {
+        val key = detailCacheKey(symbol)
+        val raw = CacheStore.readRemoteCache(key) ?: return null
+        return runCatching { gson.fromJson(raw, OkxTickerDetail::class.java) }.getOrNull()
+    }
+
+    suspend fun loadSpotTickerDetail(
+        symbol: String,
+        manual: Boolean = false
+    ): CacheRefreshResult<OkxTickerDetail> {
+        val key = detailCacheKey(symbol)
+        return cacheRefresh.load(
+            cacheKey = key,
+            source = "okx-spot-detail",
+            manual = manual,
+            readCache = { readCachedSpotTickerDetail(symbol) },
+            fetch = { fetchSpotTickerDetail(symbol) },
+            save = { CacheStore.writeRemoteCache(key, gson.toJson(it)) }
+        )
+    }
+
+    private fun detailCacheKey(symbol: String) = "market-detail:${symbol.uppercase()}"
+
     suspend fun fetchSpotTickerDetail(symbol: String): OkxTickerDetail = withContext(Dispatchers.IO) {
         val safeSymbol = symbol.uppercase()
         require(safeSymbol in setOf("BTC", "ETH", "SOL", "BNB", "XRP")) { "暂不支持该币种行情" }
@@ -38,7 +66,7 @@ class OkxMarketRepository {
         }
         try {
             val code = connection.responseCode
-            if (code !in 200..299) throw IllegalStateException("行情服务暂不可用（HTTP $code）")
+            if (code !in 200..299) throw ProviderHttpException(code, connection.getHeaderField("Retry-After"), "行情服务暂不可用（HTTP $code）")
             val root = JSONObject(connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() })
             if (root.optString("code") != "0") {
                 throw IllegalStateException(root.optString("msg").ifBlank { "行情接口返回异常" })
@@ -78,7 +106,7 @@ class OkxMarketRepository {
         try {
             val code = connection.responseCode
             if (code !in 200..299) {
-                throw IllegalStateException("OKX 行情服务暂不可用（HTTP $code）")
+                throw ProviderHttpException(code, connection.getHeaderField("Retry-After"), "OKX 行情服务暂不可用（HTTP $code）")
             }
 
             val body = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
