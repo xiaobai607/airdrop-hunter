@@ -19,7 +19,9 @@ data class ProjectDto(
     /** Authenticated project remains visible locally while server sync is pending. */
     val syncPending: Boolean = false,
     /** Server echo of the stable client key used for idempotent create/recovery. */
-    val client_project_id: String? = null
+    val client_project_id: String? = null,
+    /** Derived from an explicit inactive status in the cached official community directory. */
+    val communityDelisted: Boolean = false
 )
 
 /** Stable local project key. It is deliberately distinct from the optional community ID. */
