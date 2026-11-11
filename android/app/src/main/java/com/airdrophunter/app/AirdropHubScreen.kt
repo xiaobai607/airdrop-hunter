@@ -171,6 +171,30 @@ fun AirdropHubScreen(
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    color = AppColors.DangerBackground,
+                                    shape = RoundedCornerShape(999.dp)
+                                ) {
+                                    Text(
+                                        if (project.publication_status == "OBSERVATION") "待核实" else "已收录",
+                                        Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                        color = AppColors.Danger,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                                if (project.data_source.isNotBlank()) {
+                                    Text(
+                                        project.data_source.removePrefix("Source: "),
+                                        color = AppColors.TextHelper,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Surface(color = AppColors.MutedBackground, shape = RoundedCornerShape(999.dp)) {
                                     Text(
