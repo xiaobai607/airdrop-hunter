@@ -424,3 +424,51 @@ def test_discovery_candidate_rejects_non_https_or_missing_project_links():
             record={**base, "link": url},
             now=datetime.now(timezone.utc),
         )) is False
+
+
+
+def test_binance_activity_adapter_keeps_non_matching_titles_for_central_filter():
+    from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+    rows = _normalize_binance_announcements({"data": {"catalogs": [{"articles": [
+        {"title": "General platform update", "code": "general-update-001"},
+        {"title": "Launchpool rewards", "code": "launchpool-002"},
+    ]}]}}, catalog_id=93)
+    assert len(rows) == 2
+    decisions = [evaluate_discovery_observation(row) for row in rows]
+    assert decisions[0]["status"] == "filtered"
+    assert decisions[0]["reasons"] == ["binance_activity_title_not_airdrop_related"]
+    assert decisions[1]["status"] == "eligible_for_review"
+
+
+def test_dexscreener_adapter_keeps_low_activity_pairs_for_central_filter():
+    from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+    rows = _normalize_dexscreener_pairs({"pairs": [{
+        "chainId": "solana", "dexId": "raydium", "pairCreatedAt": 1762800000000,
+        "baseToken": {"name": "Low Activity", "symbol": "LOW", "address": "TokenAddress"},
+        "url": "https://dexscreener.com/solana/tokenaddress",
+        "liquidity": {"usd": 100}, "volume": {"h24": 200},
+        "txns": {"h24": {"buys": 1, "sells": 1}},
+    }]}, "SOL")
+    assert len(rows) == 1
+    decision = evaluate_discovery_observation(rows[0])
+    assert decision["status"] == "filtered"
+    assert "liquidity_below_existing_limit" in decision["reasons"]
+    assert "volume_24h_below_existing_limit" in decision["reasons"]
+    assert "trades_24h_below_existing_limit" in decision["reasons"]
+
+
+def test_dexscreener_filter_uses_existing_thresholds_and_keeps_raw_metrics():
+    from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+    record = {"source_name": "dexscreener-new-pools", "_filter_metadata": {
+        "age_seconds": 3600, "liquidity_usd": 10000, "volume_24h_usd": 50000,
+        "trades_24h": 20, "token_address": "Address",
+    }}
+    decision = evaluate_discovery_observation(record)
+    assert decision["status"] == "eligible_for_review"
+    assert decision["metadata"]["token_address"] == "Address"
+
+
+def test_coingecko_category_selection_is_centralized():
+    from app.services.airdrop_discovery_filter import select_coingecko_airdrop_categories
+    categories = [{"id": "airdrop", "name": "Airdrop"}, {"id": "gaming", "name": "Gaming"}]
+    assert select_coingecko_airdrop_categories(categories) == ["airdrop"]

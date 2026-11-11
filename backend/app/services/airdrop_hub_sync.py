@@ -207,7 +207,7 @@ def _github_source_attribution(source: dict[str, str]) -> str:
     )
 
 
-def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[dict[str, str]]:
+def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[dict[str, Any]]:
     """Convert Binance announcement headlines into unverified observation leads."""
     data = payload.get("data") if isinstance(payload, dict) else None
     catalogs = data.get("catalogs") if isinstance(data, dict) else None
@@ -227,8 +227,6 @@ def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[d
             code = str(article.get("code") or "").strip()
             if not title or not code:
                 continue
-            if catalog_id != 128 and not BINANCE_AIRDROP_KEYWORDS.search(title):
-                continue
             safe_code = re.sub(r"[^A-Za-z0-9_-]", "", code)
             # Never silently rewrite an upstream identifier into a different article code.
             if not safe_code or safe_code != code:
@@ -243,6 +241,7 @@ def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[d
                 "source_name": "binance-announcements",
                 "trust_level": TRUST_LEVEL_0,
                 "publication_status": OBSERVATION,
+                "catalog_id": catalog_id,
             })
     return records
 
@@ -298,8 +297,8 @@ async def fetch_binance_article_detail(article_code: str, *, fallback_title: str
         )
 
 
-async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
-    by_key: dict[str, dict[str, str]] = {}
+async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
     errors: list[str] = []
     headers = {
         "Origin": "https://www.binance.com",
@@ -338,8 +337,7 @@ async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[st
                 ):
                     raise ValueError("Binance CMS response catalog ID did not match request")
                 rows = _normalize_binance_announcements(payload, catalog_id=catalog_id)
-                for row in rows:
-                    by_key[row["source_key"]] = row
+                records.extend(rows)
                 last_error = None
                 break
             except (httpx.HTTPError, ValueError, TypeError) as exc:
@@ -352,17 +350,17 @@ async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[st
                 )
         if last_error is not None:
             errors.append(f"catalog {catalog_id}: {type(last_error).__name__}")
-    if not by_key and errors:
+    if not records and errors:
         raise RuntimeError("Binance CMS categories unavailable: " + "; ".join(errors))
-    return list(by_key.values())
+    return records
 
 
 def _observation_record(source_name: str, source_key: str, name: str, link: str, description: str, chain: str = 'Unknown', status: str = '待核实') -> dict[str, str]:
     return {'source_key': source_key[:240], 'name': name[:180], 'chain': chain[:80], 'description': description[:10000], 'status': status[:40], 'link': link[:1000], 'source_name': source_name, 'trust_level': TRUST_LEVEL_0, 'publication_status': OBSERVATION}
 
-def _normalize_coingecko_categories(payload: Any) -> list[str]:
+def _normalize_coingecko_categories(payload: Any) -> list[dict[str, str]]:
     if not isinstance(payload, list): return []
-    return [str(item.get('id') or '').strip() for item in payload if isinstance(item, dict) and 'airdrop' in str(item.get('name') or '').casefold() and item.get('id')]
+    return [{"id": str(item.get("id") or "").strip(), "name": str(item.get("name") or "").strip()} for item in payload if isinstance(item, dict) and item.get("id") and item.get("name")]
 
 def _normalize_coingecko_coins(payload: Any, category_id: str) -> list[dict[str, str]]:
     if not isinstance(payload, list): return []
@@ -394,28 +392,34 @@ def _normalize_github_airdrop_list(payload: Any, source_url: str) -> list[dict[s
         result.append(_observation_record('github-airdrop-lists', f'github:{digest}', name, url, f'来自开源名单 {source_url}；项目状态及官网真实性待核实。'))
     return result
 
-def _normalize_dexscreener_pairs(payload: Any, query: str) -> list[dict[str, str]]:
-    pairs = payload.get('pairs') if isinstance(payload, dict) else None
-    if not isinstance(pairs, list): return []
+def _normalize_dexscreener_pairs(payload: Any, query: str) -> list[dict[str, Any]]:
+    pairs = payload.get("pairs") if isinstance(payload, dict) else None
+    if not isinstance(pairs, list):
+        return []
     now = datetime.now(timezone.utc).timestamp()
-    rows = []
+    rows: list[dict[str, Any]] = []
     for pair in pairs:
-        if not isinstance(pair, dict): continue
+        if not isinstance(pair, dict):
+            continue
+        token = pair.get("baseToken") or {}
+        name, address = str(token.get("name") or "").strip(), str(token.get("address") or "").strip()
+        chain, url = str(pair.get("chainId") or "Unknown"), _valid_http_url(pair.get("url"))
+        if not name or not address or not url:
+            continue
         try:
-            age = now - float(pair.get('pairCreatedAt')) / 1000
-            liquidity = float((pair.get('liquidity') or {}).get('usd') or 0)
-            volume = float((pair.get('volume') or {}).get('h24') or 0)
-            tx = (pair.get('txns') or {}).get('h24') or {}
-            trades = int(tx.get('buys') or 0) + int(tx.get('sells') or 0)
-        except (TypeError, ValueError, AttributeError): continue
-        if age < 0 or age > 604800 or liquidity < 10000 or volume < 50000 or trades < 20: continue
-        token = pair.get('baseToken') or {}
-        name, address, chain = str(token.get('name') or '').strip(), str(token.get('address') or '').strip(), str(pair.get('chainId') or 'Unknown')
-        url = _valid_http_url(pair.get('url'))
-        if not name or not address or not url: continue
-        symbol = str(token.get('symbol') or '')
-        desc = f'DexScreener 近期交易池线索（搜索词 {query}）；24h 成交量 ${volume:,.0f}，流动性 ${liquidity:,.0f}，24h 买卖笔数 {trades}。交易活跃不代表空投或安全。'
-        rows.append(_observation_record('dexscreener-new-pools', f'dexscreener:{chain}:{address}'.lower(), f'{name} ({symbol})' if symbol else name, url, desc, chain, '交易活跃·待核实'))
+            created_at = pair.get("pairCreatedAt")
+            age = now - float(created_at) / 1000 if created_at is not None else None
+            liquidity = float((pair.get("liquidity") or {}).get("usd")) if (pair.get("liquidity") or {}).get("usd") is not None else None
+            volume = float((pair.get("volume") or {}).get("h24")) if (pair.get("volume") or {}).get("h24") is not None else None
+            tx = (pair.get("txns") or {}).get("h24") or {}
+            trades = int(tx.get("buys") or 0) + int(tx.get("sells") or 0)
+        except (TypeError, ValueError, AttributeError):
+            age, liquidity, volume, trades = None, None, None, None
+        symbol = str(token.get("symbol") or "")
+        desc = f"DexScreener 原始交易池线索（搜索词 {query}）；池龄秒数 {age if age is not None else '未知'}；流动性 USD {liquidity if liquidity is not None else '未知'}；24h 成交量 USD {volume if volume is not None else '未知'}；24h 买卖笔数 {trades if trades is not None else '未知'}。交易活跃不代表空投或安全。"
+        row = _observation_record("dexscreener-new-pools", f"dexscreener:{chain}:{address}".lower(), f"{name} ({symbol})" if symbol else name, url, desc, chain, "待筛选")
+        row["_filter_metadata"] = {"query": query, "pair_created_at": pair.get("pairCreatedAt"), "age_seconds": age, "liquidity_usd": liquidity, "volume_24h_usd": volume, "trades_24h": trades, "chain_id": chain, "token_address": address, "token_symbol": symbol, "dex_id": pair.get("dexId")}
+        rows.append(row)
     return rows
 
 async def _fetch_coingecko_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
@@ -424,7 +428,9 @@ async def _fetch_coingecko_observations(client: httpx.AsyncClient) -> list[dict[
     auth_headers = {'x-cg-demo-api-key': key}
     response = await client.get('https://api.coingecko.com/api/v3/coins/categories', headers=auth_headers)
     response.raise_for_status()
-    category_ids = _normalize_coingecko_categories(response.json())
+    categories = _normalize_coingecko_categories(response.json())
+    from app.services.airdrop_discovery_filter import select_coingecko_airdrop_categories
+    category_ids = select_coingecko_airdrop_categories(categories)
     if not category_ids: raise RuntimeError('CoinGecko 未返回 Airdrop 类目')
     rows = []
     for category_id in category_ids[:3]:
@@ -464,15 +470,15 @@ async def _fetch_github_observations(client: httpx.AsyncClient) -> list[dict[str
         raise RuntimeError(f"GitHub Raw 未解析到项目；失败文件数 {failures}")
     return rows
 
-async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
-    queries = list(dict.fromkeys(part.strip() for part in os.getenv('DEXSCREENER_SEARCH_QUERIES', 'SOL,ETH,USDC').split(',') if part.strip()))[:8]
-    rows = {}
+async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
+    queries = list(dict.fromkeys(part.strip() for part in os.getenv("DEXSCREENER_SEARCH_QUERIES", "SOL,ETH,USDC").split(",") if part.strip()))[:8]
+    rows: list[dict[str, Any]] = []
     for query in queries:
-        response = await client.get('https://api.dexscreener.com/latest/dex/search', params={'q': query})
+        response = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": query})
         response.raise_for_status()
-        for row in _normalize_dexscreener_pairs(response.json(), query): rows[row['source_key']] = row
-    if not rows: raise RuntimeError('DexScreener 没有符合新池活跃阈值的交易对')
-    return list(rows.values())
+        rows.extend(_normalize_dexscreener_pairs(response.json(), query))
+    if not rows: raise RuntimeError("DexScreener 本轮没有返回可解析的交易池记录")
+    return rows
 
 def _candidate_source_key(source_name: str, record_source_key: str) -> str:
     """Use a bounded, stable key while preserving the provider-specific source key elsewhere."""
@@ -505,6 +511,8 @@ async def _upsert_discovery_candidate(
         )
     )
     candidate_source_url = _valid_http_url(record.get("source_url")) or source_url
+    from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+    filter_result = evaluate_discovery_observation(record, now=now)
     summary = str(record.get("description") or "")[:10000]
     if candidate is None:
         db.add(AirdropDiscoveryCandidate(
@@ -518,6 +526,9 @@ async def _upsert_discovery_candidate(
             first_seen_at=now,
             last_seen_at=now,
             review_status="pending",
+            filter_status=filter_result["status"],
+            filter_reasons=filter_result["reasons"],
+            filter_metadata=filter_result["metadata"],
         ))
     else:
         candidate.source_name = source_name
@@ -527,6 +538,9 @@ async def _upsert_discovery_candidate(
         candidate.summary = summary
         candidate.published_at = record.get("published_at")
         candidate.last_seen_at = now
+        candidate.filter_status = filter_result["status"]
+        candidate.filter_reasons = filter_result["reasons"]
+        candidate.filter_metadata = filter_result["metadata"]
         # Preserve approved/rejected review decisions across future refreshes.
     return True
 
@@ -536,10 +550,13 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
         records = await fetcher(client)
         if not records: raise RuntimeError('empty source result')
         for record in records:
-            current = await db.scalar(select(AirdropProject).where(AirdropProject.source_key == record['source_key']))
-            if current is None: db.add(AirdropProject(**record))
+            project_record = {key: value for key, value in record.items() if not key.startswith("_") and key != "catalog_id"}
+            if record.get("catalog_id") is not None:
+                project_record["description"] = f"{project_record.get('description', '')} Binance catalog ID: {record['catalog_id']}."
+            current = await db.scalar(select(AirdropProject).where(AirdropProject.source_key == project_record['source_key']))
+            if current is None: db.add(AirdropProject(**project_record))
             else:
-                for key, value in record.items(): setattr(current, key, value)
+                for key, value in project_record.items(): setattr(current, key, value)
                 current.imported_at = now
             await _upsert_discovery_candidate(
                 db,

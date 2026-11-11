@@ -108,3 +108,14 @@ Automated tests and CI validate the authored parser, fail-closed approval metada
 Every successful provider observation is now also upserted into the same `airdrop_discovery_candidates` review queue exposed by `/api/airdrops/discovery/candidates`. The queue preserves provider identity, source URL, original item URL, summary, first/last-seen timestamps and review status. A stable SHA-256 key scopes each record to its provider and original source key, avoiding the 64-character database key limit without losing the original key in the source catalog.
 
 This is a discovery/review queue, not the published Airdrop Library. Binance announcements, CoinGecko category tokens, GitHub list entries and DexScreener pools remain unverified observations. Refreshes update candidate details and last-seen time but never reset an operator's approved/rejected review decision. Unsafe or non-HTTPS item links are not added to the review queue. Provider failures remain isolated and do not erase last-known-good records.
+
+
+## Three-stage discovery architecture (2026-11-11)
+
+1. **Source acquisition** — adapters discover endpoints, fetch provider responses, and normalize observations. They do not apply product relevance thresholds, keyword screening, cross-provider duplicate decisions, or project/campaign merging.
+2. **One centralized discovery filter** — owns category selection, relevance thresholds, classification, project/campaign identity analysis, duplicate decisions, source precedence, conflict handling, and eligibility. A filter decision never deletes raw observations or provenance.
+3. **Airdrop Library** — receives only records that pass centralized review/publication rules. Unverified market/category leads never become confirmed campaigns solely by passing a filter.
+
+Binance category 93 headlines are all retained by the adapter; the filter applies the existing `airdrop|launchpool|hodler|megadrop` rule. Category 128 remains eligible without that title rule. DexScreener retains parseable observations and structured age/liquidity/volume/trade metadata; the filter applies the existing thresholds unchanged (age <= 7 days, liquidity >= USD 10,000, 24h volume >= USD 50,000, 24h buys+sells >= 20). CoinGecko category responses are normalized as facts and category selection is centralized. Adapter-local deduplication is removed from Binance and DexScreener.
+
+Filter status/reasons/metadata are separate from human `review_status`, which refreshes never overwrite. This is the first responsibility-boundary pass, not a claim that cross-provider project/campaign clustering is finished. Name-only matching must not merge projects or campaigns; uncertain matches remain separate pending review.

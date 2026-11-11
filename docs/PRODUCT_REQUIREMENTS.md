@@ -2109,3 +2109,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Candidate records retain source attribution and original source links; each provider observation receives a stable provider-scoped SHA-256 key.
 - Candidate refreshes preserve manual review decisions. Non-HTTPS or missing item links are rejected before persistence.
 - This queue is not the public Airdrop Library: market/list observations remain unverified until official campaign evidence is checked. No source is automatically promoted to a published campaign.
+
+
+## 2026-11-11 — discovery pipeline responsibility correction
+
+The active architecture has exactly three stages: source acquisition; one centralized filter; and the Airdrop Library. Result organization belongs to the filter, not a separate stage. Adapters do not apply keyword, liquidity, volume, pool-age, transaction-count, duplicate, or merge rules. They retain parseable observations and provenance. The first pass centralizes the existing Binance title rule, DexScreener thresholds and CoinGecko Airdrop category selection without changing thresholds. Filtered observations remain stored, with filter reasons and structured evidence separate from human review status.
+
+Project identity and campaign identity are distinct. Project-name similarity alone must never merge records; one project can have multiple campaigns and one campaign can have evidence from multiple providers. Full cross-provider clustering remains unfinished and must not be represented as complete.
