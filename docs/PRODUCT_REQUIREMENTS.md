@@ -17,11 +17,14 @@
 ### Current repository checkpoint
 
 - Repository: `xiaobai607/airdrop-hunter`; active delivery branch: `feature/mobile-browser-home-dock-batch`.
-- PR #135 remains **Draft / Open / not merged**. Latest branch code head: `ef7155fe4933e7b7a77fcf7158831340f25b27a2`.
-- Exact-head backend push workflow #43003531309 passed: **232 passed, 3 warnings, 0 failed**. It includes the deterministic review-queue pagination test and the new title-search query parameter.
-- Android source changes at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed the Android unit-test suite, Debug APK assembly, and artifact upload in workflow #43002913809's Android job. Later commits changed only backend tests/API and documentation; Android source is unchanged.
-- Airdrop Hub now has a Room-backed public cache. On entry it returns cached rows first; once the cache is at least 8 hours old, the ViewModel refreshes the four-source pipeline in the background. Failed refreshes retain the last-known-good rows and use a 5-minute retry cooldown. Manual refresh remains available.
-- The discovery review-queue API now supports title search with `q`, in addition to stable `limit`/`offset` pagination. This is backend support only; the separate review APP remains deferred.
+- PR #135 remains **Draft / Open / not merged**. Latest branch code head: `cae68cad5636f592e80a105f68f19c48415b6fa0`.
+- Exact-head backend push workflow #43004625547 passed: **232 passed, 3 warnings, 0 failed**. It covers filtered Binance detail access and central-filter exclusion from the pending review queue.
+- The previous backend fix in workflow #43004421135 also passed: 232 passed, 3 warnings, 0 failed. It introduced a guard so a Binance item rejected by the central filter cannot be fetched directly by guessing its detail ID.
+- Android source changes at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed Android unit tests, Debug APK assembly, and artifact upload in workflow #43002913809. Later commits changed only backend API/tests and documentation; Android source is unchanged.
+- Airdrop Hub has a Room-backed public cache: show cached rows first, refresh the four-source pipeline in the background after 8 hours, retain last-known-good rows after failures, and apply a 5-minute retry cooldown. Manual refresh remains available; physical-device behavior still needs verification.
+- The public Binance detail API now applies the same central-filter visibility rule as the list API. Filtered Binance records remain stored as provenance but cannot be opened through the public detail route.
+- The pending review queue excludes records already rejected by the central filter. The explicit `status=all` view still includes them for audit/provenance; they are not deleted.
+- Review-queue title search (`q`) and stable `limit`/`offset` pagination are implemented. This is backend support only; the separate review APP remains deferred.
 - The four approved source adapters and central filtering/identity pipeline exist in code. Real provider configuration, live-data verification, campaign publication and device rendering remain incomplete; scheduled production sync stays disabled.
 - The branch includes the current Airdrop Library, browser dock, community/accounting, campaign discovery and Binance announcement changes. None of these branch changes are part of `main` until PR #135 is reviewed and explicitly merged.
 - CI success does not imply physical-device acceptance, production live-sync, or backup/recovery verification.
@@ -104,8 +107,9 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 
 ### Latest continuation checkpoint — 2026-11-11
 
-- Current branch head: `ef7155fe4933e7b7a77fcf7158831340f25b27a2`. Backend validation passed at this exact head: 232 tests passed, 3 warnings, 0 failures (Actions run #43003531309).
-- Android source at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed unit tests, Debug APK assembly and artifact upload. The later branch commits did not modify Android files.
+- Current branch head: `cae68cad5636f592e80a105f68f19c48415b6fa0`. Exact-head backend workflow #43004625547 passed: 232 tests passed, 3 warnings, 0 failures.
+- The public Binance detail endpoint now rejects records marked `filtered`, even if a caller knows the record UUID. The pending review queue also excludes centrally filtered observations; `status=all` retains access to them for audit.
+- Android source at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed unit tests, Debug APK assembly and artifact upload. The latest changes did not modify Android files.
 - Airdrop Hub cache-first/background refresh is implemented with an 8-hour freshness interval, a 5-minute retry cooldown, stale-data retention and the existing manual refresh action. Physical-device behavior still needs verification.
 - Review queue pagination is stable and title-searchable. The separate review APP is explicitly deferred until the main APP is complete.
 - Next priority remains proving the four free data sources with real configured data, completing central-filter-to-campaign publication, and verifying the real Airdrop Library display. Scheduled production sync remains disabled until cost, source rights and live-data behavior are verified.
