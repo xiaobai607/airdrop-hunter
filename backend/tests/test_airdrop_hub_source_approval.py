@@ -37,7 +37,7 @@ def test_dexscreener_keeps_successful_queries_when_one_term_fails(monkeypatch):
                         "chainId": "ethereum",
                         "url": "https://dexscreener.com/ethereum/0xabc",
                         "pairCreatedAt": 1790000000000,
-                        "liquidity": {"usd": 1000},
+                        "liquidity": {"usd": 15000},
                         "volume": {"h24": 500},
                         "txns": {"h24": {"buys": 2, "sells": 1}},
                     }]

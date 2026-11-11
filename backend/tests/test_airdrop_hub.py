@@ -712,12 +712,12 @@ def test_dexscreener_central_selector_keeps_only_top_ten_above_10k_liquidity():
     from app.services.airdrop_discovery_filter import select_dexscreener_top_candidates
     rows = [
         {"name": f"Token {index}", "_filter_metadata": {"liquidity_usd": index * 1000, "volume_24h_usd": index}}
-        for index in range(1, 16)
+        for index in range(1, 26)
     ]
     selected = select_dexscreener_top_candidates(rows)
     assert len(selected) == 10
     assert selected[0]["name"] == "Token 15"
-    assert selected[-1]["name"] == "Token 6"
+    assert selected[-1]["name"] == "Token 16"
 
 
 def test_dexscreener_market_signal_is_not_an_airdrop_campaign():

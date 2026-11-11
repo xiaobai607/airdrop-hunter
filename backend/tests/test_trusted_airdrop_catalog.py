@@ -95,11 +95,13 @@ def test_coingecko_airdrop_category_and_coin_normalization():
     from app.services.airdrop_discovery_filter import select_coingecko_airdrop_categories
     assert select_coingecko_airdrop_categories(categories) == ["airdrop"]
     rows = catalog_sync._normalize_coingecko_coins(
-        [{"id": "sample-token", "name": "Sample Token"}], "airdrop"
+        [{"id": "sample-token", "name": "Sample Token", "last_updated": "2026-11-11T11:00:00Z"}],
+        "airdrop",
+        {"sample-token": "https://sample.example/"},
     )
     assert len(rows) == 1
     assert rows[0]["source_key"] == "coingecko:airdrop:sample-token"
-    assert rows[0]["link"] == "https://www.coingecko.com/en/coins/sample-token"
+    assert rows[0]["link"] == "https://sample.example/"
     assert rows[0]["publication_status"] == "OBSERVATION"
     assert rows[0]["trust_level"] == "TRUST_LEVEL_0"
 
