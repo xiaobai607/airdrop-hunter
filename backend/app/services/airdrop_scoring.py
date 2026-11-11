@@ -85,7 +85,7 @@ def evaluate_campaign(
     if status in {"ended", "expired", "closed"} and retroactive is False:
         tier = "archived"
         reasons.append("活动已结束，且来源明确没有追溯参与机会")
-    elif source_heat is not None and source_heat < 40 and low_heat_count >= 3:
+    elif temperature is not None and temperature < 40 and low_heat_count >= 3:
         tier = "archived"
         reasons.append("连续三次成功采集的热度均低于40")
     elif corroborated_risk:
