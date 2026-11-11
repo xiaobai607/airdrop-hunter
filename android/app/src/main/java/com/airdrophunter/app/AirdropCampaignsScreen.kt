@@ -22,7 +22,8 @@ import com.airdrophunter.app.ui.theme.AppColors
 
 @Composable
 fun AirdropCampaignsScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenBinanceOfficial: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as AirdropHunterApplication
@@ -56,6 +57,34 @@ fun AirdropCampaignsScreen(
             Spacer(Modifier.weight(1f))
             TextButton(onClick = vm::refresh, enabled = !state.isRefreshing) {
                 Text(if (state.isRefreshing) "刷新中…" else "刷新", color = AppColors.Primary)
+            }
+        }
+
+        Card(
+            onClick = onOpenBinanceOfficial,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+            border = BorderStroke(1.dp, AppColors.Border),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(color = AppColors.TealTint, shape = RoundedCornerShape(10.dp)) {
+                    Text("币安", Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        color = AppColors.Primary, style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold)
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("币安官方活动", color = AppColors.TextPrimary,
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text("查看 Binance 官方公告与活动", color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                Text("›", color = AppColors.Primary, style = MaterialTheme.typography.titleLarge)
             }
         }
 

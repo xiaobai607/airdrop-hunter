@@ -179,7 +179,10 @@ private fun AirdropHunterApp(
             when {
                 activeOverlay == AppOverlay.SOURCES -> SourcesScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.AIRDROP_HUB -> AirdropHubScreen(Modifier.fillMaxSize())
-                activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> AirdropCampaignsScreen(Modifier.fillMaxSize())
+                activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> AirdropCampaignsScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onOpenBinanceOfficial = { activeOverlay = AppOverlay.AIRDROP_HUB }
+                )
                 activeOverlay == AppOverlay.ACCOUNTING -> AccountingCenterScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.TRON_ENERGY -> TronEnergyAssistantScreen(
                     modifier = Modifier.fillMaxSize(),
@@ -256,7 +259,6 @@ private fun AirdropHunterApp(
                     onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
                     onOpenProjects = { tab = 2 },
                     onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
-                    onOpenBinanceOfficial = { activeOverlay = AppOverlay.AIRDROP_HUB },
                     onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
                     onOpenAccounting = { activeOverlay = AppOverlay.ACCOUNTING },
                     isGuest = isGuest, onRequireAuth = onRequireAuth,

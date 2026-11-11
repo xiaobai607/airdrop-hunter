@@ -2057,10 +2057,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Added repository regression coverage for retry-after-failure and no-repeat-after-success. This is pending exact-head CI validation; server data availability and physical-device acceptance remain separate checks.
 
 
-### 2026-11-11 — separate public airdrop list and Binance official activities
+### 2026-11-11 — place Binance official activities inside the airdrop library
 
-- The Home dashboard now exposes two independent default cards: **空投列表** opens the verified public campaign catalog (`AirdropCampaignsScreen`); **币安官方活动** opens the dedicated Binance announcement/activity hub (`AirdropHubScreen`).
-- The public campaign list and Binance announcement hub remain separate screens, endpoints, data contracts, and refresh paths. Binance announcements are not mixed into or presented as the general public campaign catalog.
-- Existing saved Home dashboard layouts receive a one-time versioned migration that adds both discovery cards; later user removals/order changes remain respected.
+- The Home dashboard has one **空投列表** entry for the verified public campaign catalog (`AirdropCampaignsScreen`); it no longer has a separate Binance card.
+- Inside the airdrop library, a dedicated **币安官方活动** card appears above the first public campaign. Tapping it opens the independent Binance announcement/activity hub (`AirdropHubScreen`).
+- Binance announcements remain separate from the verified public campaign list: separate screen, endpoint, data contract and refresh path. They are not inserted as ordinary campaign rows.
+- Existing saved Home layouts are migrated to remove the misplaced Binance shortcut while ensuring the airdrop library entry exists. Later user layout edits remain respected.
 - Home entry queues background dynamic catalog warmup without blocking navigation. The public campaign repository continues to use its Room-backed cache and six-hour TTL. Binance official feed remains independently refreshed by its own worker cadence.
 - Exact-head Android build and unit tests are pending; real device navigation and live-data verification remain pending.
