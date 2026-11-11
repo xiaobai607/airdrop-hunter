@@ -12,8 +12,8 @@ from app.services.airdrop_campaign_heat_runs import (
 )
 
 
-def _campaign():
-    return AirdropCampaign(
+def _campaign(**overrides):
+    values = dict(
         id=uuid4(),
         source_key=f"heat-test:{uuid4()}",
         source_name="test",
@@ -24,6 +24,8 @@ def _campaign():
         campaign_status="ongoing",
         low_heat_success_count=0,
     )
+    values.update(overrides)
+    return AirdropCampaign(**values)
 
 
 class _FakeDb:
