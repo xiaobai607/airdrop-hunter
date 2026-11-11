@@ -10,7 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyColumn\nimport androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -100,9 +100,8 @@ fun BrowserAccountingToolbar(
         mutableStateOf(preferences.getString("selected_tools", null)?.split(",")?.filter { id -> toolOptions.any { it.first == id } }
             ?.distinct()?.takeIf { it.isNotEmpty() } ?: toolOptions.map { it.first })
     }
-    val density = LocalDensity.current
-    var dragOffsetX by remember { mutableFloatStateOf(0f) }
-    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val dragOffsetX = remember { androidx.compose.animation.core.Animatable(0f) }
+    val dragOffsetY = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(selectedToolIds) {
         preferences.edit().putString("selected_tools", selectedToolIds.joinToString(",")).apply()
     }
@@ -205,10 +204,18 @@ fun BrowserAccountingToolbar(
         modifier = modifier.fillMaxSize()
     ) {
         val dockWidth = minOf(maxWidth * 0.94f, 420.dp)
-        val maxHorizontalDrag = with(density) { ((maxWidth - dockWidth) / 2f).toPx() }
-        val maxVerticalDrag = with(density) { (maxHeight - 124.dp).coerceAtLeast(0.dp).toPx() }
+        val maxHorizontalDrag = with(androidx.compose.ui.platform.LocalDensity.current) {
+            ((maxWidth - dockWidth) / 2f).toPx()
+        }
+        val maxVerticalDrag = with(androidx.compose.ui.platform.LocalDensity.current) {
+            (maxHeight - 124.dp).coerceAtLeast(0.dp).toPx()
+        }
         val dockShape = RoundedCornerShape(50)
-        Surface(
+        val leftSnap = -maxHorizontalDrag
+        val rightSnap = maxHorizontalDrag
+
+        // One outer movable target owns both the translucent capsule and its tools.
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 24.dp)
@@ -221,143 +228,156 @@ fun BrowserAccountingToolbar(
                     ambientColor = Color.Black.copy(alpha = 0.20f),
                     spotColor = Color.Black.copy(alpha = 0.24f)
                 )
-                .offset { IntOffset(dragOffsetX.roundToInt(), dragOffsetY.roundToInt()) }
+                .offset {
+                    IntOffset(dragOffsetX.value.roundToInt(), dragOffsetY.value.roundToInt())
+                }
                 .pointerInput(maxWidth, maxHeight) {
                     detectDragGesturesAfterLongPress(
                         onDragEnd = {
-                            when {
-                                maxHorizontalDrag <= 0f -> dragOffsetX = 0f
-                                dragOffsetX < -1f -> dragOffsetX = -maxHorizontalDrag
-                                dragOffsetX > 1f -> dragOffsetX = maxHorizontalDrag
-                                else -> dragOffsetX = 0f
+                            val targetX = when {
+                                maxHorizontalDrag <= 0f -> 0f
+                                dragOffsetX.value < 0f -> leftSnap
+                                else -> rightSnap
                             }
-                            dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
+                            val targetY = dragOffsetY.value.coerceIn(-maxVerticalDrag, 0f)
+                            scope.launch {
+                                launch { dragOffsetX.animateTo(targetX, androidx.compose.animation.core.tween(260)) }
+                                launch { dragOffsetY.animateTo(targetY, androidx.compose.animation.core.tween(260)) }
+                            }
                         },
                         onDragCancel = {
-                            when {
-                                maxHorizontalDrag <= 0f -> dragOffsetX = 0f
-                                dragOffsetX < -1f -> dragOffsetX = -maxHorizontalDrag
-                                dragOffsetX > 1f -> dragOffsetX = maxHorizontalDrag
-                                else -> dragOffsetX = 0f
+                            val targetX = when {
+                                maxHorizontalDrag <= 0f -> 0f
+                                dragOffsetX.value < 0f -> leftSnap
+                                else -> rightSnap
                             }
-                            dragOffsetY = dragOffsetY.coerceIn(-maxVerticalDrag, 0f)
+                            val targetY = dragOffsetY.value.coerceIn(-maxVerticalDrag, 0f)
+                            scope.launch {
+                                launch { dragOffsetX.animateTo(targetX, androidx.compose.animation.core.tween(260)) }
+                                launch { dragOffsetY.animateTo(targetY, androidx.compose.animation.core.tween(260)) }
+                            }
                         }
                     ) { change, amount ->
                         change.consume()
-                        dragOffsetX = (dragOffsetX + amount.x).coerceIn(-maxHorizontalDrag, maxHorizontalDrag)
-                        dragOffsetY = (dragOffsetY + amount.y).coerceIn(-maxVerticalDrag, 0f)
-                    }
-                },
-            color = Color.White.copy(alpha = 0.35f),
-            shape = dockShape,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
-            shadowElevation = 0.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                selectedToolIds.forEach { id ->
-                    val option = toolOptions.firstOrNull { it.first == id } ?: return@forEach
-                    val icon = when (id) {
-                        "mock_bill" -> Icons.Filled.Bolt
-                        "copy_address" -> Icons.Filled.ContentCopy
-                        "pending_bills" -> Icons.Filled.ReceiptLong
-                        "refresh_page" -> Icons.Filled.Refresh
-                        "copy_url" -> Icons.Filled.Link
-                        else -> Icons.Filled.OpenInNew
-                    }
-                    val iconBackground = when (id) {
-                        "mock_bill" -> Color(0xFFFF8A00)
-                        "copy_address" -> Color(0xFF2563EB)
-                        "pending_bills" -> Color(0xFF7C3AED)
-                        "refresh_page" -> Color(0xFF0891B2)
-                        "copy_url" -> Color(0xFF059669)
-                        else -> Color(0xFFEA580C)
-                    }
-                    val action: () -> Unit = when (id) {
-                        "mock_bill" -> { { createMockBill() } }
-                        "copy_address" -> { { onCopyAddress() } }
-                        "pending_bills" -> { { showBillList = true } }
-                        "refresh_page" -> { { onRefreshPage() } }
-                        "copy_url" -> { { onCopyPageUrl() } }
-                        else -> { { onOpenPageExternally() } }
-                    }
-                    Surface(
-                        onClick = action,
-                        enabled = !(id == "mock_bill" && creatingMockBill),
-                        modifier = Modifier.size(width = 68.dp, height = 78.dp),
-                        shape = RoundedCornerShape(18.dp),
-                        color = Color.Transparent
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(iconBackground),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(Modifier.height(3.dp))
-                            Text(
-                                option.second,
-                                color = AppColors.TextPrimary,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1
-                            )
-                        }
+                        dragOffsetX.snapTo((dragOffsetX.value + amount.x).coerceIn(-maxHorizontalDrag, maxHorizontalDrag))
+                        dragOffsetY.snapTo((dragOffsetY.value + amount.y).coerceIn(-maxVerticalDrag, 0f))
                     }
                 }
-                Surface(
-                    onClick = { showToolManager = true },
-                    modifier = Modifier.size(width = 68.dp, height = 78.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    color = Color.Transparent
+        ) {
+            // Clip the capsule background and LazyRow together to the pill boundary.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(dockShape)
+                    .background(Color.White.copy(alpha = 0.35f))
+                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)), dockShape)
+            ) {
+                androidx.compose.foundation.lazy.LazyRow(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color.White.copy(alpha = 0.88f))
-                                .border(
-                                    width = 1.dp,
-                                    color = Color.White.copy(alpha = 0.95f),
-                                    shape = RoundedCornerShape(16.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Add,
-                                contentDescription = "添加工具",
-                                tint = Color(0xFF374151),
-                                modifier = Modifier.size(26.dp)
-                            )
+                    items(selectedToolIds, key = { it }) { id ->
+                        val option = toolOptions.firstOrNull { it.first == id } ?: return@items
+                        val icon = when (id) {
+                            "mock_bill" -> Icons.Filled.Bolt
+                            "copy_address" -> Icons.Filled.ContentCopy
+                            "pending_bills" -> Icons.Filled.ReceiptLong
+                            "refresh_page" -> Icons.Filled.Refresh
+                            "copy_url" -> Icons.Filled.Link
+                            else -> Icons.Filled.OpenInNew
                         }
-                        Spacer(Modifier.height(3.dp))
-                        Text(
-                            "添加",
-                            color = AppColors.TextPrimary,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1
-                        )
+                        val iconBackground = when (id) {
+                            "mock_bill" -> Color(0xFFFF8A00)
+                            "copy_address" -> Color(0xFF2563EB)
+                            "pending_bills" -> Color(0xFF7C3AED)
+                            "refresh_page" -> Color(0xFF0891B2)
+                            "copy_url" -> Color(0xFF059669)
+                            else -> Color(0xFFEA580C)
+                        }
+                        val action: () -> Unit = when (id) {
+                            "mock_bill" -> { { createMockBill() } }
+                            "copy_address" -> { { onCopyAddress() } }
+                            "pending_bills" -> { { showBillList = true } }
+                            "refresh_page" -> { { onRefreshPage() } }
+                            "copy_url" -> { { onCopyPageUrl() } }
+                            else -> { { onOpenPageExternally() } }
+                        }
+                        Surface(
+                            onClick = action,
+                            enabled = !(id == "mock_bill" && creatingMockBill),
+                            modifier = Modifier.size(width = 68.dp, height = 78.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.Transparent
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(iconBackground),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(Modifier.height(3.dp))
+                                Text(
+                                    option.second,
+                                    color = AppColors.TextPrimary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                    item(key = "add_tool") {
+                        Surface(
+                            onClick = { showToolManager = true },
+                            modifier = Modifier.size(width = 68.dp, height = 78.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.Transparent
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Color.White.copy(alpha = 0.88f))
+                                        .border(
+                                            width = 1.dp,
+                                            color = Color.White.copy(alpha = 0.95f),
+                                            shape = RoundedCornerShape(16.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Add,
+                                        contentDescription = "添加工具",
+                                        tint = Color(0xFF374151),
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                                Spacer(Modifier.height(3.dp))
+                                Text(
+                                    "添加",
+                                    color = AppColors.TextPrimary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                 }
             }
