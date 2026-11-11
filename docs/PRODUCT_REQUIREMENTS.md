@@ -1930,3 +1930,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Edge snapping now runs only after `onDragStart` confirms the long-press whole-Dock drag actually began. A normal horizontal LazyRow swipe that cancels the parent detector must not trigger Dock movement or edge snapping.
 - Kept the outer Box as the single movable target, retained the clipped capsule/LazyRow child and Animatable edge-snap animation. This is source-level hardening; gesture arbitration and feel still require physical-device acceptance.
 - Commit `dfa1a0a39d3419d603bf2c520fb4a590c16f4ec8` contains the guard. The prior import cleanup is in `81314ddd1d1dfe3297eba309965d29cf6afdb846`.
+
+
+### 2026-11-11 — Browser Dock drag callback coroutine fix
+
+- CI run #1057 exposed a Kotlin compile error: `Animatable.snapTo` is suspending and was called directly from the non-suspending drag callback.
+- Moved both bounded `snapTo` updates into the existing composition coroutine scope. The gesture still consumes the drag event, updates both axes together in one launched coroutine, and retains Animatable for movement and edge snapping.
+- Backend tests passed in run #1057; Android build failed at the two direct `snapTo` calls. The correction is commit `1e6beda76d3b93a4f4b0be41107b4dd25c2c4823` and requires a fresh Android CI run.
