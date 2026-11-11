@@ -23,6 +23,9 @@ jobs:
         working-directory: backend
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      COINGECKO_DEMO_API_KEY: ${{ secrets.COINGECKO_DEMO_API_KEY }}
+      AIRDROP_GITHUB_RAW_SOURCE_APPROVALS: ${{ vars.AIRDROP_GITHUB_RAW_SOURCE_APPROVALS }}
+      DEXSCREENER_SEARCH_QUERIES: ${{ vars.DEXSCREENER_SEARCH_QUERIES }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
