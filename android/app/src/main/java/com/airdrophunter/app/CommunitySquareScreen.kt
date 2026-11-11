@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
@@ -180,14 +181,14 @@ fun CommunitySquareScreen(
             ratingCount = stats?.rating_count ?: 0L,
             gasByVerificationTier = stats?.gas_by_verification_tier.orEmpty(),
             isActive = entry.is_active,
-            supportedChains = entry.supported_chains,
-            categories = entry.categories,
-            participationRequirements = entry.participation_requirements,
-            fundingRequirement = entry.funding_requirement,
-            campaignStage = entry.campaign_stage,
-            rewardTypes = entry.reward_types,
-            riskFlags = entry.risk_flags,
-            effortLevel = entry.effort_level
+            supportedChains = entry.supported_chains.orEmpty(),
+            categories = entry.categories.orEmpty(),
+            participationRequirements = entry.participation_requirements.orEmpty(),
+            fundingRequirement = entry.funding_requirement.takeUnless { it.isNullOrBlank() } ?: "unknown",
+            campaignStage = entry.campaign_stage.takeUnless { it.isNullOrBlank() } ?: "unknown",
+            rewardTypes = entry.reward_types.orEmpty(),
+            riskFlags = entry.risk_flags.orEmpty(),
+            effortLevel = entry.effort_level.takeUnless { it.isNullOrBlank() } ?: "unknown"
         )
     }
     // Synthetic projects exist only in the DEBUG test mode. They never enter the catalog,
@@ -486,7 +487,7 @@ fun CommunitySquareScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(group.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                             group.options.chunked(3).forEach { optionRow ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     optionRow.forEach { option ->
                                         val selected = option.value in airdropFilterSelection.values[group.key].orEmpty()
                                         FilterChip(
