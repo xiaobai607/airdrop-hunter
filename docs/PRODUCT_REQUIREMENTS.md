@@ -2196,3 +2196,11 @@ Project and campaign identity classification is a responsibility of the unified 
 - The read-only smoke runner already treated those two providers as optional and attempted DexScreener/Binance by default. Its failure output now includes a bounded exception detail so the actual HTTP status or empty-result reason can be diagnosed from Actions logs.
 - Latest code commit: `466ee3fc14fa0e753e49b38671653e8806b6d837`. Automated validation and a repeat live smoke run are still pending; the earlier live run failed with Binance HTTP status errors and a DexScreener adapter RuntimeError. No live source is currently verified as returning usable rows.
 - No API key is required for the default source set. The live smoke workflow remains read-only; production scheduled sync remains disabled. PR #135 remains Draft/Open/unmerged.
+
+
+
+### 2026-11-11 — provider HTTP diagnostics
+
+- Public-source adapters now include the HTTP status code (when available) in Binance and DexScreener failure summaries, instead of reporting only the generic `HTTPStatusError` class.
+- This is diagnostic-only: it does not convert provider errors into success, bypass rate limits, or change publication eligibility.
+- Commit: `fcb7bca5cc50ea73dd6a55e979bbf64a5b8581b0`. CI status and a repeat live smoke result are not yet available through the current GitHub run lookup; do not mark live providers validated.
