@@ -27,6 +27,7 @@ class AirdropHubViewModel(
     private val _uiState = MutableStateFlow(AirdropHubUiState(isLoading = true))
     val uiState: StateFlow<AirdropHubUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
+    private var backgroundRefreshJob: Job? = null
 
     init { load() }
 
@@ -38,6 +39,7 @@ class AirdropHubViewModel(
 
     fun load() {
         loadJob?.cancel()
+        backgroundRefreshJob?.cancel()
         val chain = _uiState.value.selectedChain
         loadJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, isRefreshing = false, error = null)
@@ -49,6 +51,7 @@ class AirdropHubViewModel(
                     error = if (snapshot.projects.isEmpty()) "数据库中暂无项目。可点击刷新同步公开数据源。" else null,
                     sourceError = snapshot.sourceError
                 )
+                if (snapshot.refreshDue) refreshInBackground(chain.takeUnless { it == "全部" })
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -59,11 +62,16 @@ class AirdropHubViewModel(
 
     fun refresh() {
         loadJob?.cancel()
-        loadJob = viewModelScope.launch {
+        backgroundRefreshJob?.cancel()
+        refreshInBackground(_uiState.value.selectedChain.takeUnless { it == "全部" }, manual = true)
+    }
+
+    private fun refreshInBackground(chain: String?) {
+        if (backgroundRefreshJob?.isActive == true) return
+        backgroundRefreshJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRefreshing = true, isLoading = false, error = null)
             try {
-                val chain = _uiState.value.selectedChain
-                val projects = repository.refresh(chain.takeUnless { it == "全部" })
+                val projects = repository.refresh(chain)
                 _uiState.value = _uiState.value.copy(
                     isRefreshing = false, isLoading = false, projects = projects,
                     error = if (projects.isEmpty()) "同步已执行，但数据库中暂时没有可展示的项目。" else null,
@@ -72,7 +80,11 @@ class AirdropHubViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                _uiState.value = _uiState.value.copy(isRefreshing = false, error = "服务器繁忙，请稍后重试。")
+                _uiState.value = _uiState.value.copy(
+                    isRefreshing = false,
+                    error = if (_uiState.value.projects.isEmpty()) "服务器繁忙，请稍后重试。" else null,
+                    sourceError = "数据源暂时不可用，已保留上次数据。"
+                )
             }
         }
     }

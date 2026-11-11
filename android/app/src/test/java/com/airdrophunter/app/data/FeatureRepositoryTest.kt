@@ -25,33 +25,75 @@ class FeatureRepositoryTest {
     }
 
     @Test
-    fun hubRepositoryTriggersInitialSyncOnlyWhenNoAttemptExists() = runBlocking {
+    fun hubRepositorySchedulesInitialSyncAfterReturningServerList() = runBlocking {
         val remote = FakeHubRemote()
-        val snapshot = AirdropHubRepository(remote).load(null)
+        val repository = AirdropHubRepository(
+            remote, FakeHubCache(), clock = { NOW }
+        )
+        val snapshot = repository.load(null)
+        assertEquals(0, remote.syncCalls)
+        assertTrue(snapshot.refreshDue)
+        assertTrue(snapshot.projects.isEmpty())
+        assertEquals(1, repository.refresh(null).size)
         assertEquals(1, remote.syncCalls)
-        assertEquals(1, snapshot.projects.size)
     }
 
     @Test
-    fun hubRepositoryRetriesWhenPreviousAttemptNeverSucceeded() = runBlocking {
+    fun hubRepositorySchedulesRefreshWhenLastAttemptIsOlderThanEightHours() = runBlocking {
         val remote = FakeHubRemote().apply {
             status = AirdropHubSyncStatusDto(last_attempt_at = "2026-01-01T00:00:00Z")
         }
-        val snapshot = AirdropHubRepository(remote).load("Base")
-        assertEquals(1, remote.syncCalls)
-        assertEquals(1, snapshot.projects.size)
+        val repository = AirdropHubRepository(remote, FakeHubCache(), clock = { NOW })
+        val snapshot = repository.load("Base")
+        assertEquals(0, remote.syncCalls)
+        assertTrue(snapshot.refreshDue)
+        assertEquals(1, repository.refresh("Base").size)
         assertEquals("Base", remote.lastChain)
     }
 
     @Test
-    fun hubRepositoryDoesNotRepeatSyncAfterSuccessfulRefresh() = runBlocking {
+    fun hubRepositoryDoesNotRefreshWhenServerAttemptIsFresh() = runBlocking {
         val remote = FakeHubRemote().apply {
             status = AirdropHubSyncStatusDto(
-                last_attempt_at = "2026-01-01T00:00:00Z",
-                last_success_at = "2026-01-01T00:00:00Z"
+                last_attempt_at = "2026-11-11T10:00:00Z",
+                last_success_at = "2026-11-11T10:00:00Z"
             )
         }
-        AirdropHubRepository(remote).load(null)
+        val repository = AirdropHubRepository(remote, FakeHubCache(), clock = { NOW })
+        val snapshot = repository.load(null)
+        assertEquals(0, remote.syncCalls)
+        assertTrue(!snapshot.refreshDue)
+        assertEquals(1, snapshot.projects.size)
+    }
+
+    @Test
+    fun hubRepositoryReturnsStaleCacheImmediatelyAndMarksBackgroundRefreshDue() = runBlocking {
+        val remote = FakeHubRemote()
+        val cache = FakeHubCache().apply {
+            values["airdrop-hub:all"] = AirdropHubCacheEnvelope(
+                projects = listOf(AirdropHubDto("cached", "Cached", "Base", "", "active", "https://example.org")),
+                fetchedAtEpochMillis = NOW - AirdropHubRepository.AUTO_REFRESH_INTERVAL_MILLIS - 1,
+                lastAttemptAtEpochMillis = NOW - AirdropHubRepository.AUTO_REFRESH_INTERVAL_MILLIS - 1
+            )
+        }
+        val snapshot = AirdropHubRepository(remote, cache, clock = { NOW }).load(null)
+        assertEquals("cached", snapshot.projects.single().id)
+        assertTrue(snapshot.refreshDue)
+        assertEquals(0, remote.syncCalls)
+    }
+
+    @Test
+    fun hubRepositoryHonorsRetryCooldownAfterFailedRefresh() = runBlocking {
+        val remote = FakeHubRemote()
+        val cache = FakeHubCache().apply {
+            values["airdrop-hub:all"] = AirdropHubCacheEnvelope(
+                projects = emptyList(),
+                fetchedAtEpochMillis = 0L,
+                lastAttemptAtEpochMillis = NOW - 60_000L
+            )
+        }
+        val snapshot = AirdropHubRepository(remote, cache, clock = { NOW }).load(null)
+        assertTrue(!snapshot.refreshDue)
         assertEquals(0, remote.syncCalls)
     }
 
@@ -77,6 +119,14 @@ class FeatureRepositoryTest {
         assertTrue(remote.created)
         assertEquals(1, result.size)
     }
+}
+
+private const val NOW = 1_794_312_000_000L
+
+private class FakeHubCache : AirdropHubCache {
+    val values = mutableMapOf<String, AirdropHubCacheEnvelope>()
+    override suspend fun read(key: String): AirdropHubCacheEnvelope? = values[key]
+    override suspend fun write(key: String, value: AirdropHubCacheEnvelope) { values[key] = value }
 }
 
 private class FakeProfileRemote : ProfileRemoteDataSource {
