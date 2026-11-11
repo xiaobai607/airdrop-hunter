@@ -6,6 +6,7 @@ from app.services.airdrop_hub_sync import sync_airdrop_hub
 from app.services.rss_discovery import sync_rss_discovery_candidates
 from app.services.rss_campaign_observations import promote_pending_candidates_to_campaign_observations
 from app.services.airdrop_campaign_scoring import recalculate_campaign_scores
+from app.services.airdrop_market_data import refresh_campaign_market_data
 
 
 async def main() -> None:
@@ -22,6 +23,16 @@ async def main() -> None:
             print(f"Created {mirrored} unpublished campaign observations from pending candidates.")
         except Exception as exc:
             logging.exception("RSS discovery import failed: %s", exc)
+        try:
+            market_result = await refresh_campaign_market_data(db)
+            print(
+                "Campaign market enrichment: "
+                f"considered={market_result['campaigns_considered']}, "
+                f"dex_updated={market_result['dex_updated']}, "
+                f"gecko_updated={market_result['gecko_updated']}."
+            )
+        except Exception as exc:
+            logging.exception("Campaign market enrichment failed: %s", exc)
         try:
             score_result = await recalculate_campaign_scores(db)
             print(
