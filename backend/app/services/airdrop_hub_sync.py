@@ -17,6 +17,10 @@ logger = logging.getLogger("airdrop_hunter.airdrop_sync")
 JSON_SOURCE = "https://web3-discover.vercel.app/api/airdrops.json"
 MCP_SOURCE = "https://web3-discover.vercel.app/api/mcp"
 
+BINANCE_CMS_SOURCE = "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
+BINANCE_CATALOGS = (128, 93)
+BINANCE_AIRDROP_KEYWORDS = re.compile(r"airdrop|launchpool|hodler|megadrop", re.IGNORECASE)
+
 # Populate only after a provider has a documented free airdrop-directory API
 # and its terms permit this product public catalog use. General token/TVL APIs
 # are deliberately not eligible airdrop sources.
@@ -156,6 +160,59 @@ async def _fetch_source(client: httpx.AsyncClient) -> tuple[list[dict[str, str]]
     raise RuntimeError("；".join(errors))
 
 
+def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[dict[str, str]]:
+    """Convert Binance announcement headlines into unverified observation leads."""
+    data = payload.get("data") if isinstance(payload, dict) else None
+    catalogs = data.get("catalogs") if isinstance(data, dict) else None
+    if not isinstance(catalogs, list):
+        return []
+    records: list[dict[str, str]] = []
+    for catalog in catalogs:
+        if not isinstance(catalog, dict):
+            continue
+        articles = catalog.get("articles")
+        if not isinstance(articles, list):
+            continue
+        for article in articles:
+            if not isinstance(article, dict):
+                continue
+            title = str(article.get("title") or "").strip()
+            code = str(article.get("code") or "").strip()
+            if not title or not code:
+                continue
+            if catalog_id != 128 and not BINANCE_AIRDROP_KEYWORDS.search(title):
+                continue
+            safe_code = re.sub(r"[^A-Za-z0-9_-]", "", code)
+            if not safe_code:
+                continue
+            records.append({
+                "source_key": f"binance:{safe_code}"[:240],
+                "name": title[:180],
+                "chain": "Unknown",
+                "description": "Binance 公告线索；请打开原文核实活动资格、时间与参与条件。",
+                "status": "待核实",
+                "link": f"https://www.binance.com/en/support/announcement/{safe_code}",
+                "source_name": "binance-announcements",
+                "trust_level": TRUST_LEVEL_0,
+                "publication_status": OBSERVATION,
+            })
+    return records
+
+
+async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
+    by_key: dict[str, dict[str, str]] = {}
+    for catalog_id in BINANCE_CATALOGS:
+        response = await client.get(
+            BINANCE_CMS_SOURCE,
+            params={"type": 1, "pageSize": 30, "pageNo": 1, "catalogId": catalog_id},
+            headers={"Origin": "https://www.binance.com", "clienttype": "web", "lang": "en"},
+        )
+        response.raise_for_status()
+        for row in _normalize_binance_announcements(response.json(), catalog_id=catalog_id):
+            by_key[row["source_key"]] = row
+    return list(by_key.values())
+
+
 def _extract_json(text: str) -> Any:
     start = text.find("{")
     end = text.rfind("}")
@@ -170,17 +227,14 @@ def _extract_json(text: str) -> Any:
 async def sync_airdrop_hub(db: AsyncSession) -> int:
     now = datetime.now(timezone.utc)
     _sync_status.update({"last_attempt_at": now.isoformat(), "error": None})
-    # web3-discover is not on the trusted-provider allowlist. An environment
-    # switch must never turn an unverified directory into TRUST_LEVEL_1.
-    if "web3-discover" not in TRUSTED_AIRDROP_PROVIDER_LABELS:
-        _sync_status.update({"imported_count": 0, "source": "none", "error": "no_trusted_free_airdrop_provider"})
-        logger.info("Skipped catalog sync: no eligible free airdrop-directory provider is active")
-        return 0
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(15.0), headers={"User-Agent": "AirdropHunter/1.0"}) as client:
-            records, source = await _fetch_source(client)
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(15.0),
+            headers={"User-Agent": "AirdropHunter/1.0", "Accept": "application/json"},
+        ) as client:
+            records = await _fetch_binance_observations(client)
         if not records:
-            raise RuntimeError("数据源未返回有效空投项目")
+            raise RuntimeError("Binance 公告源未返回可识别的空投线索；保留上次数据")
         count = 0
         for record in records:
             current = await db.scalar(select(AirdropProject).where(AirdropProject.source_key == record["source_key"]))
@@ -192,27 +246,20 @@ async def sync_airdrop_hub(db: AsyncSession) -> int:
                 current.imported_at = now
             count += 1
         await record_discovery_source_status(
-            db, "web3-discover", source, now, "success", item_count=count
+            db, "binance-announcements", BINANCE_CMS_SOURCE, now, "success", item_count=count
         )
         await db.commit()
         _sync_status.update({
             "last_success_at": now.isoformat(),
             "imported_count": count,
-            "source": source,
+            "source": "binance-announcements",
             "error": None,
         })
         return count
     except Exception as exc:
         await db.rollback()
-        try:
-            await record_discovery_source_status(
-                db, "web3-discover", JSON_SOURCE, now, "failed", error=type(exc).__name__
-            )
-            await db.commit()
-        except Exception:
-            await db.rollback()
-        _sync_status["error"] = str(exc)[:500]
-        logger.warning("Airdrop hub import failed: %s", exc)
+        _sync_status.update({"source": "binance-announcements", "error": str(exc)[:500]})
+        logger.warning("Binance announcement observation sync failed: %s", exc)
         raise
 
 
