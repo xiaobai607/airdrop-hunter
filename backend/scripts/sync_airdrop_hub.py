@@ -8,11 +8,13 @@ from app.services.airdrop_market_data import refresh_campaign_market_data
 
 
 async def main() -> None:
+    failures: list[str] = []
     async with AsyncSessionLocal() as db:
         try:
             count = await sync_airdrop_hub(db)
             print(f"Imported or updated {count} airdrop chain entries.")
         except Exception as exc:
+            failures.append("discovery_sync")
             logging.exception("Primary airdrop catalog import failed: %s", exc)
         # RSS/Atom discovery is intentionally disabled by the trusted-provider-only strategy.
         try:
@@ -24,6 +26,7 @@ async def main() -> None:
                 f"gecko_updated={market_result['gecko_updated']}."
             )
         except Exception as exc:
+            failures.append("market_enrichment")
             logging.exception("Campaign market enrichment failed: %s", exc)
         try:
             score_result = await recalculate_campaign_scores(db)
@@ -33,7 +36,13 @@ async def main() -> None:
                 f"publishable={score_result['publishable']}, held={score_result['held']}."
             )
         except Exception as exc:
+            failures.append("campaign_scoring")
             logging.exception("Campaign scoring failed: %s", exc)
+
+    # A scheduled run must be visibly red if any required pipeline stage failed.
+    # Do not let a successful enrichment/scoring stage mask failed source ingestion.
+    if failures:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
