@@ -1781,3 +1781,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Added backend tests for original HTML/metadata normalization, detail endpoint retrieval and static /status route precedence.
 - This is an in-app rendering of the source announcement body, not a translation or independent verification of the claims. Any terms shown are exactly what Binance published.
 - Explicit user-clicked HTTPS links in the official announcement body open in the app's existing built-in browser, keeping the announcement detail screen available underneath. Non-HTTPS navigation, subframe navigation and automatic/non-gesture redirects are blocked; if the browser cannot be launched, the detail WebView does not silently navigate away.
+
+### 2026-11-11 — Binance announcement detail build verification
+
+- Fixed the Android WebView navigation gesture check to invoke `request.hasGesture()` correctly; the previous form failed Kotlin compilation.
+- Pull-request CI run #1044 for commit `9dc11f750a163cf2e918c41e3a5e40bd5e62b0ed` completed successfully: Android unit tests, debug APK build/artifact upload, and backend `pytest -q` all passed.
+- The workflow produced the `airdrop-hunter-debug-apk` artifact. This confirms a CI build artifact exists; it does not establish installation or runtime validation on a physical Android device.
+- A public Binance announcement page is discoverable, but the web inspection path did not expose the raw CMS HTML/image attributes. Therefore image lazy-loading behavior (for example, `src` versus `data-src`) and table scrolling remain unverified against a real announcement body. Do not change source HTML or enable JavaScript based on assumptions; validate with an actual CMS detail response or device test first.
+- PR #135 remains Draft/Open and unmerged.
