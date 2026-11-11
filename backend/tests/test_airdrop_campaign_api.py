@@ -14,6 +14,8 @@ class FakeScalars:
         return [SimpleNamespace(
             id=uuid4(),
             name="Verified Test Campaign",
+            source_name="approved-airdrop-directory",
+            source_url="https://directory.example/campaign/verified-test",
             chain="Base",
             description="Verified campaign description",
             official_url="https://official.example/campaign",
@@ -52,6 +54,8 @@ def test_public_campaign_api_serializes_campaign_fields_and_is_read_only():
         assert response.status_code == 200
         row = response.json()[0]
         assert row["name"] == "Verified Test Campaign"
+        assert row["source_name"] == "approved-airdrop-directory"
+        assert row["source_url"] == "https://directory.example/campaign/verified-test"
         assert row["tier"] == "featured"
         forbidden_internal_fields = {
             "temperature",

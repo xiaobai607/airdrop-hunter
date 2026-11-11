@@ -2143,3 +2143,12 @@ Project and campaign identity classification is a responsibility of the unified 
 - Added a regression assertion using a known UUID for a centrally filtered record. Exact-head backend push workflow #43007560087 passed: **234 passed, 3 warnings, 0 failed**. Android build was skipped because only backend API/tests changed.
 - Current code commit: `51b2b6cc49704388bf6f576a3b2abf38b98efecc`. PR #135 remains Draft/Open/unmerged.
 - Continue with source-specific readiness/status visibility and four-provider live-data validation. Do not claim live data until the actual runtime environment is verified.
+
+
+### 2026-11-11 — third-party airdrop directory permissions and source attribution
+
+- High-heat campaigns remain the priority: the campaign catalog already orders featured campaigns before ordinary campaigns, then sorts each tier by the centralized score in descending order. Low-heat/uncertain observations are not automatically placed in the public catalog.
+- Do not scrape or republish AirdropAlert or Airdrops.io content without explicit permission covering automated retrieval and display in Airdrop Hunter. AirdropAlert's terms restrict reuse beyond personal use unless prior written permission is granted; its RSS endpoint is not a content-republication license. Airdrops.io's terms restrict copying, public display and mirroring. These providers remain integration candidates only after permission is obtained.
+- Public campaign responses now include source_name and source_url so users can see where a campaign record came from. Internal trust flags, scoring telemetry, contract identifiers and market metrics remain private.
+- Provider selection, popularity ranking, deduplication and publication remain centralized; adapters only acquire and normalize source observations. Do not equate a generic token/market feed with a reviewed airdrop campaign source.
+- Real-data cleanup is deferred until a live source has passed end-to-end validation. At that point remove only production/demo records and seed data, never automated test fixtures or regression tests.

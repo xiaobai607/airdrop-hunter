@@ -21,6 +21,8 @@ CampaignStatus = Literal["upcoming", "ongoing", "snapshot", "claim_open", "ended
 class PublicCampaign(BaseModel):
     id: UUID
     name: str
+    source_name: str
+    source_url: str
     chain: str | None
     description: str
     official_url: str | None
@@ -95,6 +97,8 @@ async def list_public_campaigns(
         PublicCampaign(
             id=row.id,
             name=row.name,
+            source_name=row.source_name,
+            source_url=row.source_url,
             chain=row.chain,
             description=row.description,
             official_url=row.official_url,
