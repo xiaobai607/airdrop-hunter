@@ -69,3 +69,11 @@ def test_sync_stays_off_until_a_free_airdrop_directory_is_approved(monkeypatch):
 
     assert count == 0
     assert catalog_sync.get_sync_status()["error"] == "no_trusted_free_airdrop_provider"
+
+
+
+def test_trusted_catalog_destination_must_be_https_without_credentials():
+    assert catalog_sync._valid_http_url("https://project.example/airdrop") == "https://project.example/airdrop"
+    assert catalog_sync._valid_http_url("http://project.example/airdrop") is None
+    assert catalog_sync._valid_http_url("https://user:pass@project.example/airdrop") is None
+    assert catalog_sync._valid_http_url("not-a-url") is None
