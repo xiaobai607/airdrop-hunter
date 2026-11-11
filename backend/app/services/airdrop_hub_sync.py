@@ -18,7 +18,51 @@ logger = logging.getLogger("airdrop_hunter.airdrop_sync")
 
 BINANCE_CMS_SOURCE = "https://www.binance.com/bapi/apex/v1/public/apex/cms/article/list/query"
 BINANCE_CMS_LEGACY_SOURCE = "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
+BINANCE_DISCOVERY_REFERENCE_URL = "https://raw.githubusercontent.com/DIYgod/RSSHub/master/lib/routes/binance/announcement.ts"
 BINANCE_CATALOGS = (128, 93)
+_BINANCE_DISCOVERY_CACHE_TTL_SECONDS = 6 * 60 * 60
+_binance_discovery_cache: tuple[str, datetime] | None = None
+
+
+def _extract_binance_cms_path_from_reference(source: str) -> str | None:
+    """Extract only Binance CMS list paths from the public adapter reference."""
+    if not isinstance(source, str) or len(source) > 1_000_000:
+        return None
+    match = re.search(
+        r"\\$\\{baseUrl\\}(/bapi/[A-Za-z0-9/_-]+/cms/article/list/query)",
+        source,
+    )
+    if not match:
+        return None
+    path = match.group(1)
+    if not re.fullmatch(r"/bapi/[A-Za-z0-9/_-]+/cms/article/list/query", path):
+        return None
+    return path
+
+
+async def _discover_binance_cms_endpoint(client: httpx.AsyncClient) -> str | None:
+    """Discover the endpoint path from an adapter reference, then keep Binance as the only host."""
+    global _binance_discovery_cache
+    now = datetime.now(timezone.utc)
+    if _binance_discovery_cache is not None:
+        cached_path, cached_at = _binance_discovery_cache
+        if (now - cached_at).total_seconds() < _BINANCE_DISCOVERY_CACHE_TTL_SECONDS:
+            return f"https://www.binance.com{cached_path}"
+    try:
+        response = await client.get(
+            BINANCE_DISCOVERY_REFERENCE_URL,
+            headers={"Accept": "text/plain"},
+        )
+        response.raise_for_status()
+        if len(response.content) > 1_000_000:
+            raise ValueError("Binance discovery reference exceeds 1 MB")
+        path = _extract_binance_cms_path_from_reference(response.text)
+        if path:
+            _binance_discovery_cache = (path, now)
+            return f"https://www.binance.com{path}"
+    except (httpx.HTTPError, ValueError, TypeError) as exc:
+        logger.warning("Binance endpoint discovery reference unavailable: %s", type(exc).__name__)
+    return None
 BINANCE_AIRDROP_KEYWORDS = re.compile(r"airdrop|launchpool|hodler|megadrop", re.IGNORECASE)
 
 # Populate only after a provider has a documented free airdrop-directory API
@@ -264,11 +308,18 @@ async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[st
         "lang": "en",
         "Accept-Language": "en",
     }
-    # Binance's current announcement frontend is observed using the apex CMS
-    # route. Keep the former composite route as a compatibility fallback.
+    # Discover the path from the public adapter's source code first. The
+    # reference is only a discovery hint: all actual announcement data must
+    # still come directly from www.binance.com and pass the response checks.
+    discovered = await _discover_binance_cms_endpoint(client)
+    endpoints = [discovered] if discovered else []
+    for known in (BINANCE_CMS_SOURCE, BINANCE_CMS_LEGACY_SOURCE):
+        if known not in endpoints:
+            endpoints.append(known)
+
     for catalog_id in BINANCE_CATALOGS:
         last_error: Exception | None = None
-        for endpoint in (BINANCE_CMS_SOURCE, BINANCE_CMS_LEGACY_SOURCE):
+        for endpoint in endpoints:
             try:
                 response = await client.get(
                     endpoint,
@@ -281,6 +332,11 @@ async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[st
                 catalogs = data.get("catalogs") if isinstance(data, dict) else None
                 if not isinstance(catalogs, list):
                     raise ValueError("Binance CMS response missing data.catalogs")
+                if catalogs and not any(
+                    isinstance(item, dict) and item.get("catalogId") == catalog_id
+                    for item in catalogs
+                ):
+                    raise ValueError("Binance CMS response catalog ID did not match request")
                 rows = _normalize_binance_announcements(payload, catalog_id=catalog_id)
                 for row in rows:
                     by_key[row["source_key"]] = row

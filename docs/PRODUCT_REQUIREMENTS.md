@@ -2088,3 +2088,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Follow-up source review found the current RSSHub Binance announcement adapter using the newer observed `/bapi/apex/v1/public/apex/cms/article/list/query` route, while this importer still used the older `/bapi/composite/v1/public/cms/article/list/query` route.
 - Updated the importer to try the apex route first and fall back to the composite route per category. Added MockTransport regression tests for both primary and fallback paths.
 - The endpoint is an observed Binance web-CMS interface, not a documented supported Binance API. Exact-head backend CI and a real live-provider smoke test remain separate checks.
+
+### 2026-11-11 — Binance endpoint self-discovery
+
+- Implemented automatic endpoint-path discovery by reading the public RSSHub Binance announcement adapter source, the same kind of source-code inspection used during engineering investigation.
+- The backend extracts only a constrained Binance CMS list path, fixes the destination host to `www.binance.com`, and verifies the live response structure and requested catalog ID before importing anything.
+- The reference repository supplies no announcement content to Airdrop Hunter; all imported records and article detail HTML still come directly from Binance. Discovery is cached for six hours, with apex/composite fallback paths retained.
+- Added tests for safe path extraction, successful dynamic discovery, and fallback when the discovery reference is unavailable. Exact-head CI and real provider connectivity are pending.

@@ -87,3 +87,10 @@ Automated tests and CI validate the authored parser, fail-closed approval metada
 - The current RSSHub Binance announcement adapter uses Binance's newer observed route `/bapi/apex/v1/public/apex/cms/article/list/query` with the same `type/pageNo/pageSize/catalogId` parameters and `data.catalogs[].articles[]` response structure.
 - The importer now tries that route first and falls back per category to the former `/bapi/composite/v1/public/cms/article/list/query` route if the request fails or the response does not contain `data.catalogs`.
 - This is a compatibility measure based on observed frontend usage, not a Binance-supported public API guarantee. A live provider smoke test is still required; MockTransport tests only verify request construction and fallback behavior.
+
+### Binance endpoint self-discovery
+
+- At each discovery-cache expiry (6 hours), the backend reads the public RSSHub Binance announcement adapter source at `https://raw.githubusercontent.com/DIYgod/RSSHub/master/lib/routes/binance/announcement.ts` and extracts only a path matching `/bapi/.../cms/article/list/query`.
+- The extracted path is never used with a host supplied by that source. The backend pins the host to `www.binance.com`, probes the discovered endpoint with the approved category IDs `128` and `93`, and requires a JSON `data.catalogs` response whose returned catalog ID matches the request.
+- The RSSHub file is an endpoint-discovery reference only, not an announcement data provider. Titles, article codes, detail pages, and HTML continue to come directly from Binance. If the reference is unavailable or changes format, the backend falls back to the known apex and legacy composite paths.
+- This reduces hard-coded endpoint drift but still relies on an observed, undocumented Binance web interface. It is not an official Binance API guarantee.

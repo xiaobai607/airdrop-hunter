@@ -251,38 +251,84 @@ def test_coingecko_demo_key_is_sent_in_header_not_query_string(monkeypatch):
     assert rows[0]["source_key"] == "coingecko:airdrop:sample-token"
 
 
-def test_binance_sync_uses_current_apex_endpoint_for_crypto_airdrop_and_latest_activities():
+def test_binance_endpoint_discovery_extracts_only_binance_cms_path():
+    from app.services.airdrop_hub_sync import _extract_binance_cms_path_from_reference
+
+    source = 'const listUrl = new URL(`${baseUrl}/bapi/apex/v1/public/apex/cms/article/list/query`);'
+    assert _extract_binance_cms_path_from_reference(source) == "/bapi/apex/v1/public/apex/cms/article/list/query"
+    assert _extract_binance_cms_path_from_reference('fetch("https://evil.example/steal")') is None
+    assert _extract_binance_cms_path_from_reference('new URL(`${baseUrl}/api/private/list`)') is None
+
+
+def test_binance_sync_discovers_endpoint_from_reference_then_fetches_binance_data(monkeypatch):
     import asyncio
     import httpx
-    from app.services.airdrop_hub_sync import _fetch_binance_observations
+    from app.services import airdrop_hub_sync
 
+    monkeypatch.setattr(airdrop_hub_sync, "_binance_discovery_cache", None)
     requested = []
 
     def handler(request):
+        requested.append((request.url.host, request.url.path, request.url.params.get("catalogId")))
+        if request.url.host == "raw.githubusercontent.com":
+            return httpx.Response(200, text='const listUrl = new URL(`${baseUrl}/bapi/apex/v1/public/apex/cms/article/list/query`);')
         catalog_id = int(request.url.params["catalogId"])
-        requested.append((request.url.path, catalog_id))
+        assert request.url.host == "www.binance.com"
         assert request.url.path == "/bapi/apex/v1/public/apex/cms/article/list/query"
-        if catalog_id == 128:
-            title, code = "Official Crypto Airdrop Announcement", "official-airdrop-001"
-        elif catalog_id == 93:
-            title, code = "Binance Launchpool: Stake Tokens to Earn Rewards", "latest-activity-002"
-        else:
-            return httpx.Response(400)
+        title, code = (
+            ("Official Crypto Airdrop Announcement", "official-airdrop-001")
+            if catalog_id == 128
+            else ("Binance Launchpool: Stake Tokens to Earn Rewards", "latest-activity-002")
+        )
         return httpx.Response(200, json={"data": {"catalogs": [{"catalogId": catalog_id, "articles": [{"title": title, "code": code}]}]}})
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            return await _fetch_binance_observations(client)
+            return await airdrop_hub_sync._fetch_binance_observations(client)
 
     rows = asyncio.run(run())
     assert requested == [
-        ("/bapi/apex/v1/public/apex/cms/article/list/query", 128),
-        ("/bapi/apex/v1/public/apex/cms/article/list/query", 93),
+        ("raw.githubusercontent.com", "/DIYgod/RSSHub/master/lib/routes/binance/announcement.ts", None),
+        ("www.binance.com", "/bapi/apex/v1/public/apex/cms/article/list/query", "128"),
+        ("www.binance.com", "/bapi/apex/v1/public/apex/cms/article/list/query", "93"),
     ]
     assert {row["source_key"] for row in rows} == {
         "binance:official-airdrop-001",
         "binance:latest-activity-002",
     }
+
+
+def test_binance_sync_uses_known_fallback_when_endpoint_discovery_is_unavailable(monkeypatch):
+    import asyncio
+    import httpx
+    from app.services import airdrop_hub_sync
+
+    monkeypatch.setattr(airdrop_hub_sync, "_binance_discovery_cache", None)
+    requested = []
+
+    def handler(request):
+        if request.url.host == "raw.githubusercontent.com":
+            return httpx.Response(503)
+        requested.append((request.url.path, request.url.params["catalogId"]))
+        if request.url.path == "/bapi/apex/v1/public/apex/cms/article/list/query":
+            return httpx.Response(404)
+        catalog_id = int(request.url.params["catalogId"])
+        title = "Official Crypto Airdrop Announcement" if catalog_id == 128 else "Binance Launchpool: Stake Tokens"
+        code = f"legacy-{catalog_id}"
+        return httpx.Response(200, json={"data": {"catalogs": [{"catalogId": catalog_id, "articles": [{"title": title, "code": code}]}]}})
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await airdrop_hub_sync._fetch_binance_observations(client)
+
+    rows = asyncio.run(run())
+    assert requested == [
+        ("/bapi/apex/v1/public/apex/cms/article/list/query", "128"),
+        ("/bapi/composite/v1/public/cms/article/list/query", "128"),
+        ("/bapi/apex/v1/public/apex/cms/article/list/query", "93"),
+        ("/bapi/composite/v1/public/cms/article/list/query", "93"),
+    ]
+    assert {row["source_key"] for row in rows} == {"binance:legacy-128", "binance:legacy-93"}
 
 
 def test_binance_sync_falls_back_to_legacy_composite_endpoint():
