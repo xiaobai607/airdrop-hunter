@@ -95,6 +95,7 @@ fun CommunitySquareScreen(
     var favoritesOnly by remember { mutableStateOf(false) }
     var showAirdropFilters by remember { mutableStateOf(false) }
     var airdropFilterSelection by remember { mutableStateOf(AirdropFilterSelection()) }
+    val visibleAirdropFilterGroups = remember(catalogEntries) { airdropFilterGroupsFor(catalogEntries) }
     var searchQuery by remember { mutableStateOf("") }
     var showSubmissionDialog by remember { mutableStateOf(false) }
     var submissionName by remember { mutableStateOf("") }
@@ -483,7 +484,7 @@ fun CommunitySquareScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text("同一组内多选为“满足任一项”，不同组之间为“同时满足”。只按目录中已核验/已录入的信息筛选，未标注条件不会被猜测。", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
-                    airdropFilterGroups.forEach { group ->
+                    visibleAirdropFilterGroups.forEach { group ->
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(group.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                             group.options.chunked(3).forEach { optionRow ->
