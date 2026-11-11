@@ -2035,6 +2035,7 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Added API regression assertions that internal scoring, trust and market telemetry fields are absent from the public response.
 
 ### 2026-11-11 — Public campaign API regression-test correction
+- Final list-copy audit found and removed the remaining “数据来自已审核目录” implementation wording; the Android list count now shows only the public campaign count, matching the concise user-facing contract.
 
 - Exact-head Push workflow #1085 for commit dd69e9fdb57f158d1ab9603a6385719d3d900fa1 completed Android unit tests and Debug APK assembly successfully; artifact airdrop-hunter-debug-apk (artifact ID 13829965278) was uploaded.
 - Backend pytest reported one failure because the public API regression test both asserted that listing_reason was absent and later asserted that the same field contained a value. The latter assertion was stale and contradicted the intended public contract; the API response model was correct.

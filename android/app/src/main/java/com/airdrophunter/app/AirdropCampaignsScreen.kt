@@ -85,7 +85,7 @@ fun AirdropCampaignsScreen(
             ) {
                 item {
                     Text(
-                        "\${state.items.size} 个公开活动 · 数据来自已审核目录",
+                        "\${state.items.size} 个公开活动",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.labelMedium
                     )
