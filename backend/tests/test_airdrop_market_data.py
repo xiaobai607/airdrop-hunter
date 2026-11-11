@@ -3,6 +3,8 @@ import asyncio
 import httpx
 
 from app.services.airdrop_market_data import (
+    MAX_RESPONSE_BYTES,
+    _get_json,
     build_dex_batches,
     collect_market_signals,
     parse_dex_pairs,
@@ -227,3 +229,42 @@ def test_provider_failures_preserve_last_known_market_fields():
     assert campaign.gecko_trending is True
     assert db.added == []
     assert db.committed is True
+
+
+
+def test_market_http_client_honors_retry_after_on_rate_limit():
+    calls = {"count": 0}
+    sleeps = []
+
+    async def handler(request):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return httpx.Response(429, headers={"Retry-After": "12"})
+        return httpx.Response(200, json={"ok": True})
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await _get_json(client, "https://provider.example/data", sleep=fake_sleep)
+
+    assert asyncio.run(run()) == {"ok": True}
+    assert calls["count"] == 2
+    assert sleeps == [12.0]
+
+
+def test_market_http_client_rejects_oversized_streaming_response():
+    async def handler(request):
+        return httpx.Response(200, content=b"x" * (MAX_RESPONSE_BYTES + 1))
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await _get_json(client, "https://provider.example/data")
+
+    try:
+        asyncio.run(run())
+    except ValueError as error:
+        assert "size limit" in str(error)
+    else:
+        raise AssertionError("oversized response should be rejected")
