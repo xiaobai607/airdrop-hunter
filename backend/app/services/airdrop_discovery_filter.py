@@ -33,6 +33,13 @@ def evaluate_discovery_observation(record: dict[str, Any], *, now: datetime | No
         if catalog_id != 128 and not BINANCE_AIRDROP_KEYWORDS.search(str(record.get("name") or "")):
             reasons.append("binance_activity_title_not_airdrop_related")
         metadata["catalog_id"] = catalog_id
+    elif source_name == "github-airdrop-lists":
+        official_url = metadata.get("official_url")
+        if not official_url:
+            reason = "github_official_url_invalid" if metadata.get("official_url_raw") else "github_official_url_missing"
+            reasons.append(reason)
+        elif _canonical_identity_url(official_url) is None:
+            reasons.append("github_official_url_invalid")
     elif source_name == "dexscreener-new-pools":
         age, liquidity = metadata.get("age_seconds"), metadata.get("liquidity_usd")
         volume, trades = metadata.get("volume_24h_usd"), metadata.get("trades_24h")
@@ -100,7 +107,6 @@ def build_discovery_identity(record: dict[str, Any]) -> dict[str, Any]:
         project_evidence = {"method": "chain_contract", "chain": chain, "contract": normalized}
     else:
         official = metadata.get("official_url") or record.get("official_url") or record.get("project_url")
-        if not official and source_name == "github-airdrop-lists": official = record.get("link")
         canonical = _canonical_identity_url(official)
         if canonical: project_evidence = {"method": "exact_official_url", "url": canonical}
     campaign_url = metadata.get("campaign_url") or metadata.get("activity_url") or record.get("campaign_url") or record.get("activity_url")

@@ -373,31 +373,57 @@ def _normalize_coingecko_coins(payload: Any, category_id: str) -> list[dict[str,
         rows.append(row)
     return rows
 
-def _normalize_github_airdrop_list(payload: Any, source_url: str) -> list[dict[str, str]]:
-    found: list[tuple[str, str, Any]] = []
+def _normalize_github_airdrop_list(payload: Any, source_url: str) -> list[dict[str, Any]]:
+    """Extract list entries without deciding whether their links qualify as official."""
+    found: list[tuple[str, Any, Any]] = []
+
     def walk(value: Any) -> None:
         if isinstance(value, list):
-            for entry in value: walk(entry)
+            for entry in value:
+                walk(entry)
         elif isinstance(value, dict):
-            name = value.get('name') or value.get('project') or value.get('title')
-            # Generic "url" fields often point to repositories or list entries, not
-            # the project's official website. Require an explicit official-site field.
-            url = value.get('website') or value.get('official_url') or value.get('officialUrl')
-            safe_url = _valid_http_url(url)
-            if name and safe_url: found.append((str(name).strip(), safe_url, value))
-            else:
-                for child in value.values():
-                    if isinstance(child, (dict, list)): walk(child)
-    if isinstance(payload, (dict, list)): walk(payload)
+            name = value.get("name") or value.get("project") or value.get("title")
+            official_raw = value.get("website") or value.get("official_url") or value.get("officialUrl")
+            if name:
+                found.append((str(name).strip(), official_raw, value))
+            for child in value.values():
+                if isinstance(child, (dict, list)):
+                    walk(child)
+
+    if isinstance(payload, (dict, list)):
+        walk(payload)
     elif isinstance(payload, str):
         for line in payload.splitlines():
-            match = re.search(r'\[([^\]]{2,180})\]\((https://[^)\s]+)\)', line)
-            if match: found.append((match.group(1).strip(), match.group(2), {"markdown_line": line}))
-    result = []
-    for name, url, raw_entry in found:
-        digest = hashlib.sha256(f'{source_url}|{name.casefold()}|{url}'.encode()).hexdigest()[:24]
-        row = _observation_record('github-airdrop-lists', f'github:{digest}', name, url, f'来自开源名单 {source_url}；项目状态及官网真实性待核实。')
-        row["_filter_metadata"] = {"official_url": url}
+            match = re.search(r"\[([^\]]{2,180})\]\(([^)\s]+)\)", line)
+            if match:
+                found.append((match.group(1).strip(), match.group(2), {"markdown_line": line}))
+
+    result: list[dict[str, Any]] = []
+    safe_source_url = _valid_http_url(source_url)
+    if not safe_source_url:
+        return result
+    for name, official_raw, raw_entry in found:
+        if not name:
+            continue
+        official_text = str(official_raw).strip() if official_raw is not None else ""
+        safe_official_url = _valid_http_url(official_text) if official_text else None
+        # A source-file URL is only an evidence locator, never a project identity.
+        item_url = safe_official_url or safe_source_url
+        raw_text = json.dumps(raw_entry, ensure_ascii=False, sort_keys=True, default=str)
+        digest = hashlib.sha256(
+            f"{source_url}|{name.casefold()}|{official_text}|{raw_text}".encode()
+        ).hexdigest()[:24]
+        row = _observation_record(
+            "github-airdrop-lists",
+            f"github:{digest}",
+            name,
+            item_url,
+            f"来自开源名单 {source_url}；项目状态及官网真实性待核实。",
+        )
+        row["_filter_metadata"] = {
+            "official_url": safe_official_url,
+            "official_url_raw": official_text[:1000],
+        }
         row["_raw_payload"] = raw_entry
         result.append(row)
     return result

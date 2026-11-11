@@ -191,27 +191,43 @@ def test_github_raw_configuration_rejects_duplicate_ids_urls_and_more_than_twent
     monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", json.dumps(too_many))
     assert _configured_github_raw_sources() == []
 
-def test_github_json_lists_require_explicit_official_https_website_fields():
+def test_github_adapter_preserves_entries_and_central_filter_decides_official_url():
+    from app.services.airdrop_discovery_filter import build_discovery_identity, evaluate_discovery_observation
+
+    source_url = "https://raw.githubusercontent.com/org/list/main/airdrop.json"
     rows = _normalize_github_airdrop_list([
         {"name": "Repository link is not an official website", "url": "https://github.com/org/project"},
         {"name": "Insecure website", "website": "http://project.example"},
         {"name": "Official project", "official_url": "https://project.example/"},
-    ], "https://raw.githubusercontent.com/org/list/main/airdrop.json")
+    ], source_url)
 
-    assert len(rows) == 1
-    assert rows[0]["name"] == "Official project"
-    assert rows[0]["link"] == "https://project.example/"
+    assert len(rows) == 3
+    assert rows[0]["link"] == source_url
+    assert rows[1]["link"] == source_url
+    assert rows[2]["link"] == "https://project.example/"
+    missing = evaluate_discovery_observation(rows[0])
+    insecure = evaluate_discovery_observation(rows[1])
+    accepted = evaluate_discovery_observation(rows[2])
+    assert missing["reasons"] == ["github_official_url_missing"]
+    assert insecure["reasons"] == ["github_official_url_invalid"]
+    assert accepted["reasons"] == []
+    assert build_discovery_identity(rows[0])["project_identity_key"] is None
 
 
-def test_github_markdown_list_accepts_only_https_project_links():
+def test_github_markdown_entries_are_preserved_for_central_https_validation():
+    from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+
+    source_url = "https://raw.githubusercontent.com/org/list/main/README.md"
     rows = _normalize_github_airdrop_list(
         "- [Secure Project](https://secure.example/airdrop)\n"
         "- [Insecure Project](http://insecure.example/airdrop)",
-        "https://raw.githubusercontent.com/org/list/main/README.md",
+        source_url,
     )
 
-    assert len(rows) == 1
-    assert rows[0]["name"] == "Secure Project"
+    assert len(rows) == 2
+    assert rows[0]["link"] == "https://secure.example/airdrop"
+    assert rows[1]["link"] == source_url
+    assert evaluate_discovery_observation(rows[1])["reasons"] == ["github_official_url_invalid"]
 
 
 def test_binance_article_codes_are_rejected_instead_of_silently_rewritten():
