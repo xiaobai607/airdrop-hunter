@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from app.services import airdrop_hub_sync
 
 
@@ -36,7 +38,7 @@ def test_dexscreener_keeps_successful_queries_when_one_term_fails(monkeypatch):
                         "baseToken": {"name": "Example", "symbol": "EX", "address": "0xabc"},
                         "chainId": "ethereum",
                         "url": "https://dexscreener.com/ethereum/0xabc",
-                        "pairCreatedAt": 1790000000000,
+                        "pairCreatedAt": int((datetime.now(timezone.utc) - timedelta(days=1)).timestamp() * 1000),
                         "liquidity": {"usd": 15000},
                         "volume": {"h24": 500},
                         "txns": {"h24": {"buys": 2, "sells": 1}},
