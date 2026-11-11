@@ -69,6 +69,7 @@ def test_sync_stays_off_until_a_free_airdrop_directory_is_approved(monkeypatch):
 
     assert count == 0
     assert catalog_sync.get_sync_status()["error"] == "no_trusted_free_airdrop_provider"
+    assert catalog_sync.get_sync_status()["source"] == "none"
 
 
 
