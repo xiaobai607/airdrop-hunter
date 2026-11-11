@@ -249,3 +249,35 @@ def test_coingecko_demo_key_is_sent_in_header_not_query_string(monkeypatch):
     assert seen_paths == ["/api/v3/coins/categories", "/api/v3/coins/markets"]
     assert len(rows) == 1
     assert rows[0]["source_key"] == "coingecko:airdrop:sample-token"
+
+
+def test_binance_sync_requests_crypto_airdrop_and_latest_activities_catalogs():
+    import asyncio
+    import httpx
+    from app.services.airdrop_hub_sync import _fetch_binance_observations
+
+    requested_catalogs = []
+
+    def handler(request):
+        catalog_id = int(request.url.params["catalogId"])
+        requested_catalogs.append(catalog_id)
+        if catalog_id == 128:
+            title = "Official Crypto Airdrop Announcement"
+            code = "official-airdrop-001"
+        elif catalog_id == 49:
+            title = "Binance Launchpool: Stake Tokens to Earn Rewards"
+            code = "latest-activity-002"
+        else:
+            return httpx.Response(400, json={"code": "unknown_catalog"})
+        return httpx.Response(200, json={"data": {"catalogs": [{"articles": [{"title": title, "code": code}]}]}})
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await _fetch_binance_observations(client)
+
+    rows = asyncio.run(run())
+    assert requested_catalogs == [128, 49]
+    assert {row["source_key"] for row in rows} == {
+        "binance:official-airdrop-001",
+        "binance:latest-activity-002",
+    }

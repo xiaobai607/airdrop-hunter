@@ -17,7 +17,7 @@ from app.services.discovery_source_status import record_discovery_source_status
 logger = logging.getLogger("airdrop_hunter.airdrop_sync")
 
 BINANCE_CMS_SOURCE = "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
-BINANCE_CATALOGS = (128, 93)
+BINANCE_CATALOGS = (128, 49)
 BINANCE_AIRDROP_KEYWORDS = re.compile(r"airdrop|launchpool|hodler|megadrop", re.IGNORECASE)
 
 # Populate only after a provider has a documented free airdrop-directory API
