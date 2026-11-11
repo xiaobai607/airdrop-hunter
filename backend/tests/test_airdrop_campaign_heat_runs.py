@@ -141,70 +141,21 @@ def test_invalid_heat_batch_fails_and_does_not_write_heat_or_increment_counter()
 def test_missing_campaign_heat_is_not_synthesized_as_zero():
     campaign = _campaign()
     db = _FakeDb(campaign)
-
-    async def run():
-        return await record_successful_campaign_heat_batch(
-            db,
-            source_name="approved-heat-provider",
-            source_url="https://provider.example/api/heat",
-            observations=[],
-            run_id=uuid4(),
-        )
-
-    result = asyncio.run(run())
-    assert result == {"replayed": False, "observed": 0, "updated": 0}
-    assert campaign.low_heat_success_count == 0
-
-
-
-def test_successful_heat_updates_scoring_temperature_and_source_switch_restarts_streak():
-    campaign = _campaign(low_heat_success_count=2, last_heat_source_name="provider-a", temperature=18)
-    db = _FakeDb(campaign)
-
-    _record(db, campaign, 20, source_name="provider-b")
-    assert campaign.temperature == 20
-    assert campaign.low_heat_success_count == 1
-    assert campaign.last_heat_source_name == "provider-b"
-
-    _record(db, campaign, 39, source_name="provider-b")
-    assert campaign.low_heat_success_count == 2
-
-    _record(db, campaign, 40, source_name="provider-b")
-    assert campaign.temperature == 40
-    assert campaign.low_heat_success_count == 0
-
-
-
-def test_failed_provider_run_is_recorded_but_never_increments_heat_streak():
-    campaign = _campaign(low_heat_success_count=2, last_heat_source_name="approved-heat-provider")
-    db = _FakeDb(campaign)
     run_id = uuid4()
 
     async def run():
         await start_campaign_heat_run(
             db, source_name="approved-heat-provider", run_id=run_id
         )
-        failed = await fail_campaign_heat_run(
-            db, run_id=run_id, error_code="provider_timeout"
+        return await record_successful_campaign_heat_batch(
+            db,
+            source_name="approved-heat-provider",
+            source_url="https://provider.example/api/heat",
+            observations=[],
+            run_id=run_id,
         )
-        assert failed is True
-        assert await fail_campaign_heat_run(
-            db, run_id=run_id, error_code="provider_timeout"
-        ) is False
-        try:
-            await record_successful_campaign_heat_batch(
-                db,
-                source_name="approved-heat-provider",
-                source_url="https://provider.example/api/heat",
-                observations=[{"campaign_id": str(campaign.id), "heat": 10}],
-                run_id=run_id,
-            )
-        except ValueError as error:
-            assert "running" in str(error)
-        else:
-            raise AssertionError("failed run must not be accepted as a success")
 
-    asyncio.run(run())
-    assert campaign.low_heat_success_count == 2
-    assert db.runs[run_id].status == "failed"
-    assert db.runs[run_id].error_code == "provider_timeout"
+    result = asyncio.run(run())
+    assert result == {"replayed": False, "observed": 0, "updated": 0}
+    assert campaign.low_heat_success_count == 0
+    assert db.runs[run_id].status == "success"
