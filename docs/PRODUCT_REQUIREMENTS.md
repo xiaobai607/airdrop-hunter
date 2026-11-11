@@ -1997,7 +1997,7 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - The corresponding same-repository PR synchronize event runs only the lightweight change-detection job; it does not duplicate Android/backend suites. PR opened/reopened and fork synchronize events retain a complete base-to-head diff because fork pushes do not trigger workflows in the base repository.
 - Push events ignore documentation and workflow-only paths. A mixed PR may still start a lightweight PR changes job because GitHub evaluates PR path filters against the cumulative PR diff.
 - Manual workflow dispatch continues to honor its explicit Android/backend/both scope. The change detector still runs Android and backend suites independently according to their respective file groups.
-- This is designed to reduce duplicate validation without relying on a prior-run API lookup. Confirm the push before/after range on the next code push; no build savings are claimed until that acceptance check succeeds.
+- Acceptance passed on 2026-11-11: push run #1078 for commit `218981bc0c819153908dcfeb939a2cdc7fd3c60a` compared the exact range `ed5fb7d8df89af7525264f4666ef5a49661009d1..218981bc0c819153908dcfeb939a2cdc7fd3c60a`, ran Backend tests successfully, and skipped Android. PR synchronize run #1079 completed successfully with both heavy suites skipped.
 
 
 

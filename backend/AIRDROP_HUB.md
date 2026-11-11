@@ -1,44 +1,57 @@
-# Airdrop Hub data import
+# Airdrop Hub data pipeline — current implementation
 
-The public airdrop catalog is stored in Neon PostgreSQL. Android reads normalized records from the backend; it does not scrape third-party pages.
+This document describes the active importer, not the retired public-search/RSS experiments. The Android app reads normalized records from the backend; it does not scrape arbitrary websites.
 
-## Existing structured source
+## Active source adapters
 
-1. Primary: `https://web3-discover.vercel.app/api/airdrops.json`
-2. Fallback: the public `list_active_airdrops` JSON-RPC tool on `https://web3-discover.vercel.app/api/mcp`
+The scheduled sync calls four isolated adapters:
 
-The importer maps project, chain, description, status, and source project URL fields. Rows without a name or valid HTTP(S) link are discarded. A multi-chain entry is stored once per chain. `source_key` provides idempotent upserts.
+1. **Binance official CMS announcements** — reads the configured Binance CMS announcement categories. Records are announcement leads, not an inferred campaign database. The app displays the official headline and original link; the detail endpoint retrieves the original Binance article body.
+2. **CoinGecko Airdrop category** — requires `COINGECKO_DEMO_API_KEY`. Category/market rows are token discovery observations only. A token appearing in this category is not proof of a currently claimable airdrop.
+3. **Operator-configured GitHub Raw lists** — configured through `AIRDROP_GITHUB_RAW_SOURCES`, a JSON array of HTTPS Raw file URLs. The validator restricts the host to the exact `raw.githubusercontent.com` domain, rejects credentials, ports, query/fragment strings, malformed escapes and unsafe decoded path segments, and caps the list at 20 files. JSON entries must provide an explicit `website`, `official_url` or `officialUrl`; generic `url` fields are not treated as project websites. Markdown links must be HTTPS.
+4. **DexScreener new-pool observations** — optional search terms come from `DEXSCREENER_SEARCH_QUERIES` (comma-separated, maximum eight). The current filter requires a pool no older than seven days, at least USD 10,000 liquidity, at least USD 50,000 24-hour volume, and at least 20 24-hour buys/sells combined. These are market-activity clues only, never confirmed airdrops.
 
-## RSS/Atom discovery candidates
+Binance CMS access does not require an API key. CoinGecko requires the Demo key. GitHub Raw files must be explicitly configured by the operator. Do not configure an open-source list until its repository license, attribution requirements and reuse terms have been reviewed; the URL validator does not itself perform legal/license verification.
 
-The scheduled importer also supports explicitly configured RSS 2.0 and Atom feeds. These records are stored in the separate `airdrop_discovery_candidates` table and exposed as candidates; they are NOT silently promoted into the verified community project catalog and do not create Gas, reward, rating, or participation metrics.
+## Trust and publication boundary
 
-Configure Render environment variables:
+- `TRUSTED_AIRDROP_PROVIDER_LABELS` is currently empty. No third-party directory provider is approved for automatic `PUBLISHED_SAFE` publication.
+- CoinGecko, GitHub Raw and DexScreener rows remain `TRUST_LEVEL_0` / `OBSERVATION`. They must not be presented as confirmed airdrop campaigns.
+- Binance announcement rows also remain observation records. The public `GET /api/airdrops/hub` list intentionally exposes only Binance announcement records, with the visible status set to `待核实`; the source is official, but the app does not invent reward amounts, dates, eligibility or participation terms.
+- The Binance detail endpoint displays the original CMS HTML. Missing terms stay missing; the app does not summarize or guess them.
+- Source failures are isolated. A failed source is rolled back and recorded as failed without deleting that source's last-known-good rows or blocking the other adapters.
 
-- `AIRDROP_RSS_FEEDS`: semicolon-separated `name=https://host/path.xml` entries.
-- `AIRDROP_RSS_ALLOWED_HOSTS`: comma-separated exact hostnames permitted for feed retrieval, e.g. `feeds.example,feeds.other.example`.
+## Explicitly inactive legacy paths
 
-Every feed must use HTTPS and its exact hostname must be allowlisted. Redirects are disabled, each feed is isolated from failures in other feeds, response size is capped, and malformed/unsafe feed entries are ignored. Configure only feeds whose availability and terms permit automated retrieval. RSSHub can be used as a feed endpoint when you operate or trust the instance and have checked its terms; it is not assumed to support every website.
+- The old `web3-discover` JSON/MCP directory is not part of `sync_airdrop_hub` and is not an approved provider.
+- RSS/Atom ingestion is not called by the scheduled importer. Legacy RSS parser, candidate tables and review endpoints may remain in the repository for compatibility, but no wild RSS feeds are configured or automatically searched.
+- Do not re-enable public web search, arbitrary RSS discovery, or unreviewed aggregators as a shortcut.
 
-The importer stores title, item URL, summary, feed attribution, publication time, and first/last-seen times. It does not crawl linked pages or infer that a feed item is an official project website.
+## Configuration
 
-## Initial import / scheduled refresh
+- `COINGECKO_DEMO_API_KEY`: optional; without it the CoinGecko adapter reports a source-level configuration failure.
+- `AIRDROP_GITHUB_RAW_SOURCES`: optional JSON array of exact HTTPS GitHub Raw file URLs. Configure only reviewed sources.
+- `DEXSCREENER_SEARCH_QUERIES`: optional comma-separated query terms; defaults to `SOL,ETH,USDC` and is capped at eight terms.
+- Binance CMS categories are code-configured.
 
-From the repository's `backend` directory, run:
+## API
+
+- `GET /api/airdrops/hub` — Binance announcement leads only.
+- `GET /api/airdrops/hub?chain=Solana` — SQL-filtered results; Binance announcements currently use `Unknown` chain unless the source explicitly supplies one.
+- `GET /api/airdrops/hub/{id}` — fetches the original Binance CMS article body and metadata.
+- `GET /api/airdrops/hub/status` — latest in-process sync status.
+- `POST /api/airdrops/hub/refresh` and compatibility alias `POST /api/airdrops/sync` — trigger the same four-source sync, subject to rate limits.
+
+## Scheduled import
+
+From the repository's `backend` directory:
 
 ```bash
 python -m scripts.sync_airdrop_hub
 ```
 
-Schedule this command daily as a Render Cron Job (working directory: `backend`). It attempts the structured source and configured RSS feeds independently, so one provider failure does not block the other. If no RSS feeds are configured, RSS intake safely does nothing.
+The script runs the four-source catalog sync, then attempts campaign market enrichment and score recalculation as separate steps. A failure in one enrichment step is logged without fabricating an airdrop record. Configure a daily Render Cron Job only if the deployment is intended to run this script; this document does not claim that a production cron is already configured.
 
-## API
+## Validation boundary
 
-- `GET /api/airdrops/hub` — structured airdrop catalog.
-- `GET /api/airdrops/hub?chain=Solana` — SQL-filtered chain results.
-- `GET /api/airdrops/hub/status` — structured source sync status.
-- `POST /api/airdrops/hub/refresh` — retry the structured source import.
-- `GET /api/airdrops/discovery/candidates` — normalized RSS/Atom candidate list.
-- `GET /api/airdrops/discovery/candidates?q=testnet&limit=50` — title search.
-
-The RSS candidate import currently runs through the scheduled backend script. Existing catalog rows are not deleted when a source is unavailable.
+Automated tests and CI validate the authored parsing, filtering, source isolation and API contracts. They do not prove that external providers are currently available, that an operator-configured repository license permits reuse, that a real campaign is claimable, or that the Binance article HTML renders correctly on a physical phone.
