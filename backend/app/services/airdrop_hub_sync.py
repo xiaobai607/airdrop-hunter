@@ -879,9 +879,9 @@ async def sync_airdrop_hub(db: AsyncSession) -> int:
         for source_name, source_url, fetcher in sources:
             total += await _upsert_source_records(db, source_name, source_url, fetcher, client, now)
     if total == 0:
-        _sync_status.update({'source': 'four-source-pipeline', 'error': '四个数据源本轮均未产生有效观察记录；已保留原有数据'})
+        _sync_status.update({'source': 'five-source-pipeline', 'error': '五个数据源本轮均未产生有效观察记录；已保留原有数据'})
         raise RuntimeError(_sync_status['error'])
-    _sync_status.update({'last_success_at': now.isoformat(), 'imported_count': total, 'source': 'coingecko+github-raw+dexscreener+binance', 'error': None})
+    _sync_status.update({'last_success_at': now.isoformat(), 'imported_count': total, 'source': 'coingecko+github-raw+dexscreener+binance+solvohq', 'error': None})
     return total
 
 def get_sync_status() -> dict[str, Any]:
