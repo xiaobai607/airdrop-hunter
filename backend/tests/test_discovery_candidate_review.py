@@ -276,14 +276,15 @@ def test_admin_can_read_append_only_candidate_source_observations(monkeypatch):
     monkeypatch.setenv("COMMUNITY_CATALOG_ADMIN_TOKEN", "review-secret")
     headers = {"X-Catalog-Admin-Token": "review-secret"}
     seeded = False
-    candidate_id = None
+    candidate_id = uuid4()
 
     async def override_db():
-        nonlocal seeded, candidate_id
+        nonlocal seeded
         async with AsyncSessionLocal() as db:
             if not seeded:
                 now = datetime.now(timezone.utc)
                 candidate = AirdropDiscoveryCandidate(
+                    id=candidate_id,
                     source_key=f"observation-test-{uuid4().hex}",
                     source_name="binance-announcements",
                     source_url="https://www.binance.com/bapi/cms",
@@ -303,7 +304,6 @@ def test_admin_can_read_append_only_candidate_source_observations(monkeypatch):
                 )
                 db.add(candidate)
                 await db.flush()
-                candidate_id = candidate.id
                 db.add(AirdropDiscoveryObservation(
                     candidate_id=candidate.id,
                     source_name="binance-announcements",
