@@ -152,20 +152,6 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
                 CampaignTag(campaignStatusText(campaign.campaign_status))
                 CampaignTag(if (campaign.requires_kyc == true) "需要 KYC" else if (campaign.requires_kyc == false || campaign.is_kyc_free == true) "免 KYC" else "KYC 未知")
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    campaign.score?.let { "综合评分 $it" } ?: "评分数据不足",
-                    color = AppColors.TextSecondary,
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    campaign.listing_reason,
-                    color = AppColors.TextHelper,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 2
-                )
-            }
             Text(
                 if (campaign.official_url.isNullOrBlank()) "官方链接待核验" else "打开官方活动 ↗",
                 color = if (campaign.official_url.isNullOrBlank()) AppColors.TextHelper else AppColors.Primary,

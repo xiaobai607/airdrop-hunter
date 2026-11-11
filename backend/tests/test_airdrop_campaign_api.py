@@ -25,24 +25,12 @@ class FakeScalars:
             claim_starts_at=None,
             claim_ends_at=None,
             retroactive_possible=None,
-            temperature=82,
-            opportunity_score=76,
             is_kyc_free=True,
             requires_kyc=False,
             requires_phone=None,
             difficulty="medium",
             cost_to_farm_usd=Decimal("0"),
-            token_network=None,
-            token_contract_address=None,
-            trust_status="verified",
-            dex_pair_count=None,
-            dex_liquidity_usd=None,
-            dex_volume_24h_usd=None,
-            gecko_trending=None,
-            score=76,
-            scoring_version="v1",
             tier="featured",
-            listing_reason="Official source verified",
             last_verified_at=None,
             updated_at=datetime.now(timezone.utc),
         )]
@@ -65,9 +53,15 @@ def test_public_campaign_api_serializes_campaign_fields_and_is_read_only():
         row = response.json()[0]
         assert row["name"] == "Verified Test Campaign"
         assert row["tier"] == "featured"
-        assert row["score"] == 76
+        assert "score" not in row
+        assert "scoring_version" not in row
+        assert "listing_reason" not in row
+        assert "trust_status" not in row
+        assert "dex_liquidity_usd" not in row
+        assert "token_contract_address" not in row
         assert row["is_kyc_free"] is True
-        assert row["token_contract_address"] is None
+        assert row["campaign_status"] == "ongoing"
+        assert row["official_url"] == "https://official.example/campaign"
         assert row["listing_reason"] == "Official source verified"
     finally:
         app.dependency_overrides.pop(get_db, None)

@@ -2025,3 +2025,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Reviewed license and attribution details are carried into imported lead provenance. These records remain internal observation leads and are not promoted into confirmed campaigns.
 - Removed the stale test that still called the deleted `web3-discover` generic normalizer; retained a direct regression that the retired source label remains untrusted.
 - This module has not yet passed exact-head CI at the time of this entry. The preceding run #1081 had 209 tests pass and one stale-test failure; a single batched backend validation is required after this complete change.
+
+
+### 2026-11-11 — Keep internal campaign scoring out of public discovery
+
+- The public campaign response and Android DTO no longer expose internal score, scoring version, listing rationale, trust flags, token contract identifiers, CoinGecko trend flags or DexScreener pool/liquidity/volume telemetry.
+- Removed the visible “综合评分 / 评分数据不足” row and internal listing-reason text from campaign cards. The visible card retains campaign name, concise description, chain, status, KYC information and official action.
+- Retained the backend scoring engine and persistence/history for internal publication decisions; this is a presentation/API-boundary cleanup, not deletion of the scoring gate.
+- Added API regression assertions that internal scoring, trust and market telemetry fields are absent from the public response.

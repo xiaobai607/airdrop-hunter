@@ -32,24 +32,12 @@ class PublicCampaign(BaseModel):
     claim_starts_at: datetime | None
     claim_ends_at: datetime | None
     retroactive_possible: bool | None
-    temperature: int | None
-    opportunity_score: int | None
     is_kyc_free: bool | None
     requires_kyc: bool | None
     requires_phone: bool | None
     difficulty: str | None
     cost_to_farm_usd: Decimal | None
-    token_network: str | None
-    token_contract_address: str | None
-    trust_status: str
-    dex_pair_count: int | None
-    dex_liquidity_usd: Decimal | None
-    dex_volume_24h_usd: Decimal | None
-    gecko_trending: bool | None
-    score: int | None
-    scoring_version: str
     tier: str
-    listing_reason: str
     last_verified_at: datetime | None
     updated_at: datetime
 
@@ -66,7 +54,7 @@ async def list_public_campaigns(
     offset: int = Query(default=0, ge=0, le=10000),
     db: AsyncSession = Depends(get_db),
 ) -> list[PublicCampaign]:
-    """Return only explicitly published, approved campaigns; observation rows stay private."""
+    """Return only published campaign facts; internal trust, scoring and market telemetry stay private."""
     statement = select(AirdropCampaign).where(
         AirdropCampaign.is_published.is_(True),
         AirdropCampaign.tier.in_(("featured", "ordinary")),
@@ -118,24 +106,12 @@ async def list_public_campaigns(
             claim_starts_at=row.claim_starts_at,
             claim_ends_at=row.claim_ends_at,
             retroactive_possible=row.retroactive_possible,
-            temperature=row.temperature,
-            opportunity_score=row.opportunity_score,
             is_kyc_free=row.is_kyc_free,
             requires_kyc=row.requires_kyc,
             requires_phone=row.requires_phone,
             difficulty=row.difficulty,
             cost_to_farm_usd=row.cost_to_farm_usd,
-            token_network=row.token_network,
-            token_contract_address=row.token_contract_address,
-            trust_status=row.trust_status,
-            dex_pair_count=row.dex_pair_count,
-            dex_liquidity_usd=row.dex_liquidity_usd,
-            dex_volume_24h_usd=row.dex_volume_24h_usd,
-            gecko_trending=row.gecko_trending,
-            score=row.score,
-            scoring_version=row.scoring_version,
             tier=row.tier,
-            listing_reason=row.listing_reason,
             last_verified_at=row.last_verified_at,
             updated_at=row.updated_at,
         )
