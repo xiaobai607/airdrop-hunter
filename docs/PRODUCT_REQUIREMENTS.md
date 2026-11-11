@@ -2060,7 +2060,7 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 ### 2026-11-11 — place Binance official activities inside the airdrop library
 
 - The Home dashboard has one **空投列表** entry for the verified public campaign catalog (`AirdropCampaignsScreen`); it no longer has a separate Binance card.
-- Inside the airdrop library, a dedicated **币安官方活动** card appears above the first public campaign. Tapping it opens the independent Binance announcement/activity hub (`AirdropHubScreen`).
+- Inside the airdrop library's fetched campaign list, **币安官方活动** occupies the first campaign-card position (the slot where the first fetched airdrop would otherwise appear). The original first airdrop is retained and follows it as the next list item; no campaign is deleted. Tapping the Binance entry opens the independent Binance announcement/activity hub (`AirdropHubScreen`).
 - Binance announcements remain separate from the verified public campaign list: separate screen, endpoint, data contract and refresh path. They are not inserted as ordinary campaign rows.
 - Existing saved Home layouts are migrated to remove the misplaced Binance shortcut while ensuring the airdrop library entry exists. Later user layout edits remain respected.
 - Home entry queues background dynamic catalog warmup without blocking navigation. The public campaign repository continues to use its Room-backed cache and six-hour TTL. Binance official feed remains independently refreshed by its own worker cadence.

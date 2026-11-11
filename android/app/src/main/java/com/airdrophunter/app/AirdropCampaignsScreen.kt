@@ -60,34 +60,6 @@ fun AirdropCampaignsScreen(
             }
         }
 
-        Card(
-            onClick = onOpenBinanceOfficial,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-            border = BorderStroke(1.dp, AppColors.Border),
-            elevation = CardDefaults.cardElevation(0.dp)
-        ) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(color = AppColors.TealTint, shape = RoundedCornerShape(10.dp)) {
-                    Text("币安", Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        color = AppColors.Primary, style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold)
-                }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("币安官方活动", color = AppColors.TextPrimary,
-                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text("查看 Binance 官方公告与活动", color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.bodySmall)
-                }
-                Text("›", color = AppColors.Primary, style = MaterialTheme.typography.titleLarge)
-            }
-        }
-
         if (state.error != null && state.items.isEmpty()) {
             Column(
                 Modifier.fillMaxSize().padding(24.dp),
@@ -118,6 +90,36 @@ fun AirdropCampaignsScreen(
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.labelMedium
                     )
+                }
+                // The Binance entry occupies the first campaign-card slot; no public campaign is removed.
+                item(key = "binance_official_entry") {
+                    Card(
+                        onClick = onOpenBinanceOfficial,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                        border = BorderStroke(1.dp, AppColors.Border),
+                        elevation = CardDefaults.cardElevation(0.dp)
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(color = AppColors.TealTint, shape = RoundedCornerShape(10.dp)) {
+                                Text("币安", Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    color = AppColors.Primary, style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold)
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("币安官方活动", color = AppColors.TextPrimary,
+                                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text("查看 Binance 官方公告与活动", color = AppColors.TextSecondary,
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                            Text("›", color = AppColors.Primary, style = MaterialTheme.typography.titleLarge)
+                        }
+                    }
                 }
                 items(state.items, key = { it.id }) { campaign ->
                     CampaignCard(campaign) {
