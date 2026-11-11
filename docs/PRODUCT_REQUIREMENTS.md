@@ -1968,3 +1968,14 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Review of the first successful build for the parent-owned Dock drag found that the timeout block could report success after an early release or pre-timeout movement.
 - Corrected the rule: the Dock drag begins only when the stationary pointer remains pressed until the full long-press timeout expires. Early release or movement beyond touch slop cancels the parent drag and leaves normal LazyRow scrolling available.
 - The previous build artifact is not the final device-test build; exact-head CI must pass for this correction first.
+
+
+### 2026-11-11 — Repository-wide CI cost and batching policy
+
+- Historical Actions API reports 895 total workflow runs, with latest run number #1072. The run number is not the run count; run records may have gaps because of deleted/expired history or numbering semantics. The API's current total_count is the count to use for this repository's available run history.
+- Of the 895 recorded runs, 855 were named "Android debug build and backend tests"; 737 were pull_request events. Among all recorded runs, 397 concluded success, 160 failure, 302 cancelled, and 36 skipped.
+- The high pull-request run volume is not an acceptable development rhythm for a solo, zero-budget project. CI must be a final verification gate for a coherent module, not an interactive compiler.
+- From this point, related code edits must be reviewed and grouped into one coherent module change before committing. Do not create separate code commits for each small correction. Documentation-only updates should remain documentation-only and must not trigger Android builds (the workflow currently ignores docs/** and Markdown paths).
+- Before the single module validation run: inspect the full diff, call sites, imports, coroutine/suspend constraints, UI hierarchy/gesture ownership, and available local/static tests. Run Android and backend suites only when their corresponding code changed.
+- If CI fails, inspect the exact failing job and logs, fix the root cause, then perform one deliberate re-validation after the whole correction set is ready. Do not repeatedly rerun unchanged jobs or upload stale APKs.
+- Keep PR #135 Draft/Open/unmerged until the user explicitly authorizes merge. A successful CI build is not physical-device acceptance.
