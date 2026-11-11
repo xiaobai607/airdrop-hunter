@@ -1730,3 +1730,14 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 
 - Pipeline run lifecycle is now explicit: persist a `running` run before provider I/O; after a fully validated batch mark it `success`; on timeout, provider error or invalid payload mark it `failed`. Only a running run can be completed successfully, and failed/successful terminal runs cannot be converted into the other state.
 - Failure records preserve the run/error evidence but never touch campaign heat counters or temperature. Retrying a failed provider attempt must use a new run UUID; replaying a successful UUID is a no-op.
+
+
+### Implementation checkpoint — trusted-source discovery refactor (2026-11-11)
+
+- Removed RSS/Atom candidate intake and RSS-candidate promotion from the scheduled `sync_airdrop_hub.py` workflow. Legacy RSS parser/model code remains dormant for compatibility; it is not called by the scheduled sync.
+- Added catalog-level `trust_level` and `publication_status` fields with migration `0023_trusted_catalog_source`. Existing rows default conservatively to `TRUST_LEVEL_0` / `OBSERVATION`; no legacy row is silently upgraded.
+- The catalog importer now has a code-controlled `TRUSTED_AIRDROP_PROVIDER_LABELS` allowlist. Only a provider explicitly added after confirming a free documented airdrop-directory endpoint and reuse terms can map to `TRUST_LEVEL_1` / `PUBLISHED_SAFE`. Environment variables cannot elevate an arbitrary source.
+- The existing `web3-discover` JSON/MCP importer is now disabled because it is not approved as a head-tier provider and has no confirmed republication permission. No active trusted airdrop provider is configured yet; sync safely returns `no_trusted_free_airdrop_provider` without network calls.
+- `GET /api/airdrops/hub` now returns `data_source`, `trust_level`, and `publication_status`, and only exposes rows in `PUBLISHED_SAFE`.
+- Added regression tests for source allowlisting, automatic trust/publication state mapping, API provenance fields, and disabled sync with no approved free airdrop provider.
+- Provider availability research: DefiLlama free endpoints do not document an airdrop directory; CoinGecko free API is asset/market data, not airdrop discovery; CoinMarketCap's Airdrops endpoint is not in its free API plan; CryptoRank's Drophunting endpoint is Business-tier. These are not activated as free airdrop sources. The next engineering step is to identify and verify an eligible provider or keep discovery paused—never substitute scraping or paid calls.
