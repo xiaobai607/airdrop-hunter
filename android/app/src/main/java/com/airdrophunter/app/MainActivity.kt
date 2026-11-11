@@ -124,7 +124,7 @@ private fun AirdropHunterApp(
     )
     val secondaryTitle = when {
         activeOverlay == AppOverlay.SOURCES -> stringResource(R.string.sources_title)
-        activeOverlay == AppOverlay.AIRDROP_HUB -> "空投大厅"
+        activeOverlay == AppOverlay.AIRDROP_HUB -> "空投发现"
         activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> "空投活动"
         activeOverlay == AppOverlay.WALLET_MANAGER -> "钱包管理"
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
@@ -177,7 +177,7 @@ private fun AirdropHunterApp(
         Box(Modifier.fillMaxSize().background(AppColors.Background).padding(padding)) {
             when {
                 activeOverlay == AppOverlay.SOURCES -> SourcesScreen(Modifier.fillMaxSize())
-                activeOverlay == AppOverlay.AIRDROP_HUB -> AirdropHubScreen(Modifier.fillMaxSize(), onOpenCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS })
+                activeOverlay == AppOverlay.AIRDROP_HUB -> AirdropHubScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> AirdropCampaignsScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.TRON_ENERGY -> TronEnergyAssistantScreen(
                     modifier = Modifier.fillMaxSize(),
