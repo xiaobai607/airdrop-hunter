@@ -2082,3 +2082,9 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Corrected the importer and its regression test to request `(128, 93)`. The Latest Activities feed remains keyword-filtered; unrelated general Binance news is not added to the airdrop hub.
 - Official category pages checked: `/en/support/announcement/list/128` (Crypto Airdrop) and `/en/support/announcement/list/93` (Latest Activities); `/en/support/announcement/list/49` is Latest Binance News.
 - This correction supersedes the immediately preceding catalog mapping. Exact-head Push workflow #1111 for commit `2546778c` passed: `pytest -q` reported 213 passed, 3 warnings in 8.54s. Android build was skipped because this commit changed backend files only.
+
+### 2026-11-11 — Binance CMS list endpoint compatibility
+
+- Follow-up source review found the current RSSHub Binance announcement adapter using the newer observed `/bapi/apex/v1/public/apex/cms/article/list/query` route, while this importer still used the older `/bapi/composite/v1/public/cms/article/list/query` route.
+- Updated the importer to try the apex route first and fall back to the composite route per category. Added MockTransport regression tests for both primary and fallback paths.
+- The endpoint is an observed Binance web-CMS interface, not a documented supported Binance API. Exact-head backend CI and a real live-provider smoke test remain separate checks.

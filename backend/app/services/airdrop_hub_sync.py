@@ -16,7 +16,8 @@ from app.services.discovery_source_status import record_discovery_source_status
 
 logger = logging.getLogger("airdrop_hunter.airdrop_sync")
 
-BINANCE_CMS_SOURCE = "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
+BINANCE_CMS_SOURCE = "https://www.binance.com/bapi/apex/v1/public/apex/cms/article/list/query"
+BINANCE_CMS_LEGACY_SOURCE = "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
 BINANCE_CATALOGS = (128, 93)
 BINANCE_AIRDROP_KEYWORDS = re.compile(r"airdrop|launchpool|hodler|megadrop", re.IGNORECASE)
 
@@ -256,20 +257,45 @@ async def fetch_binance_article_detail(article_code: str, *, fallback_title: str
 async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
     by_key: dict[str, dict[str, str]] = {}
     errors: list[str] = []
+    headers = {
+        "Origin": "https://www.binance.com",
+        "Referer": "https://www.binance.com/en/messages/v2/group/announcement",
+        "clienttype": "web",
+        "lang": "en",
+        "Accept-Language": "en",
+    }
+    # Binance's current announcement frontend is observed using the apex CMS
+    # route. Keep the former composite route as a compatibility fallback.
     for catalog_id in BINANCE_CATALOGS:
-        try:
-            response = await client.get(
-                BINANCE_CMS_SOURCE,
-                params={"type": 1, "pageSize": 30, "pageNo": 1, "catalogId": catalog_id},
-                headers={"Origin": "https://www.binance.com", "clienttype": "web", "lang": "en"},
-            )
-            response.raise_for_status()
-            rows = _normalize_binance_announcements(response.json(), catalog_id=catalog_id)
-            for row in rows:
-                by_key[row["source_key"]] = row
-        except (httpx.HTTPError, ValueError, TypeError) as exc:
-            errors.append(f"catalog {catalog_id}: {type(exc).__name__}")
-            logger.warning("Binance catalog %s failed: %s", catalog_id, exc)
+        last_error: Exception | None = None
+        for endpoint in (BINANCE_CMS_SOURCE, BINANCE_CMS_LEGACY_SOURCE):
+            try:
+                response = await client.get(
+                    endpoint,
+                    params={"type": 1, "pageSize": 30, "pageNo": 1, "catalogId": catalog_id},
+                    headers=headers,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                data = payload.get("data") if isinstance(payload, dict) else None
+                catalogs = data.get("catalogs") if isinstance(data, dict) else None
+                if not isinstance(catalogs, list):
+                    raise ValueError("Binance CMS response missing data.catalogs")
+                rows = _normalize_binance_announcements(payload, catalog_id=catalog_id)
+                for row in rows:
+                    by_key[row["source_key"]] = row
+                last_error = None
+                break
+            except (httpx.HTTPError, ValueError, TypeError) as exc:
+                last_error = exc
+                logger.warning(
+                    "Binance catalog %s endpoint %s failed: %s",
+                    catalog_id,
+                    urlparse(endpoint).path,
+                    type(exc).__name__,
+                )
+        if last_error is not None:
+            errors.append(f"catalog {catalog_id}: {type(last_error).__name__}")
     if not by_key and errors:
         raise RuntimeError("Binance CMS categories unavailable: " + "; ".join(errors))
     return list(by_key.values())

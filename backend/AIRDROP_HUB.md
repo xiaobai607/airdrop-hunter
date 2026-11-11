@@ -81,3 +81,9 @@ Automated tests and CI validate the authored parser, fail-closed approval metada
 - `93` is Binance's **Latest Activities** category (`/en/support/announcement/list/93`). This is the activity feed used by the importer; titles are still keyword-filtered for airdrop/Launchpool/HODLer/Megadrop relevance.
 - `49` is **not** Latest Activities; the official announcement UI identifies it as **Latest Binance News**. Do not use it as the activity category.
 - The importer therefore requests only catalog IDs `(128, 93)`. It does not ingest the general news category.
+
+### Binance announcement list endpoint compatibility (2026-11-11)
+
+- The current RSSHub Binance announcement adapter uses Binance's newer observed route `/bapi/apex/v1/public/apex/cms/article/list/query` with the same `type/pageNo/pageSize/catalogId` parameters and `data.catalogs[].articles[]` response structure.
+- The importer now tries that route first and falls back per category to the former `/bapi/composite/v1/public/cms/article/list/query` route if the request fails or the response does not contain `data.catalogs`.
+- This is a compatibility measure based on observed frontend usage, not a Binance-supported public API guarantee. A live provider smoke test is still required; MockTransport tests only verify request construction and fallback behavior.
