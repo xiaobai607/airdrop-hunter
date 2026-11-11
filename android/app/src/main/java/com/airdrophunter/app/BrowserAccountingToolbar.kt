@@ -214,6 +214,19 @@ fun BrowserAccountingToolbar(
         val leftSnap = -maxHorizontalDrag
         val rightSnap = maxHorizontalDrag
 
+        fun animateDockToEdge() {
+            val targetX = when {
+                maxHorizontalDrag <= 0f -> 0f
+                dragOffsetX.value < 0f -> leftSnap
+                else -> rightSnap
+            }
+            val targetY = dragOffsetY.value.coerceIn(-maxVerticalDrag, 0f)
+            scope.launch {
+                launch { dragOffsetX.animateTo(targetX, androidx.compose.animation.core.tween(260)) }
+                launch { dragOffsetY.animateTo(targetY, androidx.compose.animation.core.tween(260)) }
+            }
+        }
+
         // One outer movable target owns both the translucent capsule and its tools.
         Box(
             modifier = Modifier
@@ -232,30 +245,18 @@ fun BrowserAccountingToolbar(
                     IntOffset(dragOffsetX.value.roundToInt(), dragOffsetY.value.roundToInt())
                 }
                 .pointerInput(maxWidth, maxHeight) {
+                    var dragStarted = false
                     detectDragGesturesAfterLongPress(
+                        onDragStart = { dragStarted = true },
                         onDragEnd = {
-                            val targetX = when {
-                                maxHorizontalDrag <= 0f -> 0f
-                                dragOffsetX.value < 0f -> leftSnap
-                                else -> rightSnap
-                            }
-                            val targetY = dragOffsetY.value.coerceIn(-maxVerticalDrag, 0f)
-                            scope.launch {
-                                launch { dragOffsetX.animateTo(targetX, androidx.compose.animation.core.tween(260)) }
-                                launch { dragOffsetY.animateTo(targetY, androidx.compose.animation.core.tween(260)) }
-                            }
+                            if (dragStarted) animateDockToEdge()
+                            dragStarted = false
                         },
                         onDragCancel = {
-                            val targetX = when {
-                                maxHorizontalDrag <= 0f -> 0f
-                                dragOffsetX.value < 0f -> leftSnap
-                                else -> rightSnap
-                            }
-                            val targetY = dragOffsetY.value.coerceIn(-maxVerticalDrag, 0f)
-                            scope.launch {
-                                launch { dragOffsetX.animateTo(targetX, androidx.compose.animation.core.tween(260)) }
-                                launch { dragOffsetY.animateTo(targetY, androidx.compose.animation.core.tween(260)) }
-                            }
+                            // A child LazyRow swipe can cancel the long-press detector.
+                            // Never snap the Dock unless its whole-component drag began.
+                            if (dragStarted) animateDockToEdge()
+                            dragStarted = false
                         }
                     ) { change, amount ->
                         change.consume()
