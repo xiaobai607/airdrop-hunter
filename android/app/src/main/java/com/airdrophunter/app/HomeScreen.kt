@@ -72,7 +72,7 @@ fun HomeScreen(
     onOpenProjects: () -> Unit,
     onOpenAirdropHub: () -> Unit = {},
     onOpenTronEnergy: () -> Unit = {},
-    onOpenAccounting: () -> Unit = onOpenProjects,
+    onOpenAccounting: () -> Unit = {},
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
     sessionScopeKey: String = "guest",
@@ -167,35 +167,20 @@ fun HomeScreen(
                 style = MaterialTheme.typography.labelSmall
             )
         }
-        Card(
-            onClick = onOpenAccounting,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-            border = BorderStroke(1.dp, AppColors.Border),
-            elevation = CardDefaults.cardElevation(0.dp)
+        // Search belongs directly below the market dashboard, before all shortcuts.
+        Row(
+            Modifier.fillMaxWidth()
+                .height(54.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(AppColors.Surface)
+                .clickable(onClick = onOpenGlobalSearch)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(11.dp)
         ) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFE8F3F1)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = AppColors.Primary,
-                        modifier = Modifier.size(23.dp))
-                }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("记账", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium)
-                    Text("选择项目，记录 Gas 消耗与实际收益", color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.bodySmall)
-                }
-                Text("去记账  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold)
-            }
+            Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.TextSecondary)
+            Text("搜索币种或 DApp", color = AppColors.TextHelper,
+                style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         }
 
         var dashboardCards by remember { mutableStateOf(HomeDashboardLayoutStore.load(context)) }
@@ -214,6 +199,7 @@ fun HomeScreen(
                 "airdrop_navigation" -> { showNavOverlay = true; navContentVisible = true }
                 "wallet_management" -> onOpenWallet()
                 "tron_energy" -> onOpenTronEnergy()
+                "accounting" -> onOpenAccounting()
                 "airdrop_library" -> onOpenAirdropHub()
                 "project_library" -> onOpenProjects()
             }
@@ -251,6 +237,7 @@ fun HomeScreen(
                     val icon = when (card.id) {
                         "wallet_management" -> Icons.Default.AccountBalanceWallet
                         "tron_energy" -> Icons.Default.Shield
+                        "accounting" -> Icons.Default.ReceiptLong
                         "airdrop_library" -> Icons.Default.NotificationsNone
                         "project_library" -> Icons.Default.Search
                         else -> Icons.Default.Search
@@ -361,27 +348,6 @@ fun HomeScreen(
                     }
                 },
                 confirmButton = { TextButton(onClick = { showAddDashboardCard = false }) { Text("关闭") } }
-            )
-        }
-
-        // Keep exactly one Home entry point for the existing global coin/DApp search.
-        // The search implementation and dedicated destination remain in GlobalSearchScreen.
-        Row(
-            Modifier.fillMaxWidth()
-                .height(54.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(AppColors.Surface)
-                .clickable(onClick = onOpenGlobalSearch)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(11.dp)
-        ) {
-            Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.TextSecondary)
-            Text(
-                "搜索币种或 DApp",
-                color = AppColors.TextHelper,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f)
             )
         }
 
@@ -560,6 +526,7 @@ private object HomeDashboardLayoutStore {
         "airdrop_navigation" to HomeDashboardCardSpec(widthFraction = 1f, heightDp = 76),
         "wallet_management" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "tron_energy" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
+        "accounting" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "airdrop_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "project_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104)
     )
@@ -569,12 +536,14 @@ private object HomeDashboardLayoutStore {
 
     val defaults = listOf(
         HomeDashboardCard("airdrop_navigation"),
+        HomeDashboardCard("accounting"),
         HomeDashboardCard("wallet_management"),
         HomeDashboardCard("tron_energy")
     )
-    private val supported = listOf("airdrop_navigation", "wallet_management", "tron_energy", "airdrop_library", "project_library")
+    private val supported = listOf("airdrop_navigation", "accounting", "wallet_management", "tron_energy", "airdrop_library", "project_library")
     fun title(id: String) = when (id) {
         "airdrop_navigation" -> "空投导航"
+        "accounting" -> "记账"
         "wallet_management" -> "钱包管理"
         "tron_energy" -> "⚡ TRON 能量租赁"
         "airdrop_library" -> "空投库"
@@ -583,6 +552,7 @@ private object HomeDashboardLayoutStore {
     }
     fun subtitle(id: String) = when (id) {
         "airdrop_navigation" -> "常用活动网站"
+        "accounting" -> "记录 Gas 消耗与实际收益"
         "wallet_management" -> "管理已保存地址"
         "tron_energy" -> "租赁前核对转出地址"
         "airdrop_library" -> "发现和浏览空投项目"
@@ -595,8 +565,11 @@ private object HomeDashboardLayoutStore {
             .getString("cards", null) ?: return defaults
         val type = object : TypeToken<List<HomeDashboardCard>>() {}.type
         val parsed = runCatching { Gson().fromJson<List<HomeDashboardCard>>(raw, type) }.getOrNull() ?: return defaults
-        return parsed.filter { it.id in supported }.distinctBy { it.id }
+        val valid = parsed.filter { it.id in supported }.distinctBy { it.id }
             .map { HomeDashboardCard(it.id) }
+        // Upgrade existing saved layouts so the new accounting shortcut is visible by default.
+        return if (valid.any { it.id == "accounting" }) valid
+            else valid.toMutableList().apply { add(minOf(1, size), HomeDashboardCard("accounting")) }
     }
     fun save(context: android.content.Context, cards: List<HomeDashboardCard>) {
         val valid = cards.filter { it.id in supported }.distinctBy { it.id }
