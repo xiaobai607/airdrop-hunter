@@ -130,7 +130,7 @@ internal data class AirdropFilterMetadata(
 internal fun matchesAirdropFilters(metadata: AirdropFilterMetadata, selection: AirdropFilterSelection): Boolean {
     if (selection.values.isEmpty()) return true
     val valuesByGroup = mapOf(
-        "supported_chains" to (metadata.supportedChains.ifEmpty { listOf(metadata.chain.lowercase().replace(" ", "-")) }),
+        "supported_chains" to metadata.supportedChains.ifEmpty { listOf("unknown") },
         "categories" to metadata.categories,
         "participation_requirements" to metadata.participationRequirements,
         "funding_requirement" to listOf(metadata.fundingRequirement),
