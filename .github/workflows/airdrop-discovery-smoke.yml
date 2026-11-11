@@ -1,0 +1,43 @@
+name: Live discovery source smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to test (defaults to the current development branch)"
+        required: true
+        type: string
+        default: "feature/mobile-browser-home-dock-batch"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discovery-source-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      COINGECKO_DEMO_API_KEY: ${{ secrets.COINGECKO_DEMO_API_KEY }}
+      AIRDROP_GITHUB_RAW_SOURCE_APPROVALS: ${{ vars.AIRDROP_GITHUB_RAW_SOURCE_APPROVALS }}
+      DEXSCREENER_SEARCH_QUERIES: ${{ vars.DEXSCREENER_SEARCH_QUERIES }}
+    steps:
+      - name: Check out requested application revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install backend dependencies
+        run: pip install .
+      - name: Fetch live provider data without database writes
+        run: python -m scripts.smoke_discovery_sources
