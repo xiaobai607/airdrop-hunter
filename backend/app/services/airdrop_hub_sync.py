@@ -319,6 +319,8 @@ async def _fetch_github_observations(client: httpx.AsyncClient) -> list[dict[str
         try:
             response = await client.get(url, headers={'Accept': 'application/json, text/plain'})
             response.raise_for_status()
+            if len(response.content) > 2_000_000:
+                raise ValueError('GitHub Raw file exceeds 2 MB safety limit')
             try: payload = response.json()
             except ValueError: payload = response.text
             rows.extend(_normalize_github_airdrop_list(payload, url))
