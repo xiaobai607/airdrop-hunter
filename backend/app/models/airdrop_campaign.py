@@ -68,6 +68,7 @@ class AirdropCampaign(Base):
     listing_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
     review_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
     low_heat_success_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    last_heat_source_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     last_source_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
