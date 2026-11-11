@@ -140,6 +140,7 @@ class ProjectsRepository(
             expected_income = normalized.expected_income,
             gas_cost = normalized.gas_cost,
             actual_income = normalized.actual_income,
+            communityOfficialId = normalized.community_official_id?.trim()?.takeIf { it.isNotEmpty() },
             syncPending = !guest
         )
         val updated = current + created
