@@ -2,9 +2,9 @@
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
-## 0.2 Latest user-confirmed data-discovery strategy — three-source, zero-budget standard (2026-11-11)
+## 0.2 Latest user-confirmed data-discovery strategy — four-source, zero-budget standard (2026-11-11)
 
-The user has explicitly replaced the previous discovery-source selection. The ONLY source families approved for this implementation round are CoinGecko Demo API, GitHub Raw Content, and DexScreener public API. CoinMarketCal is excluded. Do not add Binance, DropsTab, Airdrops.io, or any other discovery source in this round.
+The user has confirmed four source families for this implementation round: CoinGecko Demo API, GitHub Raw Content, DexScreener public API, and Binance public announcements. CoinMarketCal is excluded. Do not add DropsTab, Airdrops.io, or any other discovery source in this round.
 
 ### 1. CoinGecko Demo API — Airdrop category
 - Use the free CoinGecko Demo API key supplied by the operator through server environment variable `COINGECKO_DEMO_API_KEY`; never hardcode or commit credentials.
@@ -26,12 +26,18 @@ The user has explicitly replaced the previous discovery-source selection. The ON
 - Store chain ID, token address, token name/symbol, pair URL, pair creation time, liquidity, 24h volume, and 24h transaction count where available. Deduplicate by chain ID + token address.
 - These are “新币/交易活跃线索”, not airdrop records. Do not claim an airdrop exists, a contract is safe, or a token is legitimate based on trading activity. Do not fabricate a project official website.
 
+### 4. Binance public announcements — Crypto Airdrop and relevant activity catalogs
+- Include Binance's public announcement center, which explicitly exposes a Crypto Airdrop topic, as an independent observation source. Use the public CMS article-list endpoint already present in the project adapter for catalog IDs 128 (Crypto Airdrop) and 93 (Latest Activities); catalog 93 must be keyword-filtered for airdrop-related terms such as airdrop, Launchpool, HODLer, and Megadrop.
+- Parse article title and announcement code only; construct the canonical Binance announcement URL from the code. Keep original title, source, and stable announcement code as provenance.
+- Every imported Binance article is `TRUST_LEVEL_0` + `OBSERVATION` and “待核实”; headlines alone do not establish eligibility, reward, claim window, or user qualification. Do not fabricate those fields.
+- The CMS endpoint is a public web-content interface, not a guaranteed stable public API contract. Treat errors/format changes as a per-source failure and retain last-known-good records; this is an operational caveat, not a reason to reject the approved source.
+
 ### Unified behavior and exclusions
-- The three adapters are independent: one failure must not stop the other two. Persist per-source success/failure metadata and counts; never replace last-known-good records with an empty/error response.
-- All records from these three sources are `TRUST_LEVEL_0` + `OBSERVATION`. The app must visibly distinguish “待核实” and source attribution; DexScreener entries should additionally be identified as market/pool observations, not airdrop campaigns.
+- The four adapters are independent: one failure must not stop the other two. Persist per-source success/failure metadata and counts; never replace last-known-good records with an empty/error response.
+- All records from these four sources are `TRUST_LEVEL_0` + `OBSERVATION`. The app must visibly distinguish “待核实” and source attribution; DexScreener entries should additionally be identified as market/pool observations, not airdrop campaigns.
 - Keep stable source keys, HTTPS URL validation, bounded fields, source attribution, deduplication, conservative polling, and caching. No paid API, paid trial, paid proxy, paid scraping actor, hidden metered service, or automatic plan upgrade.
 - Do not send personal wallet addresses, private ledger rows, transaction hashes, or identity data to these providers.
-- CoinMarketCal is explicitly excluded from this round. Binance CMS, DropsTab, Airdrops.io, and all other unlisted discovery sources are also excluded from the active sync pipeline.
+- CoinMarketCal is explicitly excluded from this round. DropsTab, Airdrops.io, and all other unlisted discovery sources are also excluded from the active sync pipeline.
 
 
 ## 0.1 Latest user-confirmed corrections — 2026-11-11 (authoritative overrides)
