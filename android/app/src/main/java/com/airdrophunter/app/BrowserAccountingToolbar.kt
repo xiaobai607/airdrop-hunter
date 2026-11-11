@@ -58,7 +58,9 @@ fun BrowserAccountingToolbar(
     onRefreshPage: () -> Unit,
     onCopyPageUrl: () -> Unit,
     onOpenPageExternally: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    initialShowBillList: Boolean = false,
+    showDock: Boolean = true
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -68,7 +70,7 @@ fun BrowserAccountingToolbar(
 
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var activeBill by remember { mutableStateOf<PendingBillEntity?>(null) }
-    var showBillList by remember { mutableStateOf(false) }
+    var showBillList by remember { mutableStateOf(initialShowBillList) }
     var showConfirm by remember { mutableStateOf(false) }
     var showProjectPicker by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
@@ -200,7 +202,7 @@ fun BrowserAccountingToolbar(
         isValidNativeAssetInput(gasNative, gasSymbol, gasDecimals) &&
             isValidNativeAssetInput(rewardNative, rewardSymbol, rewardDecimals)
 
-    BoxWithConstraints(
+    if (showDock) BoxWithConstraints(
         modifier = modifier.fillMaxSize()
     ) {
         val dockWidth = minOf(maxWidth * 0.94f, 420.dp)
@@ -757,4 +759,24 @@ private fun isValidNativeAssetInput(amount: String, symbol: String, decimals: St
     val value = amount.toBigDecimalOrNull() ?: return false
     if (value.signum() < 0 || symbol.isBlank()) return false
     return decimals.isBlank() || decimals.toIntOrNull()?.let { it in 0..36 } == true
+}
+
+
+@Composable
+fun AccountingCenterScreen(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val wallets = remember(application) { application.appContainer.walletRepository }
+    val walletAddress by wallets.observeWallets().collectAsStateWithLifecycle(initialValue = emptyList())
+    BrowserAccountingToolbar(
+        walletAddress = walletAddress.firstOrNull()?.address.orEmpty(),
+        chainName = walletAddress.firstOrNull()?.chain.orEmpty(),
+        onCopyAddress = {},
+        onRefreshPage = {},
+        onCopyPageUrl = {},
+        onOpenPageExternally = {},
+        modifier = modifier,
+        initialShowBillList = true,
+        showDock = false
+    )
 }
