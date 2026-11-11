@@ -50,17 +50,19 @@ def upgrade() -> None:
         "optimism": ["op-mainnet"],
     }
     for project_id, chains in updates.items():
-        op.execute(
-            sa.text(
-                "UPDATE community_project_catalog "
-                "SET supported_chains = :chains, categories = :categories "
-                "WHERE project_official_id = :project_id"
-            ).bindparams(
-                chains=sa.bindparam("chains", type_=sa.JSON()),
-                categories=sa.bindparam("categories", type_=sa.JSON()),
-                project_id=project_id,
-            ).params(chains=chains, categories=["layer2"], project_id=project_id)
+        statement = sa.text(
+            "UPDATE community_project_catalog "
+            "SET supported_chains = :chains, categories = :categories "
+            "WHERE project_official_id = :project_id"
+        ).bindparams(
+            sa.bindparam("chains", type_=sa.JSON()),
+            sa.bindparam("categories", type_=sa.JSON()),
         )
+        op.get_bind().execute(statement, {
+            "chains": chains,
+            "categories": ["layer2"],
+            "project_id": project_id,
+        })
 
 
 def downgrade() -> None:
