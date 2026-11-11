@@ -15,6 +15,7 @@ import httpx
 
 from app.services.airdrop_hub_sync import (
     _fetch_binance_observations,
+    _fetch_binance_public_market_data,
     _fetch_coingecko_observations,
     _fetch_dexscreener_observations,
     _fetch_github_observations,
@@ -27,6 +28,9 @@ Adapter = Callable[[httpx.AsyncClient], Awaitable[list[dict[str, Any]]]]
 async def main() -> int:
     adapters: list[tuple[str, Adapter, bool]] = [
         ("binance-announcements", _fetch_binance_observations, True),
+        # Independent fallback proves Binance's basic public API is reachable.
+        # It is market data only and must never be counted as an airdrop source.
+        ("binance-public-market-data", _fetch_binance_public_market_data, True),
         ("dexscreener-market-leads", _fetch_dexscreener_observations, True),
         (
             "coingecko-airdrop-category",
