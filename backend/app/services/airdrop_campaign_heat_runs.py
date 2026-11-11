@@ -1,7 +1,7 @@
 """Record trustworthy, successful campaign-heat observations.
 
-Call only after one complete provider batch has been fetched and validated.
-RSS intake and DEX market enrichment are not campaign-heat observations.
+Only complete, validated provider batches count. RSS intake and DEX market
+enrichment are not campaign-heat observations.
 """
 from datetime import datetime, timezone
 import hashlib
@@ -33,9 +33,65 @@ def _validated_observations(observations: list[dict]) -> list[dict]:
         if campaign_id in seen:
             raise ValueError("A campaign may appear only once in a heat batch")
         seen.add(campaign_id)
-        # The campaign's canonical temperature field is integer-valued.
         normalized.append({"campaign_id": campaign_id, "heat": int(round(raw_heat))})
     return normalized
+
+
+async def start_campaign_heat_run(
+    db: AsyncSession,
+    *,
+    source_name: str,
+    run_id: uuid.UUID,
+) -> AirdropPipelineRun:
+    """Persist a stable running marker before contacting the provider."""
+    name = str(source_name or "").strip()
+    if not name:
+        raise ValueError("A heat source name is required")
+    if not isinstance(run_id, uuid.UUID):
+        raise ValueError("A stable pipeline run_id is required")
+
+    existing = await db.get(AirdropPipelineRun, run_id, with_for_update=True)
+    if existing is not None:
+        if existing.source_name != name:
+            raise ValueError("A pipeline run ID cannot be reused for another source")
+        return existing
+
+    now = datetime.now(timezone.utc)
+    run = AirdropPipelineRun(
+        id=run_id,
+        source_name=name,
+        status="running",
+        items_seen=0,
+        items_created=0,
+        items_updated=0,
+        items_rejected=0,
+        started_at=now,
+    )
+    db.add(run)
+    await db.commit()
+    return run
+
+
+async def fail_campaign_heat_run(
+    db: AsyncSession,
+    *,
+    run_id: uuid.UUID,
+    error_code: str,
+) -> bool:
+    """Mark a failed provider attempt without touching campaign heat counters."""
+    run = await db.get(AirdropPipelineRun, run_id, with_for_update=True)
+    if run is None:
+        raise ValueError("Campaign heat run does not exist")
+    if run.status == "success":
+        return False
+    if run.status == "failed":
+        return False
+
+    run.status = "failed"
+    run.error_code = str(error_code or "provider_error")[:120]
+    run.finished_at = datetime.now(timezone.utc)
+    await db.commit()
+    return True
 
 
 async def record_successful_campaign_heat_batch(
@@ -46,17 +102,12 @@ async def record_successful_campaign_heat_batch(
     observations: list[dict],
     run_id: uuid.UUID,
 ) -> dict[str, int | bool]:
-    """Persist one completed heat batch exactly once.
+    """Complete a previously started run exactly once.
 
-    The caller must create/persist a pipeline run ID before fetching and reuse
-    that same ID on retries. Provider failures must never call this success
-    recorder; they must leave the campaign counters unchanged and mark their
-    pipeline run failed in the caller's failure path.
-
-    Unknown/missing campaign heat is omitted, never converted to zero. Each
-    explicit successful observation updates the campaign temperature. Only
-    consecutive low-heat successes from the same source increment the counter;
-    a source change starts a new streak, and heat >= 40 resets it.
+    The caller starts the run before fetching, then calls this function only
+    after the entire provider batch has been fetched and validated. On failure,
+    call fail_campaign_heat_run instead. Replaying a successful run is a no-op.
+    Unknown/missing heat is omitted, never synthesized as zero.
     """
     name = str(source_name or "").strip()
     parsed_url = urlparse(str(source_url or "").strip())
@@ -68,13 +119,15 @@ async def record_successful_campaign_heat_batch(
         raise ValueError("A stable pipeline run_id is required for idempotency")
 
     rows = _validated_observations(observations)
-    existing_run = await db.get(AirdropPipelineRun, run_id)
-    if existing_run is not None:
-        return {
-            "replayed": True,
-            "observed": existing_run.items_seen,
-            "updated": 0,
-        }
+    run = await db.get(AirdropPipelineRun, run_id, with_for_update=True)
+    if run is None:
+        raise ValueError("Start the campaign heat run before recording success")
+    if run.source_name != name:
+        raise ValueError("Pipeline run source does not match heat source")
+    if run.status == "success":
+        return {"replayed": True, "observed": run.items_seen, "updated": 0}
+    if run.status != "running":
+        raise ValueError("Only a running campaign heat run can be completed")
 
     now = datetime.now(timezone.utc)
     campaigns: list[tuple[AirdropCampaign, dict]] = []
@@ -83,17 +136,13 @@ async def record_successful_campaign_heat_batch(
         if campaign is not None:
             campaigns.append((campaign, row))
 
-    db.add(AirdropPipelineRun(
-        id=run_id,
-        source_name=name,
-        status="success",
-        items_seen=len(rows),
-        items_created=0,
-        items_updated=len(campaigns),
-        items_rejected=len(rows) - len(campaigns),
-        started_at=now,
-        finished_at=now,
-    ))
+    run.status = "success"
+    run.items_seen = len(rows)
+    run.items_created = 0
+    run.items_updated = len(campaigns)
+    run.items_rejected = len(rows) - len(campaigns)
+    run.finished_at = now
+    run.error_code = None
 
     for campaign, row in campaigns:
         heat = row["heat"]
