@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.airdrophunter.app.matchesCommunityProjectStatus
 
 class CommunityProjectCatalogTest {
     @Test fun pickerUsesDynamicDirectoryAndOnlyActiveProjects() {
@@ -13,8 +14,12 @@ class CommunityProjectCatalogTest {
         )
         val visible = directory.filter { it.is_active && it.matchesSearch("linea") }
         assertEquals(listOf("linea"), visible.map { it.project_official_id })
-        assertTrue(directory.first { it.project_official_id == "linea" }.matchesSearch("zkEVM"))
+        assertTrue(directory.first { it.project_official_id == "linea" }.matchesSearch("L2"))
         assertFalse(directory.first { it.project_official_id == "old" }.is_active)
+        assertTrue(matchesCommunityProjectStatus(true, showDelistedOnly = false))
+        assertFalse(matchesCommunityProjectStatus(false, showDelistedOnly = false))
+        assertTrue(matchesCommunityProjectStatus(false, showDelistedOnly = true))
+        assertFalse(matchesCommunityProjectStatus(true, showDelistedOnly = true))
     }
 
     @Test fun customProjectHasNoCommunityAssociationUnlessExplicitlySelected() {
