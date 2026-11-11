@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import AirdropDiscoveryCandidate, AirdropDiscoverySourceStatus, CommunityProjectCatalogEntry
+from app.models import AirdropDiscoveryCandidate, AirdropDiscoveryObservation, AirdropDiscoverySourceStatus, CommunityProjectCatalogEntry
 from app.api.community_catalog import (
     normalize_project_url,
     normalized_identity,
@@ -56,6 +56,24 @@ class CandidateReviewResponse(DiscoveryCandidateResponse):
     def identity_group_key(self) -> str | None:
         value = (self.identity_evidence or {}).get("identity_group_key")
         return str(value) if value else None
+
+
+class DiscoveryObservationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    candidate_id: UUID
+    source_name: str
+    source_record_key: str
+    source_url: str
+    item_url: str
+    observed_at: datetime
+    payload_sha256: str
+    raw_payload: dict
+    normalized_payload: dict
+    filter_decision: dict
+    identity_decision: dict
+    normalizer_version: str
+    filter_version: str
 
 
 class DiscoverySourceStatusResponse(BaseModel):
@@ -125,6 +143,47 @@ async def list_candidate_review_queue(
         AirdropDiscoveryCandidate.first_seen_at.asc()
     ).limit(limit)
     return list(await db.scalars(statement))
+
+
+@router.get(
+    "/candidates/{candidate_id}/observations",
+    dependencies=[Depends(require_catalog_admin)],
+)
+async def list_discovery_candidate_observations(
+    candidate_id: UUID,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return append-only, per-refresh source evidence for one review candidate."""
+    candidate = await db.get(AirdropDiscoveryCandidate, candidate_id)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="待审核项目不存在")
+    base = select(AirdropDiscoveryObservation).where(
+        AirdropDiscoveryObservation.candidate_id == candidate_id
+    )
+    total = await db.scalar(select(func.count()).select_from(base.subquery()))
+    statement = (
+        base.order_by(
+            AirdropDiscoveryObservation.observed_at.desc(),
+            AirdropDiscoveryObservation.id.desc(),
+        )
+        .offset(offset)
+        .limit(limit)
+    )
+    observations = list(await db.scalars(statement))
+    return {
+        "candidate_id": str(candidate_id),
+        "total_count": int(total or 0),
+        "offset": offset,
+        "limit": limit,
+        "has_more": offset + len(observations) < int(total or 0),
+        "next_offset": offset + len(observations) if offset + len(observations) < int(total or 0) else None,
+        "observations": [
+            DiscoveryObservationResponse.model_validate(item).model_dump(mode="json")
+            for item in observations
+        ],
+    }
 
 
 @router.get(

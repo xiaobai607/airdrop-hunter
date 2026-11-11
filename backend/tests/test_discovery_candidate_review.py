@@ -266,3 +266,80 @@ def test_identity_group_endpoint_rejects_weak_or_malformed_group_keys(monkeypatc
         )
         assert invalid_type.status_code == 422
         assert invalid_key.status_code == 422
+
+
+def test_admin_can_read_append_only_candidate_source_observations(monkeypatch):
+    from datetime import datetime, timezone
+    from app.database import AsyncSessionLocal, get_db
+    from app.models import AirdropDiscoveryCandidate, AirdropDiscoveryObservation
+
+    monkeypatch.setenv("COMMUNITY_CATALOG_ADMIN_TOKEN", "review-secret")
+    headers = {"X-Catalog-Admin-Token": "review-secret"}
+    seeded = False
+    candidate_id = None
+
+    async def override_db():
+        nonlocal seeded, candidate_id
+        async with AsyncSessionLocal() as db:
+            if not seeded:
+                now = datetime.now(timezone.utc)
+                candidate = AirdropDiscoveryCandidate(
+                    source_key=f"observation-test-{uuid4().hex}",
+                    source_name="binance-announcements",
+                    source_url="https://www.binance.com/bapi/cms",
+                    title="Observation history test",
+                    item_url="https://www.binance.com/en/support/announcement/test",
+                    summary="Official source lead",
+                    first_seen_at=now,
+                    last_seen_at=now,
+                    review_status="pending",
+                    filter_status="keep",
+                    filter_reasons=[],
+                    filter_metadata={},
+                    project_identity_key=None,
+                    campaign_identity_key=None,
+                    identity_status="insufficient_identity_evidence",
+                    identity_evidence={},
+                )
+                db.add(candidate)
+                await db.flush()
+                candidate_id = candidate.id
+                db.add(AirdropDiscoveryObservation(
+                    candidate_id=candidate.id,
+                    source_name="binance-announcements",
+                    source_record_key="binance:test",
+                    source_url="https://www.binance.com/bapi/cms",
+                    item_url="https://www.binance.com/en/support/announcement/test",
+                    observed_at=now,
+                    payload_sha256="a" * 64,
+                    raw_payload={"title": "Original provider title", "code": "test"},
+                    normalized_payload={"name": "Observation history test"},
+                    filter_decision={"disposition": "keep", "reasons": [], "filter_version": "central-discovery-filter-v1"},
+                    identity_decision={"identity_status": "insufficient_identity_evidence"},
+                    normalizer_version="discovery-normalizer-v1",
+                    filter_version="central-discovery-filter-v1",
+                ))
+                await db.commit()
+                seeded = True
+            yield db
+
+    app.dependency_overrides[get_db] = override_db
+    try:
+        with TestClient(app) as client:
+            assert client.get(
+                f"/api/airdrops/discovery/candidates/{uuid4()}/observations"
+            ).status_code == 403
+            response = client.get(
+                f"/api/airdrops/discovery/candidates/{candidate_id}/observations",
+                headers=headers,
+            )
+            assert response.status_code == 200, response.text
+            payload = response.json()
+            assert payload["total_count"] == 1
+            assert payload["has_more"] is False
+            observation = payload["observations"][0]
+            assert observation["raw_payload"]["title"] == "Original provider title"
+            assert observation["filter_decision"]["disposition"] == "keep"
+            assert observation["normalizer_version"] == "discovery-normalizer-v1"
+    finally:
+        app.dependency_overrides.pop(get_db, None)
