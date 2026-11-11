@@ -270,7 +270,7 @@ fun BrowserAccountingToolbar(
                                 val event = awaitPointerEvent(PointerEventPass.Initial)
                                 val change = event.changes.firstOrNull { it.id == down.id }
                                 if (change == null || !change.pressed ||
-                                    (change.position - down.position).getDistance() > viewConfiguration.touchSlop
+                                    kotlin.math.hypot(change.position.x - down.position.x, change.position.y - down.position.y) > viewConfiguration.touchSlop
                                 ) {
                                     stillPressed = false
                                 }
