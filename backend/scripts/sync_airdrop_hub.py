@@ -20,6 +20,9 @@ async def main() -> None:
             print(f"Imported or updated {count} RSS/Atom discovery candidates.")
             mirrored = await promote_pending_candidates_to_campaign_observations(db)
             print(f"Created {mirrored} unpublished campaign observations from pending candidates.")
+        except Exception as exc:
+            logging.exception("RSS discovery import failed: %s", exc)
+        try:
             score_result = await recalculate_campaign_scores(db)
             print(
                 "Campaign scoring: "
@@ -27,7 +30,7 @@ async def main() -> None:
                 f"publishable={score_result['publishable']}, held={score_result['held']}."
             )
         except Exception as exc:
-            logging.exception("RSS discovery import failed: %s", exc)
+            logging.exception("Campaign scoring failed: %s", exc)
 
 
 if __name__ == "__main__":
