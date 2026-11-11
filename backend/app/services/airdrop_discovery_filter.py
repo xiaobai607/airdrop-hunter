@@ -2,7 +2,7 @@
 from __future__ import annotations
 import hashlib
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -11,15 +11,81 @@ from sqlalchemy import or_, select
 BINANCE_AIRDROP_KEYWORDS = re.compile(r"airdrop|launchpool|hodler|megadrop", re.IGNORECASE)
 DEXSCREENER_MAX_POOL_AGE_SECONDS = 604800
 DEXSCREENER_MIN_LIQUIDITY_USD = 10000
-DEXSCREENER_MIN_VOLUME_24H_USD = 50000
-DEXSCREENER_MIN_TRADES_24H = 20
+
+
+def _parse_source_timestamp(value: Any) -> datetime | None:
+    if isinstance(value, (int, float)):
+        numeric = float(value)
+        if numeric > 10_000_000_000:
+            numeric /= 1000
+        try:
+            return datetime.fromtimestamp(numeric, timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            return None
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def is_source_fresh(payload: Any, *, now: datetime | None = None, max_age_days: int = 7) -> bool:
+    """Fail closed if any upstream generated/updated timestamp is stale or malformed."""
+    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    cutoff = current - timedelta(days=max(1, int(max_age_days)))
+    timestamp_keys = {"generatedat", "updatedat", "generated_at", "updated_at", "last_updated"}
+
+    def walk(value: Any) -> bool:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                normalized = str(key).replace("-", "").casefold()
+                if normalized in timestamp_keys:
+                    parsed = _parse_source_timestamp(child)
+                    if parsed is None or parsed < cutoff or parsed > current + timedelta(minutes=5):
+                        return False
+                if isinstance(child, (dict, list)) and not walk(child):
+                    return False
+        elif isinstance(value, list):
+            for child in value:
+                if isinstance(child, (dict, list)) and not walk(child):
+                    return False
+        return True
+
+    return walk(payload)
+
+
+def select_dexscreener_top_candidates(records: list[dict[str, Any]], *, limit: int = 10) -> list[dict[str, Any]]:
+    """Central filter selection: top ten market signals with liquidity strictly over $10k."""
+    eligible = []
+    for record in records:
+        metadata = dict(record.get("_filter_metadata") or {})
+        try:
+            liquidity = float(metadata.get("liquidity_usd"))
+        except (TypeError, ValueError):
+            continue
+        if liquidity > 10_000:
+            eligible.append(record)
+    eligible.sort(key=lambda item: (
+        float((item.get("_filter_metadata") or {}).get("liquidity_usd") or 0),
+        float((item.get("_filter_metadata") or {}).get("volume_24h_usd") or 0),
+        int((item.get("_filter_metadata") or {}).get("trades_24h") or 0),
+    ), reverse=True)
+    return eligible[:max(1, min(int(limit), 10))]
+
 
 
 def select_coingecko_airdrop_categories(categories: list[dict[str, str]], *, limit: int = 3) -> list[str]:
     """Select the bounded set of Airdrop categories centrally, not in the provider adapter."""
     selected = [
         item["id"] for item in categories
-        if item.get("id") and "airdrop" in str(item.get("name") or "").casefold()
+        if item.get("id") and (
+            str(item.get("id")).casefold() in {"airdrop", "airdrop-hunter"}
+            or "airdrop" in str(item.get("name") or "").casefold()
+        )
     ]
     return selected[:max(1, min(int(limit), 20))]
 
@@ -40,31 +106,14 @@ def evaluate_discovery_observation(record: dict[str, Any], *, now: datetime | No
             reasons.append(reason)
         elif _canonical_identity_url(official_url) is None:
             reasons.append("github_official_url_invalid")
-    elif source_name == "solvohq-cc0-airdrop-dataset":
-        metadata = dict(record.get("_filter_metadata") or {})
-        if metadata.get("license") != "CC0-1.0": reasons.append("solvohq_license_not_cc0")
-        if metadata.get("upstream_status") != "active": reasons.append("solvohq_campaign_not_active")
-        deadline = str(metadata.get("deadline") or "").strip()
-        if deadline and deadline.lower() != "ongoing":
-            try:
-                if datetime.strptime(deadline, "%Y-%m-%d").date() < (now or datetime.now(timezone.utc)).date():
-                    reasons.append("solvohq_campaign_deadline_passed")
-            except ValueError:
-                reasons.append("solvohq_campaign_deadline_invalid")
-        # "verified" is an upstream risk label, not a popularity/heat signal.
-        metadata["popularity_signal"] = None
-        metadata["requires_central_heat_evidence"] = True
     elif source_name == "dexscreener-new-pools":
         age, liquidity = metadata.get("age_seconds"), metadata.get("liquidity_usd")
-        volume, trades = metadata.get("volume_24h_usd"), metadata.get("trades_24h")
-        if age is None: reasons.append("pool_age_missing")
-        elif age < 0 or age > DEXSCREENER_MAX_POOL_AGE_SECONDS: reasons.append("pool_age_outside_existing_limit")
+        if age is not None and (age < 0 or age > DEXSCREENER_MAX_POOL_AGE_SECONDS):
+            reasons.append("pool_age_outside_existing_limit")
         if liquidity is None: reasons.append("liquidity_missing")
-        elif liquidity < DEXSCREENER_MIN_LIQUIDITY_USD: reasons.append("liquidity_below_existing_limit")
-        if volume is None: reasons.append("volume_24h_missing")
-        elif volume < DEXSCREENER_MIN_VOLUME_24H_USD: reasons.append("volume_24h_below_existing_limit")
-        if trades is None: reasons.append("trades_24h_missing")
-        elif trades < DEXSCREENER_MIN_TRADES_24H: reasons.append("trades_24h_below_existing_limit")
+        elif liquidity <= DEXSCREENER_MIN_LIQUIDITY_USD:
+            reasons.append("liquidity_not_above_10000_usd")
+        # Volume and transactions are ranking evidence, not proof of an airdrop.
     return {"status": "filtered" if reasons else "eligible_for_review", "reasons": reasons, "metadata": metadata, "evaluated_at": (now or datetime.now(timezone.utc)).isoformat()}
 
 

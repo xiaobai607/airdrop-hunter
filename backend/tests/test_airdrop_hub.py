@@ -264,10 +264,15 @@ def test_coingecko_demo_key_is_sent_in_header_not_query_string(monkeypatch):
         assert request.headers.get("x-cg-demo-api-key") == "demo-secret-for-test"
         assert "x_cg_demo_api_key" not in request.url.params
         seen_paths.append(request.url.path)
-        if request.url.path.endswith("/coins/categories"):
+        if request.url.path.endswith("/coins/categories/list"):
             return httpx.Response(200, json=[{"id": "airdrop", "name": "Airdrop"}])
         if request.url.path.endswith("/coins/markets"):
-            return httpx.Response(200, json=[{"id": "sample-token", "name": "Sample Token"}])
+            return httpx.Response(200, json=[{
+                "id": "sample-token", "name": "Sample Token", "last_updated": "2026-11-11T11:00:00Z",
+                "market_cap_rank": 1, "market_cap": 1000000, "total_volume": 100000,
+            }])
+        if request.url.path.endswith("/coins/sample-token"):
+            return httpx.Response(200, json={"id": "sample-token", "links": {"homepage": ["https://sample.example/"]}})
         return httpx.Response(404)
 
     async def run():
@@ -275,9 +280,15 @@ def test_coingecko_demo_key_is_sent_in_header_not_query_string(monkeypatch):
             return await _fetch_coingecko_observations(client)
 
     rows = asyncio.run(run())
-    assert seen_paths == ["/api/v3/coins/categories", "/api/v3/coins/markets"]
+    assert seen_paths == [
+        "/api/v3/coins/categories/list",
+        "/api/v3/coins/markets",
+        "/api/v3/coins/sample-token",
+    ]
     assert len(rows) == 1
     assert rows[0]["source_key"] == "coingecko:airdrop:sample-token"
+    assert rows[0]["link"] == "https://sample.example/"
+    assert rows[0]["_filter_metadata"]["market_cap_rank"] == 1
 
 
 def test_binance_endpoint_discovery_extracts_only_binance_cms_path():
@@ -683,52 +694,38 @@ def test_discovery_observation_payload_is_bounded_and_removes_credentials():
 
 
 
-def test_solvohq_dataset_normalization_requires_fresh_cc0_snapshot():
+
+
+def test_source_freshness_rejects_old_generated_and_updated_timestamps():
     from datetime import datetime, timezone, timedelta
-    from app.services.airdrop_hub_sync import _normalize_solvohq_airdrops
+    from app.services.airdrop_discovery_filter import is_source_fresh
     now = datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc)
-    payload = {
-        "generatedAt": (now - timedelta(hours=1)).isoformat(), "count": 2,
-        "schemaVersion": 1, "license": "CC0-1.0",
-        "entries": [
-            {"slug": "high-signal-project", "project": "High Signal Project", "chain": "Ethereum",
-             "blurb": "A current project campaign.", "action": "Complete official tasks.",
-             "effort": "10 minutes", "costFloor": "$0", "deadline": "ongoing", "risk": "verified",
-             "officialUrl": "https://project.example/", "status": "active"},
-            {"slug": "ended-project", "project": "Ended Project", "chain": "Solana",
-             "officialUrl": "https://ended.example/", "status": "active", "deadline": "2026-11-10"},
-        ],
-    }
-    rows = _normalize_solvohq_airdrops(payload, now=now)
-    assert len(rows) == 1
-    assert rows[0]["source_key"] == "solvohq:high-signal-project"
-    assert rows[0]["source_name"] == "solvohq-cc0-airdrop-dataset"
-    assert rows[0]["link"] == "https://project.example/"
-    assert rows[0]["_filter_metadata"]["license"] == "CC0-1.0"
+    fresh = (now - timedelta(days=6)).isoformat()
+    stale = (now - timedelta(days=8)).isoformat()
+    assert is_source_fresh({"generatedAt": fresh}, now=now)
+    assert is_source_fresh([{"last_updated": fresh}], now=now)
+    assert not is_source_fresh({"generatedAt": stale}, now=now)
+    assert not is_source_fresh([{"updated_at": stale}], now=now)
+    assert not is_source_fresh({"updatedAt": "not-a-date"}, now=now)
+    assert is_source_fresh({"name": "no upstream timestamp"}, now=now)
 
 
-def test_solvohq_dataset_rejects_stale_or_malformed_snapshots():
-    from datetime import datetime, timezone, timedelta
-    import pytest
-    from app.services.airdrop_hub_sync import _normalize_solvohq_airdrops
-    now = datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc)
-    entry = {"slug": "sample-project", "project": "Sample Project",
-             "officialUrl": "https://sample.example/", "status": "active", "deadline": "ongoing"}
-    base = {"generatedAt": (now - timedelta(days=7)).isoformat(), "count": 1,
-            "schemaVersion": 1, "license": "CC0-1.0", "entries": [entry]}
-    with pytest.raises(ValueError, match="stale"): _normalize_solvohq_airdrops(base, now=now)
-    fresh = {**base, "generatedAt": now.isoformat()}
-    with pytest.raises(ValueError, match="count"): _normalize_solvohq_airdrops({**fresh, "count": 2}, now=now)
-    with pytest.raises(ValueError, match="schema/license"): _normalize_solvohq_airdrops({**fresh, "license": "unknown"}, now=now)
+def test_dexscreener_central_selector_keeps_only_top_ten_above_10k_liquidity():
+    from app.services.airdrop_discovery_filter import select_dexscreener_top_candidates
+    rows = [
+        {"name": f"Token {index}", "_filter_metadata": {"liquidity_usd": index * 1000, "volume_24h_usd": index}}
+        for index in range(1, 16)
+    ]
+    selected = select_dexscreener_top_candidates(rows)
+    assert len(selected) == 10
+    assert selected[0]["name"] == "Token 15"
+    assert selected[-1]["name"] == "Token 6"
 
 
-def test_solvohq_dataset_does_not_treat_risk_label_as_popularity():
-    from datetime import datetime, timezone
+def test_dexscreener_market_signal_is_not_an_airdrop_campaign():
     from app.services.airdrop_discovery_filter import evaluate_discovery_observation
-    record = {"source_name": "solvohq-cc0-airdrop-dataset", "name": "Popular Verified Project",
-              "_filter_metadata": {"license": "CC0-1.0", "upstream_status": "active",
-                                   "risk": "verified", "deadline": "ongoing"}}
-    decision = evaluate_discovery_observation(record, now=datetime(2026, 11, 11, tzinfo=timezone.utc))
+    decision = evaluate_discovery_observation({
+        "source_name": "dexscreener-new-pools",
+        "_filter_metadata": {"age_seconds": 3600, "liquidity_usd": 15000},
+    })
     assert decision["status"] == "eligible_for_review"
-    assert decision["metadata"]["requires_central_heat_evidence"] is True
-    assert decision["metadata"]["popularity_signal"] is None

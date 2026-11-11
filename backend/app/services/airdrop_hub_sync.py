@@ -20,9 +20,6 @@ BINANCE_CMS_SOURCE = "https://www.binance.com/bapi/apex/v1/public/apex/cms/artic
 BINANCE_CMS_LEGACY_SOURCE = "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
 BINANCE_DISCOVERY_REFERENCE_URL = "https://raw.githubusercontent.com/DIYgod/RSSHub/master/lib/routes/binance/announcement.ts"
 BINANCE_CATALOGS = (128, 93)
-SOLVOHQ_DATASET_URL = "https://raw.githubusercontent.com/SolvoHQ/web3-discover-data/main/airdrops.json"
-SOLVOHQ_SOURCE_NAME = "solvohq-cc0-airdrop-dataset"
-SOLVOHQ_MAX_SNAPSHOT_AGE_SECONDS = 36 * 60 * 60
 _BINANCE_DISCOVERY_CACHE_TTL_SECONDS = 6 * 60 * 60
 _binance_discovery_cache: tuple[str, datetime] | None = None
 
@@ -75,7 +72,7 @@ TRUST_LEVEL_0 = "TRUST_LEVEL_0"
 TRUST_LEVEL_1 = "TRUST_LEVEL_1"
 OBSERVATION = "OBSERVATION"
 PUBLISHED_SAFE = "PUBLISHED_SAFE"
-SOURCE_LABELS = {"binance-announcements": "Binance Announcements", "coingecko-airdrop-category": "CoinGecko Airdrop Category", "github-airdrop-lists": "GitHub Open-source Lists", "dexscreener-new-pools": "DexScreener New Active Pools", SOLVOHQ_SOURCE_NAME: "SolvoHQ CC0 Airdrop Dataset"}
+SOURCE_LABELS = {"binance-announcements": "Binance Announcements", "coingecko-airdrop-category": "CoinGecko Airdrop Category", "github-airdrop-lists": "GitHub Open-source Lists", "dexscreener-new-pools": "DexScreener New Active Pools"}
 
 def _source_publication_state(source_name: str) -> tuple[str, str]:
     if source_name in TRUSTED_AIRDROP_PROVIDER_LABELS:
@@ -364,19 +361,38 @@ def _observation_record(source_name: str, source_key: str, name: str, link: str,
     return {'source_key': source_key[:240], 'name': name[:180], 'chain': chain[:80], 'description': description[:10000], 'status': status[:40], 'link': link[:1000], 'source_name': source_name, 'trust_level': TRUST_LEVEL_0, 'publication_status': OBSERVATION}
 
 def _normalize_coingecko_categories(payload: Any) -> list[dict[str, str]]:
-    if not isinstance(payload, list): return []
-    return [{"id": str(item.get("id") or "").strip(), "name": str(item.get("name") or "").strip()} for item in payload if isinstance(item, dict) and item.get("id") and item.get("name")]
+    if not isinstance(payload, list):
+        return []
+    return [{"id": str(item.get("id") or "").strip(), "name": str(item.get("name") or "").strip()}
+            for item in payload if isinstance(item, dict) and item.get("id") and item.get("name")]
 
-def _normalize_coingecko_coins(payload: Any, category_id: str) -> list[dict[str, Any]]:
-    if not isinstance(payload, list): return []
-    rows = []
-    for item in payload:
+
+def _normalize_coingecko_coins(payload: Any, category_id: str, website_by_id: dict[str, str] | None = None) -> list[dict[str, Any]]:
+    if not isinstance(payload, list):
+        return []
+    websites = website_by_id or {}
+    rows: list[dict[str, Any]] = []
+    for item in payload[:20]:
         if not isinstance(item, dict) or not item.get("id") or not item.get("name"):
             continue
-        row = _observation_record("coingecko-airdrop-category", f"coingecko:{category_id}:{item['id']}", str(item["name"]), f"https://www.coingecko.com/en/coins/{item['id']}", "CoinGecko Airdrop 类目代币线索；不代表当前存在可领取活动。")
-        row["_raw_payload"] = item
+        coin_id = str(item["id"])
+        official_url = _valid_http_url(websites.get(coin_id))
+        if not official_url:
+            continue
+        row = _observation_record("coingecko-airdrop-category", f"coingecko:{category_id}:{coin_id}",
+            str(item["name"]), official_url, "CoinGecko Airdrop 类目代币线索；不代表当前存在可领取活动。")
+        row["_filter_metadata"] = {
+            "category_id": category_id, "coin_id": coin_id,
+            "market_cap_rank": item.get("market_cap_rank"), "market_cap": item.get("market_cap"),
+            "total_volume": item.get("total_volume"),
+            "price_change_percentage_24h": item.get("price_change_percentage_24h"),
+            "source_updated_at": item.get("last_updated"), "official_url": official_url,
+            "market_signal_only": True,
+        }
+        row["_raw_payload"] = {"market": item}
         rows.append(row)
     return rows
+
 
 def _normalize_github_airdrop_list(payload: Any, source_url: str) -> list[dict[str, Any]]:
     """Extract list entries without deciding whether their links qualify as official."""
@@ -465,98 +481,55 @@ def _normalize_dexscreener_pairs(payload: Any, query: str) -> list[dict[str, Any
         rows.append(row)
     return rows
 
-def _normalize_solvohq_airdrops(payload: Any, *, now: datetime | None = None) -> list[dict[str, Any]]:
-    """Validate CC0 envelope and normalize current entries as source observations."""
-    if not isinstance(payload, dict):
-        raise ValueError("SolvoHQ dataset must be a JSON object")
-    if payload.get("schemaVersion") != 1 or payload.get("license") != "CC0-1.0":
-        raise ValueError("SolvoHQ dataset schema/license is not approved")
-    entries, count = payload.get("entries"), payload.get("count")
-    if not isinstance(entries, list) or not isinstance(count, int) or count != len(entries):
-        raise ValueError("SolvoHQ dataset count does not match entries")
-    generated_raw = payload.get("generatedAt")
-    if not isinstance(generated_raw, str):
-        raise ValueError("SolvoHQ dataset generatedAt is missing")
-    try:
-        generated_at = datetime.fromisoformat(generated_raw.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise ValueError("SolvoHQ dataset generatedAt is invalid") from exc
-    if generated_at.tzinfo is None:
-        raise ValueError("SolvoHQ dataset generatedAt must include a timezone")
-    current = now or datetime.now(timezone.utc)
-    age_seconds = (current.astimezone(timezone.utc) - generated_at.astimezone(timezone.utc)).total_seconds()
-    if age_seconds < -300 or age_seconds > SOLVOHQ_MAX_SNAPSHOT_AGE_SECONDS:
-        raise ValueError("SolvoHQ dataset snapshot is stale or future-dated")
-
-    rows: list[dict[str, Any]] = []
-    for entry in entries:
-        if not isinstance(entry, dict):
-            continue
-        slug = str(entry.get("slug") or "").strip()
-        project = str(entry.get("project") or "").strip()
-        official_url = _valid_http_url(entry.get("officialUrl"))
-        status = str(entry.get("status") or "").strip().lower()
-        if not slug or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,119}", slug):
-            continue
-        if not project or not official_url or status != "active":
-            continue
-        deadline = str(entry.get("deadline") or "").strip()
-        if deadline and deadline.lower() != "ongoing":
-            try:
-                deadline_date = datetime.strptime(deadline, "%Y-%m-%d").date()
-            except ValueError:
-                continue
-            if deadline_date < current.date():
-                continue
-        chain = str(entry.get("chain") or "Unknown").strip()[:120] or "Unknown"
-        blurb, action = str(entry.get("blurb") or "").strip(), str(entry.get("action") or "").strip()
-        description = " ".join(part for part in (blurb, f"参与方式：{action}" if action else "") if part)
-        record = _observation_record(SOLVOHQ_SOURCE_NAME, f"solvohq:{slug}", project, official_url,
-            description or "来自 SolvoHQ CC0 空投数据集的项目记录；请以项目官方页面为准。", chain, "待中央筛选")
-        record["source_url"] = SOLVOHQ_DATASET_URL
-        record["_filter_metadata"] = {
-            "dataset_generated_at": generated_at.astimezone(timezone.utc).isoformat(),
-            "snapshot_age_seconds": int(age_seconds), "schema_version": 1, "license": "CC0-1.0",
-            "risk": str(entry.get("risk") or "unknown")[:40], "effort": str(entry.get("effort") or "")[:240],
-            "cost_floor": str(entry.get("costFloor") or "")[:120], "deadline": deadline[:40],
-            "added_on": str(entry.get("addedOn") or "")[:20], "last_checked": str(entry.get("lastChecked") or "")[:20],
-            "upstream_status": status,
-        }
-        record["_raw_payload"] = entry
-        rows.append(record)
-    return rows
-
-
-async def _fetch_solvohq_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
-    response = await client.get(SOLVOHQ_DATASET_URL, headers={"Accept": "application/json"})
-    response.raise_for_status()
-    if len(response.content) > 3_000_000:
-        raise ValueError("SolvoHQ dataset exceeds 3 MB safety limit")
-    rows = _normalize_solvohq_airdrops(response.json())
-    if not rows:
-        raise ValueError("SolvoHQ dataset contains no current active entries")
-    return rows
-
-
-async def _fetch_coingecko_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
-    key = os.getenv('COINGECKO_DEMO_API_KEY', '').strip()
-    if not key: raise RuntimeError('COINGECKO_DEMO_API_KEY 未配置')
-    auth_headers = {'x-cg-demo-api-key': key}
-    response = await client.get('https://api.coingecko.com/api/v3/coins/categories', headers=auth_headers)
-    response.raise_for_status()
-    categories = _normalize_coingecko_categories(response.json())
+async def _fetch_coingecko_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
+    key = os.getenv("COINGECKO_DEMO_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("COINGECKO_DEMO_API_KEY 未配置")
+    headers = {"x-cg-demo-api-key": key, "Accept": "application/json"}
+    category_response = await client.get("https://api.coingecko.com/api/v3/coins/categories/list", headers=headers)
+    category_response.raise_for_status()
+    categories = _normalize_coingecko_categories(category_response.json())
     from app.services.airdrop_discovery_filter import select_coingecko_airdrop_categories
     category_ids = select_coingecko_airdrop_categories(categories)
-    if not category_ids: raise RuntimeError('CoinGecko 未返回 Airdrop 类目')
-    rows = []
-    for category_id in category_ids:
-        response = await client.get('https://api.coingecko.com/api/v3/coins/markets', headers=auth_headers, params={'vs_currency': 'usd', 'category': category_id, 'order': 'market_cap_desc', 'per_page': 250, 'page': 1, 'sparkline': 'false'})
-        response.raise_for_status()
-        category_rows = _normalize_coingecko_coins(response.json(), category_id)
-        for row in category_rows:
-            row["source_url"] = str(response.request.url)
-        rows.extend(category_rows)
+    if not category_ids:
+        raise RuntimeError("CoinGecko categories/list 未找到 Airdrop 分类")
+    category_id = category_ids[0]
+    market_response = await client.get(
+        "https://api.coingecko.com/api/v3/coins/markets", headers=headers,
+        params={"vs_currency": "usd", "category": category_id, "order": "market_cap_desc",
+                "per_page": 20, "page": 1, "sparkline": "false"})
+    market_response.raise_for_status()
+    markets = market_response.json()
+    if not isinstance(markets, list) or not markets:
+        raise RuntimeError("CoinGecko Airdrop category returned no market entries")
+    website_by_id: dict[str, str] = {}
+    detail_by_id: dict[str, dict[str, Any]] = {}
+    # /coins/markets omits official websites; resolve no more than 20 details sequentially.
+    for market in markets[:20]:
+        if not isinstance(market, dict) or not market.get("id"):
+            continue
+        coin_id = str(market["id"])
+        detail_response = await client.get(
+            f"https://api.coingecko.com/api/v3/coins/{coin_id}", headers=headers,
+            params={"localization": "false", "tickers": "false", "market_data": "false",
+                    "community_data": "false", "developer_data": "false", "sparkline": "false"})
+        detail_response.raise_for_status()
+        detail = detail_response.json()
+        links = detail.get("links") if isinstance(detail, dict) else {}
+        homepages = links.get("homepage") if isinstance(links, dict) else []
+        homepage = next((_valid_http_url(value) for value in homepages if _valid_http_url(value)), None) if isinstance(homepages, list) else None
+        if homepage:
+            website_by_id[coin_id] = homepage
+            detail_by_id[coin_id] = detail
+    rows = _normalize_coingecko_coins(markets, category_id, website_by_id)
+    for row in rows:
+        coin_id = row["_filter_metadata"]["coin_id"]
+        row["_raw_payload"]["detail"] = detail_by_id.get(coin_id, {})
+        row["source_url"] = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
+    if not rows:
+        raise RuntimeError("CoinGecko Airdrop category returned no coins with valid official websites")
     return rows
+
 
 async def _fetch_github_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
     sources = _configured_github_raw_sources()
@@ -592,7 +565,7 @@ async def _fetch_github_observations(client: httpx.AsyncClient) -> list[dict[str
 async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
     queries = list(dict.fromkeys(
         part.strip()
-        for part in os.getenv("DEXSCREENER_SEARCH_QUERIES", "SOL,ETH,USDC").split(",")
+        for part in os.getenv("DEXSCREENER_SEARCH_QUERIES", "airdrop").split(",")
         if part.strip()
     ))[:8]
     if not queries:
@@ -625,6 +598,8 @@ async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dic
                 "DexScreener 所有搜索词均失败或未产生有效记录: " + "; ".join(failures)
             )
         raise RuntimeError("DexScreener 本轮没有返回可解析的交易池记录")
+    from app.services.airdrop_discovery_filter import select_dexscreener_top_candidates
+    rows = select_dexscreener_top_candidates(rows, limit=10)
     if failures:
         logger.warning(
             "DexScreener completed partially: %s of %s search terms failed",
@@ -803,7 +778,11 @@ async def _upsert_discovery_candidate(
 async def _upsert_source_records(db: AsyncSession, source_name: str, source_url: str, fetcher: Any, client: httpx.AsyncClient, now: datetime) -> int:
     try:
         records = await fetcher(client)
-        if not records: raise RuntimeError('empty source result')
+        if not records:
+            raise RuntimeError("empty source result")
+        from app.services.airdrop_discovery_filter import is_source_fresh
+        if not is_source_fresh(records, now=now, max_age_days=7):
+            raise RuntimeError("source payload contains generatedAt/updatedAt older than 7 days")
         for record in records:
             from app.services.airdrop_discovery_filter import compose_discovery_decision, evaluate_discovery_identity, evaluate_discovery_observation
             filter_result = evaluate_discovery_observation(record, now=now)
@@ -870,18 +849,17 @@ async def sync_airdrop_hub(db: AsyncSession) -> int:
     total = 0
     async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), headers={'User-Agent': 'AirdropHunter/1.0', 'Accept': 'application/json'}) as client:
         sources = [
-            ('coingecko-airdrop-category', 'https://api.coingecko.com/api/v3/coins/categories', _fetch_coingecko_observations),
+            ('coingecko-airdrop-category', 'https://api.coingecko.com/api/v3/coins/categories/list', _fetch_coingecko_observations),
             ('github-airdrop-lists', 'https://raw.githubusercontent.com/', _fetch_github_observations),
             ('dexscreener-new-pools', 'https://api.dexscreener.com/latest/dex/search', _fetch_dexscreener_observations),
             ('binance-announcements', BINANCE_CMS_SOURCE, _fetch_binance_observations),
-            (SOLVOHQ_SOURCE_NAME, SOLVOHQ_DATASET_URL, _fetch_solvohq_observations),
         ]
         for source_name, source_url, fetcher in sources:
             total += await _upsert_source_records(db, source_name, source_url, fetcher, client, now)
     if total == 0:
-        _sync_status.update({'source': 'five-source-pipeline', 'error': '五个数据源本轮均未产生有效观察记录；已保留原有数据'})
+        _sync_status.update({'source': 'four-source-pipeline', 'error': '四个数据源本轮均未产生有效观察记录；已保留原有数据'})
         raise RuntimeError(_sync_status['error'])
-    _sync_status.update({'last_success_at': now.isoformat(), 'imported_count': total, 'source': 'coingecko+github-raw+dexscreener+binance+solvohq', 'error': None})
+    _sync_status.update({'last_success_at': now.isoformat(), 'imported_count': total, 'source': 'coingecko+github-raw+dexscreener+binance', 'error': None})
     return total
 
 def get_sync_status() -> dict[str, Any]:

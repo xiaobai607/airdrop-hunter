@@ -2128,7 +2128,7 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 
 ## 2026-11-11 — discovery pipeline responsibility correction
 
-The active architecture has exactly three stages: source acquisition; one centralized filter; and the Airdrop Library. Result organization belongs to the filter, not a separate stage. Adapters do not apply keyword, liquidity, volume, pool-age, transaction-count, duplicate, or merge rules. They retain parseable observations and provenance. The first pass centralizes the existing Binance title rule, DexScreener thresholds and CoinGecko Airdrop category selection without changing thresholds. Filtered observations remain stored, with filter reasons and structured evidence separate from human review status.
+The active architecture has exactly three stages: source acquisition; one centralized filter; and the Airdrop Library. Result organization belongs to the filter, not a separate stage. Adapters retain parseable observations and provenance; the central filter owns category selection, timestamp freshness, liquidity thresholds, top-N ranking, deduplication and merge decisions. Market-data providers (CoinGecko and DexScreener) are signals only and cannot independently prove an active airdrop campaign. Filtered observations remain stored with reasons and structured evidence separate from human review status.
 
 Project identity and campaign identity are distinct. Project-name similarity alone must never merge records; one project can have multiple campaigns and one campaign can have evidence from multiple providers. Full cross-provider clustering remains unfinished and must not be represented as complete.
 
@@ -2161,3 +2161,13 @@ Project and campaign identity classification is a responsibility of the unified 
 - Public campaign responses now include source_name and source_url so users can see where a campaign record came from. Internal trust flags, scoring telemetry, contract identifiers and market metrics remain private.
 - Provider selection, popularity ranking, deduplication and publication remain centralized; adapters only acquire and normalize source observations. Do not equate a generic token/market feed with a reviewed airdrop campaign source.
 - Real-data cleanup is deferred until a live source has passed end-to-end validation. At that point remove only production/demo records and seed data, never automated test fixtures or regression tests.
+
+
+## 2026-11-11 — SolvoHQ retired; live market-signal adapters corrected
+- Retired SolvoHQ CC0 JSON from the active pipeline because its snapshot timestamp was stale by months; stale records are not imported.
+- Added a centralized seven-day source freshness guard for generatedAt/updatedAt and common snake_case equivalents, including CoinGecko last_updated. A stale or malformed upstream timestamp fails the whole provider batch and preserves the previous successful data.
+- CoinGecko now uses /coins/categories/list to identify the Airdrop category, /coins/markets to retrieve at most 20 market-ranked entries, and /coins/{id} to resolve the actual official homepage. It does not assume /coins/categories itself contains 20 coin records or websites.
+- DexScreener now searches the configured term (default airdrop), then centralized selection keeps only the top 10 pairs with liquidity strictly greater than USD 10,000. Volume and transactions remain ranking evidence; they do not establish airdrop eligibility.
+- Both CoinGecko and DexScreener records remain market/category observations, not published campaigns. Official activity evidence and the unified campaign filter are still required.
+- CoinGecko Demo key remains server-side in COINGECKO_DEMO_API_KEY; never embed it in the Android APK. Android calls the Airdrop Hunter backend, which owns adapters and central filtering.
+- Adapters are implemented in Python because the live discovery pipeline, credentials and central filter run in the backend. Do not duplicate provider networking in Android Kotlin.
