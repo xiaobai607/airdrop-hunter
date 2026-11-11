@@ -1789,3 +1789,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - The workflow produced the `airdrop-hunter-debug-apk` artifact. This confirms a CI build artifact exists; it does not establish installation or runtime validation on a physical Android device.
 - A public Binance announcement page is discoverable, but the web inspection path did not expose the raw CMS HTML/image attributes. Therefore image lazy-loading behavior (for example, `src` versus `data-src`) and table scrolling remain unverified against a real announcement body. Do not change source HTML or enable JavaScript based on assumptions; validate with an actual CMS detail response or device test first.
 - PR #135 remains Draft/Open and unmerged.
+
+### 2026-11-11 — testable Binance announcement HTML policy
+
+- Extracted the in-app Binance announcement HTML wrapper into a package-internal pure Kotlin function so its rendering policy can be covered by local unit tests without launching Android WebView.
+- Added tests asserting that the official CMS body is embedded unchanged, the restrictive CSP continues to block scripts/connectivity/frames while allowing HTTPS/data images, and responsive media/table overflow styles remain present.
+- This is a regression test for the authored wrapper only. It does not prove that Binance's current CMS HTML uses directly loadable image attributes, that remote images load on a device, or that horizontal table scrolling behaves correctly on a physical phone.
+- JavaScript remains disabled. Do not add speculative data-src rewriting or relax the WebView policy without a real CMS response fixture and a security review.
