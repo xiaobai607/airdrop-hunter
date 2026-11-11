@@ -1,8 +1,12 @@
 """Centralized decisions for raw multi-provider airdrop observations."""
 from __future__ import annotations
+import hashlib
 import re
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from sqlalchemy import or_, select
 
 BINANCE_AIRDROP_KEYWORDS = re.compile(r"airdrop|launchpool|hodler|megadrop", re.IGNORECASE)
 DEXSCREENER_MAX_POOL_AGE_SECONDS = 604800
@@ -36,3 +40,82 @@ def evaluate_discovery_observation(record: dict[str, Any], *, now: datetime | No
         if trades is None: reasons.append("trades_24h_missing")
         elif trades < DEXSCREENER_MIN_TRADES_24H: reasons.append("trades_24h_below_existing_limit")
     return {"status": "filtered" if reasons else "eligible_for_review", "reasons": reasons, "metadata": metadata, "evaluated_at": (now or datetime.now(timezone.utc)).isoformat()}
+
+
+def _canonical_identity_url(value: Any) -> str | None:
+    if not isinstance(value, str): return None
+    try:
+        parsed = urlsplit(value.strip())
+        if parsed.scheme.lower() != "https" or not parsed.hostname or parsed.username or parsed.password: return None
+        if parsed.port not in (None, 443): return None
+        host = parsed.hostname.lower().rstrip(".")
+        path = parsed.path or "/"
+        if path != "/": path = path.rstrip("/")
+        query = urlencode(sorted((k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if not k.lower().startswith("utm_") and k.lower() not in {"ref", "source"}))
+        return urlunsplit(("https", host, path, query, ""))
+    except (TypeError, ValueError):
+        return None
+
+
+def build_discovery_identity(record: dict[str, Any]) -> dict[str, Any]:
+    """Build conservative identity fingerprints; never use project names or tickers."""
+    source_name = str(record.get("source_name") or "")
+    metadata = dict(record.get("_filter_metadata") or {})
+    project_evidence: dict[str, str] = {}
+    campaign_evidence: dict[str, str] = {}
+    chain = str(metadata.get("chain_id") or record.get("chain") or "").strip().lower()
+    address = str(metadata.get("token_address") or record.get("token_contract_address") or "").strip()
+    if chain and address:
+        normalized = address.lower() if re.fullmatch(r"0x[a-fA-F0-9]{40}", address) else address
+        project_evidence = {"method": "chain_contract", "chain": chain, "contract": normalized}
+    else:
+        official = metadata.get("official_url") or record.get("official_url") or record.get("project_url")
+        if not official and source_name == "github-airdrop-lists": official = record.get("link")
+        canonical = _canonical_identity_url(official)
+        if canonical: project_evidence = {"method": "exact_official_url", "url": canonical}
+    campaign_url = metadata.get("campaign_url") or metadata.get("activity_url") or record.get("campaign_url") or record.get("activity_url")
+    if not campaign_url and source_name == "binance-announcements": campaign_url = record.get("link")
+    canonical_campaign = _canonical_identity_url(campaign_url)
+    if canonical_campaign: campaign_evidence = {"method": "exact_campaign_url", "url": canonical_campaign}
+
+    def fingerprint(kind: str, evidence: dict[str, str]) -> str | None:
+        if not evidence: return None
+        payload = "|".join(f"{k}={v}" for k, v in sorted(evidence.items()))
+        return hashlib.sha256(f"{kind}|{payload}".encode()).hexdigest()
+    return {
+        "project_identity_key": fingerprint("project", project_evidence),
+        "campaign_identity_key": fingerprint("campaign", campaign_evidence),
+        "project_identity_evidence": project_evidence,
+        "campaign_identity_evidence": campaign_evidence,
+    }
+
+
+def classify_identity_matches(identity: dict[str, Any], matches: list[Any]) -> dict[str, Any]:
+    project_key, campaign_key = identity.get("project_identity_key"), identity.get("campaign_identity_key")
+    pm = [x for x in matches if project_key and getattr(x, "project_identity_key", None) == project_key]
+    cm = [x for x in matches if campaign_key and getattr(x, "campaign_identity_key", None) == campaign_key]
+    if cm and pm: status, selected = "same_project_same_campaign", cm[0]
+    elif cm: status, selected = "same_campaign_project_unconfirmed", cm[0]
+    elif pm and campaign_key:
+        distinct = [x for x in pm if getattr(x, "campaign_identity_key", None) and getattr(x, "campaign_identity_key", None) != campaign_key]
+        status, selected = ("same_project_distinct_campaign", distinct[0]) if distinct else ("same_project_campaign_unconfirmed", pm[0])
+    elif pm: status, selected = "same_project_campaign_unconfirmed", pm[0]
+    elif project_key or campaign_key: status, selected = "no_strong_match_found", None
+    else: status, selected = "insufficient_identity_evidence", None
+    return {**identity, "identity_status": status, "matched_source_key": getattr(selected, "source_key", None),
+            "matched_source_name": getattr(selected, "source_name", None),
+            "matched_source_keys": sorted({str(getattr(x, "source_key", "")) for x in pm + cm if getattr(x, "source_key", None)})}
+
+
+async def evaluate_discovery_identity(db: Any, record: dict[str, Any]) -> dict[str, Any]:
+    """Compare strong identity evidence against stored observations without merging or deleting them."""
+    identity = build_discovery_identity(record)
+    pk, ck = identity["project_identity_key"], identity["campaign_identity_key"]
+    if not pk and not ck: return classify_identity_matches(identity, [])
+    from app.models import AirdropProject
+    predicates = []
+    if pk: predicates.append(AirdropProject.project_identity_key == pk)
+    if ck: predicates.append(AirdropProject.campaign_identity_key == ck)
+    statement = select(AirdropProject).where(AirdropProject.source_key != str(record.get("source_key") or ""), or_(*predicates)).limit(50)
+    rows = (await db.scalars(statement)).all()
+    return classify_identity_matches(identity, rows)

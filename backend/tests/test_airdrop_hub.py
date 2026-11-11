@@ -480,3 +480,39 @@ def test_coingecko_category_selection_is_centralized():
     from app.services.airdrop_discovery_filter import select_coingecko_airdrop_categories
     categories = [{"id": "airdrop", "name": "Airdrop"}, {"id": "gaming", "name": "Gaming"}]
     assert select_coingecko_airdrop_categories(categories) == ["airdrop"]
+
+
+def test_identity_does_not_use_names_and_keeps_project_campaign_separate():
+    from app.services.airdrop_discovery_filter import build_discovery_identity, classify_identity_matches
+    a = build_discovery_identity({"source_name": "github-airdrop-lists", "name": "Same Name", "link": "https://alpha.example"})
+    b = build_discovery_identity({"source_name": "github-airdrop-lists", "name": "Same Name", "link": "https://beta.example"})
+    assert a["project_identity_key"] != b["project_identity_key"]
+    first = build_discovery_identity({"source_name": "github-airdrop-lists", "link": "https://project.example", "campaign_url": "https://project.example/season-one"})
+    second = build_discovery_identity({"source_name": "binance-announcements", "link": "https://www.binance.com/en/support/announcement/season-two", "_filter_metadata": {"official_url": "https://project.example", "campaign_url": "https://project.example/season-two"}})
+    class Existing:
+        source_key = "source:season-one"
+        source_name = "github-airdrop-lists"
+        project_identity_key = first["project_identity_key"]
+        campaign_identity_key = first["campaign_identity_key"]
+    result = classify_identity_matches(second, [Existing()])
+    assert result["identity_status"] == "same_project_distinct_campaign"
+    assert result["matched_source_key"] == "source:season-one"
+    assert first["campaign_identity_key"] != second["campaign_identity_key"]
+
+
+def test_contract_identity_is_chain_scoped_and_normalizes_evm_addresses():
+    from app.services.airdrop_discovery_filter import build_discovery_identity
+    a = build_discovery_identity({"_filter_metadata": {"chain_id": "ethereum", "token_address": "0x" + "A" * 40}})
+    b = build_discovery_identity({"_filter_metadata": {"chain_id": "ethereum", "token_address": "0x" + "a" * 40}})
+    c = build_discovery_identity({"_filter_metadata": {"chain_id": "base", "token_address": "0x" + "a" * 40}})
+    assert a["project_identity_key"] == b["project_identity_key"]
+    assert a["project_identity_key"] != c["project_identity_key"]
+
+
+def test_identity_url_is_https_only_and_ignores_tracking_parameters():
+    from app.services.airdrop_discovery_filter import build_discovery_identity
+    a = build_discovery_identity({"source_name": "github-airdrop-lists", "link": "https://Project.example/path/?utm_source=x"})
+    b = build_discovery_identity({"source_name": "github-airdrop-lists", "link": "https://project.example/path"})
+    unsafe = build_discovery_identity({"source_name": "github-airdrop-lists", "link": "http://project.example/path"})
+    assert a["project_identity_key"] == b["project_identity_key"]
+    assert unsafe["project_identity_key"] is None

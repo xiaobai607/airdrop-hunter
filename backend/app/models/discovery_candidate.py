@@ -31,3 +31,8 @@ class AirdropDiscoveryCandidate(Base):
     filter_status: Mapped[str] = mapped_column(String(32), nullable=False, default="not_evaluated", server_default="not_evaluated", index=True)
     filter_reasons: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     filter_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
+    project_identity_key: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    campaign_identity_key: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    identity_status: Mapped[str] = mapped_column(String(48), nullable=False, default="insufficient_identity_evidence", server_default="insufficient_identity_evidence", index=True)
+    identity_evidence: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
+    matched_source_key: Mapped[str | None] = mapped_column(String(240), nullable=True)

@@ -388,7 +388,9 @@ def _normalize_github_airdrop_list(payload: Any, source_url: str) -> list[dict[s
     result = []
     for name, url in found:
         digest = hashlib.sha256(f'{source_url}|{name.casefold()}|{url}'.encode()).hexdigest()[:24]
-        result.append(_observation_record('github-airdrop-lists', f'github:{digest}', name, url, f'来自开源名单 {source_url}；项目状态及官网真实性待核实。'))
+        row = _observation_record('github-airdrop-lists', f'github:{digest}', name, url, f'来自开源名单 {source_url}；项目状态及官网真实性待核实。')
+        row["_filter_metadata"] = {"official_url": url}
+        result.append(row)
     return result
 
 def _normalize_dexscreener_pairs(payload: Any, query: str) -> list[dict[str, Any]]:
@@ -493,6 +495,7 @@ async def _upsert_discovery_candidate(
     source_url: str,
     record: dict[str, Any],
     now: datetime,
+    identity_result: dict[str, Any] | None = None,
 ) -> bool:
     """Feed every provider observation into one review queue without auto-publishing it."""
     item_url = _valid_http_url(record.get("link"))
@@ -510,8 +513,9 @@ async def _upsert_discovery_candidate(
         )
     )
     candidate_source_url = _valid_http_url(record.get("source_url")) or source_url
-    from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+    from app.services.airdrop_discovery_filter import evaluate_discovery_identity, evaluate_discovery_observation
     filter_result = evaluate_discovery_observation(record, now=now)
+    identity_result = identity_result or await evaluate_discovery_identity(db, record)
     summary = str(record.get("description") or "")[:10000]
     if candidate is None:
         db.add(AirdropDiscoveryCandidate(
@@ -528,6 +532,11 @@ async def _upsert_discovery_candidate(
             filter_status=filter_result["status"],
             filter_reasons=filter_result["reasons"],
             filter_metadata={**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"]},
+            project_identity_key=identity_result["project_identity_key"],
+            campaign_identity_key=identity_result["campaign_identity_key"],
+            identity_status=identity_result["identity_status"],
+            identity_evidence={key: identity_result[key] for key in ("project_identity_evidence", "campaign_identity_evidence", "matched_source_keys")},
+            matched_source_key=identity_result["matched_source_key"],
         ))
     else:
         candidate.source_name = source_name
@@ -540,6 +549,11 @@ async def _upsert_discovery_candidate(
         candidate.filter_status = filter_result["status"]
         candidate.filter_reasons = filter_result["reasons"]
         candidate.filter_metadata = filter_result["metadata"]
+        candidate.project_identity_key = identity_result["project_identity_key"]
+        candidate.campaign_identity_key = identity_result["campaign_identity_key"]
+        candidate.identity_status = identity_result["identity_status"]
+        candidate.identity_evidence = {key: identity_result[key] for key in ("project_identity_evidence", "campaign_identity_evidence", "matched_source_keys")}
+        candidate.matched_source_key = identity_result["matched_source_key"]
         # Preserve approved/rejected review decisions across future refreshes.
     return True
 
@@ -549,13 +563,19 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
         records = await fetcher(client)
         if not records: raise RuntimeError('empty source result')
         for record in records:
-            from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+            from app.services.airdrop_discovery_filter import evaluate_discovery_identity, evaluate_discovery_observation
             filter_result = evaluate_discovery_observation(record, now=now)
+            identity_result = await evaluate_discovery_identity(db, record)
             filter_metadata = {**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"]}
             project_record = {key: value for key, value in record.items() if not key.startswith("_") and key != "catalog_id"}
             project_record["filter_status"] = filter_result["status"]
             project_record["filter_reasons"] = filter_result["reasons"]
             project_record["filter_metadata"] = filter_metadata
+            project_record["project_identity_key"] = identity_result["project_identity_key"]
+            project_record["campaign_identity_key"] = identity_result["campaign_identity_key"]
+            project_record["identity_status"] = identity_result["identity_status"]
+            project_record["identity_evidence"] = {key: identity_result[key] for key in ("project_identity_evidence", "campaign_identity_evidence", "matched_source_keys")}
+            project_record["matched_source_key"] = identity_result["matched_source_key"]
             if record.get("catalog_id") is not None:
                 project_record["description"] = f"{project_record.get('description', '')} Binance catalog ID: {record['catalog_id']}."
             current = await db.scalar(select(AirdropProject).where(AirdropProject.source_key == project_record['source_key']))
@@ -569,6 +589,7 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
                 source_url=source_url,
                 record=record,
                 now=now,
+                identity_result=identity_result,
             )
         await record_discovery_source_status(db, source_name, source_url, now, 'success', item_count=len(records))
         await db.commit()
