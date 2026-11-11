@@ -1996,4 +1996,12 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Updated Android/backend job selection to compare the current PR head against the most recent fully successful validation head for that same PR, rather than rechecking the PR's entire cumulative diff on every synchronize event.
 - The workflow uses the complete base-to-head PR diff when no successful baseline exists, when a run is manually retried, or when the prior head/API lookup is unavailable. This preserves first-run coverage and prevents cancelled/failed runs from becoming a baseline that could hide unvalidated changes.
 - Added read-only Actions permission for retrieving the prior workflow run. Android and backend suites still run independently according to the changed file groups; workflow and documentation-only edits remain excluded from this build workflow.
-- This reduces repeated work on mixed Android/backend PRs without disabling CI or weakening the fallback path. Validate the behavior on subsequent PR pushes; no new workflow run is expected from this workflow-only/docs-only commit because those paths are ignored by the workflow trigger.
+- This reduces repeated work on mixed Android/backend PRs without disabling CI or weakening the fallback path. GitHub evaluates paths-ignore against the cumulative PR diff, so a workflow-only/docs-only commit inside a PR that already contains code changes may still start the lightweight changes job; the incremental comparison must skip the unrelated build/test jobs.
+
+
+### 2026-11-11 — CI baseline lookup compatibility correction
+
+- The first incremental-CI trial showed that the workflow-specific GitHub CLI API lookup failed in the hosted runner, causing the deliberately safe full-PR fallback and re-running both suites.
+- Changed lookup to try the workflow run endpoint by numeric workflow ID, then fall back to the repository run list filtered by that workflow ID and PR number. Added read-only Pull Requests permission for the PR association metadata.
+- API lookup errors remain visible in the Actions log; if both routes fail or no successful baseline is found, the workflow still validates the full PR diff. The previous fallback is conservative but does not save build time.
+- The next workflow run is the acceptance test for incremental detection. Do not claim savings until its changes job log identifies the previous successful head and Android/backend jobs are skipped for this workflow/docs-only delta.
