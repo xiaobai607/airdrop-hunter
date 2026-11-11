@@ -71,7 +71,8 @@ fun HomeScreen(
     onOpenWallet: () -> Unit,
     onOpenGlobalSearch: () -> Unit,
     onOpenProjects: () -> Unit,
-    onOpenAirdropHub: () -> Unit = {},
+    onOpenAirdropCampaigns: () -> Unit = {},
+    onOpenBinanceOfficial: () -> Unit = {},
     onOpenTronEnergy: () -> Unit = {},
     onOpenAccounting: () -> Unit = {},
     isGuest: Boolean = true,
@@ -204,7 +205,8 @@ fun HomeScreen(
                 "wallet_management" -> onOpenWallet()
                 "tron_energy" -> onOpenTronEnergy()
                 "accounting" -> onOpenAccounting()
-                "airdrop_library" -> onOpenAirdropHub()
+                "airdrop_library" -> onOpenAirdropCampaigns()
+                "binance_official" -> onOpenBinanceOfficial()
                 "project_library" -> onOpenProjects()
             }
         }
@@ -243,6 +245,7 @@ fun HomeScreen(
                         "tron_energy" -> Icons.Default.Shield
                         "accounting" -> Icons.Default.ReceiptLong
                         "airdrop_library" -> Icons.Default.NotificationsNone
+                        "binance_official" -> Icons.Default.Shield
                         "project_library" -> Icons.Default.Search
                         else -> Icons.Default.Search
                     }
@@ -532,6 +535,7 @@ private object HomeDashboardLayoutStore {
         "tron_energy" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "accounting" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "airdrop_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
+        "binance_official" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "project_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104)
     )
 
@@ -542,15 +546,18 @@ private object HomeDashboardLayoutStore {
         HomeDashboardCard("airdrop_navigation"),
         HomeDashboardCard("accounting"),
         HomeDashboardCard("wallet_management"),
-        HomeDashboardCard("tron_energy")
+        HomeDashboardCard("tron_energy"),
+        HomeDashboardCard("airdrop_library"),
+        HomeDashboardCard("binance_official")
     )
-    private val supported = listOf("airdrop_navigation", "accounting", "wallet_management", "tron_energy", "airdrop_library", "project_library")
+    private val supported = listOf("airdrop_navigation", "accounting", "wallet_management", "tron_energy", "airdrop_library", "binance_official", "project_library")
     fun title(id: String) = when (id) {
         "airdrop_navigation" -> "空投导航"
         "accounting" -> "记账"
         "wallet_management" -> "钱包管理"
         "tron_energy" -> "⚡ TRON 能量租赁"
-        "airdrop_library" -> "空投库"
+        "airdrop_library" -> "空投列表"
+        "binance_official" -> "币安官方活动"
         "project_library" -> "库管理"
         else -> "快捷入口"
     }
@@ -559,25 +566,32 @@ private object HomeDashboardLayoutStore {
         "accounting" -> "记录 Gas 消耗与实际收益"
         "wallet_management" -> "管理已保存地址"
         "tron_energy" -> "租赁前核对转出地址"
-        "airdrop_library" -> "发现和浏览空投项目"
+        "airdrop_library" -> "浏览已核验的公开空投活动"
+        "binance_official" -> "独立查看币安官方公告与活动"
         "project_library" -> "管理个人项目与任务"
         else -> ""
     }
     fun available(selected: Set<String>) = supported.filterNot { it in selected }
     fun load(context: android.content.Context): List<HomeDashboardCard> {
-        val raw = context.getSharedPreferences("home_dashboard_layout", android.content.Context.MODE_PRIVATE)
-            .getString("cards", null) ?: return defaults
+        val preferences = context.getSharedPreferences("home_dashboard_layout", android.content.Context.MODE_PRIVATE)
+        val raw = preferences.getString("cards", null) ?: return defaults
         val type = object : TypeToken<List<HomeDashboardCard>>() {}.type
         val parsed = runCatching { Gson().fromJson<List<HomeDashboardCard>>(raw, type) }.getOrNull() ?: return defaults
         val valid = parsed.filter { it.id in supported }.distinctBy { it.id }
-            .map { HomeDashboardCard(it.id) }
-        // Upgrade existing saved layouts so the new accounting shortcut is visible by default.
-        return if (valid.any { it.id == "accounting" }) valid
-            else valid.toMutableList().apply { add(minOf(1, size), HomeDashboardCard("accounting")) }
+            .map { HomeDashboardCard(it.id) }.toMutableList()
+        // One-time migration: expose the two distinct discovery destinations in existing layouts.
+        if (preferences.getInt("layout_version", 0) < 2) {
+            if (valid.none { it.id == "airdrop_library" }) valid.add(HomeDashboardCard("airdrop_library"))
+            if (valid.none { it.id == "binance_official" }) valid.add(HomeDashboardCard("binance_official"))
+            preferences.edit().putInt("layout_version", 2).apply()
+        }
+        // Keep the accounting shortcut visible for users upgrading from older layouts.
+        if (valid.none { it.id == "accounting" }) valid.add(minOf(1, valid.size), HomeDashboardCard("accounting"))
+        return valid
     }
     fun save(context: android.content.Context, cards: List<HomeDashboardCard>) {
         val valid = cards.filter { it.id in supported }.distinctBy { it.id }
         context.getSharedPreferences("home_dashboard_layout", android.content.Context.MODE_PRIVATE)
-            .edit().putString("cards", Gson().toJson(valid)).apply()
+            .edit().putString("cards", Gson().toJson(valid)).putInt("layout_version", 2).apply()
     }
 }

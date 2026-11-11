@@ -2055,3 +2055,12 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - The worker only records a successful refresh timestamp when the server response reports `ok=true`; unsuccessful server responses remain retryable on a later Home entry.
 - The airdrop hub repository retries an empty list when the server has no successful sync recorded, including the case where an earlier attempt exists but failed. A previously successful empty result is not repeatedly synchronized.
 - Added repository regression coverage for retry-after-failure and no-repeat-after-success. This is pending exact-head CI validation; server data availability and physical-device acceptance remain separate checks.
+
+
+### 2026-11-11 — separate public airdrop list and Binance official activities
+
+- The Home dashboard now exposes two independent default cards: **空投列表** opens the verified public campaign catalog (`AirdropCampaignsScreen`); **币安官方活动** opens the dedicated Binance announcement/activity hub (`AirdropHubScreen`).
+- The public campaign list and Binance announcement hub remain separate screens, endpoints, data contracts, and refresh paths. Binance announcements are not mixed into or presented as the general public campaign catalog.
+- Existing saved Home dashboard layouts receive a one-time versioned migration that adds both discovery cards; later user removals/order changes remain respected.
+- Home entry queues background dynamic catalog warmup without blocking navigation. The public campaign repository continues to use its Room-backed cache and six-hour TTL. Binance official feed remains independently refreshed by its own worker cadence.
+- Exact-head Android build and unit tests are pending; real device navigation and live-data verification remain pending.
