@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 
 from app.api.airdrop_hub import AirdropHubItem
 from app.services import airdrop_hub_sync as catalog_sync
@@ -93,3 +94,72 @@ def test_trusted_catalog_destination_must_be_https_without_credentials():
     assert catalog_sync._valid_http_url("http://project.example/airdrop") is None
     assert catalog_sync._valid_http_url("https://user:pass@project.example/airdrop") is None
     assert catalog_sync._valid_http_url("not-a-url") is None
+
+
+
+def test_coingecko_airdrop_category_and_coin_normalization():
+    categories = catalog_sync._normalize_coingecko_categories([
+        {"id": "airdrop", "name": "Airdrop"},
+        {"id": "layer-1", "name": "Layer 1"},
+    ])
+    assert categories == ["airdrop"]
+    rows = catalog_sync._normalize_coingecko_coins(
+        [{"id": "sample-token", "name": "Sample Token"}], "airdrop"
+    )
+    assert len(rows) == 1
+    assert rows[0]["source_key"] == "coingecko:airdrop:sample-token"
+    assert rows[0]["link"] == "https://www.coingecko.com/en/coins/sample-token"
+    assert rows[0]["publication_status"] == "OBSERVATION"
+    assert rows[0]["trust_level"] == "TRUST_LEVEL_0"
+
+
+def test_github_raw_json_and_markdown_normalization():
+    json_rows = catalog_sync._normalize_github_airdrop_list(
+        [{"name": "Project JSON", "website": "https://json.example"}],
+        "https://raw.githubusercontent.com/example/list/main/data.json",
+    )
+    markdown_rows = catalog_sync._normalize_github_airdrop_list(
+        "- [Project Markdown](https://markdown.example/)",
+        "https://raw.githubusercontent.com/example/list/main/README.md",
+    )
+    assert json_rows[0]["name"] == "Project JSON"
+    assert markdown_rows[0]["name"] == "Project Markdown"
+    assert all(row["source_name"] == "github-airdrop-lists" for row in json_rows + markdown_rows)
+    assert all(row["publication_status"] == "OBSERVATION" for row in json_rows + markdown_rows)
+
+
+def test_dexscreener_only_imports_recent_active_liquid_pools():
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    payload = {"pairs": [
+        {
+            "pairCreatedAt": now_ms - 3600_000,
+            "liquidity": {"usd": 25000},
+            "volume": {"h24": 80000},
+            "txns": {"h24": {"buys": 30, "sells": 25}},
+            "baseToken": {"name": "New Token", "symbol": "NEW", "address": "0xabc"},
+            "chainId": "base",
+            "url": "https://dexscreener.com/base/0xabc",
+        },
+        {
+            "pairCreatedAt": now_ms - 9 * 86400_000,
+            "liquidity": {"usd": 25000},
+            "volume": {"h24": 80000},
+            "txns": {"h24": {"buys": 30, "sells": 25}},
+            "baseToken": {"name": "Old Token", "symbol": "OLD", "address": "0xold"},
+            "chainId": "base",
+            "url": "https://dexscreener.com/base/0xold",
+        },
+    ]}
+    rows = catalog_sync._normalize_dexscreener_pairs(payload, "BASE")
+    assert len(rows) == 1
+    assert rows[0]["name"] == "New Token (NEW)"
+    assert rows[0]["source_name"] == "dexscreener-new-pools"
+    assert rows[0]["status"] == "交易活跃·待核实"
+    assert rows[0]["publication_status"] == "OBSERVATION"
+
+
+def test_all_four_source_labels_are_available():
+    assert catalog_sync.SOURCE_LABELS["coingecko-airdrop-category"] == "CoinGecko Airdrop Category"
+    assert catalog_sync.SOURCE_LABELS["github-airdrop-lists"] == "GitHub Open-source Lists"
+    assert catalog_sync.SOURCE_LABELS["dexscreener-new-pools"] == "DexScreener New Active Pools"
+    assert catalog_sync.SOURCE_LABELS["binance-announcements"] == "Binance Announcements"
