@@ -23,7 +23,8 @@ import com.airdrophunter.app.ui.theme.AppColors
 @Composable
 fun AirdropHubScreen(
     modifier: Modifier = Modifier,
-    vm: AirdropHubViewModel? = null
+    vm: AirdropHubViewModel? = null,
+    onOpenCampaigns: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -33,6 +34,10 @@ fun AirdropHubScreen(
     val state by hubViewModel.uiState.collectAsStateWithLifecycle()
 
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("项目目录", Modifier.weight(1f), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
+            TextButton(onClick = onOpenCampaigns) { Text("空投活动列表 →", color = AppColors.Primary) }
+        }
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),

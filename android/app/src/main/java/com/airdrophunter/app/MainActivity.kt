@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
 }
 private data class Destination(val label: Int, val icon: ImageVector)
 
-private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY }
+private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,7 +108,7 @@ private fun AirdropHunterApp(
     }
 
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
-    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
+    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
 
     BackHandler(hasSecondaryDestination) {
         activeOverlay = AppOverlay.NONE
@@ -125,6 +125,7 @@ private fun AirdropHunterApp(
     val secondaryTitle = when {
         activeOverlay == AppOverlay.SOURCES -> stringResource(R.string.sources_title)
         activeOverlay == AppOverlay.AIRDROP_HUB -> "空投大厅"
+        activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> "空投活动"
         activeOverlay == AppOverlay.WALLET_MANAGER -> "钱包管理"
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "$selectedMarketSymbol 行情"
@@ -176,7 +177,8 @@ private fun AirdropHunterApp(
         Box(Modifier.fillMaxSize().background(AppColors.Background).padding(padding)) {
             when {
                 activeOverlay == AppOverlay.SOURCES -> SourcesScreen(Modifier.fillMaxSize())
-                activeOverlay == AppOverlay.AIRDROP_HUB -> AirdropHubScreen(Modifier.fillMaxSize())
+                activeOverlay == AppOverlay.AIRDROP_HUB -> AirdropHubScreen(Modifier.fillMaxSize(), onOpenCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS })
+                activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> AirdropCampaignsScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.TRON_ENERGY -> TronEnergyAssistantScreen(
                     modifier = Modifier.fillMaxSize(),
                     onBack = { activeOverlay = AppOverlay.NONE },

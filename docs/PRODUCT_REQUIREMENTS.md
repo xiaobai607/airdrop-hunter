@@ -1646,3 +1646,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Added a Room-backed public cache repository using the existing `CacheStore` and bounded stale-while-revalidate coordinator. Cache data is public catalog content only; no wallet or personal ledger fields are sent.
 - Registered the repository in the application composition root and added the Retrofit endpoint binding.
 - The existing UI is intentionally unchanged in this step; the next step is a focused campaign-list presentation using the new repository, after API/CI verification. The collector and source adapters remain disabled until permitted $0 feeds are configured.
+
+
+### 2026-11-11 implementation progress — campaign list in Android APP
+
+- Added a dedicated campaign-list screen under the existing Airdrop Hub flow. The project directory remains intact; a clear entry opens the campaign list, avoiding conflating project identities with individual campaign seasons.
+- The campaign list consumes the new read-only campaign API through the Room-backed repository. It offers featured/ordinary tier switching, displays known status/KYC/score and listing reason, and opens only the official URL supplied by the backend.
+- No synthetic records are inserted. Empty states explicitly say there are no approved public campaigns yet. Observation and archived tiers remain excluded by the backend.
+- UI integration is now present in code, but exact-head Android CI and real backend data validation are still required before calling it verified.
