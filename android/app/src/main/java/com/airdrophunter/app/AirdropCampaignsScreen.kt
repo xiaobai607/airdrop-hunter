@@ -86,7 +86,7 @@ fun AirdropCampaignsScreen(
             ) {
                 item {
                     Text(
-                        "\${state.items.size} 个公开活动",
+                        "${state.items.size} 个公开活动",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.labelMedium
                     )
