@@ -63,6 +63,7 @@ fun BrowserAccountingToolbar(
     onOpenPageExternally: () -> Unit,
     modifier: Modifier = Modifier,
     initialShowBillList: Boolean = false,
+    initialCreateMockBill: Boolean = false,
     showDock: Boolean = true
 ) {
     val scope = rememberCoroutineScope()
@@ -197,6 +198,10 @@ fun BrowserAccountingToolbar(
                 creatingMockBill = false
             }
         }
+    }
+
+    LaunchedEffect(initialCreateMockBill) {
+        if (initialCreateMockBill) createMockBill()
     }
 
     fun deleteDraft(bill: PendingBillEntity) {
@@ -817,7 +822,8 @@ fun AccountingCenterScreen(modifier: Modifier = Modifier) {
         onCopyPageUrl = {},
         onOpenPageExternally = {},
         modifier = modifier,
-        initialShowBillList = true,
+        initialShowBillList = false,
+        initialCreateMockBill = true,
         showDock = false
     )
 }

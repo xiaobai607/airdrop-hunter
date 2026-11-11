@@ -2034,6 +2034,12 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Retained the backend scoring engine and persistence/history for internal publication decisions; this is a presentation/API-boundary cleanup, not deletion of the scoring gate.
 - Added API regression assertions that internal scoring, trust and market telemetry fields are absent from the public response.
 
+### 2026-11-11 — Home accounting entry and background airdrop refresh correction
+- The Home “记账” shortcut now opens the “确认本次记账” form directly by creating a local draft; it no longer opens or waits on the “待确认账单” picker. Existing drafts remain available through the separate pending-bills tool.
+- The dynamic catalog warm-up worker now refreshes the approved public Binance airdrop announcement hub in the background when the app enters the foreground, with a six-hour success cadence. It does not block the Home UI; failed refreshes preserve existing server data and are retried on a later foreground entry.
+- This refresh does not fabricate announcements: the visible hub continues to display only the approved Binance announcement records returned by the backend. An empty list after a successful refresh means the backend currently has no eligible announcement rows to show.
+- Exact-head Android build/unit tests and artifact upload are pending for this correction.
+
 ### 2026-11-11 — Public campaign API regression-test correction
 - Final list-copy audit found and removed the remaining “数据来自已审核目录” implementation wording; the Android list count now shows only the public campaign count, matching the concise user-facing contract.
 

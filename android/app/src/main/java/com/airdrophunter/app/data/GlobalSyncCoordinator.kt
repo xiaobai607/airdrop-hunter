@@ -22,8 +22,11 @@ import java.util.concurrent.TimeUnit
  * its own unique WorkManager queue. Failures retry independently. Individual
  * workers decide whether their own data source is due:
  * public contributions 15m; wallet activity 8h; dynamic market/community catalogs are
- * warmed on launch and revalidated from their own Room cache TTLs. Personal cloud sync is disabled.
+ * warmed on launch and revalidated from their own Room cache TTLs; the public Binance airdrop hub is revalidated every 6h. Personal cloud sync is disabled.
  */
+private const val AIRDROP_HUB_REFRESH_KEY = "airdrop_hub_last_success"
+private const val AIRDROP_HUB_REFRESH_INTERVAL_MILLIS = 6 * 60 * 60 * 1000L
+
 class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
@@ -44,6 +47,24 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
             throw cancelled
         } catch (_: Exception) {
             // Community directory cache remains usable if a market provider is unavailable.
+        }
+        try {
+            val preferences = applicationContext.getSharedPreferences("global_sync_cadence_v1", Context.MODE_PRIVATE)
+            val now = System.currentTimeMillis()
+            val lastRefresh = preferences.getLong(AIRDROP_HUB_REFRESH_KEY, 0L)
+            if (lastRefresh <= 0L || now < lastRefresh || now - lastRefresh >= AIRDROP_HUB_REFRESH_INTERVAL_MILLIS) {
+                // Refresh the approved public announcement feed off the UI thread.
+                // Mark success only after the server confirms the refresh request.
+                ApiClient.service.refreshAirdropHub()
+                preferences.edit().putLong(AIRDROP_HUB_REFRESH_KEY, now).apply()
+                succeeded++
+            } else {
+                succeeded++
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Keep cached public announcements usable; the next foreground entry retries.
         }
         return if (succeeded > 0) Result.success() else Result.retry()
     }
