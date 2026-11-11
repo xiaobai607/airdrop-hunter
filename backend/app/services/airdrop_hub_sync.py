@@ -5,7 +5,7 @@ import os
 import re
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import httpx
 from sqlalchemy import select
@@ -84,20 +84,29 @@ def _configured_github_raw_urls() -> list[str]:
         candidate = value.strip()
         try:
             parsed = urlparse(candidate)
+            port = parsed.port
         except ValueError:
+            # urlparse accepts malformed port text until .port is accessed.
             continue
         path_parts = [part for part in parsed.path.split("/") if part]
+        decoded_parts = [unquote(part) for part in path_parts]
         if (
             parsed.scheme != "https"
             or parsed.hostname != "raw.githubusercontent.com"
-            or parsed.username
-            or parsed.password
-            or parsed.port is not None
+            or parsed.netloc.lower() != "raw.githubusercontent.com"
+            or port is not None
             or parsed.query
             or parsed.fragment
             or len(path_parts) < 4
-            or any(part in {".", ".."} for part in path_parts)
-            or any(ord(char) < 0x21 for char in candidate)
+            or any(
+                part in {".", ".."}
+                or "/" in part
+                or "\\" in part
+                or any(ord(char) < 0x21 or char.isspace() for char in part)
+                for part in decoded_parts
+            )
+            or re.search(r"%(?![0-9A-Fa-f]{2})", candidate)
+            or any(ord(char) < 0x21 or char.isspace() for char in candidate)
         ):
             continue
         if candidate not in urls:
@@ -414,9 +423,6 @@ async def _fetch_coingecko_observations(client: httpx.AsyncClient) -> list[dict[
     return rows
 
 async def _fetch_github_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
-    try: urls = json.loads(os.getenv('AIRDROP_GITHUB_RAW_SOURCES', '[]'))
-    except ValueError: urls = []
-    if not isinstance(urls, list): urls = []
     urls = _configured_github_raw_urls()
     if not urls: raise RuntimeError('AIRDROP_GITHUB_RAW_SOURCES 未配置有效 GitHub Raw 文件 URL')
     rows, failures = [], 0

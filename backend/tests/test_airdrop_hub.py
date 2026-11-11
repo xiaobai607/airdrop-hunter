@@ -169,3 +169,31 @@ def test_binance_article_codes_are_rejected_instead_of_silently_rewritten():
     assert len(rows) == 1
     assert rows[0]["source_key"] == "binance:valid_code-123"
     assert rows[0]["link"].endswith("/valid_code-123")
+
+
+def test_github_raw_configuration_rejects_malformed_ports_and_encoded_path_traversal(monkeypatch):
+    import json
+
+    monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCES", json.dumps([
+        "https://raw.githubusercontent.com:badport/owner/repo/main/list.json",
+        "https://raw.githubusercontent.com:99999/owner/repo/main/list.json",
+        "https://@raw.githubusercontent.com/owner/repo/main/list.json",
+        "https://raw.githubusercontent.com/owner/repo/main/%2e%2e/private.json",
+        "https://raw.githubusercontent.com/owner/repo/main%2Fprivate/list.json",
+        "https://raw.githubusercontent.com/owner/repo/main/list.json",
+    ]))
+
+    assert _configured_github_raw_urls() == [
+        "https://raw.githubusercontent.com/owner/repo/main/list.json"
+    ]
+
+
+def test_github_raw_configuration_deduplicates_and_caps_sources(monkeypatch):
+    import json
+
+    sources = [f"https://raw.githubusercontent.com/owner/repo/main/list-{index}.json" for index in range(25)]
+    monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCES", json.dumps([sources[0], *sources]))
+
+    accepted = _configured_github_raw_urls()
+    assert len(accepted) == 20
+    assert len(set(accepted)) == 20

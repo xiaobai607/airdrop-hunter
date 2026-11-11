@@ -1999,3 +1999,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Manual workflow dispatch continues to honor its explicit Android/backend/both scope. The change detector still runs Android and backend suites independently according to their respective file groups.
 - This is designed to reduce duplicate validation without relying on a prior-run API lookup. Confirm the push before/after range on the next code push; no build savings are claimed until that acceptance check succeeds.
 
+
+
+### 2026-11-11 — GitHub Raw source configuration edge-case hardening
+
+- The configured Raw URL parser now catches malformed port values when the parsed port is accessed, rejects user-info/port variants, and checks decoded path segments for traversal or encoded path separators.
+- Malformed percent escapes and whitespace/control characters are rejected before a configured source is fetched.
+- Removed redundant environment parsing in the fetch adapter; all configured URLs now pass through the single strict validator.
+- Added regressions for malformed/out-of-range ports, empty user-info, encoded traversal/separators, duplicate URLs, and the 20-source cap.
