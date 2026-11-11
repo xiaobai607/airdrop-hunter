@@ -1937,3 +1937,12 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - CI run #1057 exposed a Kotlin compile error: `Animatable.snapTo` is suspending and was called directly from the non-suspending drag callback.
 - Moved both bounded `snapTo` updates into the existing composition coroutine scope. The gesture still consumes the drag event, updates both axes together in one launched coroutine, and retains Animatable for movement and edge snapping.
 - Backend tests passed in run #1057; Android build failed at the two direct `snapTo` calls. The correction is commit `1e6beda76d3b93a4f4b0be41107b4dd25c2c4823` and requires a fresh Android CI run.
+
+
+### 2026-11-11 — Home accounting/search navigation correction
+
+- Removed the standalone Home accounting card above Quick Entry. Accounting is now a first-class, default-visible Quick Entry shortcut with its own destination; tapping it opens the pending-bill/accounting flow, never the Project Library tab.
+- Added a dedicated Accounting overlay route and reused the existing pending-bill and confirmation workflow without rendering a browser Dock on the accounting-only screen.
+- Moved the single global coin/DApp search field directly below the market dashboard and above Quick Entry cards.
+- Existing saved Home layouts are migrated by inserting the accounting shortcut if it is missing; user card dimensions remain developer-controlled and user ordering/removal remains supported.
+- This is a navigation/layout correction. It does not establish physical-device visual acceptance; exact-head Android CI and on-device verification remain required.
