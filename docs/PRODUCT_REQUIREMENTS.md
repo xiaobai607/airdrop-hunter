@@ -17,8 +17,8 @@
 ### Current repository checkpoint
 
 - Repository: `xiaobai607/airdrop-hunter`; active delivery branch: `feature/mobile-browser-home-dock-batch`.
-- PR #135 remains **Draft / Open / not merged**. Latest branch code head: `51b2b6cc49704388bf6f576a3b2abf38b98efecc`.
-- Exact-head backend push workflow #43007560087 passed on `51b2b6c`: **234 passed, 3 warnings, 0 failed**. It covers the Binance detail-route central-filter guard and its regression test.
+- PR #135 remains **Draft / Open / not merged**. Latest branch code head at this checkpoint: `bada6edcbe30dd5a59ef39343c2939824aa62160`.
+- Exact-head backend push workflow #43019590283 passed on `f2022134a069474498ee15f2483727f8a67411e5`: **242 passed, 3 warnings, 0 failed**. Android was correctly skipped because that commit changed backend files only. The newer read-only discovery smoke runner and its tests are on `bada6ed`; exact-head workflow #43021839785 was still pending at this checkpoint.
 - The previous backend fix in workflow #43004421135 also passed: 232 passed, 3 warnings, 0 failed. It introduced a guard so a Binance item rejected by the central filter cannot be fetched directly by guessing its detail ID.
 - Android source changes at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed Android unit tests, Debug APK assembly, and artifact upload in workflow #43002913809. Later commits changed only backend API/tests and documentation; Android source is unchanged.
 - Airdrop Hub has a Room-backed public cache: show cached rows first, refresh the four-source pipeline in the background after 8 hours, retain last-known-good rows after failures, and apply a 5-minute retry cooldown. Manual refresh remains available; physical-device behavior still needs verification.
@@ -107,12 +107,13 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 
 ### Latest continuation checkpoint — 2026-11-11
 
-- Current branch head: `51b2b6cc49704388bf6f576a3b2abf38b98efecc`. Exact-head backend push workflow #43007560087 passed: 234 tests passed, 3 warnings, 0 failures.
-- The public Binance detail endpoint now rejects records marked `filtered`, even if a caller knows the record UUID. The pending review queue also excludes centrally filtered observations; `status=all` retains access to them for audit.
-- Android source at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed unit tests, Debug APK assembly and artifact upload. The latest changes did not modify Android files.
-- Airdrop Hub cache-first/background refresh is implemented with an 8-hour freshness interval, a 5-minute retry cooldown, stale-data retention and the existing manual refresh action. Physical-device behavior still needs verification.
-- Review queue pagination is stable and title-searchable. The separate review APP is explicitly deferred until the main APP is complete.
-- Next priority remains proving the four free data sources with real configured data, completing central-filter-to-campaign publication, and verifying the real Airdrop Library display. Scheduled production sync remains disabled until cost, source rights and live-data behavior are verified.
+- Current branch head: `bada6edcbe30dd5a59ef39343c2939824aa62160`; PR #135 remains Draft/Open/unmerged.
+- Exact-head backend CI on `f2022134` (workflow #43019590283) passed **242 tests, 3 warnings, 0 failures**. Android was skipped because no Android files changed in that commit.
+- Added `backend/scripts/smoke_discovery_sources.py`, a read-only live adapter smoke runner. It calls the existing Binance, DexScreener, and optionally configured CoinGecko/GitHub Raw adapters, reports per-source counts and sample names, and never opens a database session or publishes records.
+- Added manual workflow `.github/workflows/airdrop-discovery-smoke.yml`. It needs no database secret and does not write to production. CoinGecko and GitHub Raw are skipped when their optional credentials/approval configuration are absent.
+- Added unit tests for the smoke runner's partial-failure handling and all-empty failure case. Exact-head CI #43021839785 for `bada6ed` was pending when this checkpoint was written; do not count it as passed until its backend job completes.
+- **Live provider smoke test has not yet been run.** No real provider counts, database writes, campaign publications, or APK build are claimed. Scheduled production sync remains disabled pending source-rights, zero-cost and end-to-end checks.
+- Next action: finish exact-head backend CI, then manually run the new read-only smoke workflow and inspect each provider's live response before any database ingestion is enabled.
 
 ### Delivery batch summary
 
