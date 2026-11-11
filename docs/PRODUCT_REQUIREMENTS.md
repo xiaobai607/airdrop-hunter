@@ -17,8 +17,9 @@
 ### Current repository checkpoint
 
 - Repository: `xiaobai607/airdrop-hunter`; active delivery branch: `feature/mobile-browser-home-dock-batch`.
-- PR #135 is **Draft / Open / not merged**. Latest verified head at this checklist update: `ed77cfce71ced02d13b830f6977a491babf31a42`.
-- Exact-head CI run #1049 (`42949971315`) completed successfully: Android debug build/unit tests, backend tests, and artifact upload passed.
+- PR #135 is **Draft / Open / not merged**. Latest verified code head: `bff83f50fc53dce6f845f975fc802146fa17a244`.
+- Exact-head Android workflow #1101 (`42971171663`) passed Android debug build, Android unit tests, and APK artifact upload. PR workflow #1102 (`42971177864`) also completed successfully; backend tests were skipped for this Android-only code change.
+- The latest code head includes the Airdrop Library Binance-first card placement and the public campaign count interpolation fix. The first fetched campaign remains in the list after the Binance entry; no campaign is deleted.
 - The PR branch contains the current Airdrop Library, browser dock, community/accounting, campaign discovery and Binance announcement changes. These branch changes are not yet part of main until the PR is reviewed and merged by explicit authorization.
 - No physical-device acceptance is implied by CI. No production live-sync or recovery drill is implied by a successful build.
 
@@ -97,6 +98,13 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 - [ ] Generate and install the final release candidate APK; complete a full regression pass.
 - [ ] Verify privacy, zero-cost operation, source permissions, data integrity, backup/restore and rollback.
 - [ ] Keep PR #135 Draft/Open until the user explicitly authorizes merge. Do not declare the project finished before all required gates pass.
+
+### Latest continuation checkpoint — 2026-11-11
+
+- Code checkpoint: `bff83f50fc53dce6f845f975fc802146fa17a244`; exact-head Android build/unit tests/APK upload passed in Actions #1101. The subsequent PR workflow #1102 also succeeded; backend tests were skipped because this change set did not touch backend code.
+- Airdrop Library ordering: the Binance official entry occupies the first campaign-card slot; the first real campaign remains and is displayed second. This is implemented in code and awaits physical-device confirmation.
+- Documentation drift found during continuation: README.md and backend/.env.example still contained obsolete account-cloud-sync and RSS wording. These are being aligned with the current local-only privacy and four-source discovery rules.
+- Next implementation priority remains the four-source discovery pipeline, especially validating the live Binance CMS feeds and end-to-end real-data publication. Do not enable scheduled production sync until free-use, permissions, hosting cost, and real-data rendering are verified.
 
 ### Delivery batch summary
 
