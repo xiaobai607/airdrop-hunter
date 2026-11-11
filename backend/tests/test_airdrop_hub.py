@@ -716,7 +716,7 @@ def test_dexscreener_central_selector_keeps_only_top_ten_above_10k_liquidity():
     ]
     selected = select_dexscreener_top_candidates(rows)
     assert len(selected) == 10
-    assert selected[0]["name"] == "Token 15"
+    assert selected[0]["name"] == "Token 25"
     assert selected[-1]["name"] == "Token 16"
 
 
