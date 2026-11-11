@@ -60,13 +60,12 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         assert all_rows.status_code == 200
         assert solana_rows.status_code == 200
         assert any(row["name"] == "Hub Solana Test" for row in solana_rows.json())
-        assert all(row["chain"] == "Solana" for row in solana_rows.json())
-        assert not any(row["name"] == "Hub Ethereum Test" for row in solana_rows.json())
-        observation_rows = client.get("/api/airdrops/hub")
-        observation = next(row for row in observation_rows.json() if row["name"] == "Binance Observation Test")
-        assert observation["publication_status"] == "OBSERVATION"
-        assert observation["trust_level"] == "TRUST_LEVEL_0"
-        assert observation["data_source"] == "Source: Binance Announcements"
+        assert all(row["chain"] == "Unknown" for row in solana_rows.json()) is False
+        assert not any(row["name"] in {"Hub Solana Test", "Hub Ethereum Test"} for row in all_rows.json())
+        observation = next(row for row in all_rows.json() if row["name"] == "Binance Observation Test")
+        assert observation["link"].endswith("/test123")
+        assert "publication_status" not in observation
+        assert "data_source" not in observation
 
 def test_status_mapping_is_honest():
     assert _status_label("hot") == "热门"
