@@ -131,7 +131,7 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 
 ## 0.2 Latest user-confirmed data-discovery strategy — four-source, zero-budget standard (2026-11-11)
 
-The user approved four free public data sources for backend discovery: CoinGecko Demo API, GitHub Raw Content, DexScreener public API, and Binance public announcements. CoinMarketCal, DropsTab, Airdrops.io, paid APIs, paid trials, paid proxies, and paid scraping services are excluded.
+The user approved five free public data sources for backend discovery: CoinGecko Demo API, GitHub Raw Content, DexScreener public API, Binance public announcements, and the SolvoHQ CC0 dataset. SolvoHQ is admitted only through a strict CC0/schema/freshness gate; stale snapshots fail closed. CoinMarketCal, DropsTab, Airdrops.io, paid APIs, paid trials, paid proxies, and paid scraping services are excluded.
 
 ### Product experience — simple airdrop discovery (latest correction)
 - The primary Airdrop Discovery page exists to find and display airdrop activities. It is not a source-monitoring dashboard, token screener, project directory, or moderation console.
@@ -168,8 +168,17 @@ The user approved four free public data sources for backend discovery: CoinGecko
 - These explicit official announcement entries are the primary visible discovery feed. The original Binance article is the source of truth for all campaign terms. Do not infer rewards, deadlines, eligibility, claim links, or user qualification from a headline.
 - Treat CMS failures/format changes as a per-source failure and retain last-known-good records.
 
+### 5. SolvoHQ — CC0 curated JSON dataset (newly validated; live freshness gate required)
+- The repository LICENSE explicitly declares CC0-1.0; its README documents the JSON schema and daily refresh workflow. Runtime validation still checks license, schemaVersion, count and generatedAt.
+- Fetch only https://raw.githubusercontent.com/SolvoHQ/web3-discover-data/main/airdrops.json; no API key and no broad GitHub crawling.
+- Require schemaVersion 1, exact CC0-1.0 marker, count matching entries, timezone-aware generatedAt, and a snapshot no older than 36 hours. Reject malformed, stale or future-dated snapshots and preserve last-known-good records.
+- Normalize slug, project, chain, blurb, action, effort, costFloor, deadline, risk, officialUrl, addedOn, lastChecked and upstream status. Keep raw entry and source URL as provenance. Only active entries with valid HTTPS officialUrl and non-expired/ongoing deadline become central-filter observations.
+- Important limitation: the dataset has no explicit popularity/heat score. 'verified' is a risk label, not popularity. It cannot alone make an item featured or publicly publishable. Central scoring must obtain independent heat evidence and enforce high-heat-first ordering. This does not create a per-entry manual approval gate.
+- The snapshot inspected on 2026-11-11 reported generatedAt 2026-05-11, and the repository had only its initial commit from that date despite the daily-refresh claim. Adapter must fail closed until a genuinely fresh snapshot is observed.
+- CC0 dedication is not a warranty of accuracy, safety, endorsement or legal immunity. Risk flags are upstream assertions, not guarantees.
+
 ### Shared backend rules and exclusions
-- The four adapters are independent: one failure must not stop the others. Persist source provenance and status internally; retain last-known-good records after empty/error responses.
+- The five adapters are independent: one failure must not stop the others. Persist source provenance and status internally; retain last-known-good records after empty/error responses.
 - Keep stable source keys, HTTPS URL validation, bounded fields, deduplication, conservative polling, and caching.
 - Do not send personal wallet addresses, private ledger rows, transaction hashes, or identity data to these providers.
 - The primary public Airdrop Discovery API must return only explicit Binance airdrop announcement entries. CoinGecko, GitHub, and DexScreener observations remain excluded from that feed.

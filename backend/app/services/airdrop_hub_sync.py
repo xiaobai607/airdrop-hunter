@@ -20,6 +20,9 @@ BINANCE_CMS_SOURCE = "https://www.binance.com/bapi/apex/v1/public/apex/cms/artic
 BINANCE_CMS_LEGACY_SOURCE = "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
 BINANCE_DISCOVERY_REFERENCE_URL = "https://raw.githubusercontent.com/DIYgod/RSSHub/master/lib/routes/binance/announcement.ts"
 BINANCE_CATALOGS = (128, 93)
+SOLVOHQ_DATASET_URL = "https://raw.githubusercontent.com/SolvoHQ/web3-discover-data/main/airdrops.json"
+SOLVOHQ_SOURCE_NAME = "solvohq-cc0-airdrop-dataset"
+SOLVOHQ_MAX_SNAPSHOT_AGE_SECONDS = 36 * 60 * 60
 _BINANCE_DISCOVERY_CACHE_TTL_SECONDS = 6 * 60 * 60
 _binance_discovery_cache: tuple[str, datetime] | None = None
 
@@ -72,7 +75,7 @@ TRUST_LEVEL_0 = "TRUST_LEVEL_0"
 TRUST_LEVEL_1 = "TRUST_LEVEL_1"
 OBSERVATION = "OBSERVATION"
 PUBLISHED_SAFE = "PUBLISHED_SAFE"
-SOURCE_LABELS = {"binance-announcements": "Binance Announcements", "coingecko-airdrop-category": "CoinGecko Airdrop Category", "github-airdrop-lists": "GitHub Open-source Lists", "dexscreener-new-pools": "DexScreener New Active Pools"}
+SOURCE_LABELS = {"binance-announcements": "Binance Announcements", "coingecko-airdrop-category": "CoinGecko Airdrop Category", "github-airdrop-lists": "GitHub Open-source Lists", "dexscreener-new-pools": "DexScreener New Active Pools", SOLVOHQ_SOURCE_NAME: "SolvoHQ CC0 Airdrop Dataset"}
 
 def _source_publication_state(source_name: str) -> tuple[str, str]:
     if source_name in TRUSTED_AIRDROP_PROVIDER_LABELS:
@@ -462,6 +465,79 @@ def _normalize_dexscreener_pairs(payload: Any, query: str) -> list[dict[str, Any
         rows.append(row)
     return rows
 
+def _normalize_solvohq_airdrops(payload: Any, *, now: datetime | None = None) -> list[dict[str, Any]]:
+    """Validate CC0 envelope and normalize current entries as source observations."""
+    if not isinstance(payload, dict):
+        raise ValueError("SolvoHQ dataset must be a JSON object")
+    if payload.get("schemaVersion") != 1 or payload.get("license") != "CC0-1.0":
+        raise ValueError("SolvoHQ dataset schema/license is not approved")
+    entries, count = payload.get("entries"), payload.get("count")
+    if not isinstance(entries, list) or not isinstance(count, int) or count != len(entries):
+        raise ValueError("SolvoHQ dataset count does not match entries")
+    generated_raw = payload.get("generatedAt")
+    if not isinstance(generated_raw, str):
+        raise ValueError("SolvoHQ dataset generatedAt is missing")
+    try:
+        generated_at = datetime.fromisoformat(generated_raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("SolvoHQ dataset generatedAt is invalid") from exc
+    if generated_at.tzinfo is None:
+        raise ValueError("SolvoHQ dataset generatedAt must include a timezone")
+    current = now or datetime.now(timezone.utc)
+    age_seconds = (current.astimezone(timezone.utc) - generated_at.astimezone(timezone.utc)).total_seconds()
+    if age_seconds < -300 or age_seconds > SOLVOHQ_MAX_SNAPSHOT_AGE_SECONDS:
+        raise ValueError("SolvoHQ dataset snapshot is stale or future-dated")
+
+    rows: list[dict[str, Any]] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        slug = str(entry.get("slug") or "").strip()
+        project = str(entry.get("project") or "").strip()
+        official_url = _valid_http_url(entry.get("officialUrl"))
+        status = str(entry.get("status") or "").strip().lower()
+        if not slug or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,119}", slug):
+            continue
+        if not project or not official_url or status != "active":
+            continue
+        deadline = str(entry.get("deadline") or "").strip()
+        if deadline and deadline.lower() != "ongoing":
+            try:
+                deadline_date = datetime.strptime(deadline, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            if deadline_date < current.date():
+                continue
+        chain = str(entry.get("chain") or "Unknown").strip()[:120] or "Unknown"
+        blurb, action = str(entry.get("blurb") or "").strip(), str(entry.get("action") or "").strip()
+        description = " ".join(part for part in (blurb, f"参与方式：{action}" if action else "") if part)
+        record = _observation_record(SOLVOHQ_SOURCE_NAME, f"solvohq:{slug}", project, official_url,
+            description or "来自 SolvoHQ CC0 空投数据集的项目记录；请以项目官方页面为准。", chain, "待中央筛选")
+        record["source_url"] = SOLVOHQ_DATASET_URL
+        record["_filter_metadata"] = {
+            "dataset_generated_at": generated_at.astimezone(timezone.utc).isoformat(),
+            "snapshot_age_seconds": int(age_seconds), "schema_version": 1, "license": "CC0-1.0",
+            "risk": str(entry.get("risk") or "unknown")[:40], "effort": str(entry.get("effort") or "")[:240],
+            "cost_floor": str(entry.get("costFloor") or "")[:120], "deadline": deadline[:40],
+            "added_on": str(entry.get("addedOn") or "")[:20], "last_checked": str(entry.get("lastChecked") or "")[:20],
+            "upstream_status": status,
+        }
+        record["_raw_payload"] = entry
+        rows.append(record)
+    return rows
+
+
+async def _fetch_solvohq_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
+    response = await client.get(SOLVOHQ_DATASET_URL, headers={"Accept": "application/json"})
+    response.raise_for_status()
+    if len(response.content) > 3_000_000:
+        raise ValueError("SolvoHQ dataset exceeds 3 MB safety limit")
+    rows = _normalize_solvohq_airdrops(response.json())
+    if not rows:
+        raise ValueError("SolvoHQ dataset contains no current active entries")
+    return rows
+
+
 async def _fetch_coingecko_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
     key = os.getenv('COINGECKO_DEMO_API_KEY', '').strip()
     if not key: raise RuntimeError('COINGECKO_DEMO_API_KEY 未配置')
@@ -798,6 +874,7 @@ async def sync_airdrop_hub(db: AsyncSession) -> int:
             ('github-airdrop-lists', 'https://raw.githubusercontent.com/', _fetch_github_observations),
             ('dexscreener-new-pools', 'https://api.dexscreener.com/latest/dex/search', _fetch_dexscreener_observations),
             ('binance-announcements', BINANCE_CMS_SOURCE, _fetch_binance_observations),
+            (SOLVOHQ_SOURCE_NAME, SOLVOHQ_DATASET_URL, _fetch_solvohq_observations),
         ]
         for source_name, source_url, fetcher in sources:
             total += await _upsert_source_records(db, source_name, source_url, fetcher, client, now)

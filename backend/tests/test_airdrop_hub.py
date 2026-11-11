@@ -680,3 +680,55 @@ def test_discovery_observation_payload_is_bounded_and_removes_credentials():
     oversized = _bounded_observation_payload({"body": "x" * 100000})
     assert oversized["_truncated"] is True
     assert oversized["_original_serialized_bytes"] > 64 * 1024
+
+
+
+def test_solvohq_dataset_normalization_requires_fresh_cc0_snapshot():
+    from datetime import datetime, timezone, timedelta
+    from app.services.airdrop_hub_sync import _normalize_solvohq_airdrops
+    now = datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc)
+    payload = {
+        "generatedAt": (now - timedelta(hours=1)).isoformat(), "count": 2,
+        "schemaVersion": 1, "license": "CC0-1.0",
+        "entries": [
+            {"slug": "high-signal-project", "project": "High Signal Project", "chain": "Ethereum",
+             "blurb": "A current project campaign.", "action": "Complete official tasks.",
+             "effort": "10 minutes", "costFloor": "$0", "deadline": "ongoing", "risk": "verified",
+             "officialUrl": "https://project.example/", "status": "active"},
+            {"slug": "ended-project", "project": "Ended Project", "chain": "Solana",
+             "officialUrl": "https://ended.example/", "status": "active", "deadline": "2026-11-10"},
+        ],
+    }
+    rows = _normalize_solvohq_airdrops(payload, now=now)
+    assert len(rows) == 1
+    assert rows[0]["source_key"] == "solvohq:high-signal-project"
+    assert rows[0]["source_name"] == "solvohq-cc0-airdrop-dataset"
+    assert rows[0]["link"] == "https://project.example/"
+    assert rows[0]["_filter_metadata"]["license"] == "CC0-1.0"
+
+
+def test_solvohq_dataset_rejects_stale_or_malformed_snapshots():
+    from datetime import datetime, timezone, timedelta
+    import pytest
+    from app.services.airdrop_hub_sync import _normalize_solvohq_airdrops
+    now = datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc)
+    entry = {"slug": "sample-project", "project": "Sample Project",
+             "officialUrl": "https://sample.example/", "status": "active", "deadline": "ongoing"}
+    base = {"generatedAt": (now - timedelta(days=7)).isoformat(), "count": 1,
+            "schemaVersion": 1, "license": "CC0-1.0", "entries": [entry]}
+    with pytest.raises(ValueError, match="stale"): _normalize_solvohq_airdrops(base, now=now)
+    fresh = {**base, "generatedAt": now.isoformat()}
+    with pytest.raises(ValueError, match="count"): _normalize_solvohq_airdrops({**fresh, "count": 2}, now=now)
+    with pytest.raises(ValueError, match="schema/license"): _normalize_solvohq_airdrops({**fresh, "license": "unknown"}, now=now)
+
+
+def test_solvohq_dataset_does_not_treat_risk_label_as_popularity():
+    from datetime import datetime, timezone
+    from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+    record = {"source_name": "solvohq-cc0-airdrop-dataset", "name": "Popular Verified Project",
+              "_filter_metadata": {"license": "CC0-1.0", "upstream_status": "active",
+                                   "risk": "verified", "deadline": "ongoing"}}
+    decision = evaluate_discovery_observation(record, now=datetime(2026, 11, 11, tzinfo=timezone.utc))
+    assert decision["status"] == "eligible_for_review"
+    assert decision["metadata"]["requires_central_heat_evidence"] is True
+    assert decision["metadata"]["popularity_signal"] is None

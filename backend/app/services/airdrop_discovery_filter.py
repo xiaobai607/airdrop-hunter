@@ -40,6 +40,20 @@ def evaluate_discovery_observation(record: dict[str, Any], *, now: datetime | No
             reasons.append(reason)
         elif _canonical_identity_url(official_url) is None:
             reasons.append("github_official_url_invalid")
+    elif source_name == "solvohq-cc0-airdrop-dataset":
+        metadata = dict(record.get("_filter_metadata") or {})
+        if metadata.get("license") != "CC0-1.0": reasons.append("solvohq_license_not_cc0")
+        if metadata.get("upstream_status") != "active": reasons.append("solvohq_campaign_not_active")
+        deadline = str(metadata.get("deadline") or "").strip()
+        if deadline and deadline.lower() != "ongoing":
+            try:
+                if datetime.strptime(deadline, "%Y-%m-%d").date() < (now or datetime.now(timezone.utc)).date():
+                    reasons.append("solvohq_campaign_deadline_passed")
+            except ValueError:
+                reasons.append("solvohq_campaign_deadline_invalid")
+        # "verified" is an upstream risk label, not a popularity/heat signal.
+        metadata["popularity_signal"] = None
+        metadata["requires_central_heat_evidence"] = True
     elif source_name == "dexscreener-new-pools":
         age, liquidity = metadata.get("age_seconds"), metadata.get("liquidity_usd")
         volume, trades = metadata.get("volume_24h_usd"), metadata.get("trades_24h")
