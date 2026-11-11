@@ -2,20 +2,45 @@
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
-## 0.2 Latest user-confirmed data-discovery strategy — trusted third-party directories only
+## 0.2 Latest user-confirmed data-discovery strategy — multi-source, zero-budget, observation-first
 
-This section supersedes all earlier RSS/Atom discovery, wild-source crawling, and manual source-triage plans wherever they conflict.
+This is the latest correction to the discovery pipeline. The previous "wait for one perfect free airdrop directory API" approach is superseded. Combine multiple no-cost sources where their access and reuse terms permit it, get the pipeline running, and show useful leads in the app without misrepresenting unverified leads as confirmed airdrops.
 
-- Stop all RSS/Atom ingestion immediately. The scheduled sync must not call `sync_rss_discovery_candidates` or `promote_pending_candidates_to_campaign_observations`. Existing RSS code/data may remain for migration compatibility, but it is dormant and must not create new candidates, campaigns, or public listings.
-- New discovery is restricted to explicitly allowlisted, reputable third-party providers that publish a structured airdrop/campaign directory and permit the intended API use and redistribution. Do not treat a general token/market API as an airdrop directory.
-- Provider trust is source-level provenance, not proof that every project, URL, smart contract, claim page, or reward is harmless. For a provider explicitly approved as a trusted airdrop-directory source, skip the old manual/source-risk-review queue and fast-track records to `TRUST_LEVEL_1` + `PUBLISHED_SAFE` after deterministic import validation: required project name, valid HTTPS destination, bounded field sizes, stable source identity, deduplication, and source attribution. These checks are automated ingestion integrity checks, not a return to manual review.
-- Do not mark records from a provider that only supplies token prices, protocol metadata, TVL, trending assets, or general crypto listings as airdrop-verified. CoinGecko market/token data and DefiLlama protocol/TVL data are enrichment/identity context only unless the provider publishes an actual airdrop directory.
-- Every public project object must include `data_source`, e.g. `Source: DefiLlama`, and the persisted source identity must remain available for auditing. The API must not infer or fabricate a source label.
-- Preserve last-known-good catalog data when an upstream provider fails. Do not wipe the catalog on empty/error responses. Use bounded response sizes, timeouts, conservative polling, stable IDs, and idempotent upserts.
-- Zero-budget constraint is absolute: no paid endpoints, no trial-only credits that later bill, no paid API keys, no scraping paywalled pages, and no unapproved republication of third-party datasets.
-- Provider research checkpoint (2026-11-11): DefiLlama's currently documented free API is a DeFi/protocol/market data API; no official Airdrops API endpoint was found. CoinGecko's free Demo API provides crypto asset/market data, not a curated airdrop directory. CoinMarketCap documents an Airdrops API, but its Airdrops endpoint requires a paid plan. CryptoRank advertises a Drophunting endpoint, but its documented access is Business-tier, not its free Sandbox tier. Therefore none of these is currently an eligible free airdrop-directory provider. Do not activate any of them as an airdrop source until a genuinely free, documented airdrop endpoint and its reuse terms are verified.
-- Existing `web3-discover` JSON/MCP source is not automatically promoted to trusted status: its source identity/republication permission has not been approved as a head-tier provider. Keep it disabled until separately validated. No trusted provider is activated by this requirements change alone.
-- The project API's `data_source` contract and source trust/publication fields must be implemented independently of whether a live provider is currently available. No record may be labelled `TRUST_LEVEL_1` or `PUBLISHED_SAFE` merely because its source name resembles a trusted brand.
+### Active source: Binance announcement observations
+
+- Poll the public Binance CMS announcement endpoint: \`https://www.binance.com/bapi/composite/v1/public/cms/article/list/query\`.
+- Request the Crypto Airdrop category (catalog 128) and Latest Activities (catalog 93); filter the latter by airdrop-related terms such as Airdrop, Launchpool, HODLer, and Megadrop.
+- Treat this CMS endpoint as an undocumented/public web endpoint, not a formally supported Binance API. Use conservative polling, bounded page size, timeout, stable article code, deduplication, and last-known-good behavior. If the response schema changes or the source fails, keep the prior data.
+- Store the announcement title, canonical Binance announcement link, source name, and observation status. Do not fabricate a separate project name, chain, reward, eligibility, deadline, or official project URL when the announcement does not provide it.
+- Binance announcement observations are \`TRUST_LEVEL_0\` + \`OBSERVATION\` until the underlying campaign and official project details are independently established. They are visible as clearly labelled leads, not as verified/published-safe airdrop campaigns.
+
+### Additional sources and activation gates
+
+- **DropsTab Builders Program:** keep as an application candidate for free developer access. Do not assume an application is approved, do not assume the trial lasts indefinitely, and do not call paid endpoints. Enable only after receiving written confirmation of free quota, endpoint access, and rights to display the returned data in this app. Funding rounds and token unlocks are project-context enrichment, not proof of an airdrop.
+- **CoinMarketCal:** the current Free API tier has a monthly quota, but its API terms restrict Free and Standard plans to internal use. It must not power public app content or customer-facing automated decisions on the free plan. Do not integrate it into the public app unless a plan with explicit public-display rights is obtained without violating the zero-budget constraint.
+- **Airdrops.io RSS:** do not ingest, cache, mirror, or republish its feed into the server-side public catalog under the currently published terms, which prohibit copying, public display, and mirroring. A public RSS URL is not a redistribution license.
+- **DefiLlama and CoinGecko:** use only as optional free market/protocol/token enrichment where their current free API terms permit. Their general token, price, TVL, and market endpoints are not airdrop discovery directories and cannot independently create an airdrop record.
+- **Pyth, DexScreener, and GeckoTerminal:** optional market-data enrichment only. A price/liquidity signal cannot establish that an airdrop exists or that a contract is safe.
+
+### Unified pipeline and publication rules
+
+- Every source is an adapter with its own source ID, label, last-success timestamp, error state, polling interval, quota/rate guard, and stable deduplication key. A failing source must not prevent other sources from refreshing.
+- The app catalog may show both \`OBSERVATION\` leads and \`PUBLISHED_SAFE\` entries, with an obvious source/status label. Observation leads must never be presented as verified airdrops or given invented rewards, deadlines, chains, or eligibility.
+- Only a provider with an actual structured airdrop/campaign directory and explicit free public-display/reuse permission can be allowlisted for \`TRUST_LEVEL_1\` + \`PUBLISHED_SAFE\`. Trusted source status is provenance, not a smart-contract audit or a guarantee that every link is safe.
+- Keep deterministic integrity checks: non-empty title/name, valid HTTPS destination, bounded field sizes, stable source identity, deduplication, and source attribution. Do not require a manual source-risk queue for allowlisted directory providers; do not skip data-integrity checks.
+- Preserve last-known-good records on empty responses, rate limits, schema changes, and upstream failures. Keep polling conservative and within free quotas. No paid API, paid trial conversion, paid proxy, paid scraping actor, or hidden metered dependency is allowed.
+- Public project API objects include \`data_source\`, \`trust_level\`, and \`publication_status\`. Observation records must be queryable by the app but remain distinguishable from trusted published entries.
+- Personal wallet addresses, private ledger rows, transaction hashes, and user identity must never be sent to any discovery provider.
+
+### Research checkpoint (2026-11-11)
+
+- Binance publicly exposes a Crypto Airdrop topic in its announcement center. The CMS endpoint is widely used by community integrations but is not documented as a supported public API; treat it as best-effort and observation-only.
+- CoinMarketCal documents 3,000 free requests/month, but Free/Standard are internal-use only; public app display requires Pro/Elite rights, so it is not eligible for this zero-budget public feed.
+- Airdrops.io's published terms prohibit copying, public display, and server mirroring; do not ingest its RSS into our catalog.
+- DropsTab Builders Program remains an application candidate, not an active source; free access and public reuse rights have not yet been confirmed.
+- DefiLlama/CoinGecko free market data may enrich records but do not supply a dedicated airdrop directory.
+- The Binance announcement adapter is implemented as observation-only. The other candidate sources remain disabled until their zero-cost public-use permissions are established.
+
 
 ## 0.1 Latest user-confirmed corrections — 2026-11-11 (authoritative overrides)
 
