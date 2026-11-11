@@ -1498,3 +1498,10 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - **Status:** source changes committed; exact-head Android/backend CI and first-launch/offline/refresh UI acceptance pending.
 
 - The picker opens with an empty search and displays every active cached directory entry immediately; typing filters by name, chain, and tags. It never relies on a hard-coded fallback list.
+
+
+### 2026-11-11 — community square delisted-project filter
+
+- The community square keeps the full cached official directory, including entries explicitly marked inactive. The default “正常项目” filter shows active entries only; “已下架” is an explicit status filter that reveals inactive entries on demand.
+- The status filter is separate from tag, favorite, search, and ranking filters. Delisted projects retain their stable official IDs and remain viewable, but are not mixed into normal community discovery. Local library records and their accounting history remain unaffected.
+- The directory's active state comes only from a successful official catalog response; network failure does not infer delisting. Synthetic DEBUG demo data is unaffected by the real-directory status filter.
