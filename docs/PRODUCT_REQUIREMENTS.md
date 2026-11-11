@@ -1486,3 +1486,13 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - The personal library now reads the same cached directory status. Only a known official ID explicitly marked inactive displays the red “社区已下架” badge and “私人模式” state. The original `communityOfficialId`, local project, bills, and history remain intact; relisting under the same ID automatically clears the badge when the next successful directory refresh arrives.
 - Manual accounting and pending-bill confirmation keep the original official ID in local history but suppress new public contribution/outbox creation when the cached directory explicitly marks that ID inactive. Network failure or a missing directory ID does not itself mark a project down.
 - **Status:** source implementation committed; exact-head CI and physical-device/offline/relisting acceptance pending.
+
+
+### 2026-11-11 — app-start dynamic directory and market cache warm-up
+
+- On every app process start, the existing `AirdropHunterApplication` startup dispatcher now queues a dedicated network-constrained dynamic-data warm-up worker. It prepares the official community project directory, supported market-price search results, and OKX hot-coin list in the background before users open the related UI. The existing 15-minute dispatcher rechecks the worker; per-cache TTLs prevent needless provider requests.
+- Dynamic datasets are Room-first: screens and pickers read the last successful cache immediately, while background refresh updates it. Failed requests preserve the last known-good payload; an empty/missing cache shows a clear not-ready state instead of a fabricated static list.
+- The official community directory is now the single source for both the “从社区中选择” project picker and global-search DApp results. The old hard-coded seven-project allow-list and duplicate DApp catalog cache are removed. The picker shows only active directory entries and filters by project name, chain, and tags.
+- Selecting a directory row fills the current official name, description, and website URL, and saves the exact `community_official_id` association on the local project. User edits to the displayed name/description/URL do not replace that stable association ID. Private projects remain unassociated unless the user explicitly selects a community entry.
+- The directory uses a six-hour freshness window; market-price and hot-coin caches use the shared 15-minute cache policy. Warm-up sources fail independently, so one provider outage does not block the other directories or cached UI.
+- **Status:** source changes committed; exact-head Android/backend CI and first-launch/offline/refresh UI acceptance pending.
