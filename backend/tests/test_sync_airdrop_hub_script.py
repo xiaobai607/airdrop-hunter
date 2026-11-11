@@ -1,8 +1,14 @@
 import asyncio
+import importlib.util
+from pathlib import Path
 
 import pytest
 
-from scripts import sync_airdrop_hub as job
+_SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "sync_airdrop_hub.py"
+_SPEC = importlib.util.spec_from_file_location("sync_airdrop_hub_job", _SCRIPT_PATH)
+job = importlib.util.module_from_spec(_SPEC)
+assert _SPEC is not None and _SPEC.loader is not None
+_SPEC.loader.exec_module(job)
 
 
 class _FakeSessionContext:
