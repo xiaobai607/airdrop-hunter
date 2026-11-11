@@ -106,3 +106,26 @@ def test_ordinary_campaign_with_verified_official_url_can_publish():
     })
     assert result["tier"] == "ordinary"
     assert result["is_published"] is True
+
+
+def test_low_heat_archival_uses_repeated_temperature_not_opportunity_score():
+    # A stale/opportunity score must not mask three fresh low-temperature runs.
+    result = evaluate_campaign({
+        "temperature": 20,
+        "opportunity_score": 85,
+        "campaign_status": "ongoing",
+        "low_heat_success_count": 3,
+    })
+    assert result["tier"] == "archived"
+    assert result["is_published"] is False
+
+
+def test_two_low_temperature_runs_do_not_archive_even_if_opportunity_score_is_low():
+    result = evaluate_campaign({
+        "temperature": 20,
+        "opportunity_score": 15,
+        "campaign_status": "ongoing",
+        "low_heat_success_count": 2,
+    })
+    assert result["tier"] == "observation"
+    assert result["is_published"] is False
