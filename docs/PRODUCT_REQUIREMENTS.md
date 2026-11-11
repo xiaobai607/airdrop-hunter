@@ -1674,3 +1674,14 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - A score in the ordinary heat band (40–69) without official-link verification now remains in observation with an explicit review reason; it is not enough that a source reports the campaign or that the trust label alone is present.
 - Updated the retroactive-ended scoring fixture to represent a verified official URL, and added positive/negative tests for ordinary publication.
 - This is a fail-closed scoring rule. It does not imply that an RSS article link is an official URL or that the current RSS observation adapter can mark a campaign verified.
+
+
+### 2026-11-11 — persisted campaign scoring pipeline
+
+- Added a persistence adapter that translates campaign model fields into the existing evidence-aware scoring engine and stores score/tier/publication decisions.
+- The adapter treats an official URL as verified only when the campaign trust status is explicitly `verified` and the URL is HTTPS with a hostname and no embedded credentials. RSS item/source URLs are never used for this check.
+- Score changes create `AirdropCampaignScoreHistory` rows; unchanged decisions do not create duplicate history records. The operation is idempotent and records the scoring version, breakdown and listing reason.
+- The existing scheduled sync now runs scoring after RSS intake in a separate failure boundary, so an RSS outage does not prevent already-stored campaigns from being re-evaluated.
+- New RSS observations remain unverified and therefore stay unpublished. Only records whose stored evidence satisfies the scoring gates can be promoted to featured/ordinary.
+- Added tests for URL verification, RSS-link isolation, safe publication, score-history creation and idempotent re-runs.
+- This does not enable any RSS source or add a paid data provider. Live source configuration and physical production-database validation remain pending.
