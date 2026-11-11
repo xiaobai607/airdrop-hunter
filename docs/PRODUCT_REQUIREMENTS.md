@@ -2186,3 +2186,13 @@ Project and campaign identity classification is a responsibility of the unified 
 - Exact PR head workflow #1234 (run `43022231694`) completed successfully, but its only active `changes` job ran; both `backend-tests` and `android-build` were skipped for this documentation-only commit. Do not count #1234 as test coverage. The last exact backend code validation remains push run `43022038023` on parent code commit `c51a5e1256c7b29071cbb0b4f10062b4a81a04bd`: 244 passed, 3 warnings, 0 failed; Android skipped because it was backend-only.
 - Verified that `.github/workflows/airdrop-discovery-smoke.yml` and the smoke script do not exist on the default `main` branch (404); GitHub manual dispatch therefore cannot start this PR-only workflow yet. No dispatch-capable GitHub action is available in the connected toolset. Do not merge PR #135 or modify `main` without the user's explicit authorization. The database-writing scheduled workflow remains unsuitable for this read-only test and stays disabled.
 - PR #135 remains Draft/Open/unmerged. No live provider run has occurred; no live provider counts, campaign publication, production import, or phone acceptance may be claimed.
+
+
+
+### 2026-11-11 — zero-key discovery defaults and live smoke diagnostics
+
+- The default production discovery set now contains only the no-key public adapters: DexScreener and Binance public announcements.
+- CoinGecko is added only when `COINGECKO_DEMO_API_KEY` is present; approved GitHub Raw lists are added only when `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS` is present. Neither optional provider is required for the default run.
+- The read-only smoke runner already treated those two providers as optional and attempted DexScreener/Binance by default. Its failure output now includes a bounded exception detail so the actual HTTP status or empty-result reason can be diagnosed from Actions logs.
+- Latest code commit: `466ee3fc14fa0e753e49b38671653e8806b6d837`. Automated validation and a repeat live smoke run are still pending; the earlier live run failed with Binance HTTP status errors and a DexScreener adapter RuntimeError. No live source is currently verified as returning usable rows.
+- No API key is required for the default source set. The live smoke workflow remains read-only; production scheduled sync remains disabled. PR #135 remains Draft/Open/unmerged.
