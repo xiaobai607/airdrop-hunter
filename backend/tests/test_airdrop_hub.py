@@ -500,10 +500,10 @@ def test_coingecko_category_selection_is_centralized():
 
 def test_identity_does_not_use_names_and_keeps_project_campaign_separate():
     from app.services.airdrop_discovery_filter import build_discovery_identity, classify_identity_matches
-    a = build_discovery_identity({"source_name": "github-airdrop-lists", "name": "Same Name", "link": "https://alpha.example"})
-    b = build_discovery_identity({"source_name": "github-airdrop-lists", "name": "Same Name", "link": "https://beta.example"})
+    a = build_discovery_identity({"source_name": "github-airdrop-lists", "name": "Same Name", "_filter_metadata": {"official_url": "https://alpha.example"}})
+    b = build_discovery_identity({"source_name": "github-airdrop-lists", "name": "Same Name", "_filter_metadata": {"official_url": "https://beta.example"}})
     assert a["project_identity_key"] != b["project_identity_key"]
-    first = build_discovery_identity({"source_name": "github-airdrop-lists", "link": "https://project.example", "campaign_url": "https://project.example/season-one"})
+    first = build_discovery_identity({"source_name": "github-airdrop-lists", "_filter_metadata": {"official_url": "https://project.example"}, "campaign_url": "https://project.example/season-one"})
     second = build_discovery_identity({"source_name": "binance-announcements", "link": "https://www.binance.com/en/support/announcement/season-two", "_filter_metadata": {"official_url": "https://project.example", "campaign_url": "https://project.example/season-two"}})
     class Existing:
         source_key = "source:season-one"
