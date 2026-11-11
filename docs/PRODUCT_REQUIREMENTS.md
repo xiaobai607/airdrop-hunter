@@ -1709,3 +1709,6 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Added last_heat_source_name with migration 0022_campaign_heat_source; existing campaign counters are not retroactively inferred from old snapshots.
 - The scoring engine already archives at three consecutive low-heat successes. This adapter supplies the missing persisted counter input, but no heat provider is currently configured or wired into the scheduled sync. Therefore no campaign will be newly archived by this adapter until an approved, free provider integration is added and validated.
 - Provider failures must use a failure path that marks the run failed and does not call the success recorder. Production database migration execution and exact-head CI remain required before deployment.
+
+- Follow-up scoring correction: the three-run archival threshold is evaluated against the latest persisted `temperature` observation, not the maximum of `temperature` and the separate `opportunity_score`. The latter remains part of ranking only; a stale/high opportunity score cannot suppress a verified low-temperature streak.
+- Migration-history regression test now expects the new linear head `0022_campaign_heat_source` and verifies its parent is `0021_airdrop_campaigns`.
