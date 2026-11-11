@@ -22,5 +22,7 @@ class AirdropProject(Base):
     status: Mapped[str] = mapped_column(String(40), nullable=False, default="未知")
     link: Mapped[str] = mapped_column(String(1000), nullable=False)
     source_name: Mapped[str] = mapped_column(String(120), nullable=False, default="web3-discover")
+    trust_level: Mapped[str] = mapped_column(String(24), nullable=False, default="TRUST_LEVEL_0", server_default="TRUST_LEVEL_0")
+    publication_status: Mapped[str] = mapped_column(String(24), nullable=False, default="OBSERVATION", server_default="OBSERVATION", index=True)
     imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
