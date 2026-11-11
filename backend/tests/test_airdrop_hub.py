@@ -221,3 +221,31 @@ def test_binance_article_codes_are_rejected_instead_of_silently_rewritten():
     assert rows[0]["link"].endswith("/valid_code-123")
 
 
+
+
+def test_coingecko_demo_key_is_sent_in_header_not_query_string(monkeypatch):
+    import asyncio
+    import httpx
+    from app.services.airdrop_hub_sync import _fetch_coingecko_observations
+
+    monkeypatch.setenv("COINGECKO_DEMO_API_KEY", "demo-secret-for-test")
+    seen_paths = []
+
+    def handler(request):
+        assert request.headers.get("x-cg-demo-api-key") == "demo-secret-for-test"
+        assert "x_cg_demo_api_key" not in request.url.params
+        seen_paths.append(request.url.path)
+        if request.url.path.endswith("/coins/categories"):
+            return httpx.Response(200, json=[{"id": "airdrop", "name": "Airdrop"}])
+        if request.url.path.endswith("/coins/markets"):
+            return httpx.Response(200, json=[{"id": "sample-token", "name": "Sample Token"}])
+        return httpx.Response(404)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await _fetch_coingecko_observations(client)
+
+    rows = asyncio.run(run())
+    assert seen_paths == ["/api/v3/coins/categories", "/api/v3/coins/markets"]
+    assert len(rows) == 1
+    assert rows[0]["source_key"] == "coingecko:airdrop:sample-token"

@@ -339,13 +339,14 @@ def _normalize_dexscreener_pairs(payload: Any, query: str) -> list[dict[str, str
 async def _fetch_coingecko_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
     key = os.getenv('COINGECKO_DEMO_API_KEY', '').strip()
     if not key: raise RuntimeError('COINGECKO_DEMO_API_KEY 未配置')
-    response = await client.get('https://api.coingecko.com/api/v3/coins/categories', params={'x_cg_demo_api_key': key})
+    auth_headers = {'x-cg-demo-api-key': key}
+    response = await client.get('https://api.coingecko.com/api/v3/coins/categories', headers=auth_headers)
     response.raise_for_status()
     category_ids = _normalize_coingecko_categories(response.json())
     if not category_ids: raise RuntimeError('CoinGecko 未返回 Airdrop 类目')
     rows = []
     for category_id in category_ids[:3]:
-        response = await client.get('https://api.coingecko.com/api/v3/coins/markets', params={'x_cg_demo_api_key': key, 'vs_currency': 'usd', 'category': category_id, 'order': 'market_cap_desc', 'per_page': 250, 'page': 1, 'sparkline': 'false'})
+        response = await client.get('https://api.coingecko.com/api/v3/coins/markets', headers=auth_headers, params={'vs_currency': 'usd', 'category': category_id, 'order': 'market_cap_desc', 'per_page': 250, 'page': 1, 'sparkline': 'false'})
         response.raise_for_status()
         rows.extend(_normalize_coingecko_coins(response.json(), category_id))
     return rows
