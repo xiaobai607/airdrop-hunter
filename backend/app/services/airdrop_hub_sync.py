@@ -34,7 +34,7 @@ _sync_status: dict[str, Any] = {
     "last_attempt_at": None,
     "last_success_at": None,
     "imported_count": 0,
-    "source": JSON_SOURCE,
+    "source": "none",
     "error": None,
 }
 
@@ -173,7 +173,7 @@ async def sync_airdrop_hub(db: AsyncSession) -> int:
     # web3-discover is not on the trusted-provider allowlist. An environment
     # switch must never turn an unverified directory into TRUST_LEVEL_1.
     if "web3-discover" not in TRUSTED_AIRDROP_PROVIDER_LABELS:
-        _sync_status.update({"imported_count": 0, "error": "no_trusted_free_airdrop_provider"})
+        _sync_status.update({"imported_count": 0, "source": "none", "error": "no_trusted_free_airdrop_provider"})
         logger.info("Skipped catalog sync: no eligible free airdrop-directory provider is active")
         return 0
     try:
