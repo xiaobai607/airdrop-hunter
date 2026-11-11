@@ -1685,3 +1685,17 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - New RSS observations remain unverified and therefore stay unpublished. Only records whose stored evidence satisfies the scoring gates can be promoted to featured/ordinary.
 - Added tests for URL verification, RSS-link isolation, safe publication, score-history creation and idempotent re-runs.
 - This does not enable any RSS source or add a paid data provider. Live source configuration and physical production-database validation remain pending.
+
+
+### 2026-11-11 — free DEX market enrichment adapter
+
+- Added `backend/app/services/airdrop_market_data.py` using only public HTTP endpoints; no API key, paid plan, paid scraper or extra Python dependency is introduced.
+- DexScreener lookup is contract-address-only and chain-scoped. Requests use the documented `/tokens/v1/{chainId}/{tokenAddresses}` endpoint, batch at most 30 addresses, and never use project name/ticker search. The implementation also rechecks the returned chain and exact base/quote contract address before accepting a pair.
+- To avoid inflated market signals from adding overlapping pools together, the campaign's current liquidity/24h-volume fields use the strongest single matched pair; pair count is recorded separately. Individual market snapshots preserve the selected pair identity and source values.
+- The adapter uses a conservative 2-second spacing between DexScreener batch calls (maximum 30 calls/minute, below the published 300 calls/minute endpoint limit), bounded retries, response-size limits, timeouts and `Retry-After` handling.
+- GeckoTerminal uses one global `/networks/trending_pools` request per refresh cycle, not one request per campaign. Its result is cached in-process for five minutes; requests are spaced by at least six seconds and a 429 response is respected with a conservative minimum retry delay. The adapter sends the documented API version header.
+- Only supported explicit network identifiers and non-empty contract addresses are queried. Unsupported networks, missing contracts and tokenless campaigns do not trigger name-based discovery or per-campaign GeckoTerminal calls.
+- Provider errors preserve the last-known campaign market fields and do not create false zero-liquidity observations. A successful empty DexScreener pair list is represented separately as zero matched pairs.
+- The daily sync script now runs market enrichment after candidate intake and before scoring. Market enrichment has its own error boundary so provider outages do not block campaign scoring or the rest of the sync.
+- Added tests for 30-address batching, duplicate removal, exact chain/contract matching, best-pair selection, token relationship parsing, one global GeckoTerminal call and last-known-good preservation.
+- The adapter is code-complete but production use remains gated by the existing sync flag, real database/migration validation and exact-head CI. No source is automatically marked verified by market data; DEX liquidity and trending remain ranking signals only.
