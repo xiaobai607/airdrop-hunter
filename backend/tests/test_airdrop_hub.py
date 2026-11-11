@@ -60,7 +60,7 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         assert all_rows.status_code == 200
         assert solana_rows.status_code == 200
         assert any(row["name"] == "Hub Solana Test" for row in solana_rows.json())
-        assert all(row["chain"] == "Unknown" for row in solana_rows.json()) is False
+        assert solana_rows.json() == []
         assert not any(row["name"] in {"Hub Solana Test", "Hub Ethereum Test"} for row in all_rows.json())
         observation = next(row for row in all_rows.json() if row["name"] == "Binance Observation Test")
         assert observation["link"].endswith("/test123")
