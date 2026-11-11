@@ -1915,3 +1915,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - The inner capsule container clips its translucent background, border and LazyRow to RoundedCornerShape(50), preventing tool icons from painting outside the pill.
 - Normal horizontal scrolling remains assigned to LazyRow; moving the entire Dock requires a long press followed by a drag. Animatable drives the release/cancel snap animation to the left or right edge while keeping the vertical position within the available range.
 - Automated build/test and physical-device gesture acceptance are separate gates. Do not claim the gesture conflict or visual alignment is fixed on hardware until tested on the user's phone.
+
+
+### 2026-11-11 — Browser Dock import cleanup after source review
+
+- A follow-up source review found a literal escaped newline embedded in the `LazyColumn` import line and removed the duplicate `items` import.
+- Corrected the import without changing Dock gesture, layout, clipping, snapping, or persistence behavior.
+- Commit `81314ddd1d1dfe3297eba309965d29cf6afdb846` contains the source cleanup. A fresh exact-head CI run is required; the prior Dock run was still in progress and is not treated as a pass.
