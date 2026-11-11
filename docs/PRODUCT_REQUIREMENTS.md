@@ -1954,3 +1954,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - The outer Dock now observes pointer events in the Initial pass, waits for a stationary long press, and then consumes drag movement before the child LazyRow can claim it. Both X/Y Animatable offsets are updated from the outer pointer gesture coroutine, moving the capsule background, border, clipping region, and all tools as one unit.
 - A normal swipe that moves beyond touch slop before the long-press timeout is left to LazyRow, preserving horizontal tool scrolling.
 - This fix targets gesture ownership, not visual restyling. Exact-head CI and physical-device verification are still required; the prior device screenshot remains evidence that the earlier implementation was not acceptable.
+
+
+### 2026-11-11 — Dock gesture coroutine compile correction
+
+- Exact-head CI #1067 confirmed backend tests passed but Android Kotlin compilation failed because Animatable.snapTo() was called directly inside the restricted awaitEachGesture pointer scope.
+- Moved both bounded axis updates into the composition coroutine scope while keeping the parent pointer listener responsible for recognizing and consuming long-press Dock drags.
+- This is a compile correction only; the gesture still requires a fresh exact-head CI run and physical-device acceptance.
