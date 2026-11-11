@@ -1,8 +1,15 @@
 name: Android debug build and backend tests
 
 on:
+  push:
+    branches-ignore: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/workflows/**'
   pull_request:
     branches: [main]
+    types: [opened, reopened, synchronize]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -26,8 +33,6 @@ concurrency:
 
 permissions:
   contents: read
-  actions: read
-  pull-requests: read
 
 jobs:
   changes:
@@ -44,13 +49,11 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_ATTEMPT: ${{ github.run_attempt }}
-          WORKFLOW_ID: 408916932
-          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_ACTION: ${{ github.event.action }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
           MANUAL_SCOPE: ${{ inputs.scope || 'both' }}
         run: |
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
@@ -67,53 +70,30 @@ jobs:
             exit 0
           fi
 
-          # Compare only changes since the last fully successful validation of this PR.
-          # If no successful baseline exists, or this is a manual rerun, validate the
-          # complete PR diff so cancelled/failed work can never hide untested changes.
-          diff_base="$BASE_SHA"
-          compare_full_pr=true
-          if [[ "$RUN_ATTEMPT" -gt 1 ]]; then
-            echo "Rerun attempt detected; using the complete PR diff."
-          elif [[ -n "$PR_NUMBER" ]]; then
-            runs_json=""
-            if ! runs_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/$WORKFLOW_ID/runs" -f branch="$HEAD_REF" -f event=pull_request -F per_page=100 2>&1)"; then
-              # Fall back to the repository-wide run list if the workflow-specific
-              # route is unavailable; filter by workflow ID below.
-              if ! runs_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs" -f branch="$HEAD_REF" -f event=pull_request -F per_page=100 2>&1)"; then
-                echo "::warning::Could not read previous workflow runs: $runs_json"
-                runs_json=""
-              fi
-            fi
-            if [[ -n "$runs_json" ]]; then
-              previous_sha="$(jq -r --arg run_id "$RUN_ID" --arg pr_number "$PR_NUMBER" --arg workflow_id "$WORKFLOW_ID" '
-                [.workflow_runs[]?
-                  | select(.workflow_id == ($workflow_id | tonumber))
-                  | select((.id | tostring) != $run_id)
-                  | select(.status == "completed" and .conclusion == "success")
-                  | select(any(.pull_requests[]?; (.number | tostring) == $pr_number))]
-                | .[0].head_sha // empty
-              ' <<< "$runs_json")"
-              if [[ -n "$previous_sha" ]]; then
-                if ! git cat-file -e "${previous_sha}^{commit}" 2>/dev/null; then
-                  git fetch --no-tags origin "$previous_sha" || true
-                fi
-                if git cat-file -e "${previous_sha}^{commit}" 2>/dev/null; then
-                  diff_base="$previous_sha"
-                  compare_full_pr=false
-                  echo "Using last successful PR validation as the change baseline: $previous_sha"
-                else
-                  echo "::warning::Previous successful head is unavailable locally; falling back to the complete PR diff."
-                fi
-              else
-                echo "No previous successful run for this PR; using the complete PR diff."
-              fi
-            fi
+          # Same-repository PR synchronize events are paired with the push event
+          # for the exact before/after commit range. Avoid running the same suites twice.
+          if [[ "$EVENT_NAME" == "pull_request" && "$HEAD_REPO" == "$GITHUB_REPOSITORY" && "$PR_ACTION" == "synchronize" ]]; then
+            echo "android=false" >> "$GITHUB_OUTPUT"
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+            echo "Same-repository synchronize is covered by the corresponding push event."
+            exit 0
           fi
 
-          if [[ "$compare_full_pr" == "true" ]]; then
-            git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            if [[ -n "$PUSH_BEFORE" && ! "$PUSH_BEFORE" =~ ^0+$ ]]; then
+              git diff --name-only "$PUSH_BEFORE" "$PUSH_AFTER" > changed-files.txt
+              echo "Checking exact push range: $PUSH_BEFORE..$PUSH_AFTER"
+            else
+              # New branch: compare its complete tree with the merge base on main.
+              diff_base="$(git merge-base origin/main "$PUSH_AFTER")"
+              git diff --name-only "$diff_base" "$PUSH_AFTER" > changed-files.txt
+              echo "New branch; checking from main merge base $diff_base"
+            fi
           else
-            git diff --name-only "$diff_base" "$HEAD_SHA" > changed-files.txt
+            # First PR validation, reopen, or fork PR synchronize: validate the
+            # complete PR diff. Fork updates have no base-repository push event.
+            git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt
+            echo "Checking complete PR diff: $BASE_SHA...$HEAD_SHA"
           fi
           if grep -Eq '^(android/|gradle/|gradlew$|settings\.gradle|build\.gradle|gradle\.properties$)' changed-files.txt; then
             echo "android=true" >> "$GITHUB_OUTPUT"
