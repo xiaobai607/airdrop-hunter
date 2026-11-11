@@ -224,7 +224,7 @@ private fun AirdropAnnouncementDetail(
                                     ): Boolean {
                                         // Only explicit top-level user clicks may leave the
                                         // source article. Block subframes and automatic redirects.
-                                        if (!request.isForMainFrame || !request.hasGesture) {
+                                        if (!request.isForMainFrame || !request.hasGesture()) {
                                             return true
                                         }
                                         val target = request.url
