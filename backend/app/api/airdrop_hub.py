@@ -82,7 +82,12 @@ async def get_airdrop_hub_detail(item_id: str, db: AsyncSession = Depends(get_db
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="空投公告不存在") from exc
     item = await db.scalar(select(AirdropProject).where(AirdropProject.id == parsed_id))
-    if item is None or item.source_name != "binance-announcements":
+    if (
+        item is None
+        or item.source_name != "binance-announcements"
+        or item.publication_status != OBSERVATION
+        or item.filter_status == "filtered"
+    ):
         raise HTTPException(status_code=404, detail="空投公告不存在")
     prefix = "binance:"
     if not item.source_key.startswith(prefix):
