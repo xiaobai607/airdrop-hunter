@@ -1654,3 +1654,15 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - The campaign list consumes the new read-only campaign API through the Room-backed repository. It offers featured/ordinary tier switching, displays known status/KYC/score and listing reason, and opens only the official URL supplied by the backend.
 - No synthetic records are inserted. Empty states explicitly say there are no approved public campaigns yet. Observation and archived tiers remain excluded by the backend.
 - UI integration is now present in code, but exact-head Android CI and real backend data validation are still required before calling it verified.
+
+
+### 2026-11-11 implementation progress — RSS candidate observation bridge
+
+- Added a separate adapter that mirrors only pending, allowlisted RSS/Atom candidates into campaign-level records with stable `rss-candidate:<source_key>` identities.
+- RSS article URLs are retained as source evidence only; they are never copied into `official_url`. Chain, campaign type/status, KYC, token contract, heat and market data remain unknown/null until independently verified.
+- New records are always `unverified`, `observation`, and `is_published=false`; they do not enter the public campaign endpoint or community project catalog.
+- Source snapshots use a canonical SHA-256 hash, so unchanged content is not stored repeatedly. Re-running the sync is idempotent by campaign source key.
+- Subsequent RSS refreshes update only last-seen metadata on an existing campaign row; they do not overwrite human-reviewed fields or publication decisions.
+- Connected this bridge to the existing daily sync script after RSS candidate intake. The cron remains gated by `AIRDROP_DISCOVERY_SYNC_ENABLED`, database configuration and source approval.
+- Added focused tests for unknown-field preservation, official-link separation, unpublished observation defaults and snapshot-hash stability.
+- This is a candidate-to-observation bridge, not a complete automated campaign verifier or publisher. No RSS source is enabled by this change, and no paid provider/API is introduced.
