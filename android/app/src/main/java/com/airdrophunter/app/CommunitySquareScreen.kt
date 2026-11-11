@@ -45,9 +45,10 @@ private data class CommunityProject(
     val tags: List<String>, val isDemo: Boolean = false,
     val demoScore: Double = 0.0,
     val averageRating: Double? = null, val ratingCount: Long = 0,
-    val gasByVerificationTier: Map<String, Double> = emptyMap()
+    val gasByVerificationTier: Map<String, Double> = emptyMap(),
+    val isActive: Boolean = true
 ) {
-    val label: String get() = if (isDemo) "测试演示" else if (gas > 0.0 || reward > 0.0) "全网数据" else "暂无贡献"
+    val label: String get() = when { isDemo -> "测试演示"; !isActive -> "社区已下架"; gas > 0.0 || reward > 0.0 -> "全网数据"; else -> "暂无贡献" }
     val reputationLabel: String get() = when {
         isDemo && demoScore >= 4.5 -> "好评如潮"
         isDemo && demoScore >= 4.0 -> "整体较好"
@@ -84,6 +85,7 @@ fun CommunitySquareScreen(
     var useDemoData by remember { mutableStateOf(BuildConfig.DEBUG) }
     var selectedTag by remember { mutableStateOf<String?>(null) }
     var favoritesOnly by remember { mutableStateOf(false) }
+    var showDelistedOnly by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showSubmissionDialog by remember { mutableStateOf(false) }
     var submissionName by remember { mutableStateOf("") }
@@ -136,12 +138,12 @@ fun CommunitySquareScreen(
         // Paint the last successful Room directory immediately; network failure never
         // changes an entry's active state or removes a locally cached official ID.
         val cachedCatalog = com.airdrophunter.app.data.CommunityCatalogRepository.readCatalog()
-        if (!cachedCatalog.isNullOrEmpty()) catalogEntries = cachedCatalog.filter { it.is_active }
+        if (!cachedCatalog.isNullOrEmpty()) catalogEntries = cachedCatalog
         val cachedOverall = com.airdrophunter.app.data.CommunitySnapshotRepository.readSnapshot("overall")
         applyOverallSnapshot(cachedOverall)
         try {
             val refreshedCatalog = com.airdrophunter.app.data.CommunityCatalogRepository.refreshCatalog()
-            catalogEntries = refreshedCatalog.filter { it.is_active }
+            catalogEntries = refreshedCatalog
             catalogError = null
         } catch (_: Exception) {
             if (catalogEntries.isEmpty() && cachedOverall == null) {
@@ -173,7 +175,8 @@ fun CommunitySquareScreen(
             isDemo = false,
             averageRating = stats?.average_rating,
             ratingCount = stats?.rating_count ?: 0L,
-            gasByVerificationTier = stats?.gas_by_verification_tier.orEmpty()
+            gasByVerificationTier = stats?.gas_by_verification_tier.orEmpty(),
+            isActive = entry.is_active
         )
     }
     // Synthetic projects exist only in the DEBUG test mode. They never enter the catalog,
@@ -201,7 +204,8 @@ fun CommunitySquareScreen(
     // Demo and real datasets are mutually exclusive; the mode switch never mixes them.
     val combinedProjects = if (BuildConfig.DEBUG && useDemoData) demoProjects else realProjects
     val displayedProjects = combinedProjects.filter {
-        (selectedTag == null || selectedTag in it.tags) &&
+        (useDemoData || matchesCommunityProjectStatus(it.isActive, showDelistedOnly)) &&
+            (selectedTag == null || selectedTag in it.tags) &&
             (!favoritesOnly || it.id in favoriteIds) &&
             matchesCommunityProjectQuery(it.name, it.chain, it.tags, searchQuery)
     }
@@ -290,6 +294,19 @@ fun CommunitySquareScreen(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("项目状态", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = !showDelistedOnly, onClick = { showDelistedOnly = false },
+                        label = { Text("正常项目") }, shape = RoundedCornerShape(999.dp),
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary))
+                    FilterChip(selected = showDelistedOnly, onClick = { showDelistedOnly = true },
+                        label = { Text("已下架") }, shape = RoundedCornerShape(999.dp),
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFFFE8E8), selectedLabelColor = Color(0xFFC62828)))
+                }
+            }
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("项目标签", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly },
@@ -321,6 +338,7 @@ fun CommunitySquareScreen(
             item {
                 Text(
                     when {
+                        showDelistedOnly -> "当前没有已下架的社区项目"
                         favoritesOnly && searchQuery.isNotBlank() -> "没有找到符合搜索条件的收藏项目"
                         favoritesOnly -> "还没有收藏项目，点击项目卡片上的爱心即可收藏"
                         searchQuery.isNotBlank() -> "没有找到匹配的社区项目"
@@ -350,12 +368,12 @@ fun CommunitySquareScreen(
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Surface(
-                                color = if (project.isDemo) Color(0xFFFFF4E5) else Color(0xFFEAF7EF),
+                                color = when { project.isDemo -> Color(0xFFFFF4E5); !project.isActive -> Color(0xFFFFE8E8); else -> Color(0xFFEAF7EF) },
                                 shape = RoundedCornerShape(999.dp)
                             ) {
                                 Text(
                                     project.label, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    color = if (project.isDemo) Color(0xFF9A5B12) else Color(0xFF19764F),
+                                    color = when { project.isDemo -> Color(0xFF9A5B12); !project.isActive -> Color(0xFFC62828); else -> Color(0xFF19764F) },
                                     style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
                                 )
                             }
