@@ -514,16 +514,47 @@ async def _fetch_github_observations(client: httpx.AsyncClient) -> list[dict[str
     return rows
 
 async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
-    queries = list(dict.fromkeys(part.strip() for part in os.getenv("DEXSCREENER_SEARCH_QUERIES", "SOL,ETH,USDC").split(",") if part.strip()))[:8]
+    queries = list(dict.fromkeys(
+        part.strip()
+        for part in os.getenv("DEXSCREENER_SEARCH_QUERIES", "SOL,ETH,USDC").split(",")
+        if part.strip()
+    ))[:8]
+    if not queries:
+        raise RuntimeError("DEXSCREENER_SEARCH_QUERIES 未配置有效搜索词")
+
     rows: list[dict[str, Any]] = []
+    failures: list[str] = []
     for query in queries:
-        response = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": query})
-        response.raise_for_status()
-        query_rows = _normalize_dexscreener_pairs(response.json(), query)
-        for row in query_rows:
-            row["source_url"] = str(response.request.url)
-        rows.extend(query_rows)
-    if not rows: raise RuntimeError("DexScreener 本轮没有返回可解析的交易池记录")
+        try:
+            response = await client.get(
+                "https://api.dexscreener.com/latest/dex/search",
+                params={"q": query},
+            )
+            response.raise_for_status()
+            query_rows = _normalize_dexscreener_pairs(response.json(), query)
+            for row in query_rows:
+                row["source_url"] = str(response.request.url)
+            rows.extend(query_rows)
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
+            failures.append(f"{query}:{type(exc).__name__}")
+            logger.warning(
+                "DexScreener search %s failed; continuing with remaining terms: %s",
+                query,
+                type(exc).__name__,
+            )
+
+    if not rows:
+        if failures:
+            raise RuntimeError(
+                "DexScreener 所有搜索词均失败或未产生有效记录: " + "; ".join(failures)
+            )
+        raise RuntimeError("DexScreener 本轮没有返回可解析的交易池记录")
+    if failures:
+        logger.warning(
+            "DexScreener completed partially: %s of %s search terms failed",
+            len(failures),
+            len(queries),
+        )
     return rows
 
 
