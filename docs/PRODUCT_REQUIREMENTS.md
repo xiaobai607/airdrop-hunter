@@ -17,9 +17,11 @@
 ### Current repository checkpoint
 
 - Repository: `xiaobai607/airdrop-hunter`; active delivery branch: `feature/mobile-browser-home-dock-batch`.
-- PR #135 is **Draft / Open / not merged**. Latest verified code head: `bff83f50fc53dce6f845f975fc802146fa17a244`.
-- Exact-head Android workflow #1101 (`42971171663`) passed Android debug build, Android unit tests, and APK artifact upload. PR workflow #1102 (`42971177864`) also completed successfully; backend tests were skipped for this Android-only code change.
-- The latest code head includes the Airdrop Library Binance-first card placement and the public campaign count interpolation fix. The first fetched campaign remains in the list after the Binance entry; no campaign is deleted.
+- PR #135 is **Draft / Open / not merged**. Latest verified code head: `8b04ece17eecbde19820eed314b746d04b0e302f`.
+- Exact-head push workflow #1106 (`42978960542`) passed backend tests, including the new CoinGecko Demo API header-authentication test. PR workflow #1107 (`42978967023`) completed successfully but skipped backend/Android jobs because the PR event only ran change detection.
+- Previous Android code head `bff83f50` passed Android debug build, Android unit tests, and APK artifact upload in workflow #1101 (`42971171663`). The current commit changes backend code only; Android build was correctly skipped.
+- The current code includes the Airdrop Library Binance-first card placement and the public campaign count interpolation fix. The first fetched campaign remains in the list after the Binance entry; no campaign is deleted.
+- CoinGecko Demo API credentials are now sent using the recommended `x-cg-demo-api-key` header, not a query parameter. This reduces accidental exposure in URL logs; the key remains backend-only.
 - The PR branch contains the current Airdrop Library, browser dock, community/accounting, campaign discovery and Binance announcement changes. These branch changes are not yet part of main until the PR is reviewed and merged by explicit authorization.
 - No physical-device acceptance is implied by CI. No production live-sync or recovery drill is implied by a successful build.
 
