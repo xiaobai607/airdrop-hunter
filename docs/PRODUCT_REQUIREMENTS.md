@@ -1946,3 +1946,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Moved the single global coin/DApp search field directly below the market dashboard and above Quick Entry cards.
 - Existing saved Home layouts are migrated by inserting the accounting shortcut if it is missing; user card dimensions remain developer-controlled and user ordering/removal remains supported.
 - This is a navigation/layout correction. It does not establish physical-device visual acceptance; exact-head Android CI and on-device verification remain required.
+
+
+### 2026-11-11 — Dock whole-capsule drag gesture arbitration
+
+- Corrected the Dock gesture implementation after real-device feedback showed that the child LazyRow was scrolling its icons while the translucent capsule stayed stationary.
+- The outer Dock now observes pointer events in the Initial pass, waits for a stationary long press, and then consumes drag movement before the child LazyRow can claim it. Both X/Y Animatable offsets are updated from the outer pointer gesture coroutine, moving the capsule background, border, clipping region, and all tools as one unit.
+- A normal swipe that moves beyond touch slop before the long-press timeout is left to LazyRow, preserving horizontal tool scrolling.
+- This fix targets gesture ownership, not visual restyling. Exact-head CI and physical-device verification are still required; the prior device screenshot remains evidence that the earlier implementation was not acceptable.
