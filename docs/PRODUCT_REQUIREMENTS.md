@@ -145,8 +145,9 @@ The user approved four free public data sources for backend discovery: CoinGecko
 - The detail API fetches the article by the exact Binance article code. If Binance does not return a body or the request fails, show a retry/original-link fallback; never fabricate a replacement body or campaign terms.
 
 ### 1. CoinGecko Demo API — Airdrop category
-- Use the free CoinGecko Demo API key supplied by the operator through server environment variable `COINGECKO_DEMO_API_KEY`; never hardcode or commit credentials.
-- Query `GET /coins/categories` to locate category entries whose name identifies the Airdrop category. Then query `GET /coins/markets?vs_currency=usd&category={category_id}` for category token leads. Respect Demo quota/rate limits and cache results.
+- Use the CoinGecko Demo API key only from the backend environment variable `COINGECKO_DEMO_API_KEY`; never hardcode, commit, or package credentials in the Android APK.
+- Query `GET /coins/categories/list` to identify the Airdrop category, then `GET /coins/markets?vs_currency=usd&category={category_id}` for at most 20 market-ranked leads. Resolve each candidate's actual official homepage through `GET /coins/{id}`; the markets response itself does not provide the website.
+- **License gate:** CoinGecko's free Demo plan is for testing/exploration and does not itself grant commercial public-display or redistribution rights. Attribution alone is not sufficient permission. Keep Demo-derived records internal for research/filtering only; do not publish CoinGecko market data or reproduce it in the public campaign feed unless the operator first obtains a plan or written license that explicitly permits the intended display/use. Never resell or redistribute raw API data.
 - Normalize token name, CoinGecko URL, category ID, source ID, and fetch timestamp. These rows are internal discovery leads, not active claim campaigns, and are not shown in the primary activity list.
 - If the Airdrop category is absent or the API key/quota is unavailable, record the source failure and continue the other adapters.
 
@@ -159,7 +160,7 @@ The user approved four free public data sources for backend discovery: CoinGecko
 
 ### 3. DexScreener — recent active pool observations
 - Use the documented public `GET /latest/dex/search?q={query}` endpoint. Search terms are operator-configurable via `DEXSCREENER_SEARCH_QUERIES`; use a small bounded query list and cache responses.
-- Keep the existing conservative initial thresholds: pair created within 7 days, 24h liquidity at least USD 10,000, 24h volume at least USD 50,000, and at least 20 combined 24h buys/sells.
+- The centralized filter excludes pools older than 7 days, requires liquidity strictly greater than USD 10,000, sorts eligible rows by liquidity then 24h volume then combined 24h buys/sells, and keeps at most 10. Volume and trades are ranking signals only; they are not separate eligibility thresholds or proof of an airdrop.
 - Deduplicate by chain ID + token address. These rows are market/pool leads only and never appear in the primary airdrop activity list solely because they are active or liquid. Do not claim an airdrop, contract safety, or token legitimacy from trading activity.
 
 ### 4. Binance public announcements — official activity feed
