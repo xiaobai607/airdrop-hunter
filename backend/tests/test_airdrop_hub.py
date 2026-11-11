@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.models import AirdropProject
 from app.services.airdrop_hub_sync import (
-    _configured_github_raw_urls,
+    _configured_github_raw_sources,
     _normalize_binance_announcements,
     _normalize_binance_article_detail,
     _normalize_github_airdrop_list,
@@ -84,23 +84,104 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         assert detail.json()["title"] == "Binance Observation Test"
         assert client.get("/api/airdrops/hub/status").status_code == 200
 
-def test_github_raw_configuration_requires_exact_https_raw_file_urls(monkeypatch):
+def _approved_github_source(**overrides):
+    import copy
+
+    source = {
+        "source_id": "sample-list",
+        "url": "https://raw.githubusercontent.com/owner/repo/0123456789abcdef0123456789abcdef01234567/data.json",
+        "repository": "owner/repo",
+        "license_id": "MIT",
+        "license_url": "https://spdx.org/licenses/MIT.html",
+        "attribution": "Source: owner/repo; retain this notice.",
+        "review_status": "approved",
+        "reviewed_at": "2026-11-11",
+    }
+    source.update(copy.deepcopy(overrides))
+    return source
+
+
+def test_github_raw_configuration_requires_manual_license_review_and_commit_pin(monkeypatch):
     import json
 
-    monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCES", json.dumps([
-        "https://raw.githubusercontent.com/owner/repo/main/airdrop.json",
-        "https://raw.githubusercontent.com.evil.example/owner/repo/main/list.json",
-        "http://raw.githubusercontent.com/owner/repo/main/list.json",
-        "https://user@raw.githubusercontent.com/owner/repo/main/list.json",
-        "https://raw.githubusercontent.com/owner/repo",
-        "https://raw.githubusercontent.com/owner/repo/main/list.json?token=secret",
-        "https://raw.githubusercontent.com/owner/repo/main/../private.json",
-    ]))
+    monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", json.dumps([_approved_github_source()]))
+    accepted = _configured_github_raw_sources()
+    assert len(accepted) == 1
+    assert accepted[0]["source_id"] == "sample-list"
+    assert accepted[0]["license_id"] == "MIT"
+    assert accepted[0]["attribution"].startswith("Source:")
+    assert accepted[0]["review_status"] == "approved"
 
-    assert _configured_github_raw_urls() == [
-        "https://raw.githubusercontent.com/owner/repo/main/airdrop.json"
+
+def test_github_raw_configuration_rejects_missing_or_unapproved_metadata(monkeypatch):
+    import json
+
+    monkeypatch.delenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", raising=False)
+    monkeypatch.setenv(
+        "AIRDROP_GITHUB_RAW_SOURCES",
+        json.dumps(["https://raw.githubusercontent.com/owner/repo/main/data.json"]),
+    )
+    assert _configured_github_raw_sources() == []
+
+    for override in [
+        {"license_id": ""},
+        {"license_url": "http://spdx.org/licenses/MIT.html"},
+        {"attribution": ""},
+        {"review_status": "pending"},
+        {"reviewed_at": "2026-02-30"},
+        {"repository": "someone/else"},
+    ]:
+        monkeypatch.setenv(
+            "AIRDROP_GITHUB_RAW_SOURCE_APPROVALS",
+            json.dumps([_approved_github_source(**override)]),
+        )
+        assert _configured_github_raw_sources() == []
+
+
+def test_github_raw_configuration_rejects_unsafe_urls_and_unpinned_refs(monkeypatch):
+    import json
+
+    invalid_urls = [
+        "https://raw.githubusercontent.com.evil.example/owner/repo/0123456789abcdef0123456789abcdef01234567/list.json",
+        "http://raw.githubusercontent.com/owner/repo/0123456789abcdef0123456789abcdef01234567/list.json",
+        "https://user@raw.githubusercontent.com/owner/repo/0123456789abcdef0123456789abcdef01234567/list.json",
+        "https://raw.githubusercontent.com/owner/repo/main/list.json",
+        "https://raw.githubusercontent.com/owner/repo/0123456789abcdef0123456789abcdef01234567/list.json?token=x",
+        "https://raw.githubusercontent.com/owner/repo/0123456789abcdef0123456789abcdef01234567/../private.json",
+        "https://raw.githubusercontent.com:badport/owner/repo/0123456789abcdef0123456789abcdef01234567/list.json",
+        "https://raw.githubusercontent.com/owner/repo/0123456789abcdef0123456789abcdef01234567%2Fprivate/list.json",
     ]
+    for url in invalid_urls:
+        monkeypatch.setenv(
+            "AIRDROP_GITHUB_RAW_SOURCE_APPROVALS",
+            json.dumps([_approved_github_source(url=url)]),
+        )
+        assert _configured_github_raw_sources() == []
 
+
+def test_github_raw_configuration_rejects_duplicate_ids_urls_and_more_than_twenty_sources(monkeypatch):
+    import json
+
+    first = _approved_github_source()
+    duplicate_id = _approved_github_source(
+        url="https://raw.githubusercontent.com/owner/repo/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/other.json"
+    )
+    monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", json.dumps([first, duplicate_id]))
+    assert _configured_github_raw_sources() == []
+
+    duplicate_url = _approved_github_source(source_id="another-list")
+    monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", json.dumps([first, duplicate_url]))
+    assert _configured_github_raw_sources() == []
+
+    too_many = [
+        _approved_github_source(
+            source_id=f"source-{index}",
+            url=f"https://raw.githubusercontent.com/owner/repo/{index:040x}/list.json",
+        )
+        for index in range(21)
+    ]
+    monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", json.dumps(too_many))
+    assert _configured_github_raw_sources() == []
 
 def test_github_json_lists_require_explicit_official_https_website_fields():
     rows = _normalize_github_airdrop_list([
@@ -140,29 +221,3 @@ def test_binance_article_codes_are_rejected_instead_of_silently_rewritten():
     assert rows[0]["link"].endswith("/valid_code-123")
 
 
-def test_github_raw_configuration_rejects_malformed_ports_and_encoded_path_traversal(monkeypatch):
-    import json
-
-    monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCES", json.dumps([
-        "https://raw.githubusercontent.com:badport/owner/repo/main/list.json",
-        "https://raw.githubusercontent.com:99999/owner/repo/main/list.json",
-        "https://@raw.githubusercontent.com/owner/repo/main/list.json",
-        "https://raw.githubusercontent.com/owner/repo/main/%2e%2e/private.json",
-        "https://raw.githubusercontent.com/owner/repo/main%2Fprivate/list.json",
-        "https://raw.githubusercontent.com/owner/repo/main/list.json",
-    ]))
-
-    assert _configured_github_raw_urls() == [
-        "https://raw.githubusercontent.com/owner/repo/main/list.json"
-    ]
-
-
-def test_github_raw_configuration_deduplicates_and_caps_sources(monkeypatch):
-    import json
-
-    sources = [f"https://raw.githubusercontent.com/owner/repo/main/list-{index}.json" for index in range(25)]
-    monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCES", json.dumps([sources[0], *sources]))
-
-    accepted = _configured_github_raw_urls()
-    assert len(accepted) == 20
-    assert len(set(accepted)) == 20

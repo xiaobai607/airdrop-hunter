@@ -65,26 +65,54 @@ def _valid_http_url(value: Any) -> str | None:
     return candidate[:1000]
 
 
-def _configured_github_raw_urls() -> list[str]:
-    """Return only operator-configured HTTPS files on the exact GitHub Raw host."""
+def _configured_github_raw_sources() -> list[dict[str, str]]:
+    """Return only manually approved, license-reviewed, commit-pinned GitHub Raw sources."""
     try:
-        configured = json.loads(os.getenv("AIRDROP_GITHUB_RAW_SOURCES", "[]"))
-    except ValueError:
+        configured = json.loads(os.getenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", "[]"))
+    except (TypeError, ValueError):
         return []
-    if not isinstance(configured, list):
+    if not isinstance(configured, list) or not configured or len(configured) > 20:
         return []
 
-    urls: list[str] = []
-    for value in configured:
-        if not isinstance(value, str):
-            continue
-        candidate = value.strip()
+    required = {
+        "source_id", "url", "repository", "license_id", "license_url",
+        "attribution", "review_status", "reviewed_at",
+    }
+    approved: list[dict[str, str]] = []
+    seen_ids: set[str] = set()
+    seen_urls: set[str] = set()
+    for entry in configured:
+        if not isinstance(entry, dict) or set(entry) != required:
+            return []
+        if any(not isinstance(entry.get(key), str) for key in required):
+            return []
+        source_id = entry["source_id"].strip()
+        url = entry["url"].strip()
+        repository = entry["repository"].strip()
+        license_id = entry["license_id"].strip()
+        license_url = _valid_http_url(entry["license_url"])
+        attribution = entry["attribution"].strip()
+        review_status = entry["review_status"].strip()
+        reviewed_at = entry["reviewed_at"].strip()
+
+        if (
+            not re.fullmatch(r"[a-z0-9][a-z0-9._-]{1,63}", source_id)
+            or not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}", repository)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.+-]{0,63}", license_id)
+            or not license_url
+            or not attribution
+            or len(attribution) > 500
+            or review_status != "approved"
+            or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", reviewed_at)
+        ):
+            return []
         try:
-            parsed = urlparse(candidate)
+            datetime.strptime(reviewed_at, "%Y-%m-%d")
+            parsed = urlparse(url)
             port = parsed.port
         except ValueError:
-            # urlparse accepts malformed port text until .port is accessed.
-            continue
+            return []
+
         path_parts = [part for part in parsed.path.split("/") if part]
         decoded_parts = [unquote(part) for part in path_parts]
         if (
@@ -95,6 +123,8 @@ def _configured_github_raw_urls() -> list[str]:
             or parsed.query
             or parsed.fragment
             or len(path_parts) < 4
+            or f"{path_parts[0]}/{path_parts[1]}" != repository
+            or not re.fullmatch(r"[0-9a-fA-F]{40}", path_parts[2])
             or any(
                 part in {".", ".."}
                 or "/" in part
@@ -102,15 +132,34 @@ def _configured_github_raw_urls() -> list[str]:
                 or any(ord(char) < 0x21 or char.isspace() for char in part)
                 for part in decoded_parts
             )
-            or re.search(r"%(?![0-9A-Fa-f]{2})", candidate)
-            or any(ord(char) < 0x21 or char.isspace() for char in candidate)
+            or re.search(r"%(?![0-9A-Fa-f]{2})", url)
+            or any(ord(char) < 0x21 or char.isspace() for char in url)
         ):
-            continue
-        if candidate not in urls:
-            urls.append(candidate)
-        if len(urls) == 20:
-            break
-    return urls
+            return []
+        if source_id in seen_ids or url in seen_urls:
+            return []
+        seen_ids.add(source_id)
+        seen_urls.add(url)
+        approved.append({
+            "source_id": source_id,
+            "url": url,
+            "repository": repository,
+            "license_id": license_id,
+            "license_url": license_url,
+            "attribution": attribution,
+            "review_status": review_status,
+            "reviewed_at": reviewed_at,
+        })
+    return approved
+
+
+def _github_source_attribution(source: dict[str, str]) -> str:
+    """Preserve the operator-reviewed license and attribution with each imported lead."""
+    return (
+        f"开源名单 {source['source_id']}（{source['repository']}）；"
+        f"许可证 {source['license_id']}（{source['license_url']}）；"
+        f"署名要求：{source['attribution']}；审核日期 {source['reviewed_at']}。"
+    )
 
 
 def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[dict[str, str]]:
@@ -302,22 +351,34 @@ async def _fetch_coingecko_observations(client: httpx.AsyncClient) -> list[dict[
     return rows
 
 async def _fetch_github_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
-    urls = _configured_github_raw_urls()
-    if not urls: raise RuntimeError('AIRDROP_GITHUB_RAW_SOURCES 未配置有效 GitHub Raw 文件 URL')
+    sources = _configured_github_raw_sources()
+    if not sources:
+        raise RuntimeError(
+            "AIRDROP_GITHUB_RAW_SOURCE_APPROVALS 未配置有效的人工审核来源；旧 URL-only 配置不会被读取"
+        )
     rows, failures = [], 0
-    for url in urls:
+    for source in sources:
+        url = source["url"]
         try:
-            response = await client.get(url, headers={'Accept': 'application/json, text/plain'})
+            response = await client.get(url, headers={"Accept": "application/json, text/plain"})
             response.raise_for_status()
             if len(response.content) > 2_000_000:
-                raise ValueError('GitHub Raw file exceeds 2 MB safety limit')
-            try: payload = response.json()
-            except ValueError: payload = response.text
-            rows.extend(_normalize_github_airdrop_list(payload, url))
+                raise ValueError("GitHub Raw file exceeds 2 MB safety limit")
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = response.text
+            attribution = _github_source_attribution(source)
+            for row in _normalize_github_airdrop_list(payload, url):
+                row["description"] = f"{attribution} {row['description']}"[:10000]
+                rows.append(row)
         except (httpx.HTTPError, ValueError, TypeError) as exc:
             failures += 1
-            logger.warning('GitHub Raw source failed (%s): %s', url, type(exc).__name__)
-    if not rows: raise RuntimeError(f'GitHub Raw 未解析到项目；失败文件数 {failures}')
+            logger.warning(
+                "GitHub Raw source %s failed: %s", source["source_id"], type(exc).__name__
+            )
+    if not rows:
+        raise RuntimeError(f"GitHub Raw 未解析到项目；失败文件数 {failures}")
     return rows
 
 async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:

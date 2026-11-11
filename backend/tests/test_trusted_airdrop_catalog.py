@@ -19,28 +19,21 @@ def test_only_explicitly_allowlisted_airdrop_directory_gets_trust_level_one(monk
     assert untrusted == ("TRUST_LEVEL_0", "OBSERVATION")
 
 
-def test_normalized_records_keep_source_and_trust_metadata(monkeypatch):
-    payload = {
-        "airdrops": [{
-            "id": "campaign-1",
-            "name": "Example Campaign",
-            "website": "https://example.org/airdrop",
-            "description": "Example description",
-            "chain": "Base",
-        }]
-    }
+def test_retired_web3_discover_source_remains_untrusted(monkeypatch):
+    monkeypatch.setattr(
+        catalog_sync,
+        "TRUSTED_AIRDROP_PROVIDER_LABELS",
+        {"approved-directory": "Approved Directory"},
+    )
 
-    ordinary = catalog_sync._normalize(payload, source_name="web3-discover")
-    assert len(ordinary) == 1
-    assert ordinary[0]["source_name"] == "web3-discover"
-    assert ordinary[0]["trust_level"] == "TRUST_LEVEL_0"
-    assert ordinary[0]["publication_status"] == "OBSERVATION"
-
-    monkeypatch.setattr(catalog_sync, "TRUSTED_AIRDROP_PROVIDER_LABELS", {"approved-directory": "Approved Directory"})
-    trusted = catalog_sync._normalize(payload, source_name="approved-directory")
-    assert trusted[0]["trust_level"] == "TRUST_LEVEL_1"
-    assert trusted[0]["publication_status"] == "PUBLISHED_SAFE"
-
+    assert catalog_sync._source_publication_state("web3-discover") == (
+        "TRUST_LEVEL_0",
+        "OBSERVATION",
+    )
+    assert catalog_sync._source_publication_state("approved-directory") == (
+        "TRUST_LEVEL_1",
+        "PUBLISHED_SAFE",
+    )
 
 def test_public_airdrop_feed_schema_hides_internal_source_metadata():
     fields = AirdropHubItem.model_fields

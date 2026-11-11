@@ -38,7 +38,7 @@
 
 - [ ] Implement and validate the four approved adapters against their current documented free endpoints and terms:
   - [ ] CoinGecko Demo API: discover the Airdrop category and cache token/project leads.
-  - [ ] GitHub Raw Content: parse only operator-configured public raw JSON/Markdown lists; verify license/attribution and official HTTPS project links.
+  - [ ] GitHub Raw Content: fetch only manually reviewed source records with repository identity, a commit-pinned Raw URL, license identifier/reference, explicit attribution, approved status and review date; URL-only configuration must fail closed.
   - [ ] DexScreener: implement the user-approved latest/search discovery flow with bounded queries and thresholds; keep all results as market leads. Existing contract-address market enrichment is not a substitute for this adapter.
   - [ ] Binance CMS: validate the official Crypto Airdrop and Latest Activities feeds with the approved keyword filter, stable article IDs and last-known-good behavior.
 - [ ] Verify the free-use path, rate limits, reuse rights, hosting/database limits and zero-cost guardrails for each adapter before enabling it. No paid fallback, card requirement, automatic upgrade or hidden metered dependency.
@@ -135,10 +135,10 @@ The user approved four free public data sources for backend discovery: CoinGecko
 - If the Airdrop category is absent or the API key/quota is unavailable, record the source failure and continue the other adapters.
 
 ### 2. GitHub Raw Content — open-source lists
-- Support operator-configured public raw file URLs via `AIRDROP_GITHUB_RAW_SOURCES` (JSON array of HTTPS `raw.githubusercontent.com` URLs); do not scrape GitHub search or private repositories.
+- Support only `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS`, a JSON array of complete manually reviewed source records. Require a unique source ID, matching `owner/repo` identity, HTTPS `raw.githubusercontent.com` URL pinned to a full 40-character commit SHA, license identifier, HTTPS license reference, explicit attribution text, `review_status: approved`, and an ISO review date. Reject the legacy URL-only `AIRDROP_GITHUB_RAW_SOURCES` setting; do not scrape GitHub search or private repositories.
 - Parse JSON arrays/objects and Markdown project links/bullets. Extract only an explicit project name and HTTPS website URL; do not infer an official website from a repository name or arbitrary text.
 - Keep repository/file URL as provenance, use stable source keys and deduplicate across configured files. Bound URL count, response size, request timeout, and polling frequency.
-- Respect each repository's license/README attribution and redistribution terms. A public raw URL alone is not a reuse license.
+- The operator must inspect the repository license, README attribution and redistribution terms before setting the record to approved. The importer validates required metadata but does not make a legal determination or automatically trust/fetch the license URL. Reject incomplete, unapproved, duplicate, unpinned or unsafe records as a whole; cap the configuration at 20 sources. Pinning a commit makes content changes require a new explicit review. Preserve the reviewed license and attribution details with each imported lead.
 - Imported entries are internal project leads and are not shown as confirmed airdrop activities without separate campaign evidence. A malformed or unavailable file must not block other sources; retain last-known-good rows.
 
 ### 3. DexScreener — recent active pool observations
@@ -2015,3 +2015,13 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Removed unit tests that only exercised the retired generic directory normalizer; retained the regression that confirms the legacy source label cannot be treated as trusted/publishable.
 - Renamed the scheduled workflow to describe configured source observations and removed unused RSS and legacy approval environment variables. The daily schedule remains gated by `AIRDROP_DISCOVERY_SYNC_ENABLED=true`; it runs the current four-source importer and its separate market-enrichment/scoring steps, not RSS ingestion.
 - RSS parser, candidate models and review endpoints remain dormant compatibility code; they are not invoked by the importer. No old RSS feed is re-enabled.
+
+
+### 2026-11-11 — GitHub Raw manual license and attribution approval gate
+
+- Replaced the URL-only GitHub Raw configuration with `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS`. A source is fetched only when the operator supplies a complete record containing unique source ID, matching repository identity, exact HTTPS Raw URL pinned to a full commit SHA, license identifier/reference, explicit attribution text, approved review status and review date.
+- The complete configuration fails closed on missing/invalid metadata, unapproved status, duplicate source IDs/URLs, unsafe URL/path, branch-name refs, malformed review dates or more than 20 entries. The legacy `AIRDROP_GITHUB_RAW_SOURCES` URL-only setting is ignored.
+- License URLs are recorded, not fetched or treated as legal proof. The operator must inspect the actual repository terms and decide whether automated retrieval, storage and public-catalog reuse are allowed. The code does not claim to perform legal review.
+- Reviewed license and attribution details are carried into imported lead provenance. These records remain internal observation leads and are not promoted into confirmed campaigns.
+- Removed the stale test that still called the deleted `web3-discover` generic normalizer; retained a direct regression that the retired source label remains untrusted.
+- This module has not yet passed exact-head CI at the time of this entry. The preceding run #1081 had 209 tests pass and one stale-test failure; a single batched backend validation is required after this complete change.
