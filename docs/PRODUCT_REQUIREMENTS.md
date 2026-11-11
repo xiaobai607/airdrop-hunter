@@ -1961,3 +1961,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Exact-head CI #1067 confirmed backend tests passed but Android Kotlin compilation failed because Animatable.snapTo() was called directly inside the restricted awaitEachGesture pointer scope.
 - Moved both bounded axis updates into the composition coroutine scope while keeping the parent pointer listener responsible for recognizing and consuming long-press Dock drags.
 - This is a compile correction only; the gesture still requires a fresh exact-head CI run and physical-device acceptance.
+
+
+### 2026-11-11 — Dock long-press cancellation boundary
+
+- Review of the first successful build for the parent-owned Dock drag found that the timeout block could report success after an early release or pre-timeout movement.
+- Corrected the rule: the Dock drag begins only when the stationary pointer remains pressed until the full long-press timeout expires. Early release or movement beyond touch slop cancels the parent drag and leaves normal LazyRow scrolling available.
+- The previous build artifact is not the final device-test build; exact-head CI must pass for this correction first.
