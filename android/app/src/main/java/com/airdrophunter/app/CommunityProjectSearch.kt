@@ -1,6 +1,6 @@
-import com.airdrophunter.app.data.CommunityProjectCatalogDto
-
 package com.airdrophunter.app
+
+import com.airdrophunter.app.data.CommunityProjectCatalogDto
 
 internal fun matchesCommunityProjectQuery(
     name: String,
