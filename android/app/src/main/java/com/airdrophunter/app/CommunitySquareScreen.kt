@@ -350,7 +350,7 @@ fun CommunitySquareScreen(
             item {
                 Text(
                     when {
-                        showDelistedOnly -> "当前没有已下架的社区项目"
+                        airdropFilterSelection.selectedCount > 0 -> "没有找到符合筛选条件的项目，可以重置条件再试"
                         favoritesOnly && searchQuery.isNotBlank() -> "没有找到符合搜索条件的收藏项目"
                         favoritesOnly -> "还没有收藏项目，点击项目卡片上的爱心即可收藏"
                         searchQuery.isNotBlank() -> "没有找到匹配的社区项目"
