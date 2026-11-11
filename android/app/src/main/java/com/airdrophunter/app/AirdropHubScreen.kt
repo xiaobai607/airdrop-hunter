@@ -221,7 +221,19 @@ private fun AirdropAnnouncementDetail(
                                     override fun shouldOverrideUrlLoading(
                                         view: WebView,
                                         request: android.webkit.WebResourceRequest
-                                    ): Boolean = !request.url.scheme.equals("https", ignoreCase = true)
+                                    ): Boolean {
+                                        val target = request.url
+                                        if (!target.scheme.equals("https", ignoreCase = true)) {
+                                            return true
+                                        }
+                                        return runCatching {
+                                            viewContext.startActivity(
+                                                Intent(viewContext, BrowserActivity::class.java)
+                                                    .putExtra(BrowserActivity.EXTRA_URL, target.toString())
+                                                    .putExtra(BrowserActivity.EXTRA_TITLE, "公告链接")
+                                            )
+                                        }.fold(onSuccess = { true }, onFailure = { false })
+                                    }
                                 }
                                 loadDataWithBaseURL(
                                     "https://www.binance.com",
