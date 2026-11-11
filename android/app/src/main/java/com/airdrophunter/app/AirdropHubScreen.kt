@@ -6,7 +6,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -34,46 +33,18 @@ fun AirdropHubScreen(
     val state by hubViewModel.uiState.collectAsStateWithLifecycle()
 
     Column(modifier.fillMaxSize().background(AppColors.Background)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("项目目录", Modifier.weight(1f), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
-            TextButton(onClick = onOpenCampaigns) { Text("空投活动列表 →", color = AppColors.Primary) }
-        }
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            items(hubViewModel.chains) { chain ->
-                val selected = state.selectedChain == chain
-                Surface(
-                    onClick = { hubViewModel.selectChain(chain) },
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (selected) AppColors.Primary else AppColors.Surface,
-                    border = if (selected) null else BorderStroke(1.dp, AppColors.Border)
-                ) {
-                    Text(
-                        chain,
-                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
-                        color = if (selected) AppColors.Surface else AppColors.TextSecondary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("空投发现", color = AppColors.TextPrimary,
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("查看最新官方空投公告", color = AppColors.TextHelper,
+                    style = MaterialTheme.typography.bodySmall)
             }
-        }
-
-        if (state.sourceError != null) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
-                color = AppColors.DangerBackground,
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text(
-                    "数据源提醒：${state.sourceError}",
-                    modifier = Modifier.padding(12.dp),
-                    color = AppColors.Danger,
-                    style = MaterialTheme.typography.bodySmall
-                )
+            TextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
+                Text(if (state.isRefreshing) "刷新中…" else "刷新", color = AppColors.Primary)
             }
         }
 
@@ -87,126 +58,72 @@ fun AirdropHubScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("暂时无法加载空投数据", color = AppColors.TextPrimary,
+                Text("暂时无法加载空投公告", color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(state.error.orEmpty(), color = AppColors.TextSecondary,
+                Text("请检查网络后重试。", color = AppColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall)
-                Button(
-                    onClick = hubViewModel::refresh,
-                    enabled = !state.isRefreshing,
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                ) {
-                    if (state.isRefreshing) CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp), color = AppColors.Surface, strokeWidth = 2.dp
-                    ) else Text("重新拉取数据")
+                Button(onClick = hubViewModel::refresh, enabled = !state.isRefreshing,
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
+                    Text("重新加载")
                 }
             }
 
-            state.projects.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("当前链暂时没有收录项目", color = AppColors.TextHelper)
+            state.projects.isEmpty() -> Box(
+                Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center
+            ) {
+                Text("暂时没有新的空投公告", color = AppColors.TextHelper)
             }
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 item {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "${state.projects.size} 个空投项目",
-                            Modifier.weight(1f),
-                            color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        TextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
-                            Text(if (state.isRefreshing) "正在刷新…" else "刷新数据", color = AppColors.Primary)
-                        }
-                    }
+                    Text("${state.projects.size} 条空投公告",
+                        color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
                 }
-                items(state.projects, key = { it.id }) { project ->
+                items(state.projects, key = { it.id }) { item ->
                     Card(
                         onClick = {
                             runCatching {
                                 context.startActivity(
                                     Intent(context, BrowserActivity::class.java)
-                                        .putExtra(BrowserActivity.EXTRA_URL, project.link)
-                                        .putExtra(BrowserActivity.EXTRA_TITLE, project.name)
+                                        .putExtra(BrowserActivity.EXTRA_URL, item.link)
+                                        .putExtra(BrowserActivity.EXTRA_TITLE, item.name)
                                 )
                             }.onFailure {
-                                Toast.makeText(context, "无法打开该项目链接", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "无法打开官方公告", Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                         border = BorderStroke(1.dp, AppColors.Border),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         Column(
-                            Modifier.fillMaxWidth().padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            Modifier.fillMaxWidth().padding(15.dp),
+                            verticalArrangement = Arrangement.spacedBy(9.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    project.name,
-                                    Modifier.weight(1f),
-                                    color = AppColors.TextPrimary,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                Text(item.name, Modifier.weight(1f), color = AppColors.TextPrimary,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold)
                                 Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
-                                    Text(
-                                        project.chain,
-                                        Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                        color = AppColors.Primary,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
+                                    Text("官方公告", Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                        color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
-                            if (project.description.isNotBlank()) {
-                                Text(
-                                    project.description,
-                                    color = AppColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    color = AppColors.DangerBackground,
-                                    shape = RoundedCornerShape(999.dp)
-                                ) {
-                                    Text(
-                                        if (project.publication_status == "OBSERVATION") "待核实" else "已收录",
-                                        Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                                        color = AppColors.Danger,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
-                                if (project.data_source.isNotBlank()) {
-                                    Text(
-                                        project.data_source.removePrefix("Source: "),
-                                        color = AppColors.TextHelper,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
-                            }
+                            Text("来自 Binance 官方空投公告中心",
+                                color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Surface(color = AppColors.MutedBackground, shape = RoundedCornerShape(999.dp)) {
-                                    Text(
-                                        project.status,
-                                        Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                                        color = AppColors.TextSecondary,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
+                                Text("查看公告 ↗", color = AppColors.Primary,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.weight(1f))
-                                Text("打开官网  ↗", color = AppColors.Primary,
-                                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                Text("Binance", color = AppColors.TextHelper,
+                                    style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
