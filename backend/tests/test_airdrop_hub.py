@@ -60,7 +60,7 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
             trust_level="TRUST_LEVEL_1", publication_status="PUBLISHED_SAFE"
         ))
         db.add(AirdropProject(
-            source_key=f"test-{uuid4().hex}:observation", name="Binance Observation Test",
+            source_key="binance:test123", name="Binance Observation Test",
             chain="Unknown", description="Unverified announcement lead", status="待核实",
             link="https://www.binance.com/en/support/announcement/test123",
             source_name="binance-announcements", trust_level="TRUST_LEVEL_0",
