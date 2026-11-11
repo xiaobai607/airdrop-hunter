@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -25,7 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
-import com.airdrophunter.app.data.CommunityProjectCatalog
+import com.airdrophunter.app.data.matchesSearch
 import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.ApiClient
@@ -61,6 +63,9 @@ fun ProjectsScreen(
     var newProjectDescription by remember { mutableStateOf("") }
     var newProjectOfficialUrl by remember { mutableStateOf("") }
     var newProjectClaimUrl by remember { mutableStateOf("") }
+    var selectedCommunityOfficialId by remember { mutableStateOf<String?>(null) }
+    var showCommunityPicker by remember { mutableStateOf(false) }
+    var communitySearchQuery by remember { mutableStateOf("") }
     var actionProject by remember { mutableStateOf<ProjectDto?>(null) }
     var editingProject by remember { mutableStateOf<ProjectDto?>(null) }
     var deletingProject by remember { mutableStateOf<ProjectDto?>(null) }
@@ -87,6 +92,9 @@ fun ProjectsScreen(
         newProjectDescription = ""
         newProjectOfficialUrl = ""
         newProjectClaimUrl = ""
+        selectedCommunityOfficialId = null
+        showCommunityPicker = false
+        communitySearchQuery = ""
         editProjectName = ""
         editProjectDescription = ""
         editProjectOfficialUrl = ""
@@ -101,7 +109,7 @@ fun ProjectsScreen(
             name = saved.projectName,
             description = "",
             status = saved.status,
-            official_url = CommunityProjectCatalog.findByOfficialId(saved.projectOfficialId)?.officialUrl.orEmpty(),
+            official_url = communityDirectory.firstOrNull { it.project_official_id == saved.projectOfficialId }?.website_url.orEmpty(),
             communityOfficialId = saved.projectOfficialId
         )
     }
@@ -402,16 +410,75 @@ fun ProjectsScreen(
         )
     }
 
-    if (showAddDialog) AlertDialog(
+    if (showCommunityPicker) {
+        val selectableProjects = communityDirectory.filter { it.is_active && it.matchesSearch(communitySearchQuery) }
+        AlertDialog(
+            onDismissRequest = { showCommunityPicker = false },
+            containerColor = AppColors.Surface,
+            title = { Text("选择社区项目", color = AppColors.TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = communitySearchQuery, onValueChange = { communitySearchQuery = it },
+                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                        label = { Text("搜索项目名称、链或标签") }
+                    )
+                    if (selectableProjects.isEmpty()) {
+                        Text(
+                            if (communityDirectory.isEmpty()) "社区目录正在后台准备；联网后会自动更新。你也可以先取消并创建私人项目。"
+                            else "没有找到匹配的社区项目。",
+                            color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                        )
+                    } else {
+                        Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            selectableProjects.forEach { item ->
+                                Surface(
+                                    onClick = {
+                                        selectedCommunityOfficialId = item.project_official_id
+                                        newProjectName = item.name
+                                        newProjectDescription = item.description
+                                        newProjectOfficialUrl = item.website_url
+                                        newProjectClaimUrl = ""
+                                        showCommunityPicker = false
+                                    },
+                                    color = AppColors.Surface,
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, AppColors.Border)
+                                ) {
+                                    Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Text(item.name, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                                        Text(item.chain, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        if (item.description.isNotBlank()) Text(item.description, color = AppColors.TextSecondary,
+                                            style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showCommunityPicker = false }) { Text("完成") } },
+            dismissButton = { TextButton(onClick = { showCommunityPicker = false }) { Text("取消") } }
+        )
+    } else if (showAddDialog) AlertDialog(
         onDismissRequest = { showAddDialog = false },
         containerColor = AppColors.Surface,
         title = { Text("添加项目", color = AppColors.TextPrimary) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                OutlinedTextField(newProjectName, { newProjectName = it }, label = { Text("项目名称") }, singleLine = true)
-                OutlinedTextField(newProjectDescription, { newProjectDescription = it }, label = { Text("项目说明") })
-                OutlinedTextField(newProjectOfficialUrl, { newProjectOfficialUrl = it }, label = { Text("项目官网 HTTPS 链接") }, singleLine = true)
-                OutlinedTextField(newProjectClaimUrl, { newProjectClaimUrl = it }, label = { Text("官方资格查询 HTTPS 链接（可选）") }, singleLine = true)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newProjectName, onValueChange = { newProjectName = it },
+                        label = { Text("项目名称") }, singleLine = true, modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = { communitySearchQuery = ""; showCommunityPicker = true }) {
+                        Text(if (selectedCommunityOfficialId == null) "从社区中选择" else "已关联 · 更换")
+                    }
+                }
+                OutlinedTextField(newProjectDescription, { newProjectDescription = it }, label = { Text("项目简介") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(newProjectOfficialUrl, { newProjectOfficialUrl = it }, label = { Text("项目官网 HTTPS 链接") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(newProjectClaimUrl, { newProjectClaimUrl = it }, label = { Text("官方资格查询 HTTPS 链接（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Text("资格查询链接请填写项目方官方页面，不要填写来历不明的第三方链接。",
                     color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 state.error?.let { Text(it, color = AppColors.Danger) }
@@ -425,10 +492,11 @@ fun ProjectsScreen(
                         description = newProjectDescription.trim(),
                         status = "tracking",
                         official_url = newProjectOfficialUrl.trim(),
-                        claim_url = newProjectClaimUrl.trim()
+                        claim_url = newProjectClaimUrl.trim(),
+                        community_official_id = selectedCommunityOfficialId
                     ), isGuest)
                     showAddDialog = false
-                    newProjectName = ""; newProjectDescription = ""; newProjectOfficialUrl = ""; newProjectClaimUrl = ""
+                    newProjectName = ""; newProjectDescription = ""; newProjectOfficialUrl = ""; newProjectClaimUrl = ""; selectedCommunityOfficialId = null
                 }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("保存项目") }
         },
         dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("取消") } }
@@ -436,7 +504,11 @@ fun ProjectsScreen(
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
         FloatingActionButton(
-            onClick = { showAddDialog = true },
+            onClick = {
+                newProjectName = ""; newProjectDescription = ""; newProjectOfficialUrl = ""; newProjectClaimUrl = ""
+                selectedCommunityOfficialId = null
+                showAddDialog = true
+            },
             modifier = Modifier.padding(end = 20.dp, bottom = 20.dp).size(58.dp),
             shape = RoundedCornerShape(50),
             containerColor = AppColors.Primary,
