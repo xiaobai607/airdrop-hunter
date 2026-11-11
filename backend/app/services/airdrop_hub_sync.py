@@ -318,15 +318,53 @@ def _binance_http_error_label(exc: Exception) -> str:
     return label
 
 
+async def _fetch_binance_public_market_data(client: httpx.AsyncClient) -> list[dict[str, Any]]:
+    """Minimal no-key Binance public API connectivity check; never classify market data as an airdrop."""
+    response = await client.get(
+        "https://data-api.binance.vision/api/v3/ticker/price",
+        params={"symbol": "BTCUSDT"},
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 "
+                "AirdropHunter-Discovery/1.0"
+            ),
+            "Accept": "application/json",
+        },
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict) or payload.get("symbol") != "BTCUSDT":
+        raise ValueError("Binance public market endpoint returned an unexpected payload")
+    try:
+        price = float(payload.get("price"))
+    except (TypeError, ValueError):
+        raise ValueError("Binance public market endpoint returned an invalid BTCUSDT price")
+    if price <= 0:
+        raise ValueError("Binance public market endpoint returned a non-positive BTCUSDT price")
+    return [{
+        "name": "BTCUSDT",
+        "price": price,
+        "source_name": "binance-public-market-data",
+    }]
+
+
 async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     errors: list[str] = []
     headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 "
+            "AirdropHunter-Discovery/1.0"
+        ),
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
         "Origin": "https://www.binance.com",
         "Referer": "https://www.binance.com/en/messages/v2/group/announcement",
         "clienttype": "web",
         "lang": "en",
-        "Accept-Language": "en",
+        "Accept-Language": "en-US,en;q=0.9",
     }
     # Discover the path from the public adapter's source code first. The
     # reference is only a discovery hint: all actual announcement data must
