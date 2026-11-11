@@ -35,24 +35,30 @@ object CommunityCatalogRepository {
     }
 
     suspend fun refreshCatalog(): List<CommunityProjectCatalogDto> = withContext(Dispatchers.IO) {
-        val cached = readCatalog().orEmpty()
-        val incoming = ApiClient.service.getCommunityCatalog()
-        require(incoming.map { it.project_official_id }.distinct().size == incoming.size) {
-            "社区目录包含重复的官方项目 ID"
-        }
-        require(incoming.all { it.project_official_id.isNotBlank() && it.name.isNotBlank() }) {
-            "社区目录数据不完整"
-        }
-
-        // Do not infer a delisting from an omitted ID. The server currently uses
-        // soft-deactivation, so only explicit false values can change local state.
-        val merged = mergeCommunityCatalog(cached, incoming)
-        val payload = gson.toJson(CommunityCatalogCacheEnvelope(projects = merged))
-        CacheStore.writePublic(CACHE_KEY, payload)
-        val persisted = readCatalog()
-        require(persisted != null && persisted == merged) { "社区目录缓存写入校验失败" }
-        merged
+        val result = CacheRefreshCoordinator.shared.load(
+            cacheKey = CACHE_KEY,
+            source = "official-community-directory",
+            ttlMillis = DIRECTORY_TTL_MILLIS,
+            readCache = { readCatalog() },
+            fetch = {
+                val incoming = ApiClient.service.getCommunityCatalog()
+                require(incoming.map { it.project_official_id }.distinct().size == incoming.size) {
+                    "社区目录包含重复的官方项目 ID"
+                }
+                require(incoming.all { it.project_official_id.isNotBlank() && it.name.isNotBlank() }) {
+                    "社区目录数据不完整"
+                }
+                mergeCommunityCatalog(readCatalog().orEmpty(), incoming)
+            },
+            save = { merged ->
+                CacheStore.writePublic(CACHE_KEY, gson.toJson(CommunityCatalogCacheEnvelope(projects = merged)))
+                require(readCatalog() == merged) { "社区目录缓存写入校验失败" }
+            }
+        )
+        result.data ?: throw IllegalStateException(result.errorMessage ?: "社区目录暂不可用")
     }
+
+    private const val DIRECTORY_TTL_MILLIS = 6 * 60 * 60 * 1000L
 }
 
 internal fun mergeCommunityCatalog(
