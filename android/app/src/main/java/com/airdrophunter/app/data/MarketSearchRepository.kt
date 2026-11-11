@@ -76,9 +76,13 @@ class MarketSearchRepository(
 
     /** Preload the dynamic market lists used by Home and global search. */
     suspend fun warmUpMarketCaches() {
-        val priceResult = runCatching { searchRemoteCoins("") }
-        val hotCoinResult = runCatching { loadHotCoins() }
-        if (priceResult.isFailure && hotCoinResult.isFailure) {
+        val priceResult = try { searchRemoteCoins(""); true }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
+        val hotCoinResult = try { loadHotCoins(); true }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
+        if (!priceResult && !hotCoinResult) {
             throw IllegalStateException("行情目录预加载失败")
         }
     }
