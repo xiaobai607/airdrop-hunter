@@ -44,7 +44,7 @@ def _valid_http_url(value: Any) -> str | None:
         return None
     candidate = value.strip()
     parsed = urlparse(candidate)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
         return None
     return candidate[:1000]
 
