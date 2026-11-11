@@ -20,8 +20,21 @@ import java.util.concurrent.TimeUnit
  * A lightweight dispatcher runs every 15 minutes and schedules each source into
  * its own unique WorkManager queue. Failures retry independently. Individual
  * workers decide whether their own data source is due:
- * public contributions 15m; wallet activity 8h. Personal cloud sync is disabled in this release.
+ * public contributions 15m; wallet activity 8h; dynamic market/community catalogs are
+ * warmed on launch and revalidated from their own Room cache TTLs. Personal cloud sync is disabled.
  */
+class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) :
+    CoroutineWorker(appContext, params) {
+    override suspend fun doWork(): Result {
+        ApiClient.initialize(applicationContext)
+        var succeeded = 0
+        runCatching { CommunityCatalogRepository.refreshCatalog() }.onSuccess { succeeded++ }
+        runCatching { MarketSearchRepository(OkxMarketRepository()).warmUpMarketCaches() }
+            .onSuccess { succeeded++ }
+        return if (succeeded > 0) Result.success() else Result.retry()
+    }
+}
+
 class GlobalSyncDispatcherWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
@@ -79,7 +92,10 @@ object GlobalSyncScheduler {
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
-
+        val dynamicCatalogs = OneTimeWorkRequestBuilder<DynamicCatalogWarmupWorker>()
+            .setConstraints(network)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
 
         // Each source has its own unique queue. A failure in one source retries
         // independently and cannot block unrelated ledger, wallet, or favorite work.
@@ -92,6 +108,9 @@ object GlobalSyncScheduler {
             "global-sync-wallet-activity",
             if (forceWalletActivity) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
             walletActivity
+        )
+        workManager.enqueueUniqueWork(
+            "global-sync-dynamic-catalogs", ExistingWorkPolicy.KEEP, dynamicCatalogs
         )
 
     }
