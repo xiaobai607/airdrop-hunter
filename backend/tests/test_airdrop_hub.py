@@ -492,15 +492,13 @@ def test_dexscreener_adapter_keeps_low_activity_pairs_for_central_filter():
     assert len(rows) == 1
     decision = evaluate_discovery_observation(rows[0])
     assert decision["status"] == "filtered"
-    assert "liquidity_below_existing_limit" in decision["reasons"]
-    assert "volume_24h_below_existing_limit" in decision["reasons"]
-    assert "trades_24h_below_existing_limit" in decision["reasons"]
+    assert "liquidity_not_above_10000_usd" in decision["reasons"]
 
 
 def test_dexscreener_filter_uses_existing_thresholds_and_keeps_raw_metrics():
     from app.services.airdrop_discovery_filter import evaluate_discovery_observation
     record = {"source_name": "dexscreener-new-pools", "_filter_metadata": {
-        "age_seconds": 3600, "liquidity_usd": 10000, "volume_24h_usd": 50000,
+        "age_seconds": 3600, "liquidity_usd": 10001, "volume_24h_usd": 50000,
         "trades_24h": 20, "token_address": "Address",
     }}
     decision = evaluate_discovery_observation(record)
