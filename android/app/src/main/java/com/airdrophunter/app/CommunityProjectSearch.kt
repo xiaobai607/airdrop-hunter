@@ -27,7 +27,7 @@ internal val airdropFilterGroups = listOf(
         AirdropFilterOption("polygon", "Polygon"), AirdropFilterOption("avalanche", "Avalanche"),
         AirdropFilterOption("sui", "Sui"), AirdropFilterOption("aptos", "Aptos"),
         AirdropFilterOption("ton", "TON"), AirdropFilterOption("bitcoin", "Bitcoin"),
-        AirdropFilterOption("cosmos", "Cosmos")
+        AirdropFilterOption("cosmos", "Cosmos"), AirdropFilterOption("unknown", "网络未确认")
     )),
     AirdropFilterGroup("categories", "项目赛道", listOf(
         AirdropFilterOption("layer2", "Layer2"), AirdropFilterOption("defi", "DeFi"),
@@ -39,7 +39,7 @@ internal val airdropFilterGroups = listOf(
         AirdropFilterOption("depin", "DePIN"), AirdropFilterOption("oracle", "预言机"),
         AirdropFilterOption("infrastructure", "基础设施"), AirdropFilterOption("socialfi", "SocialFi"),
         AirdropFilterOption("wallet", "钱包 / AA"), AirdropFilterOption("privacy", "隐私"),
-        AirdropFilterOption("modular-da", "模块化 / DA")
+        AirdropFilterOption("modular-da", "模块化 / DA"), AirdropFilterOption("unknown", "赛道未标注")
     )),
     AirdropFilterGroup("participation_requirements", "参与方式 / 任务", listOf(
         AirdropFilterOption("onchain_interaction", "链上交互"), AirdropFilterOption("bridge", "跨链"),
@@ -50,7 +50,7 @@ internal val airdropFilterGroups = listOf(
         AirdropFilterOption("governance", "治理 / 投票"), AirdropFilterOption("testnet", "测试网交互"),
         AirdropFilterOption("points_quest", "积分 / 任务"), AirdropFilterOption("social", "社交任务"),
         AirdropFilterOption("referral", "邀请 / 推荐"), AirdropFilterOption("github_developer", "开发者贡献"),
-        AirdropFilterOption("event_poap", "活动 / POAP")
+        AirdropFilterOption("event_poap", "活动 / POAP"), AirdropFilterOption("unknown", "参与条件未标注")
     )),
     AirdropFilterGroup("funding_requirement", "资金门槛", listOf(
         AirdropFilterOption("no_extra_capital", "无需额外本金"), AirdropFilterOption("gas_only", "仅需 Gas"),
@@ -72,7 +72,7 @@ internal val airdropFilterGroups = listOf(
         AirdropFilterOption("kyc", "需要 KYC"), AirdropFilterOption("region_restriction", "地区限制"),
         AirdropFilterOption("lockup", "奖励锁仓"), AirdropFilterOption("impermanent_loss", "无常损失风险"),
         AirdropFilterOption("contract_approval", "合约授权风险"), AirdropFilterOption("deposit_required", "需要充值 / 存款"),
-        AirdropFilterOption("official_task_verification", "官方任务核验")
+        AirdropFilterOption("official_task_verification", "官方任务核验"), AirdropFilterOption("unknown", "风险信息未标注")
     )),
     AirdropFilterGroup("effort_level", "时间投入", listOf(
         AirdropFilterOption("quick", "短时 / 一次性"), AirdropFilterOption("recurring", "周期性参与"),
