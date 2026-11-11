@@ -155,9 +155,16 @@ async def get_discovery_identity_group(
     base = select(AirdropDiscoveryCandidate).where(
         identity_column == group_key,
         AirdropDiscoveryCandidate.identity_status != "identity_conflict_needs_review",
-        AirdropDiscoveryCandidate.identity_evidence["identity_group_type"].as_string() == group_type,
-        AirdropDiscoveryCandidate.identity_evidence["identity_group_key"].as_string() == group_key,
     )
+    # A campaign member's evidence points to its exact campaign group. A
+    # project parent group intentionally spans multiple campaigns, so it must
+    # be derived from project_identity_key rather than the per-row evidence
+    # group marker. Keep the stricter evidence check for exact campaign groups.
+    if group_type == "campaign":
+        base = base.where(
+            AirdropDiscoveryCandidate.identity_evidence["identity_group_type"].as_string() == group_type,
+            AirdropDiscoveryCandidate.identity_evidence["identity_group_key"].as_string() == group_key,
+        )
     if status != "all":
         base = base.where(AirdropDiscoveryCandidate.review_status == status)
 
