@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.models import (
@@ -51,13 +50,13 @@ class _FakeDb:
         self.commits += 1
 
 
-def _record(db, campaign, heat, run_id=None):
+def _record(db, campaign, heat, run_id=None, source_name="approved-heat-provider"):
     return asyncio.run(record_successful_campaign_heat_batch(
         db,
-        source_name="approved-heat-provider",
+        source_name=source_name,
         source_url="https://provider.example/api/heat",
         observations=[{"campaign_id": str(campaign.id), "heat": heat}],
-        run_id=run_id,
+        run_id=run_id or uuid4(),
     ))
 
 
@@ -140,4 +139,22 @@ def test_missing_campaign_heat_is_not_synthesized_as_zero():
 
     result = asyncio.run(run())
     assert result == {"replayed": False, "observed": 0, "updated": 0}
+    assert campaign.low_heat_success_count == 0
+
+
+
+def test_successful_heat_updates_scoring_temperature_and_source_switch_restarts_streak():
+    campaign = _campaign(low_heat_success_count=2, last_heat_source_name="provider-a", temperature=18)
+    db = _FakeDb(campaign)
+
+    _record(db, campaign, 20, source_name="provider-b")
+    assert campaign.temperature == 20
+    assert campaign.low_heat_success_count == 1
+    assert campaign.last_heat_source_name == "provider-b"
+
+    _record(db, campaign, 39, source_name="provider-b")
+    assert campaign.low_heat_success_count == 2
+
+    _record(db, campaign, 40, source_name="provider-b")
+    assert campaign.temperature == 40
     assert campaign.low_heat_success_count == 0
