@@ -107,30 +107,36 @@ def test_replaying_same_pipeline_run_does_not_increment_twice():
     assert len([row for row in db.added if isinstance(row, AirdropCampaignSourceSnapshot)]) == 1
 
 
-def test_invalid_heat_batch_fails_before_writing_or_counting():
+def test_invalid_heat_batch_fails_and_does_not_write_heat_or_increment_counter():
     campaign = _campaign()
     db = _FakeDb(campaign)
+    run_id = uuid4()
 
     async def run():
-        return await record_successful_campaign_heat_batch(
-            db,
-            source_name="approved-heat-provider",
-            source_url="https://provider.example/api/heat",
-            observations=[{"campaign_id": str(campaign.id), "heat": 101}],
-            run_id=uuid4(),
+        await start_campaign_heat_run(
+            db, source_name="approved-heat-provider", run_id=run_id
         )
+        try:
+            await record_successful_campaign_heat_batch(
+                db,
+                source_name="approved-heat-provider",
+                source_url="https://provider.example/api/heat",
+                observations=[{"campaign_id": str(campaign.id), "heat": 101}],
+                run_id=run_id,
+            )
+        except ValueError as error:
+            assert "0 to 100" in str(error)
+            await fail_campaign_heat_run(
+                db, run_id=run_id, error_code="invalid_provider_payload"
+            )
+        else:
+            raise AssertionError("out-of-range heat must be rejected")
 
-    try:
-        asyncio.run(run())
-    except ValueError as error:
-        assert "0 to 100" in str(error)
-    else:
-        raise AssertionError("out-of-range heat must be rejected")
-
+    asyncio.run(run())
     assert campaign.low_heat_success_count == 0
-    assert db.added == []
-    assert db.commits == 0
-
+    assert not [row for row in db.added if isinstance(row, AirdropCampaignSourceSnapshot)]
+    assert db.runs[run_id].status == "failed"
+    assert db.runs[run_id].error_code == "invalid_provider_payload"
 
 def test_missing_campaign_heat_is_not_synthesized_as_zero():
     campaign = _campaign()
