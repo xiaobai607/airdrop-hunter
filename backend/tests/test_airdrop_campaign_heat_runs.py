@@ -111,6 +111,7 @@ def test_invalid_heat_batch_fails_before_writing_or_counting():
             source_name="approved-heat-provider",
             source_url="https://provider.example/api/heat",
             observations=[{"campaign_id": str(campaign.id), "heat": 101}],
+            run_id=uuid4(),
         )
 
     try:
@@ -135,6 +136,7 @@ def test_missing_campaign_heat_is_not_synthesized_as_zero():
             source_name="approved-heat-provider",
             source_url="https://provider.example/api/heat",
             observations=[],
+            run_id=uuid4(),
         )
 
     result = asyncio.run(run())
