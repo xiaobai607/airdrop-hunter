@@ -344,14 +344,24 @@ async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[st
                 break
             except (httpx.HTTPError, ValueError, TypeError) as exc:
                 last_error = exc
+                status_code = getattr(getattr(exc, "response", None), "status_code", None)
+                error_label = (
+                    f"{type(exc).__name__}(HTTP {status_code})"
+                    if status_code is not None else type(exc).__name__
+                )
                 logger.warning(
                     "Binance catalog %s endpoint %s failed: %s",
                     catalog_id,
                     urlparse(endpoint).path,
-                    type(exc).__name__,
+                    error_label,
                 )
         if last_error is not None:
-            errors.append(f"catalog {catalog_id}: {type(last_error).__name__}")
+            status_code = getattr(getattr(last_error, "response", None), "status_code", None)
+            error_label = (
+                f"{type(last_error).__name__}(HTTP {status_code})"
+                if status_code is not None else type(last_error).__name__
+            )
+            errors.append(f"catalog {catalog_id}: {error_label}")
     if not records and errors:
         raise RuntimeError("Binance CMS categories unavailable: " + "; ".join(errors))
     return records
@@ -585,11 +595,16 @@ async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dic
                 row["source_url"] = str(response.request.url)
             rows.extend(query_rows)
         except (httpx.HTTPError, ValueError, TypeError) as exc:
-            failures.append(f"{query}:{type(exc).__name__}")
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            error_label = (
+                f"{type(exc).__name__}(HTTP {status_code})"
+                if status_code is not None else type(exc).__name__
+            )
+            failures.append(f"{query}:{error_label}")
             logger.warning(
                 "DexScreener search %s failed; continuing with remaining terms: %s",
                 query,
-                type(exc).__name__,
+                error_label,
             )
 
     if not rows:
