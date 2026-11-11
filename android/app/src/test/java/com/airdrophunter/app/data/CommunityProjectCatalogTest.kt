@@ -4,7 +4,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import com.airdrophunter.app.matchesCommunityProjectStatus
+import com.airdrophunter.app.AirdropFilterMetadata
+import com.airdrophunter.app.AirdropFilterSelection
+import com.airdrophunter.app.matchesAirdropFilters
 
 class CommunityProjectCatalogTest {
     @Test fun pickerUsesDynamicDirectoryAndOnlyActiveProjects() {
@@ -16,10 +18,30 @@ class CommunityProjectCatalogTest {
         assertEquals(listOf("linea"), visible.map { it.project_official_id })
         assertTrue(directory.first { it.project_official_id == "linea" }.matchesSearch("L2"))
         assertFalse(directory.first { it.project_official_id == "old" }.is_active)
-        assertTrue(matchesCommunityProjectStatus(true, showDelistedOnly = false))
-        assertFalse(matchesCommunityProjectStatus(false, showDelistedOnly = false))
-        assertTrue(matchesCommunityProjectStatus(false, showDelistedOnly = true))
-        assertFalse(matchesCommunityProjectStatus(true, showDelistedOnly = true))
+        assertEquals(listOf("linea"), directory.filter { it.is_active }.map { it.project_official_id })
+    }
+
+    @Test fun airdropFiltersUseOrWithinGroupAndAndAcrossGroups() {
+        val project = AirdropFilterMetadata(
+            chain = "Ethereum L2",
+            supportedChains = listOf("base", "arbitrum-one"),
+            categories = listOf("layer2", "defi"),
+            participationRequirements = listOf("bridge", "onchain_interaction"),
+            fundingRequirement = "gas_only",
+            campaignStage = "unknown",
+            rewardTypes = emptyList(),
+            riskFlags = listOf("contract_approval"),
+            effortLevel = "recurring"
+        )
+        val selection = AirdropFilterSelection()
+            .toggle("supported_chains", "base")
+            .toggle("supported_chains", "linea")
+            .toggle("participation_requirements", "bridge")
+            .toggle("funding_requirement", "gas_only")
+        assertTrue(matchesAirdropFilters(project, selection))
+        assertFalse(matchesAirdropFilters(project, selection.toggle("funding_requirement", "locked_capital")))
+        assertTrue(matchesAirdropFilters(project, AirdropFilterSelection().toggle("campaign_stage", "unknown")))
+        assertFalse(matchesAirdropFilters(project, AirdropFilterSelection().toggle("campaign_stage", "claim_open")))
     }
 
     @Test fun customProjectHasNoCommunityAssociationUnlessExplicitlySelected() {
