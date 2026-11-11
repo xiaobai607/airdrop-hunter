@@ -172,7 +172,7 @@ private fun AirdropAnnouncementDetail(
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         Text(
-            item.name,
+            detail?.title ?: item.name,
             Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
             color = AppColors.TextPrimary,
             style = MaterialTheme.typography.titleLarge,
@@ -250,7 +250,7 @@ private fun AirdropAnnouncementDetail(
                     runCatching {
                         context.startActivity(
                             Intent(context, BrowserActivity::class.java)
-                                .putExtra(BrowserActivity.EXTRA_URL, item.link)
+                                .putExtra(BrowserActivity.EXTRA_URL, detail?.original_url ?: item.link)
                                 .putExtra(BrowserActivity.EXTRA_TITLE, item.name)
                         )
                     }.onFailure {
