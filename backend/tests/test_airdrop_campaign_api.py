@@ -53,16 +53,24 @@ def test_public_campaign_api_serializes_campaign_fields_and_is_read_only():
         row = response.json()[0]
         assert row["name"] == "Verified Test Campaign"
         assert row["tier"] == "featured"
-        assert "score" not in row
-        assert "scoring_version" not in row
-        assert "listing_reason" not in row
-        assert "trust_status" not in row
-        assert "dex_liquidity_usd" not in row
-        assert "token_contract_address" not in row
+        forbidden_internal_fields = {
+            "temperature",
+            "opportunity_score",
+            "token_network",
+            "token_contract_address",
+            "trust_status",
+            "dex_pair_count",
+            "dex_liquidity_usd",
+            "dex_volume_24h_usd",
+            "gecko_trending",
+            "score",
+            "scoring_version",
+            "listing_reason",
+        }
+        assert forbidden_internal_fields.isdisjoint(row)
         assert row["is_kyc_free"] is True
         assert row["campaign_status"] == "ongoing"
         assert row["official_url"] == "https://official.example/campaign"
-        assert row["listing_reason"] == "Official source verified"
     finally:
         app.dependency_overrides.pop(get_db, None)
 

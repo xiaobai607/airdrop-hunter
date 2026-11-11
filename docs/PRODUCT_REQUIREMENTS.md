@@ -2033,3 +2033,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Removed the visible “综合评分 / 评分数据不足” row and internal listing-reason text from campaign cards. The visible card retains campaign name, concise description, chain, status, KYC information and official action.
 - Retained the backend scoring engine and persistence/history for internal publication decisions; this is a presentation/API-boundary cleanup, not deletion of the scoring gate.
 - Added API regression assertions that internal scoring, trust and market telemetry fields are absent from the public response.
+
+### 2026-11-11 — Public campaign API regression-test correction
+
+- Exact-head Push workflow #1085 for commit dd69e9fdb57f158d1ab9603a6385719d3d900fa1 completed Android unit tests and Debug APK assembly successfully; artifact airdrop-hunter-debug-apk (artifact ID 13829965278) was uploaded.
+- Backend pytest reported one failure because the public API regression test both asserted that listing_reason was absent and later asserted that the same field contained a value. The latter assertion was stale and contradicted the intended public contract; the API response model was correct.
+- Corrected the regression test to assert absence of the complete set of internal scoring, trust, token-identity and market-telemetry fields. No internal field was restored to the public API.
+- Exact-head backend revalidation for this correction is pending. PR #135 remains Draft/Open/unmerged; the successful lightweight PR synchronize run #1086 skipped both heavy test suites and is not counted as full validation.
