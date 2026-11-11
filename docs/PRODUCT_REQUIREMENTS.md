@@ -17,8 +17,8 @@
 ### Current repository checkpoint
 
 - Repository: `xiaobai607/airdrop-hunter`; active delivery branch: `feature/mobile-browser-home-dock-batch`.
-- PR #135 remains **Draft / Open / not merged**. Latest branch code head: `cae68cad5636f592e80a105f68f19c48415b6fa0`.
-- Exact-head backend push workflow #43004625547 passed: **232 passed, 3 warnings, 0 failed**. It covers filtered Binance detail access and central-filter exclusion from the pending review queue.
+- PR #135 remains **Draft / Open / not merged**. Latest branch code head: `51b2b6cc49704388bf6f576a3b2abf38b98efecc`.
+- Exact-head backend push workflow #43007560087 passed on `51b2b6c`: **234 passed, 3 warnings, 0 failed**. It covers the Binance detail-route central-filter guard and its regression test.
 - The previous backend fix in workflow #43004421135 also passed: 232 passed, 3 warnings, 0 failed. It introduced a guard so a Binance item rejected by the central filter cannot be fetched directly by guessing its detail ID.
 - Android source changes at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed Android unit tests, Debug APK assembly, and artifact upload in workflow #43002913809. Later commits changed only backend API/tests and documentation; Android source is unchanged.
 - Airdrop Hub has a Room-backed public cache: show cached rows first, refresh the four-source pipeline in the background after 8 hours, retain last-known-good rows after failures, and apply a 5-minute retry cooldown. Manual refresh remains available; physical-device behavior still needs verification.
@@ -107,7 +107,7 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 
 ### Latest continuation checkpoint — 2026-11-11
 
-- Current branch head: `cae68cad5636f592e80a105f68f19c48415b6fa0`. Exact-head backend workflow #43004625547 passed: 232 tests passed, 3 warnings, 0 failures.
+- Current branch head: `51b2b6cc49704388bf6f576a3b2abf38b98efecc`. Exact-head backend push workflow #43007560087 passed: 234 tests passed, 3 warnings, 0 failures.
 - The public Binance detail endpoint now rejects records marked `filtered`, even if a caller knows the record UUID. The pending review queue also excludes centrally filtered observations; `status=all` retains access to them for audit.
 - Android source at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed unit tests, Debug APK assembly and artifact upload. The latest changes did not modify Android files.
 - Airdrop Hub cache-first/background refresh is implemented with an 8-hour freshness interval, a 5-minute retry cooldown, stale-data retention and the existing manual refresh action. Physical-device behavior still needs verification.
@@ -2134,3 +2134,12 @@ Project and campaign identity classification is a responsibility of the unified 
 - Added regression tests for partial success and all-term failure. Exact-head workflow #43006252003 passed: **234 passed, 3 warnings, 0 failed**. Android build was skipped because this batch changed backend code only.
 - Configuration review: CoinGecko discovery is disabled until COINGECKO_DEMO_API_KEY is configured; GitHub Raw discovery is disabled until at least one manually approved, license-reviewed, commit-pinned source is configured. The example DexScreener terms (SOL, ETH, USDC) are broad market searches, not proof of airdrop campaigns. Binance remains a separate official-announcement observation source.
 - No production live-data claim is made from unit tests. Real provider credentials/configuration, live responses, and the end-to-end filter-to-library display still require verification. Scheduled production sync remains disabled.
+
+
+### Latest continuation checkpoint — 2026-11-11 (detail-route guard revalidated)
+
+- Re-read the actual branch implementation and found the Binance detail endpoint did not enforce the same visibility conditions as the list endpoint, despite an older progress note claiming the guard was present.
+- Restored the guard: only Binance records with `publication_status == OBSERVATION` and `filter_status != filtered` can be opened through the public detail route. Other source records and filtered records return 404.
+- Added a regression assertion using a known UUID for a centrally filtered record. Exact-head backend push workflow #43007560087 passed: **234 passed, 3 warnings, 0 failed**. Android build was skipped because only backend API/tests changed.
+- Current code commit: `51b2b6cc49704388bf6f576a3b2abf38b98efecc`. PR #135 remains Draft/Open/unmerged.
+- Continue with source-specific readiness/status visibility and four-provider live-data validation. Do not claim live data until the actual runtime environment is verified.
