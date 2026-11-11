@@ -12,6 +12,14 @@ data class AirdropHubDto(
     val publication_status: String = "OBSERVATION"
 )
 
+data class AirdropHubDetailDto(
+    val title: String,
+    val content_html: String,
+    val release_date: Long? = null,
+    val catalog_name: String = "",
+    val original_url: String
+)
+
 data class AirdropHubSyncStatusDto(
     val last_attempt_at: String? = null,
     val last_success_at: String? = null,
