@@ -11,7 +11,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AirdropProject
+from app.models import AirdropDiscoveryCandidate, AirdropProject
 from app.services.discovery_source_status import record_discovery_source_status
 
 logger = logging.getLogger("airdrop_hunter.airdrop_sync")
@@ -474,6 +474,63 @@ async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dic
     if not rows: raise RuntimeError('DexScreener 没有符合新池活跃阈值的交易对')
     return list(rows.values())
 
+def _candidate_source_key(source_name: str, record_source_key: str) -> str:
+    """Use a bounded, stable key while preserving the provider-specific source key elsewhere."""
+    return hashlib.sha256(
+        f"{source_name}|{record_source_key}".encode("utf-8")
+    ).hexdigest()
+
+
+async def _upsert_discovery_candidate(
+    db: AsyncSession,
+    *,
+    source_name: str,
+    source_url: str,
+    record: dict[str, Any],
+    now: datetime,
+) -> bool:
+    """Feed every provider observation into one review queue without auto-publishing it."""
+    item_url = _valid_http_url(record.get("link"))
+    title = str(record.get("name") or "").strip()
+    if not item_url or not title:
+        return False
+
+    record_source_key = str(record.get("source_key") or "").strip()
+    if not record_source_key:
+        return False
+    candidate_key = _candidate_source_key(source_name, record_source_key)
+    candidate = await db.scalar(
+        select(AirdropDiscoveryCandidate).where(
+            AirdropDiscoveryCandidate.source_key == candidate_key
+        )
+    )
+    candidate_source_url = _valid_http_url(record.get("source_url")) or source_url
+    summary = str(record.get("description") or "")[:10000]
+    if candidate is None:
+        db.add(AirdropDiscoveryCandidate(
+            source_key=candidate_key,
+            source_name=source_name,
+            source_url=candidate_source_url,
+            title=title[:300],
+            item_url=item_url,
+            summary=summary,
+            published_at=record.get("published_at"),
+            first_seen_at=now,
+            last_seen_at=now,
+            review_status="pending",
+        ))
+    else:
+        candidate.source_name = source_name
+        candidate.source_url = candidate_source_url
+        candidate.title = title[:300]
+        candidate.item_url = item_url
+        candidate.summary = summary
+        candidate.published_at = record.get("published_at")
+        candidate.last_seen_at = now
+        # Preserve approved/rejected review decisions across future refreshes.
+    return True
+
+
 async def _upsert_source_records(db: AsyncSession, source_name: str, source_url: str, fetcher: Any, client: httpx.AsyncClient, now: datetime) -> int:
     try:
         records = await fetcher(client)
@@ -484,6 +541,13 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
             else:
                 for key, value in record.items(): setattr(current, key, value)
                 current.imported_at = now
+            await _upsert_discovery_candidate(
+                db,
+                source_name=source_name,
+                source_url=source_url,
+                record=record,
+                now=now,
+            )
         await record_discovery_source_status(db, source_name, source_url, now, 'success', item_count=len(records))
         await db.commit()
         return len(records)

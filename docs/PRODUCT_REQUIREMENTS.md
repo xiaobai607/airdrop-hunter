@@ -2102,3 +2102,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Tightened the discovery parser to extract only the route path after the source adapter's `${baseUrl}` marker. The reference cannot supply or change the destination host.
 - Exact-head automated test status is pending after the final parser correction; do not treat the earlier cancelled workflow attempt as validation.
 - Live provider availability remains a separate requirement from MockTransport test success.
+
+
+### 2026-11-11 — Unified multi-source discovery queue
+- Connected the four configured observation adapters (Binance, CoinGecko, manually approved commit-pinned GitHub Raw lists, and DexScreener) to the shared `airdrop_discovery_candidates` queue.
+- Candidate records retain source attribution and original source links; each provider observation receives a stable provider-scoped SHA-256 key.
+- Candidate refreshes preserve manual review decisions. Non-HTTPS or missing item links are rejected before persistence.
+- This queue is not the public Airdrop Library: market/list observations remain unverified until official campaign evidence is checked. No source is automatically promoted to a published campaign.

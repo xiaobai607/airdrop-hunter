@@ -329,3 +329,98 @@ def test_binance_sync_uses_known_fallback_when_endpoint_discovery_is_unavailable
         ("/bapi/composite/v1/public/cms/article/list/query", "93"),
     ]
     assert {row["source_key"] for row in rows} == {"binance:legacy-128", "binance:legacy-93"}
+
+
+def test_all_provider_observations_enter_one_pending_candidate_queue_and_keep_review_decisions():
+    import asyncio
+    from datetime import datetime, timezone
+    from app.models import AirdropDiscoveryCandidate
+    from app.services.airdrop_hub_sync import _candidate_source_key, _upsert_discovery_candidate
+
+    class FakeDB:
+        def __init__(self, existing=None):
+            self.existing = existing
+            self.added = []
+
+        async def scalar(self, statement):
+            return self.existing
+
+        def add(self, value):
+            self.added.append(value)
+
+    now = datetime.now(timezone.utc)
+    record = {
+        "source_key": "coingecko:airdrop:sample-project",
+        "name": "Sample Project",
+        "description": "CoinGecko 类目线索；不代表当前存在可领取活动。",
+        "link": "https://www.coingecko.com/en/coins/sample-project",
+    }
+    db = FakeDB()
+    created = asyncio.run(_upsert_discovery_candidate(
+        db,
+        source_name="coingecko-airdrop-category",
+        source_url="https://api.coingecko.com/api/v3/coins/categories",
+        record=record,
+        now=now,
+    ))
+
+    assert created is True
+    assert len(db.added) == 1
+    candidate = db.added[0]
+    assert isinstance(candidate, AirdropDiscoveryCandidate)
+    assert candidate.source_key == _candidate_source_key(
+        "coingecko-airdrop-category", "coingecko:airdrop:sample-project"
+    )
+    assert len(candidate.source_key) == 64
+    assert candidate.review_status == "pending"
+    assert candidate.item_url == record["link"]
+    assert "不代表当前存在可领取活动" in candidate.summary
+
+    existing = AirdropDiscoveryCandidate(
+        source_key=candidate.source_key,
+        source_name=candidate.source_name,
+        source_url=candidate.source_url,
+        title=candidate.title,
+        item_url=candidate.item_url,
+        summary=candidate.summary,
+        review_status="rejected",
+    )
+    db2 = FakeDB(existing=existing)
+    later = datetime.fromtimestamp(now.timestamp() + 60, timezone.utc)
+    asyncio.run(_upsert_discovery_candidate(
+        db2,
+        source_name="coingecko-airdrop-category",
+        source_url="https://api.coingecko.com/api/v3/coins/categories",
+        record=record,
+        now=later,
+    ))
+    assert existing.review_status == "rejected"
+    assert existing.last_seen_at == later
+    assert db2.added == []
+
+
+def test_discovery_candidate_rejects_non_https_or_missing_project_links():
+    import asyncio
+    from datetime import datetime, timezone
+    from app.services.airdrop_hub_sync import _upsert_discovery_candidate
+
+    class FakeDB:
+        async def scalar(self, statement):
+            raise AssertionError("unsafe candidate must be rejected before database lookup")
+
+        def add(self, value):
+            raise AssertionError("unsafe candidate must not be stored")
+
+    base = {
+        "source_key": "dexscreener:chain:token",
+        "name": "Token",
+        "description": "Market observation only",
+    }
+    for url in ("http://unsafe.example/", "", None):
+        assert asyncio.run(_upsert_discovery_candidate(
+            FakeDB(),
+            source_name="dexscreener-new-pools",
+            source_url="https://api.dexscreener.com/latest/dex/search",
+            record={**base, "link": url},
+            now=datetime.now(timezone.utc),
+        )) is False
