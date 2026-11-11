@@ -1500,8 +1500,14 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - The picker opens with an empty search and displays every active cached directory entry immediately; typing filters by name, chain, and tags. It never relies on a hard-coded fallback list.
 
 
-### 2026-11-11 — community square delisted-project filter
+### 2026-11-11 — community square airdrop-condition filtering (authoritative correction)
 
-- The community square keeps the full cached official directory, including entries explicitly marked inactive. The default “正常项目” filter shows active entries only; “已下架” is an explicit status filter that reveals inactive entries on demand.
-- The status filter is separate from tag, favorite, search, and ranking filters. Delisted projects retain their stable official IDs and remain viewable, but are not mixed into normal community discovery. Local library records and their accounting history remain unaffected.
-- The directory's active state comes only from a successful official catalog response; network failure does not infer delisting. Synthetic DEBUG demo data is unaffected by the real-directory status filter.
+- The community square must not expose a “正常项目 / 已下架” status filter. Delisted status is a directory lifecycle rule, not an airdrop search criterion.
+- The normal community discovery list always excludes official catalog entries explicitly marked `is_active=false`. The inactive row remains in the Room directory cache so the personal project library can show its “社区已下架” marker and preserve the stable official ID, local accounting, and history. Relisting under the same official ID restores normal discovery and future contribution eligibility. A network failure or omitted ID never implies delisting.
+- Add one “筛选空投条件” control, separate from ranking and favorites. Filter groups: supported chain/network; project sector; participation method/task; funding requirement; campaign stage; reward type; risk/eligibility restrictions; and time/effort level.
+- Multi-select within one group uses OR; selections across different groups use AND. The panel shows selected-condition count, result count, and a reset action.
+- Filter metadata is curated per official catalog entry and is editable through the catalog admin API. It is not inferred from a project's name, ecosystem, broad tags, or popularity. For example, an L2 classification does not imply testnet participation, zero-cost participation, or a confirmed token airdrop.
+- Unverified/unknown values remain unknown. The current seven ecosystem directory entries are only tagged with their known primary networks and broad Layer2 category; participation requirements, funding barriers, campaign stages, rewards, risks, and effort remain unknown until supported by project-specific evidence.
+- The catalog stores the source URL, verification timestamp, and curator note for condition metadata. User-submitted projects enter the directory with empty/unknown eligibility metadata until reviewed.
+- The taxonomy covers common airdrop mechanics including on-chain interaction, bridge, swap/trade, LP, lending, staking/restaking, token/NFT holding, governance, testnet, points/quests, social/referrals, developer contributions, KYC/region restrictions, lockups, approval/deposit risks, points/token/NFT/allowlist/rebate rewards, and different funding/effort levels.
+- The discovery filter is not an eligibility checker and must not promise an airdrop or guarantee a wallet will qualify. Eligibility can depend on project-specific snapshots, thresholds, activity duration/volume, multipliers, and anti-Sybil rules; always distinguish observed campaign metadata from confirmed eligibility.
