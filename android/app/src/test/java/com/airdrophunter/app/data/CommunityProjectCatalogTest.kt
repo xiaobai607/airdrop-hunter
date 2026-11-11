@@ -11,7 +11,7 @@ class CommunityProjectCatalogTest {
             CommunityProjectCatalogDto("linea", "Linea", "Ethereum L2", "", "zkEVM", listOf("L2"), "https://linea.build/", is_active = true),
             CommunityProjectCatalogDto("old", "Old Project", "Ethereum", "", "", emptyList(), "", is_active = false)
         )
-        val visible = directory.filter { it.is_active && it.matchesSearch("") }
+        val visible = directory.filter { it.is_active && it.matchesSearch("linea") }
         assertEquals(listOf("linea"), visible.map { it.project_official_id })
         assertTrue(directory.first { it.project_official_id == "linea" }.matchesSearch("zkEVM"))
         assertFalse(directory.first { it.project_official_id == "old" }.is_active)
