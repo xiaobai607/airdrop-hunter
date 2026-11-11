@@ -26,16 +26,20 @@ def test_normalize_rejects_missing_or_unsafe_links():
     assert rows[0]["name"] == "Valid project"
 
 def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
+    from app.services import airdrop_hub_sync
+    monkeypatch.setattr(airdrop_hub_sync, "TRUSTED_AIRDROP_PROVIDER_LABELS", {"test": "Test Directory"})
     async def fake_sync(db):
         db.add(AirdropProject(
             source_key=f"test-{uuid4().hex}:solana", name="Hub Solana Test",
             chain="Solana", description="Inserted by API test", status="热门",
-            link="https://solana.example/", source_name="test"
+            link="https://solana.example/", source_name="test",
+            trust_level="TRUST_LEVEL_1", publication_status="PUBLISHED_SAFE"
         ))
         db.add(AirdropProject(
             source_key=f"test-{uuid4().hex}:ethereum", name="Hub Ethereum Test",
             chain="Ethereum", description="Inserted by API test", status="待发币",
-            link="https://ethereum.example/", source_name="test"
+            link="https://ethereum.example/", source_name="test",
+            trust_level="TRUST_LEVEL_1", publication_status="PUBLISHED_SAFE"
         ))
         await db.commit()
         return 2
