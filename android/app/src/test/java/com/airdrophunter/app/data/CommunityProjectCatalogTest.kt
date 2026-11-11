@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.airdrophunter.app.airdropFilterGroupsFor
 import com.airdrophunter.app.AirdropFilterMetadata
 import com.airdrophunter.app.AirdropFilterSelection
 import com.airdrophunter.app.matchesAirdropFilters
@@ -42,6 +43,27 @@ class CommunityProjectCatalogTest {
         assertFalse(matchesAirdropFilters(project, selection.toggle("campaign_stage", "claim_open")))
         assertTrue(matchesAirdropFilters(project, AirdropFilterSelection().toggle("campaign_stage", "unknown")))
         assertFalse(matchesAirdropFilters(project, AirdropFilterSelection().toggle("campaign_stage", "claim_open")))
+    }
+
+    @Test fun filterOptionsIncludeNewlyCuratedDirectoryValues() {
+        val directory = listOf(
+            CommunityProjectCatalogDto(
+                project_official_id = "new-defi",
+                name = "New DeFi",
+                chain = "Base",
+                logo = "",
+                description = "",
+                tags = emptyList(),
+                supported_chains = listOf("base", "custom-rollup"),
+                categories = listOf("defi", "intent-based"),
+                participation_requirements = listOf("bridge", "unique_contracts"),
+                website_url = "https://example.org"
+            )
+        )
+        val groups = airdropFilterGroupsFor(directory)
+        assertTrue(groups.first { it.key == "supported_chains" }.options.any { it.value == "custom-rollup" })
+        assertTrue(groups.first { it.key == "categories" }.options.any { it.value == "intent-based" })
+        assertTrue(groups.first { it.key == "participation_requirements" }.options.any { it.value == "unique_contracts" })
     }
 
     @Test fun customProjectHasNoCommunityAssociationUnlessExplicitlySelected() {
