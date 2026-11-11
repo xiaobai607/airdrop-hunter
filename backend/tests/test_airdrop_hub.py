@@ -727,3 +727,14 @@ def test_dexscreener_market_signal_is_not_an_airdrop_campaign():
         "_filter_metadata": {"age_seconds": 3600, "liquidity_usd": 15000},
     })
     assert decision["status"] == "eligible_for_review"
+
+
+def test_dexscreener_top_ten_selection_excludes_pools_older_than_seven_days():
+    from app.services.airdrop_discovery_filter import select_dexscreener_top_candidates
+
+    rows = [
+        {"name": "Old high liquidity", "_filter_metadata": {"liquidity_usd": 90000, "age_seconds": 900000}},
+        {"name": "Fresh pool", "_filter_metadata": {"liquidity_usd": 15000, "age_seconds": 3600}},
+    ]
+    selected = select_dexscreener_top_candidates(rows)
+    assert [row["name"] for row in selected] == ["Fresh pool"]

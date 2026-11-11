@@ -67,6 +67,9 @@ def select_dexscreener_top_candidates(records: list[dict[str, Any]], *, limit: i
             liquidity = float(metadata.get("liquidity_usd"))
         except (TypeError, ValueError):
             continue
+        age = metadata.get("age_seconds")
+        if age is not None and (age < 0 or age > DEXSCREENER_MAX_POOL_AGE_SECONDS):
+            continue
         if liquidity > 10_000:
             eligible.append(record)
     eligible.sort(key=lambda item: (
@@ -106,7 +109,10 @@ def evaluate_discovery_observation(record: dict[str, Any], *, now: datetime | No
             reasons.append(reason)
         elif _canonical_identity_url(official_url) is None:
             reasons.append("github_official_url_invalid")
+    elif source_name == "coingecko-airdrop-category":
+        metadata["market_signal_only"] = True
     elif source_name == "dexscreener-new-pools":
+        metadata["market_signal_only"] = True
         age, liquidity = metadata.get("age_seconds"), metadata.get("liquidity_usd")
         if age is not None and (age < 0 or age > DEXSCREENER_MAX_POOL_AGE_SECONDS):
             reasons.append("pool_age_outside_existing_limit")
