@@ -4,40 +4,46 @@
 
 ## 0.2 Latest user-confirmed data-discovery strategy — four-source, zero-budget standard (2026-11-11)
 
-The user has confirmed four source families for this implementation round: CoinGecko Demo API, GitHub Raw Content, DexScreener public API, and Binance public announcements. CoinMarketCal is excluded. Do not add DropsTab, Airdrops.io, or any other discovery source in this round.
+The user approved four free public data sources for backend discovery: CoinGecko Demo API, GitHub Raw Content, DexScreener public API, and Binance public announcements. CoinMarketCal, DropsTab, Airdrops.io, paid APIs, paid trials, paid proxies, and paid scraping services are excluded.
+
+### Product experience — simple airdrop discovery (latest correction)
+- The primary Airdrop Discovery page exists to find and display airdrop activities. It is not a source-monitoring dashboard, token screener, project directory, or moderation console.
+- The user-facing list shows only explicit airdrop campaign/announcement evidence. Binance Crypto Airdrop catalog entries and Latest Activities headlines explicitly matching airdrop-related terms (Airdrop, Launchpool, HODLer, Megadrop) may appear as official-announcement cards linking to the original Binance announcement.
+- CoinGecko Airdrop category membership, GitHub open-source list entries, and DexScreener token/pool observations are discovery leads only. They must stay out of the primary airdrop activity list unless a separate explicit campaign announcement/evidence is obtained. Trading volume, liquidity, category membership, or appearing in a repository list does not prove an airdrop exists.
+- Keep the main page focused: activity title, concise official-source attribution, and a clear action to open the original announcement. Do not show source health, trust codes, publication-state codes, internal scoring, market-pool metrics, or technical error details to ordinary users. Do not label a project lead as an active airdrop.
+- Do not build additional review queues, moderation dashboards, multi-layer scoring, or source-status UI for this discovery page. Retain only the backend provenance, deduplication, caching, URL validation, and per-source failure isolation needed for reliable operation.
+- Never invent campaign dates, reward amounts, eligibility, KYC, chain, or claim links. If the official announcement does not state a field, leave it unknown rather than guessing.
+- The main user flow is: open Airdrop Discovery → browse official airdrop announcements → open the original announcement to inspect details and participate.
 
 ### 1. CoinGecko Demo API — Airdrop category
 - Use the free CoinGecko Demo API key supplied by the operator through server environment variable `COINGECKO_DEMO_API_KEY`; never hardcode or commit credentials.
-- Query `GET /coins/categories` to locate category entries whose name identifies the Airdrop category. This endpoint returns category metadata, not the projects themselves.
-- For each matching category ID, query `GET /coins/markets?vs_currency=usd&category={category_id}` to retrieve the tokens assigned to that category. Respect Demo quota/rate limits, use bounded pagination, and cache results.
-- Normalize token name, CoinGecko URL, category ID, source ID, and fetch timestamp. These are category membership leads, not proof of an active claim campaign; label them “待核实”, never invent rewards, deadlines, eligibility, or claim links.
+- Query `GET /coins/categories` to locate category entries whose name identifies the Airdrop category. Then query `GET /coins/markets?vs_currency=usd&category={category_id}` for category token leads. Respect Demo quota/rate limits and cache results.
+- Normalize token name, CoinGecko URL, category ID, source ID, and fetch timestamp. These rows are internal discovery leads, not active claim campaigns, and are not shown in the primary activity list.
 - If the Airdrop category is absent or the API key/quota is unavailable, record the source failure and continue the other adapters.
 
 ### 2. GitHub Raw Content — open-source lists
 - Support operator-configured public raw file URLs via `AIRDROP_GITHUB_RAW_SOURCES` (JSON array of HTTPS `raw.githubusercontent.com` URLs); do not scrape GitHub search or private repositories.
 - Parse JSON arrays/objects and Markdown project links/bullets. Extract only an explicit project name and HTTPS website URL; do not infer an official website from a repository name or arbitrary text.
 - Keep repository/file URL as provenance, use stable source keys and deduplicate across configured files. Bound URL count, response size, request timeout, and polling frequency.
-- Treat every imported entry as an unverified observation. Respect each repository's license/README attribution and redistribution terms; only configure sources whose licenses permit the intended public display. A public raw URL alone is not a reuse license.
-- A malformed or unavailable file must not block other files or sources; retain last-known-good rows.
+- Respect each repository's license/README attribution and redistribution terms. A public raw URL alone is not a reuse license.
+- Imported entries are internal project leads and are not shown as confirmed airdrop activities without separate campaign evidence. A malformed or unavailable file must not block other sources; retain last-known-good rows.
 
 ### 3. DexScreener — recent active pool observations
-- Use the documented public `GET /latest/dex/search?q={query}` endpoint. Search terms are operator-configurable via `DEXSCREENER_SEARCH_QUERIES`; use a small bounded query list and cache responses to avoid repeated fan-out.
-- Filter pairs by a transparent configurable recency/activity threshold (initial defaults: created within 7 days, 24h liquidity at least USD 10,000, 24h volume at least USD 50,000, and at least 20 combined 24h buys/sells). Keep thresholds centralized and testable.
-- Store chain ID, token address, token name/symbol, pair URL, pair creation time, liquidity, 24h volume, and 24h transaction count where available. Deduplicate by chain ID + token address.
-- These are “新币/交易活跃线索”, not airdrop records. Do not claim an airdrop exists, a contract is safe, or a token is legitimate based on trading activity. Do not fabricate a project official website.
+- Use the documented public `GET /latest/dex/search?q={query}` endpoint. Search terms are operator-configurable via `DEXSCREENER_SEARCH_QUERIES`; use a small bounded query list and cache responses.
+- Keep the existing conservative initial thresholds: pair created within 7 days, 24h liquidity at least USD 10,000, 24h volume at least USD 50,000, and at least 20 combined 24h buys/sells.
+- Deduplicate by chain ID + token address. These rows are market/pool leads only and never appear in the primary airdrop activity list solely because they are active or liquid. Do not claim an airdrop, contract safety, or token legitimacy from trading activity.
 
-### 4. Binance public announcements — Crypto Airdrop and relevant activity catalogs
-- Include Binance's public announcement center, which explicitly exposes a Crypto Airdrop topic, as an independent observation source. Use the public CMS article-list endpoint already present in the project adapter for catalog IDs 128 (Crypto Airdrop) and 93 (Latest Activities); catalog 93 must be keyword-filtered for airdrop-related terms such as airdrop, Launchpool, HODLer, and Megadrop.
-- Parse article title and announcement code only; construct the canonical Binance announcement URL from the code. Keep original title, source, and stable announcement code as provenance.
-- Every imported Binance article is `TRUST_LEVEL_0` + `OBSERVATION` and “待核实”; headlines alone do not establish eligibility, reward, claim window, or user qualification. Do not fabricate those fields.
-- The CMS endpoint is a public web-content interface, not a guaranteed stable public API contract. Treat errors/format changes as a per-source failure and retain last-known-good records; this is an operational caveat, not a reason to reject the approved source.
+### 4. Binance public announcements — official activity feed
+- Use the existing public CMS article-list endpoint for catalog IDs 128 (Crypto Airdrop) and 93 (Latest Activities). Catalog 93 must be keyword-filtered for Airdrop, Launchpool, HODLer, and Megadrop.
+- Parse article title and announcement code; construct the canonical Binance announcement URL from the code. Keep original title, source, and stable announcement code as backend provenance.
+- These explicit official announcement entries are the primary visible discovery feed. The original Binance article is the source of truth for all campaign terms. Do not infer rewards, deadlines, eligibility, claim links, or user qualification from a headline.
+- Treat CMS failures/format changes as a per-source failure and retain last-known-good records.
 
-### Unified behavior and exclusions
-- The four adapters are independent: one failure must not stop the other two. Persist per-source success/failure metadata and counts; never replace last-known-good records with an empty/error response.
-- All records from these four sources are `TRUST_LEVEL_0` + `OBSERVATION`. The app must visibly distinguish “待核实” and source attribution; DexScreener entries should additionally be identified as market/pool observations, not airdrop campaigns.
-- Keep stable source keys, HTTPS URL validation, bounded fields, source attribution, deduplication, conservative polling, and caching. No paid API, paid trial, paid proxy, paid scraping actor, hidden metered service, or automatic plan upgrade.
+### Shared backend rules and exclusions
+- The four adapters are independent: one failure must not stop the others. Persist source provenance and status internally; retain last-known-good records after empty/error responses.
+- Keep stable source keys, HTTPS URL validation, bounded fields, deduplication, conservative polling, and caching.
 - Do not send personal wallet addresses, private ledger rows, transaction hashes, or identity data to these providers.
-- CoinMarketCal is explicitly excluded from this round. DropsTab, Airdrops.io, and all other unlisted discovery sources are also excluded from the active sync pipeline.
+- The primary public Airdrop Discovery API must return only explicit Binance airdrop announcement entries. CoinGecko, GitHub, and DexScreener observations remain excluded from that feed.
 
 
 ## 0.1 Latest user-confirmed corrections — 2026-11-11 (authoritative overrides)
