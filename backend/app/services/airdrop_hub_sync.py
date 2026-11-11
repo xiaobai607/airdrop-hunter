@@ -17,6 +17,20 @@ logger = logging.getLogger("airdrop_hunter.airdrop_sync")
 
 JSON_SOURCE = "https://web3-discover.vercel.app/api/airdrops.json"
 MCP_SOURCE = "https://web3-discover.vercel.app/api/mcp"
+
+# Populate only after a provider has a documented free airdrop-directory API
+# and its terms permit this product public catalog use. General token/TVL APIs
+# are deliberately not eligible airdrop sources.
+TRUSTED_AIRDROP_PROVIDER_LABELS: dict[str, str] = {}
+TRUST_LEVEL_0 = "TRUST_LEVEL_0"
+TRUST_LEVEL_1 = "TRUST_LEVEL_1"
+OBSERVATION = "OBSERVATION"
+PUBLISHED_SAFE = "PUBLISHED_SAFE"
+
+def _source_publication_state(source_name: str) -> tuple[str, str]:
+    if source_name in TRUSTED_AIRDROP_PROVIDER_LABELS:
+        return TRUST_LEVEL_1, PUBLISHED_SAFE
+    return TRUST_LEVEL_0, OBSERVATION
 _sync_status: dict[str, Any] = {
     "last_attempt_at": None,
     "last_success_at": None,
@@ -65,8 +79,9 @@ def _as_items(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
-def _normalize(payload: Any) -> list[dict[str, str]]:
+def _normalize(payload: Any, *, source_name: str = "web3-discover") -> list[dict[str, str]]:
     normalized: list[dict[str, str]] = []
+    trust_level, publication_status = _source_publication_state(source_name)
     for item in _as_items(payload):
         name = str(item.get("project") or item.get("name") or item.get("title") or item.get("project_name") or "").strip()
         link = _valid_http_url(item.get("officialUrl") or item.get("official_url") or item.get("website") or item.get("link") or item.get("url"))
@@ -93,7 +108,9 @@ def _normalize(payload: Any) -> list[dict[str, str]]:
                 "description": description[:10000],
                 "status": status,
                 "link": link,
-                "source_name": "web3-discover",
+                "source_name": source_name,
+                "trust_level": trust_level,
+                "publication_status": publication_status,
             })
     return normalized
 
@@ -154,11 +171,11 @@ def _extract_json(text: str) -> Any:
 async def sync_airdrop_hub(db: AsyncSession) -> int:
     now = datetime.now(timezone.utc)
     _sync_status.update({"last_attempt_at": now.isoformat(), "error": None})
-    # This upstream Vercel API has no confirmed permission for third-party
-    # public-catalog republication. Keep it disabled until explicitly approved.
-    if os.getenv("AIRDROP_HUB_SOURCE_APPROVED", "").strip().lower() != "true":
-        _sync_status.update({"imported_count": 0, "error": "source_not_approved"})
-        logger.info("Skipped web3-discover import: source reuse is not approved")
+    # web3-discover is not on the trusted-provider allowlist. An environment
+    # switch must never turn an unverified directory into TRUST_LEVEL_1.
+    if "web3-discover" not in TRUSTED_AIRDROP_PROVIDER_LABELS:
+        _sync_status.update({"imported_count": 0, "error": "no_trusted_free_airdrop_provider"})
+        logger.info("Skipped catalog sync: no eligible free airdrop-directory provider is active")
         return 0
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(15.0), headers={"User-Agent": "AirdropHunter/1.0"}) as client:
