@@ -63,9 +63,12 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 
 #### C. Browser dock and UI acceptance — **IMPLEMENTED IN PR #135; DEVICE VERIFICATION PENDING**
 
+- [x] Refactor the dock so a single outer Box owns the capsule background and LazyRow; its offset and long-press drag move the complete component together.
+- [x] Clip the inner translucent capsule container with RoundedCornerShape(50), including the LazyRow, so icons cannot render outside the pill boundary.
+- [x] Use detectDragGesturesAfterLongPress on the outer Box so ordinary horizontal swipes remain available to LazyRow; use Animatable for animated left/right edge snapping after drag end/cancel.
 - [ ] Confirm the long horizontal glass dock proportions on the actual phone.
-- [ ] Confirm inner horizontal scrolling does not conflict with long-press drag of the whole dock.
-- [ ] Confirm edge snapping, safe-area bounds, add/remove/reorder/restore actions and all six tool actions.
+- [ ] Confirm inner horizontal scrolling and long-press whole-dock dragging do not conflict on the actual phone.
+- [ ] Confirm edge snapping, safe-area bounds, add/remove/reorder/restore actions and all six tool actions on device.
 - [ ] Confirm dock position is transient and resets to the bottom after leaving/re-entering the browser; only selected tool IDs/order persist.
 - [ ] Confirm Home dashboard card layout/drag behavior and developer-controlled card dimensions.
 - [ ] Confirm the Airdrop Library heading is “空投库”, the obsolete Steam subtitle is absent, and demo/real datasets never mix.
@@ -1905,3 +1908,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Added tests asserting that the official CMS body is embedded unchanged, the restrictive CSP continues to block scripts/connectivity/frames while allowing HTTPS/data images, and responsive media/table overflow styles remain present.
 - This is a regression test for the authored wrapper only. It does not prove that Binance's current CMS HTML uses directly loadable image attributes, that remote images load on a device, or that horizontal table scrolling behaves correctly on a physical phone.
 - JavaScript remains disabled. Do not add speculative data-src rewriting or relax the WebView policy without a real CMS response fixture and a security review.
+
+### 2026-11-11 — Browser Dock whole-component drag refactor
+
+- Rebuilt the floating browser Dock with one outer movable Box. The capsule background and horizontal LazyRow are children of that same Box, and the outer Box owns the offset and detectDragGesturesAfterLongPress gesture handler.
+- The inner capsule container clips its translucent background, border and LazyRow to RoundedCornerShape(50), preventing tool icons from painting outside the pill.
+- Normal horizontal scrolling remains assigned to LazyRow; moving the entire Dock requires a long press followed by a drag. Animatable drives the release/cancel snap animation to the left or right edge while keeping the vertical position within the available range.
+- Automated build/test and physical-device gesture acceptance are separate gates. Do not claim the gesture conflict or visual alignment is fixed on hardware until tested on the user's phone.
