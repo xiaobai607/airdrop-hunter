@@ -11,7 +11,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AirdropDiscoveryCandidate, AirdropProject
+from app.models import AirdropDiscoveryCandidate, AirdropDiscoveryObservation, AirdropProject
 from app.services.discovery_source_status import record_discovery_source_status
 
 logger = logging.getLogger("airdrop_hunter.airdrop_sync")
@@ -241,6 +241,7 @@ def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[d
                 "trust_level": TRUST_LEVEL_0,
                 "publication_status": OBSERVATION,
                 "catalog_id": catalog_id,
+                "_raw_payload": article,
             })
     return records
 
@@ -361,12 +362,19 @@ def _normalize_coingecko_categories(payload: Any) -> list[dict[str, str]]:
     if not isinstance(payload, list): return []
     return [{"id": str(item.get("id") or "").strip(), "name": str(item.get("name") or "").strip()} for item in payload if isinstance(item, dict) and item.get("id") and item.get("name")]
 
-def _normalize_coingecko_coins(payload: Any, category_id: str) -> list[dict[str, str]]:
+def _normalize_coingecko_coins(payload: Any, category_id: str) -> list[dict[str, Any]]:
     if not isinstance(payload, list): return []
-    return [_observation_record('coingecko-airdrop-category', f"coingecko:{category_id}:{item['id']}", str(item['name']), f"https://www.coingecko.com/en/coins/{item['id']}", 'CoinGecko Airdrop 类目代币线索；不代表当前存在可领取活动。') for item in payload if isinstance(item, dict) and item.get('id') and item.get('name')]
+    rows = []
+    for item in payload:
+        if not isinstance(item, dict) or not item.get("id") or not item.get("name"):
+            continue
+        row = _observation_record("coingecko-airdrop-category", f"coingecko:{category_id}:{item['id']}", str(item["name"]), f"https://www.coingecko.com/en/coins/{item['id']}", "CoinGecko Airdrop 类目代币线索；不代表当前存在可领取活动。")
+        row["_raw_payload"] = item
+        rows.append(row)
+    return rows
 
 def _normalize_github_airdrop_list(payload: Any, source_url: str) -> list[dict[str, str]]:
-    found: list[tuple[str, str]] = []
+    found: list[tuple[str, str, Any]] = []
     def walk(value: Any) -> None:
         if isinstance(value, list):
             for entry in value: walk(entry)
@@ -376,7 +384,7 @@ def _normalize_github_airdrop_list(payload: Any, source_url: str) -> list[dict[s
             # the project's official website. Require an explicit official-site field.
             url = value.get('website') or value.get('official_url') or value.get('officialUrl')
             safe_url = _valid_http_url(url)
-            if name and safe_url: found.append((str(name).strip(), safe_url))
+            if name and safe_url: found.append((str(name).strip(), safe_url, value))
             else:
                 for child in value.values():
                     if isinstance(child, (dict, list)): walk(child)
@@ -384,12 +392,13 @@ def _normalize_github_airdrop_list(payload: Any, source_url: str) -> list[dict[s
     elif isinstance(payload, str):
         for line in payload.splitlines():
             match = re.search(r'\[([^\]]{2,180})\]\((https://[^)\s]+)\)', line)
-            if match: found.append((match.group(1).strip(), match.group(2)))
+            if match: found.append((match.group(1).strip(), match.group(2), {"markdown_line": line}))
     result = []
-    for name, url in found:
+    for name, url, raw_entry in found:
         digest = hashlib.sha256(f'{source_url}|{name.casefold()}|{url}'.encode()).hexdigest()[:24]
         row = _observation_record('github-airdrop-lists', f'github:{digest}', name, url, f'来自开源名单 {source_url}；项目状态及官网真实性待核实。')
         row["_filter_metadata"] = {"official_url": url}
+        row["_raw_payload"] = raw_entry
         result.append(row)
     return result
 
@@ -420,6 +429,7 @@ def _normalize_dexscreener_pairs(payload: Any, query: str) -> list[dict[str, Any
         desc = f"DexScreener 原始交易池线索（搜索词 {query}）；池龄秒数 {age if age is not None else '未知'}；流动性 USD {liquidity if liquidity is not None else '未知'}；24h 成交量 USD {volume if volume is not None else '未知'}；24h 买卖笔数 {trades if trades is not None else '未知'}。交易活跃不代表空投或安全。"
         row = _observation_record("dexscreener-new-pools", f"dexscreener:{chain}:{address}".lower(), f"{name} ({symbol})" if symbol else name, url, desc, chain, "待筛选")
         row["_filter_metadata"] = {"query": query, "pair_created_at": pair.get("pairCreatedAt"), "age_seconds": age, "liquidity_usd": liquidity, "volume_24h_usd": volume, "trades_24h": trades, "chain_id": chain, "token_address": address, "token_symbol": symbol, "dex_id": pair.get("dexId")}
+        row["_raw_payload"] = pair
         rows.append(row)
     return rows
 
@@ -480,6 +490,93 @@ async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dic
         rows.extend(_normalize_dexscreener_pairs(response.json(), query))
     if not rows: raise RuntimeError("DexScreener 本轮没有返回可解析的交易池记录")
     return rows
+
+
+_DISCOVERY_NORMALIZER_VERSION = "discovery-normalizer-v1"
+_DISCOVERY_FILTER_VERSION = "central-discovery-filter-v1"
+_DISCOVERY_RAW_PAYLOAD_MAX_BYTES = 64 * 1024
+_DISCOVERY_SECRET_FIELD = re.compile(r"(?:api.?key|access.?token|refresh.?token|authorization|cookie|password|secret|signature|private.?key)", re.IGNORECASE)
+
+
+def _safe_observation_payload(value: Any, *, depth: int = 0) -> Any:
+    """Keep bounded provider evidence while removing credential-like fields."""
+    if depth > 8:
+        return "[max-depth]"
+    if isinstance(value, dict):
+        result = {}
+        for index, (key, child) in enumerate(value.items()):
+            if index >= 200:
+                result["_truncated_fields"] = True
+                break
+            key_text = str(key)[:120]
+            if _DISCOVERY_SECRET_FIELD.search(key_text):
+                continue
+            result[key_text] = _safe_observation_payload(child, depth=depth + 1)
+        return result
+    if isinstance(value, (list, tuple)):
+        return [_safe_observation_payload(item, depth=depth + 1) for item in value[:200]]
+    if isinstance(value, str):
+        return value[:12000]
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)[:2000]
+
+
+def _bounded_observation_payload(value: Any) -> dict[str, Any]:
+    safe = _safe_observation_payload(value)
+    if not isinstance(safe, dict):
+        safe = {"value": safe}
+    encoded = json.dumps(safe, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    encoded_bytes = len(encoded.encode("utf-8"))
+    if encoded_bytes <= _DISCOVERY_RAW_PAYLOAD_MAX_BYTES:
+        return safe
+    return {
+        "_truncated": True,
+        "_original_serialized_bytes": encoded_bytes,
+        "_preview": encoded[:_DISCOVERY_RAW_PAYLOAD_MAX_BYTES // 2],
+    }
+
+
+def _build_discovery_observation(
+    *, candidate: AirdropDiscoveryCandidate, source_name: str, source_record_key: str,
+    source_url: str, record: dict[str, Any], now: datetime,
+    filter_result: dict[str, Any], decision_result: dict[str, Any],
+    identity_result: dict[str, Any],
+) -> AirdropDiscoveryObservation:
+    raw_payload = _bounded_observation_payload(record.get("_raw_payload") or {
+        key: value for key, value in record.items() if not key.startswith("_")
+    })
+    normalized_payload = _bounded_observation_payload({
+        key: value for key, value in record.items() if not key.startswith("_")
+    })
+    payload_text = json.dumps(raw_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return AirdropDiscoveryObservation(
+        candidate_id=candidate.id,
+        source_name=source_name,
+        source_record_key=source_record_key[:240],
+        source_url=source_url[:1000],
+        item_url=str(record.get("link") or "")[:1000],
+        observed_at=now,
+        payload_sha256=hashlib.sha256(payload_text.encode("utf-8")).hexdigest(),
+        raw_payload=raw_payload,
+        normalized_payload=normalized_payload,
+        filter_decision={
+            "disposition": decision_result.get("disposition"),
+            "reasons": list(decision_result.get("reasons") or []),
+            "evaluated_at": filter_result.get("evaluated_at"),
+            "filter_version": _DISCOVERY_FILTER_VERSION,
+        },
+        identity_decision={key: identity_result.get(key) for key in (
+            "project_identity_key", "campaign_identity_key", "identity_status",
+            "project_identity_evidence", "campaign_identity_evidence",
+            "matched_source_keys", "identity_conflict", "identity_group_type",
+            "identity_group_key",
+        )},
+        normalizer_version=_DISCOVERY_NORMALIZER_VERSION,
+        filter_version=_DISCOVERY_FILTER_VERSION,
+    )
 
 def _candidate_source_key(source_name: str, record_source_key: str) -> str:
     """Use a bounded, stable key while preserving the provider-specific source key elsewhere."""
@@ -595,6 +692,22 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
                 identity_result=identity_result,
                 decision_result=decision_result,
             )
+            candidate_key = _candidate_source_key(source_name, str(record.get("source_key") or ""))
+            candidate = await db.scalar(
+                select(AirdropDiscoveryCandidate).where(AirdropDiscoveryCandidate.source_key == candidate_key)
+            )
+            if candidate is not None:
+                db.add(_build_discovery_observation(
+                    candidate=candidate,
+                    source_name=source_name,
+                    source_record_key=str(record.get("source_key") or ""),
+                    source_url=_valid_http_url(record.get("source_url")) or source_url,
+                    record=record,
+                    now=now,
+                    filter_result=filter_result,
+                    decision_result=decision_result,
+                    identity_result=identity_result,
+                ))
         await record_discovery_source_status(db, source_name, source_url, now, 'success', item_count=len(records))
         await db.commit()
         return len(records)

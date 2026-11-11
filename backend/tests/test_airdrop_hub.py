@@ -639,3 +639,23 @@ def test_central_discovery_decision_composes_filter_and_identity_without_publish
     )
     assert filtered["disposition"] == "filtered"
     assert "project_campaign_identity_conflict_needs_manual_review" in filtered["reasons"]
+
+
+def test_discovery_observation_payload_is_bounded_and_removes_credentials():
+    from app.services.airdrop_hub_sync import _bounded_observation_payload
+
+    saved = _bounded_observation_payload({
+        "title": "Observed campaign",
+        "apiKey": "must-not-be-stored",
+        "authorization": "Bearer private-token",
+        "nested": {"refresh_token": "secret", "value": "kept"},
+    })
+    assert saved["title"] == "Observed campaign"
+    assert "apiKey" not in saved
+    assert "authorization" not in saved
+    assert "refresh_token" not in saved["nested"]
+    assert saved["nested"]["value"] == "kept"
+
+    oversized = _bounded_observation_payload({"body": "x" * 100000})
+    assert oversized["_truncated"] is True
+    assert oversized["_original_serialized_bytes"] > 64 * 1024
