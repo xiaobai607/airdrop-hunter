@@ -221,7 +221,7 @@ def test_identity_group_endpoint_returns_complete_campaign_members_with_paginati
             first = client.get(
                 f"/api/airdrops/discovery/identity-groups/campaign/{campaign_key}",
                 headers=headers,
-                params={"limit": 2, "offset": 0},
+                params={"q": batch_marker, "limit": 2, "offset": 0},
             )
             assert first.status_code == 200, first.text
             payload = first.json()
@@ -234,7 +234,7 @@ def test_identity_group_endpoint_returns_complete_campaign_members_with_paginati
             second = client.get(
                 f"/api/airdrops/discovery/identity-groups/campaign/{campaign_key}",
                 headers=headers,
-                params={"limit": 2, "offset": 2},
+                params={"q": batch_marker, "limit": 2, "offset": 2},
             )
             assert second.status_code == 200
             assert second.json()["total_count"] == 3
@@ -355,21 +355,20 @@ def test_admin_review_queue_supports_stable_offset_pagination(monkeypatch):
     headers = {"X-Catalog-Admin-Token": "review-secret"}
     seeded = False
     expected_ids = []
+    batch_marker = f"queue-pagination-{uuid4().hex}"
 
     async def override_db():
         nonlocal seeded, expected_ids
         async with AsyncSessionLocal() as db:
             if not seeded:
-                # Use a sentinel timestamp before ordinary fixtures so this test's
-                # rows form the first contiguous page in the shared test database.
-                now = datetime(1900, 1, 1, tzinfo=timezone.utc)
+                now = datetime.now(timezone.utc)
                 candidates = []
                 for index in range(3):
                     candidate = AirdropDiscoveryCandidate(
                         source_key=f"queue-page-{uuid4().hex}",
                         source_name="test-source",
                         source_url="https://source.example/list",
-                        title=f"Queue pagination {index}",
+                        title=f"Queue pagination {batch_marker} {index}",
                         item_url=f"https://project-{index}.example/",
                         summary="review evidence",
                         first_seen_at=now,

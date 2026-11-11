@@ -135,6 +135,7 @@ async def list_discovery_candidates(
 )
 async def list_candidate_review_queue(
     status: str = Query(default="pending", pattern="^(pending|approved|rejected|all)$"),
+    q: str | None = Query(default=None, max_length=160),
     limit: int = Query(default=100, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -142,6 +143,8 @@ async def list_candidate_review_queue(
     statement = select(AirdropDiscoveryCandidate)
     if status != "all":
         statement = statement.where(AirdropDiscoveryCandidate.review_status == status)
+    if q and q.strip():
+        statement = statement.where(AirdropDiscoveryCandidate.title.ilike(f"%{q.strip()}%"))
     statement = statement.order_by(
         AirdropDiscoveryCandidate.first_seen_at.asc(),
         AirdropDiscoveryCandidate.id.asc(),
