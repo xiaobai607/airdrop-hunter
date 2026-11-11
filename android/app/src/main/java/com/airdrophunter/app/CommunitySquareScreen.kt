@@ -255,7 +255,7 @@ fun CommunitySquareScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("微社区广场", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("像逛 Steam 一样发现空投项目，按收益、风险和标签探索", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Text("像逛 Steam 一样发现空投项目，按公链、参与条件和风险探索", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(
                     onClick = { showSubmissionDialog = true },
                     modifier = Modifier.fillMaxWidth(),
