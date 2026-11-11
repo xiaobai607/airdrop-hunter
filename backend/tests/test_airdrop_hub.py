@@ -313,8 +313,14 @@ def test_binance_sync_discovers_endpoint_from_reference_then_fetches_binance_dat
         if request.url.host == "raw.githubusercontent.com":
             return httpx.Response(200, text='const listUrl = new URL(`${baseUrl}/bapi/apex/v1/public/apex/cms/article/list/query`);')
         catalog_id = int(request.url.params["catalogId"])
+        assert request.method == "GET"
         assert request.url.host == "www.binance.com"
         assert request.url.path == "/bapi/apex/v1/public/apex/cms/article/list/query"
+        assert request.url.params["pageSize"] == "20"
+        assert request.headers["user-agent"].endswith("Chrome/131.0.0.0 Safari/537.36")
+        assert "AirdropHunter" not in request.headers["user-agent"]
+        assert request.headers["accept-language"] == "en"
+        assert request.headers["referer"] == "https://www.binance.com/en/messages/v2/group/announcement"
         title, code = (
             ("Official Crypto Airdrop Announcement", "official-airdrop-001")
             if catalog_id == 128
