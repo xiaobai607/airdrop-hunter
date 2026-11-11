@@ -39,7 +39,7 @@ def test_dex_batches_only_explicit_contracts_and_maximum_30_per_request():
         for index in range(31)
     ]
     campaigns.extend([
-        _campaign(address="0x" + "a" * 40),  # duplicate
+        _campaign(address="0x" + format(0, "040x")),  # duplicate
         _campaign(network="unknown-chain", address="0x" + "b" * 40),
         _campaign(address=""),
     ])
@@ -124,6 +124,9 @@ def test_gecko_parser_reads_global_trending_pool_token_relationships():
 
 
 def test_collect_market_signals_batches_dex_and_calls_gecko_once():
+    import app.services.airdrop_market_data as market_module
+    market_module._GECKO_TRENDING_CACHE = None
+    market_module._GECKO_TRENDING_CACHE_AT = 0.0
     campaign_a = _campaign(address="0x" + "a" * 40)
     campaign_b = _campaign(address="0x" + "b" * 40)
     requested_urls = []
@@ -194,6 +197,9 @@ class _FakeDb:
 
 
 def test_provider_failures_preserve_last_known_market_fields():
+    import app.services.airdrop_market_data as market_module
+    market_module._GECKO_TRENDING_CACHE = None
+    market_module._GECKO_TRENDING_CACHE_AT = 0.0
     campaign = _campaign()
     async def handler(request):
         return httpx.Response(503, json={"error": "temporarily unavailable"})
