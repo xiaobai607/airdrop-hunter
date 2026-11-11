@@ -101,7 +101,7 @@ async def list_discovery_source_status(
 ):
     statement = (
         select(AirdropDiscoverySourceStatus)
-        .order_by(AirdropDiscoverySourceStatus.last_attempt_at.desc())
+        .order_by(AirdropDiscoverySourceStatus.last_attempt_at.desc(), AirdropDiscoverySourceStatus.id.desc())
         .limit(limit)
     )
     return list(await db.scalars(statement))
@@ -111,6 +111,7 @@ async def list_discovery_source_status(
 async def list_discovery_candidates(
     q: str | None = Query(default=None, max_length=160),
     limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
     statement = select(AirdropDiscoveryCandidate).where(
@@ -121,7 +122,8 @@ async def list_discovery_candidates(
     statement = statement.order_by(
         AirdropDiscoveryCandidate.published_at.desc().nullslast(),
         AirdropDiscoveryCandidate.last_seen_at.desc(),
-    ).limit(limit)
+        AirdropDiscoveryCandidate.id.asc(),
+    ).offset(offset).limit(limit)
     rows = await db.scalars(statement)
     return list(rows)
 
@@ -134,14 +136,16 @@ async def list_discovery_candidates(
 async def list_candidate_review_queue(
     status: str = Query(default="pending", pattern="^(pending|approved|rejected|all)$"),
     limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
     statement = select(AirdropDiscoveryCandidate)
     if status != "all":
         statement = statement.where(AirdropDiscoveryCandidate.review_status == status)
     statement = statement.order_by(
-        AirdropDiscoveryCandidate.first_seen_at.asc()
-    ).limit(limit)
+        AirdropDiscoveryCandidate.first_seen_at.asc(),
+        AirdropDiscoveryCandidate.id.asc(),
+    ).offset(offset).limit(limit)
     return list(await db.scalars(statement))
 
 

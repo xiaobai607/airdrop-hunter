@@ -343,3 +343,70 @@ def test_admin_can_read_append_only_candidate_source_observations(monkeypatch):
             assert observation["normalizer_version"] == "discovery-normalizer-v1"
     finally:
         app.dependency_overrides.pop(get_db, None)
+
+
+
+def test_admin_review_queue_supports_stable_offset_pagination(monkeypatch):
+    from datetime import datetime, timezone
+    from app.database import AsyncSessionLocal, get_db
+    from app.models import AirdropDiscoveryCandidate
+
+    monkeypatch.setenv("COMMUNITY_CATALOG_ADMIN_TOKEN", "review-secret")
+    headers = {"X-Catalog-Admin-Token": "review-secret"}
+    seeded = False
+    expected_ids = []
+
+    async def override_db():
+        nonlocal seeded, expected_ids
+        async with AsyncSessionLocal() as db:
+            if not seeded:
+                now = datetime.now(timezone.utc)
+                candidates = []
+                for index in range(3):
+                    candidate = AirdropDiscoveryCandidate(
+                        source_key=f"queue-page-{uuid4().hex}",
+                        source_name="test-source",
+                        source_url="https://source.example/list",
+                        title=f"Queue pagination {index}",
+                        item_url=f"https://project-{index}.example/",
+                        summary="review evidence",
+                        first_seen_at=now,
+                        last_seen_at=now,
+                        review_status="pending",
+                        filter_status="keep",
+                        filter_reasons=[],
+                        filter_metadata={},
+                        project_identity_key=None,
+                        campaign_identity_key=None,
+                        identity_status="insufficient_identity_evidence",
+                        identity_evidence={},
+                    )
+                    candidates.append(candidate)
+                    db.add(candidate)
+                await db.commit()
+                expected_ids = sorted(str(item.id) for item in candidates)
+                seeded = True
+            yield db
+
+    app.dependency_overrides[get_db] = override_db
+    try:
+        with TestClient(app) as client:
+            first = client.get(
+                "/api/airdrops/discovery/candidates/review-queue",
+                headers=headers,
+                params={"limit": 2, "offset": 0},
+            )
+            second = client.get(
+                "/api/airdrops/discovery/candidates/review-queue",
+                headers=headers,
+                params={"limit": 2, "offset": 2},
+            )
+            assert first.status_code == 200, first.text
+            assert second.status_code == 200, second.text
+            first_ids = [item["id"] for item in first.json()]
+            second_ids = [item["id"] for item in second.json()]
+            assert first_ids == expected_ids[:2]
+            assert second_ids == expected_ids[2:]
+            assert set(first_ids).isdisjoint(second_ids)
+    finally:
+        app.dependency_overrides.pop(get_db, None)
