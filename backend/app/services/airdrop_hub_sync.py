@@ -29,7 +29,7 @@ def _extract_binance_cms_path_from_reference(source: str) -> str | None:
     if not isinstance(source, str) or len(source) > 1_000_000:
         return None
     match = re.search(
-        r"\\$\\{baseUrl\\}(/bapi/[A-Za-z0-9/_-]+/cms/article/list/query)",
+        r"\$\{baseUrl\}(/bapi/[A-Za-z0-9/_-]+/cms/article/list/query)",
         source,
     )
     if not match:
