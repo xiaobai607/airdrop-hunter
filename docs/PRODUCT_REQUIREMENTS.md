@@ -1666,3 +1666,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Connected this bridge to the existing daily sync script after RSS candidate intake. The cron remains gated by `AIRDROP_DISCOVERY_SYNC_ENABLED`, database configuration and source approval.
 - Added focused tests for unknown-field preservation, official-link separation, unpublished observation defaults and snapshot-hash stability.
 - This is a candidate-to-observation bridge, not a complete automated campaign verifier or publisher. No RSS source is enabled by this change, and no paid provider/API is introduced.
+
+
+### 2026-11-11 scoring safety correction — official URL is a publication gate
+
+- Tightened the scoring engine so both featured and ordinary campaigns require an explicitly verified official URL before `is_published=true`.
+- A score in the ordinary heat band (40–69) without official-link verification now remains in observation with an explicit review reason; it is not enough that a source reports the campaign or that the trust label alone is present.
+- Updated the retroactive-ended scoring fixture to represent a verified official URL, and added positive/negative tests for ordinary publication.
+- This is a fail-closed scoring rule. It does not imply that an RSS article link is an official URL or that the current RSS observation adapter can mark a campaign verified.
