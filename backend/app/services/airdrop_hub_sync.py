@@ -444,7 +444,7 @@ async def _fetch_coingecko_observations(client: httpx.AsyncClient) -> list[dict[
     category_ids = select_coingecko_airdrop_categories(categories)
     if not category_ids: raise RuntimeError('CoinGecko 未返回 Airdrop 类目')
     rows = []
-    for category_id in category_ids[:3]:
+    for category_id in category_ids:
         response = await client.get('https://api.coingecko.com/api/v3/coins/markets', headers=auth_headers, params={'vs_currency': 'usd', 'category': category_id, 'order': 'market_cap_desc', 'per_page': 250, 'page': 1, 'sparkline': 'false'})
         response.raise_for_status()
         rows.extend(_normalize_coingecko_coins(response.json(), category_id))
@@ -516,7 +516,7 @@ def _safe_observation_payload(value: Any, *, depth: int = 0) -> Any:
     if isinstance(value, (list, tuple)):
         return [_safe_observation_payload(item, depth=depth + 1) for item in value[:200]]
     if isinstance(value, str):
-        return value[:12000]
+        return value[:80000]
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, datetime):
@@ -566,6 +566,7 @@ def _build_discovery_observation(
             "disposition": decision_result.get("disposition"),
             "reasons": list(decision_result.get("reasons") or []),
             "evaluated_at": filter_result.get("evaluated_at"),
+            "metadata": _safe_observation_payload(filter_result.get("metadata") or {}),
             "filter_version": _DISCOVERY_FILTER_VERSION,
         },
         identity_decision={key: identity_result.get(key) for key in (

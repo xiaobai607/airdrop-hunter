@@ -15,8 +15,13 @@ DEXSCREENER_MIN_VOLUME_24H_USD = 50000
 DEXSCREENER_MIN_TRADES_24H = 20
 
 
-def select_coingecko_airdrop_categories(categories: list[dict[str, str]]) -> list[str]:
-    return [item["id"] for item in categories if item.get("id") and "airdrop" in str(item.get("name") or "").casefold()]
+def select_coingecko_airdrop_categories(categories: list[dict[str, str]], *, limit: int = 3) -> list[str]:
+    """Select the bounded set of Airdrop categories centrally, not in the provider adapter."""
+    selected = [
+        item["id"] for item in categories
+        if item.get("id") and "airdrop" in str(item.get("name") or "").casefold()
+    ]
+    return selected[:max(1, min(int(limit), 20))]
 
 
 def evaluate_discovery_observation(record: dict[str, Any], *, now: datetime | None = None) -> dict[str, Any]:
