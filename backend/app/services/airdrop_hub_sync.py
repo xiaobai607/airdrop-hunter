@@ -50,10 +50,61 @@ def _valid_http_url(value: Any) -> str | None:
     if not isinstance(value, str):
         return None
     candidate = value.strip()
-    parsed = urlparse(candidate)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+    if not candidate or any(ord(char) < 0x21 for char in candidate):
+        return None
+    try:
+        parsed = urlparse(candidate)
+        port = parsed.port
+    except ValueError:
+        return None
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or (port is not None and not 1 <= port <= 65535)
+    ):
         return None
     return candidate[:1000]
+
+
+def _configured_github_raw_urls() -> list[str]:
+    """Return only operator-configured HTTPS files on the exact GitHub Raw host."""
+    try:
+        configured = json.loads(os.getenv("AIRDROP_GITHUB_RAW_SOURCES", "[]"))
+    except ValueError:
+        return []
+    if not isinstance(configured, list):
+        return []
+
+    urls: list[str] = []
+    for value in configured:
+        if not isinstance(value, str):
+            continue
+        candidate = value.strip()
+        try:
+            parsed = urlparse(candidate)
+        except ValueError:
+            continue
+        path_parts = [part for part in parsed.path.split("/") if part]
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != "raw.githubusercontent.com"
+            or parsed.username
+            or parsed.password
+            or parsed.port is not None
+            or parsed.query
+            or parsed.fragment
+            or len(path_parts) < 4
+            or any(part in {".", ".."} for part in path_parts)
+            or any(ord(char) < 0x21 for char in candidate)
+        ):
+            continue
+        if candidate not in urls:
+            urls.append(candidate)
+        if len(urls) == 20:
+            break
+    return urls
 
 
 def _status_label(value: Any) -> str:
@@ -186,7 +237,8 @@ def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[d
             if catalog_id != 128 and not BINANCE_AIRDROP_KEYWORDS.search(title):
                 continue
             safe_code = re.sub(r"[^A-Za-z0-9_-]", "", code)
-            if not safe_code:
+            # Never silently rewrite an upstream identifier into a different article code.
+            if not safe_code or safe_code != code:
                 continue
             records.append({
                 "source_key": f"binance:{safe_code}"[:240],
@@ -304,7 +356,9 @@ def _normalize_github_airdrop_list(payload: Any, source_url: str) -> list[dict[s
             for entry in value: walk(entry)
         elif isinstance(value, dict):
             name = value.get('name') or value.get('project') or value.get('title')
-            url = value.get('website') or value.get('official_url') or value.get('officialUrl') or value.get('url')
+            # Generic "url" fields often point to repositories or list entries, not
+            # the project's official website. Require an explicit official-site field.
+            url = value.get('website') or value.get('official_url') or value.get('officialUrl')
             safe_url = _valid_http_url(url)
             if name and safe_url: found.append((str(name).strip(), safe_url))
             else:
@@ -363,8 +417,8 @@ async def _fetch_github_observations(client: httpx.AsyncClient) -> list[dict[str
     try: urls = json.loads(os.getenv('AIRDROP_GITHUB_RAW_SOURCES', '[]'))
     except ValueError: urls = []
     if not isinstance(urls, list): urls = []
-    urls = list(dict.fromkeys(url.strip() for url in urls if isinstance(url, str) and url.startswith('https://raw.githubusercontent.com/')))[:20]
-    if not urls: raise RuntimeError('AIRDROP_GITHUB_RAW_SOURCES 未配置有效 Raw URL')
+    urls = _configured_github_raw_urls()
+    if not urls: raise RuntimeError('AIRDROP_GITHUB_RAW_SOURCES 未配置有效 GitHub Raw 文件 URL')
     rows, failures = [], 0
     for url in urls:
         try:

@@ -2,7 +2,14 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from app.main import app
 from app.models import AirdropProject
-from app.services.airdrop_hub_sync import _normalize, _normalize_binance_article_detail, _status_label
+from app.services.airdrop_hub_sync import (
+    _configured_github_raw_urls,
+    _normalize,
+    _normalize_binance_announcements,
+    _normalize_binance_article_detail,
+    _normalize_github_airdrop_list,
+    _status_label,
+)
 
 def test_normalize_public_airdrop_payload():
     rows = _normalize({"data": [{
@@ -105,3 +112,60 @@ def test_status_mapping_is_honest():
     assert _status_label("hot") == "热门"
     assert _status_label("upcoming") == "待发币"
     assert _status_label("active") == "进行中"
+
+
+
+def test_github_raw_configuration_requires_exact_https_raw_file_urls(monkeypatch):
+    import json
+
+    monkeypatch.setenv("AIRDROP_GITHUB_RAW_SOURCES", json.dumps([
+        "https://raw.githubusercontent.com/owner/repo/main/airdrop.json",
+        "https://raw.githubusercontent.com.evil.example/owner/repo/main/list.json",
+        "http://raw.githubusercontent.com/owner/repo/main/list.json",
+        "https://user@raw.githubusercontent.com/owner/repo/main/list.json",
+        "https://raw.githubusercontent.com/owner/repo",
+        "https://raw.githubusercontent.com/owner/repo/main/list.json?token=secret",
+        "https://raw.githubusercontent.com/owner/repo/main/../private.json",
+    ]))
+
+    assert _configured_github_raw_urls() == [
+        "https://raw.githubusercontent.com/owner/repo/main/airdrop.json"
+    ]
+
+
+def test_github_json_lists_require_explicit_official_https_website_fields():
+    rows = _normalize_github_airdrop_list([
+        {"name": "Repository link is not an official website", "url": "https://github.com/org/project"},
+        {"name": "Insecure website", "website": "http://project.example"},
+        {"name": "Official project", "official_url": "https://project.example/"},
+    ], "https://raw.githubusercontent.com/org/list/main/airdrop.json")
+
+    assert len(rows) == 1
+    assert rows[0]["name"] == "Official project"
+    assert rows[0]["link"] == "https://project.example/"
+
+
+def test_github_markdown_list_accepts_only_https_project_links():
+    rows = _normalize_github_airdrop_list(
+        "- [Secure Project](https://secure.example/airdrop)\n"
+        "- [Insecure Project](http://insecure.example/airdrop)",
+        "https://raw.githubusercontent.com/org/list/main/README.md",
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["name"] == "Secure Project"
+
+
+def test_binance_article_codes_are_rejected_instead_of_silently_rewritten():
+    rows = _normalize_binance_announcements({
+        "data": {"catalogs": [{
+            "articles": [
+                {"title": "Valid Crypto Airdrop", "code": "valid_code-123"},
+                {"title": "Malformed code", "code": "valid!code"},
+            ]
+        }]}
+    }, catalog_id=128)
+
+    assert len(rows) == 1
+    assert rows[0]["source_key"] == "binance:valid_code-123"
+    assert rows[0]["link"].endswith("/valid_code-123")

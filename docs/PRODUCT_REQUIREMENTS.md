@@ -1979,3 +1979,13 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Before the single module validation run: inspect the full diff, call sites, imports, coroutine/suspend constraints, UI hierarchy/gesture ownership, and available local/static tests. Run Android and backend suites only when their corresponding code changed.
 - If CI fails, inspect the exact failing job and logs, fix the root cause, then perform one deliberate re-validation after the whole correction set is ready. Do not repeatedly rerun unchanged jobs or upload stale APKs.
 - Keep PR #135 Draft/Open/unmerged until the user explicitly authorizes merge. A successful CI build is not physical-device acceptance.
+
+
+
+### 2026-11-11 — Approved discovery source input hardening
+
+- Hardened GitHub Raw configuration to accept only HTTPS files on the exact `raw.githubusercontent.com` host, with a valid owner/repository/ref/file path and no credentials, query strings, or fragments.
+- GitHub JSON lists now require explicit `website`, `official_url`, or `officialUrl` fields; generic `url` values are not assumed to be official project websites. Markdown project links remain HTTPS-only.
+- Binance announcement article codes containing unexpected characters are rejected rather than silently rewritten into a potentially different article identifier.
+- Added backend regression tests for exact-host validation, explicit official-site fields, HTTPS Markdown links, and malformed Binance article codes.
+- This hardens ingestion boundaries only. It does not certify a GitHub repository's license, configure any external list, validate live provider terms, or mark the four-source discovery pipeline end-to-end complete.
