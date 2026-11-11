@@ -764,13 +764,9 @@ private fun isValidNativeAssetInput(amount: String, symbol: String, decimals: St
 
 @Composable
 fun AccountingCenterScreen(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val application = context.applicationContext as AirdropHunterApplication
-    val wallets = remember(application) { application.appContainer.walletRepository }
-    val walletAddress by wallets.observeWallets().collectAsStateWithLifecycle(initialValue = emptyList())
     BrowserAccountingToolbar(
-        walletAddress = walletAddress.firstOrNull()?.address.orEmpty(),
-        chainName = walletAddress.firstOrNull()?.chain.orEmpty(),
+        walletAddress = "",
+        chainName = "unknown",
         onCopyAddress = {},
         onRefreshPage = {},
         onCopyPageUrl = {},
