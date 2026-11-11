@@ -86,7 +86,7 @@ The following decisions are newer than the older baseline below. Where older sec
 - This unified card is in the individual project detail page only. Do not add it to project list cards, personal ledger, or Micro Community Square overview.
 
 ### Micro Community Square UI and isolated test mode
-- Match the user's supplied Micro Community Square reference: page heading “微社区广场”, short Steam-style discovery subtitle, “提交新空投项目” entry, search by project name/chain/tag, a visible “测试演示 / 全网真实” switch, community ranking chips (吸金榜 / 避坑榜 / 新星榜), and project filters (我的收藏 / 全部 / available tags). Preserve the offline cached-snapshot warning and honest empty state.
+- The public discovery page is named “空投库”. Do not use “微社区广场” as its page heading and do not show the Steam-style discovery subtitle. Keep the “提交新空投项目” entry, search by project name/chain/tag, the “测试演示 / 全网真实” switch, ranking chips (吸金榜 / 避坑榜 / 新星榜), project filters, cached-snapshot warning, and honest empty state.
 - Test mode must include clearly labeled fictional airdrop projects as well as fictional metrics so the user can test list rendering, search, chain/tag filters, rankings, project detail navigation, and the Gas/reward bar. All demo projects and metrics are local UI fixtures only: no API submission, no local personal-ledger mutation, no public contribution, no real community rating, and no public statistics contamination. The “全网真实” mode must show only real catalog/snapshot data.
 - Demo/real mode must be clearly labeled and must never silently mix the two datasets.
 
@@ -203,9 +203,8 @@ These requirements were added from the user's physical-device test screenshots a
 - Retain the existing BTC/ETH market dashboard and its cache/freshness/error behavior unless the user later changes it. The card dashboard must coexist with it without duplicate search UI. The three default quick-function cards must remain readily accessible; do not remove the underlying wallet management or TRON energy-rental capabilities.
 
 ### D. Public discovery navigation and Micro Community Square heading — latest screenshot wins
-- The bottom navigation destination remains named **“空投库”**.
-- Inside the destination, the latest user-supplied reference uses the page heading **“微社区广场”** and the subtitle “像逛 Steam 一样发现空投项目，按收益、风险和标签探索”; preserve this screenshot-matched heading/subtitle in this screen. This supersedes the earlier wording-only correction above where it conflicts.
-- Keep project discovery, submission, search, ranking chips, tags/favorites, cached-snapshot warning, and honest empty state. Do not infer that the bottom navigation label must also change to “微社区广场”.
+- The bottom navigation destination and the page heading are both named **“空投库”**. Do not display the heading “微社区广场” or any Steam-style discovery subtitle. This is the current naming rule and overrides all older screenshot-matching wording that used “微社区广场”.
+- Keep project discovery, submission, search, ranking chips, tags/favorites, cached-snapshot warning, and honest empty state.
 
 ### E. “我的” page entry points
 - Add clearly visible navigation entries for **“设置”**, **“安全中心”**, and **“消息通知”** to the 我的 page.
