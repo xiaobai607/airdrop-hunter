@@ -121,7 +121,7 @@ class FeatureRepositoryTest {
     }
 }
 
-private const val NOW = 1_794_312_000_000L
+private const val NOW = 1_794_398_400_000L
 
 private class FakeHubCache : AirdropHubCache {
     val values = mutableMapOf<String, AirdropHubCacheEnvelope>()
