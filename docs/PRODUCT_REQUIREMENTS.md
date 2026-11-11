@@ -2163,3 +2163,15 @@ Project and campaign identity classification is a responsibility of the unified 
 - Both CoinGecko and DexScreener records remain market/category observations, not published campaigns. Official activity evidence and the unified campaign filter are still required.
 - CoinGecko Demo key remains server-side in COINGECKO_DEMO_API_KEY; never embed it in the Android APK. Android calls the Airdrop Hunter backend, which owns adapters and central filtering.
 - Adapters are implemented in Python because the live discovery pipeline, credentials and central filter run in the backend. Do not duplicate provider networking in Android Kotlin.
+
+
+## 2026-11-11 — scheduled ingestion failure reporting and current checkpoint
+
+- Fixed the scheduled importer so a failed discovery sync, campaign market enrichment, or scoring stage makes the process exit non-zero. A successful later stage can no longer mask a failed source-ingestion stage as a green GitHub Actions run.
+- Added regression tests for successful runs and non-zero exits when discovery or enrichment fails.
+- Exact-head backend CI run for commit `60edc2fe2041c78610207bf36ee7bb11e5307cd0`: **241 passed, 3 warnings, 0 failed**. Android build was skipped because this commit only changes backend code/tests.
+- PR #135 remains Draft/Open/unmerged. Do not merge or enable scheduled ingestion as part of this checkpoint.
+- Runtime configuration is still absent/unverified. No live provider run, real-data import, or end-to-end Android display has been claimed.
+- Current source roles remain deliberately distinct: Binance official announcements are unverified observation leads; CoinGecko and DexScreener are internal market/category signals only; GitHub Raw requires a manually reviewed, license-attributed, commit-pinned allowlist. None of these market signals is by itself proof of an active airdrop campaign.
+- The scheduled workflow remains gated by `AIRDROP_DISCOVERY_SYNC_ENABLED=true` and a configured database secret. CoinGecko additionally needs `COINGECKO_DEMO_API_KEY`; GitHub Raw needs `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS`; DexScreener queries are optional and configurable. Keep all secrets in GitHub Actions secrets, not repository files or the Android APK.
+- After an authorized source is configured and a complete live fetch/filter/import/API/Android display cycle is verified, remove only production demo/seed records. Preserve fixtures and automated regression tests.
