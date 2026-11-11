@@ -152,7 +152,12 @@ async def get_discovery_identity_group(
         if group_type == "campaign"
         else AirdropDiscoveryCandidate.project_identity_key
     )
-    base = select(AirdropDiscoveryCandidate).where(identity_column == group_key)
+    base = select(AirdropDiscoveryCandidate).where(
+        identity_column == group_key,
+        AirdropDiscoveryCandidate.identity_status != "identity_conflict_needs_review",
+        AirdropDiscoveryCandidate.identity_evidence["identity_group_type"].as_string() == group_type,
+        AirdropDiscoveryCandidate.identity_evidence["identity_group_key"].as_string() == group_key,
+    )
     if status != "all":
         base = base.where(AirdropDiscoveryCandidate.review_status == status)
 

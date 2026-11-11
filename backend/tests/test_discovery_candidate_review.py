@@ -182,6 +182,29 @@ def test_identity_group_endpoint_returns_complete_campaign_members_with_paginati
                 "identity_group_key": "c" * 64,
             },
         ))
+        # A conflicted row may share the campaign fingerprint but must
+        # remain outside both safe identity groups until manually resolved.
+        db.add(AirdropDiscoveryCandidate(
+            source_key=f"group-test-conflict-{uuid4().hex}",
+            source_name="source-conflict",
+            source_url="https://source-conflict.example/",
+            title="Conflicting identity evidence",
+            item_url="https://campaign.example/activity/conflict",
+            summary="conflicting project identity",
+            first_seen_at=now,
+            last_seen_at=now,
+            review_status="pending",
+            filter_status="needs_review",
+            filter_reasons=["project_campaign_identity_conflict_needs_manual_review"],
+            filter_metadata={},
+            project_identity_key=project_key,
+            campaign_identity_key=campaign_key,
+            identity_status="identity_conflict_needs_review",
+            identity_evidence={
+                "identity_group_type": "needs_review",
+                "identity_group_key": None,
+            },
+        ))
         await db.commit()
 
     async def override_db():
