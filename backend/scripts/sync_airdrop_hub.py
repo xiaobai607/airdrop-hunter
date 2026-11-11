@@ -3,8 +3,6 @@ import logging
 
 from app.database import AsyncSessionLocal
 from app.services.airdrop_hub_sync import sync_airdrop_hub
-from app.services.rss_discovery import sync_rss_discovery_candidates
-from app.services.rss_campaign_observations import promote_pending_candidates_to_campaign_observations
 from app.services.airdrop_campaign_scoring import recalculate_campaign_scores
 from app.services.airdrop_market_data import refresh_campaign_market_data
 
@@ -16,13 +14,7 @@ async def main() -> None:
             print(f"Imported or updated {count} airdrop chain entries.")
         except Exception as exc:
             logging.exception("Primary airdrop catalog import failed: %s", exc)
-        try:
-            count = await sync_rss_discovery_candidates(db)
-            print(f"Imported or updated {count} RSS/Atom discovery candidates.")
-            mirrored = await promote_pending_candidates_to_campaign_observations(db)
-            print(f"Created {mirrored} unpublished campaign observations from pending candidates.")
-        except Exception as exc:
-            logging.exception("RSS discovery import failed: %s", exc)
+        # RSS/Atom discovery is intentionally disabled by the trusted-provider-only strategy.
         try:
             market_result = await refresh_campaign_market_data(db)
             print(
