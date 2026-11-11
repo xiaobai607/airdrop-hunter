@@ -71,7 +71,13 @@ async def main() -> int:
                 else:
                     print(f"{source_name}: EMPTY count=0")
             except Exception as exc:  # provider failures must not hide other results
-                print(f"{source_name}: FAILED error_type={type(exc).__name__}")
+                # Include bounded exception details so HTTP status/empty-result causes
+                # are diagnosable from Actions without exposing response bodies.
+                detail = " ".join(str(exc).split())[:400]
+                print(
+                    f"{source_name}: FAILED error_type={type(exc).__name__}"
+                    + (f" detail={detail}" if detail else "")
+                )
 
     print(f"SUMMARY: successful_sources={succeeded} attempted_sources={attempted}")
     # A smoke test is useful only if at least one configured provider returned
