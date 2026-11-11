@@ -202,15 +202,23 @@ def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[d
 
 async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
     by_key: dict[str, dict[str, str]] = {}
+    errors: list[str] = []
     for catalog_id in BINANCE_CATALOGS:
-        response = await client.get(
-            BINANCE_CMS_SOURCE,
-            params={"type": 1, "pageSize": 30, "pageNo": 1, "catalogId": catalog_id},
-            headers={"Origin": "https://www.binance.com", "clienttype": "web", "lang": "en"},
-        )
-        response.raise_for_status()
-        for row in _normalize_binance_announcements(response.json(), catalog_id=catalog_id):
-            by_key[row["source_key"]] = row
+        try:
+            response = await client.get(
+                BINANCE_CMS_SOURCE,
+                params={"type": 1, "pageSize": 30, "pageNo": 1, "catalogId": catalog_id},
+                headers={"Origin": "https://www.binance.com", "clienttype": "web", "lang": "en"},
+            )
+            response.raise_for_status()
+            rows = _normalize_binance_announcements(response.json(), catalog_id=catalog_id)
+            for row in rows:
+                by_key[row["source_key"]] = row
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
+            errors.append(f"catalog {catalog_id}: {type(exc).__name__}")
+            logger.warning("Binance catalog %s failed: %s", catalog_id, exc)
+    if not by_key and errors:
+        raise RuntimeError("Binance CMS categories unavailable: " + "; ".join(errors))
     return list(by_key.values())
 
 
