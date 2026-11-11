@@ -42,22 +42,12 @@ def test_normalized_records_keep_source_and_trust_metadata(monkeypatch):
     assert trusted[0]["publication_status"] == "PUBLISHED_SAFE"
 
 
-def test_public_project_schema_exposes_source_and_publication_provenance():
-    item = AirdropHubItem(
-        id="project-id",
-        name="Example Campaign",
-        chain="Base",
-        description="Example",
-        status="进行中",
-        link="https://example.org/airdrop",
-        data_source="Source: Approved Directory",
-        trust_level="TRUST_LEVEL_1",
-        publication_status="PUBLISHED_SAFE",
-    )
-
-    assert item.data_source == "Source: Approved Directory"
-    assert item.trust_level == "TRUST_LEVEL_1"
-    assert item.publication_status == "PUBLISHED_SAFE"
+def test_public_airdrop_feed_schema_hides_internal_source_metadata():
+    fields = AirdropHubItem.model_fields
+    assert set(fields) == {"id", "name", "chain", "description", "status", "link"}
+    assert "data_source" not in fields
+    assert "trust_level" not in fields
+    assert "publication_status" not in fields
 
 
 def test_binance_announcement_headlines_are_imported_as_observation_leads():
