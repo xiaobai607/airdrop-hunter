@@ -43,3 +43,21 @@ def test_dexscreener_query_keeps_configured_terms_and_deduplicates(monkeypatch):
 
     monkeypatch.setenv("DEXSCREENER_SEARCH_QUERIES", "airdrop, defi,airdrop")
     assert _configured_dexscreener_search_queries() == ["airdrop", "defi"]
+
+
+def test_coingecko_category_normalizer_accepts_documented_category_id_field():
+    from app.services.airdrop_hub_sync import _normalize_coingecko_categories
+    from app.services.airdrop_discovery_filter import select_coingecko_airdrop_categories
+
+    categories = _normalize_coingecko_categories([
+        {"category_id": "airdrop", "name": "Airdrops"},
+        {"id": "airdrop-hunter", "name": "Airdrop Hunter"},
+        {"category_id": "", "name": "Invalid"},
+        {"category_id": "missing-name"},
+    ])
+
+    assert categories == [
+        {"id": "airdrop", "name": "Airdrops"},
+        {"id": "airdrop-hunter", "name": "Airdrop Hunter"},
+    ]
+    assert select_coingecko_airdrop_categories(categories) == ["airdrop", "airdrop-hunter"]

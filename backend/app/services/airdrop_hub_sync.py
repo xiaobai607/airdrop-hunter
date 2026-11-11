@@ -422,10 +422,19 @@ def _observation_record(source_name: str, source_key: str, name: str, link: str,
     return {'source_key': source_key[:240], 'name': name[:180], 'chain': chain[:80], 'description': description[:10000], 'status': status[:40], 'link': link[:1000], 'source_name': source_name, 'trust_level': TRUST_LEVEL_0, 'publication_status': OBSERVATION}
 
 def _normalize_coingecko_categories(payload: Any) -> list[dict[str, str]]:
+    """Normalize CoinGecko category IDs across the API's documented field names."""
     if not isinstance(payload, list):
         return []
-    return [{"id": str(item.get("id") or "").strip(), "name": str(item.get("name") or "").strip()}
-            for item in payload if isinstance(item, dict) and item.get("id") and item.get("name")]
+    normalized: list[dict[str, str]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        # /coins/categories/list uses category_id; some category payloads use id.
+        category_id = str(item.get("category_id") or item.get("id") or "").strip()
+        name = str(item.get("name") or "").strip()
+        if category_id and name:
+            normalized.append({"id": category_id, "name": name})
+    return normalized
 
 
 def _normalize_coingecko_coins(payload: Any, category_id: str, website_by_id: dict[str, str] | None = None) -> list[dict[str, Any]]:
