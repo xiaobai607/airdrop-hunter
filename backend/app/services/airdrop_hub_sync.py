@@ -776,12 +776,18 @@ async def _upsert_discovery_candidate(
 
 
 async def _upsert_source_records(db: AsyncSession, source_name: str, source_url: str, fetcher: Any, client: httpx.AsyncClient, now: datetime) -> int:
+    status = "failed"
+    error_code = "source_sync_error"
     try:
         records = await fetcher(client)
         if not records:
+            status = "empty"
+            error_code = "source_empty_result"
             raise RuntimeError("empty source result")
         from app.services.airdrop_discovery_filter import is_source_fresh
         if not is_source_fresh(records, now=now, max_age_days=7):
+            status = "stale"
+            error_code = "source_payload_stale_or_timestamp_invalid"
             raise RuntimeError("source payload contains generatedAt/updatedAt older than 7 days")
         for record in records:
             from app.services.airdrop_discovery_filter import compose_discovery_decision, evaluate_discovery_identity, evaluate_discovery_observation
@@ -838,9 +844,11 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
         return len(records)
     except Exception as exc:
         await db.rollback()
-        await record_discovery_source_status(db, source_name, source_url, now, 'failed', error=type(exc).__name__)
+        if status == "failed":
+            error_code = f"source_sync_error:{type(exc).__name__}"
+        await record_discovery_source_status(db, source_name, source_url, now, status, error=error_code)
         await db.commit()
-        logger.warning('Discovery source %s failed; continuing: %s', source_name, type(exc).__name__)
+        logger.warning('Discovery source %s %s; continuing: %s', source_name, status, type(exc).__name__)
         return 0
 
 async def sync_airdrop_hub(db: AsyncSession) -> int:
