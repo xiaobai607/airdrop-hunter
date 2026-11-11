@@ -202,6 +202,57 @@ def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[d
     return records
 
 
+BINANCE_CMS_DETAIL_SOURCE = "https://www.binance.com/bapi/composite/v1/public/cms/article/detail/query"
+
+
+def _normalize_binance_article_detail(payload: Any, *, fallback_title: str, fallback_url: str) -> dict[str, Any]:
+    """Read the original Binance CMS article fields without rewriting their meaning."""
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if isinstance(data, list):
+        data = next((entry for entry in data if isinstance(entry, dict)), {})
+    if not isinstance(data, dict):
+        data = {}
+    article = data.get("article") if isinstance(data.get("article"), dict) else data
+    body = article.get("body") or article.get("content") or article.get("articleContent") or ""
+    if not isinstance(body, str) or not body.strip():
+        raise ValueError("Binance CMS detail response did not contain article body")
+    release_date = article.get("releaseDate") or article.get("publishDate")
+    try:
+        release_date = int(release_date) if release_date is not None else None
+    except (TypeError, ValueError):
+        release_date = None
+    return {
+        "title": str(article.get("title") or fallback_title)[:300],
+        "content_html": body,
+        "release_date": release_date,
+        "catalog_name": str(article.get("catalogName") or "")[:120],
+        "original_url": fallback_url,
+    }
+
+
+async def fetch_binance_article_detail(article_code: str, *, fallback_title: str, fallback_url: str) -> dict[str, Any]:
+    safe_code = re.sub(r"[^A-Za-z0-9_-]", "", article_code or "")
+    if not safe_code or safe_code != article_code:
+        raise ValueError("Invalid Binance article code")
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(20.0),
+        headers={
+            "User-Agent": "AirdropHunter/1.0",
+            "Accept": "application/json",
+            "Origin": "https://www.binance.com",
+            "clienttype": "web",
+            "lang": "en",
+        },
+    ) as client:
+        response = await client.get(BINANCE_CMS_DETAIL_SOURCE, params={"articleCode": safe_code})
+        response.raise_for_status()
+        if len(response.content) > 3_000_000:
+            raise ValueError("Binance article exceeds the 3 MB display limit")
+        return _normalize_binance_article_detail(
+            response.json(), fallback_title=fallback_title, fallback_url=fallback_url
+        )
+
+
 async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
     by_key: dict[str, dict[str, str]] = {}
     errors: list[str] = []
