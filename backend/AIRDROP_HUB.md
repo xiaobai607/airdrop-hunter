@@ -74,3 +74,10 @@ The script runs the four-source catalog sync, then attempts campaign market enri
 ## Validation boundary
 
 Automated tests and CI validate the authored parser, fail-closed approval metadata, commit pinning, filtering, source isolation and API contracts. They do not prove that external providers are currently available, that the operator's legal review is correct, that a real campaign is claimable, or that the Binance article HTML renders correctly on a physical phone.
+
+### Binance CMS category IDs (verified 2026-11-11)
+
+- `128` is Binance's **Crypto Airdrop** category (`/en/support/announcement/list/128`).
+- `93` is Binance's **Latest Activities** category (`/en/support/announcement/list/93`). This is the activity feed used by the importer; titles are still keyword-filtered for airdrop/Launchpool/HODLer/Megadrop relevance.
+- `49` is **not** Latest Activities; the official announcement UI identifies it as **Latest Binance News**. Do not use it as the activity category.
+- The importer therefore requests only catalog IDs `(128, 93)`. It does not ingest the general news category.

@@ -264,7 +264,7 @@ def test_binance_sync_requests_crypto_airdrop_and_latest_activities_catalogs():
         if catalog_id == 128:
             title = "Official Crypto Airdrop Announcement"
             code = "official-airdrop-001"
-        elif catalog_id == 49:
+        elif catalog_id == 93:
             title = "Binance Launchpool: Stake Tokens to Earn Rewards"
             code = "latest-activity-002"
         else:
@@ -276,7 +276,7 @@ def test_binance_sync_requests_crypto_airdrop_and_latest_activities_catalogs():
             return await _fetch_binance_observations(client)
 
     rows = asyncio.run(run())
-    assert requested_catalogs == [128, 49]
+    assert requested_catalogs == [128, 93]
     assert {row["source_key"] for row in rows} == {
         "binance:official-airdrop-001",
         "binance:latest-activity-002",

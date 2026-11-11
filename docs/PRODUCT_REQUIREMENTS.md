@@ -2075,3 +2075,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Existing saved Home layouts are migrated to remove the misplaced Binance shortcut while ensuring the airdrop library entry exists. Later user layout edits remain respected.
 - Home entry queues background dynamic catalog warmup without blocking navigation. The public campaign repository continues to use its Room-backed cache and six-hour TTL. Binance official feed remains independently refreshed by its own worker cadence.
 - Exact-head Android build and unit tests are pending; real device navigation and live-data verification remain pending.
+
+### 2026-11-11 — Correct Binance announcement category IDs
+
+- Exact-head CI for the prior `(128, 49)` change passed, but a subsequent comparison against Binance's own announcement category pages exposed a semantic mapping error: category `93` is **Latest Activities**, while `49` is **Latest Binance News**. Category `128` is **Crypto Airdrop**.
+- Corrected the importer and its regression test to request `(128, 93)`. The Latest Activities feed remains keyword-filtered; unrelated general Binance news is not added to the airdrop hub.
+- Official category pages checked: `/en/support/announcement/list/128` (Crypto Airdrop) and `/en/support/announcement/list/93` (Latest Activities); `/en/support/announcement/list/49` is Latest Binance News.
+- This correction supersedes the immediately preceding catalog mapping. Exact-head backend CI is pending.
