@@ -2214,3 +2214,11 @@ Project and campaign identity classification is a responsibility of the unified 
 - Commits: 6565861679d6b7c94b2548953f4b1339fd340f00 (adapter fix/diagnostics), e48367b3ab08499c744dcc7e42f5b0c1acfa16b6 (tests).
 - Automated tests and a new live smoke run have not yet been observed. Binance remains unverified until its new bounded error metadata identifies the HTTP 400 cause and a subsequent live request returns parseable records. DexScreener also remains unverified until the fallback query returns parseable records.
 - Production scheduled sync remains disabled; no database writes or publishing were performed; PR #135 remains Draft/Open/unmerged.
+
+
+### 2026-11-11 — correction after follow-up CI caught a syntax regression
+
+- The first smoke attempt after the DexScreener fallback change did not reach either provider: CI caught a Python SyntaxError (`await` outside async function) in the Binance adapter declaration. This was introduced by the previous edit and is explicitly recorded as a code regression, not a provider failure.
+- Corrected the declarations: the Binance error-label helper is synchronous, while `_fetch_binance_observations` remains async. Fix commit: 2c978d5d6934ec63a288b4ede45822367a2f7a71.
+- A fresh Android/backend workflow was automatically queued for that commit when last checked; completion and tests are still pending. The live provider smoke has not yet been rerun against the corrected branch code.
+- Keep production sync disabled and PR #135 Draft/Open/unmerged. Do not claim live-source success until a smoke run checks the corrected branch and reports parseable records.
