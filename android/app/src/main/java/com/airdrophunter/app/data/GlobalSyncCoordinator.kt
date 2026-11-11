@@ -79,6 +79,17 @@ object GlobalSyncScheduler {
 
     internal const val FORCE_KEY = "force_sync"
 
+    /** Queue dynamic catalogs whenever the app enters the foreground. */
+    fun enqueueDynamicCatalogWarmup(context: Context) {
+        val request = OneTimeWorkRequestBuilder<DynamicCatalogWarmupWorker>()
+            .setConstraints(constraints())
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
+            "global-sync-dynamic-catalogs", ExistingWorkPolicy.KEEP, request
+        )
+    }
+
     fun enqueueNow(
         context: Context,
         forceCommunityContribution: Boolean = false,
@@ -106,11 +117,6 @@ object GlobalSyncScheduler {
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
-        val dynamicCatalogs = OneTimeWorkRequestBuilder<DynamicCatalogWarmupWorker>()
-            .setConstraints(network)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
-
         // Each source has its own unique queue. A failure in one source retries
         // independently and cannot block unrelated ledger, wallet, or favorite work.
         workManager.enqueueUniqueWork(
@@ -123,9 +129,7 @@ object GlobalSyncScheduler {
             if (forceWalletActivity) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
             walletActivity
         )
-        workManager.enqueueUniqueWork(
-            "global-sync-dynamic-catalogs", ExistingWorkPolicy.KEEP, dynamicCatalogs
-        )
+        enqueueDynamicCatalogWarmup(context)
 
     }
 }
