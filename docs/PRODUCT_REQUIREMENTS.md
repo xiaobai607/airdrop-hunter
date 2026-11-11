@@ -1699,3 +1699,13 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - The daily sync script now runs market enrichment after candidate intake and before scoring. Market enrichment has its own error boundary so provider outages do not block campaign scoring or the rest of the sync.
 - Added tests for 30-address batching, duplicate removal, exact chain/contract matching, best-pair selection, token relationship parsing, one global GeckoTerminal call and last-known-good preservation.
 - The adapter is code-complete but production use remains gated by the existing sync flag, real database/migration validation and exact-head CI. No source is automatically marked verified by market data; DEX liquidity and trending remain ranking signals only.
+
+### 2026-11-11 — source-aware successful heat-run accounting
+
+- Added a persistence boundary for campaign heat observations. It can only be called after a complete heat-provider batch has been fetched and validated; RSS intake and DEX market enrichment are explicitly not heat-success runs.
+- A stable caller-created pipeline run UUID is mandatory and reused on retries. Replaying an existing run does not increment counters or duplicate source snapshots.
+- Only explicit finite heat values in the 0–100 range are accepted. Missing heat is omitted, never synthesized as zero; invalid or duplicate campaign observations reject the batch before writes.
+- Successful observations update the campaign's canonical integer temperature, source snapshot, and last-success timestamp. A heat value below 40 increments the streak only when it comes from the same source; changing providers restarts the streak at one. Heat 40 or above resets it to zero.
+- Added last_heat_source_name with migration 0022_campaign_heat_source; existing campaign counters are not retroactively inferred from old snapshots.
+- The scoring engine already archives at three consecutive low-heat successes. This adapter supplies the missing persisted counter input, but no heat provider is currently configured or wired into the scheduled sync. Therefore no campaign will be newly archived by this adapter until an approved, free provider integration is added and validated.
+- Provider failures must use a failure path that marks the run failed and does not call the success recorder. Production database migration execution and exact-head CI remain required before deployment.
