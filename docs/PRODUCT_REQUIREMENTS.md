@@ -13,7 +13,9 @@ The user approved four free public data sources for backend discovery: CoinGecko
 - Keep the main page focused: activity title, concise official-source attribution, and a clear action to open the original announcement. Do not show source health, trust codes, publication-state codes, internal scoring, market-pool metrics, or technical error details to ordinary users. Do not label a project lead as an active airdrop.
 - Do not build additional review queues, moderation dashboards, multi-layer scoring, or source-status UI for this discovery page. Retain only the backend provenance, deduplication, caching, URL validation, and per-source failure isolation needed for reliable operation.
 - Never invent campaign dates, reward amounts, eligibility, KYC, chain, or claim links. If the official announcement does not state a field, leave it unknown rather than guessing.
-- The main user flow is: open Airdrop Discovery → browse official airdrop announcements → open the original announcement to inspect details and participate.
+- The main user flow is: open Airdrop Discovery → browse official airdrop announcements → open an in-app detail page showing the complete original Binance announcement content → optionally open the original Binance page to participate.
+- The in-app detail page must display Binance CMS article body as supplied, preserving its headings, paragraphs, lists, tables and embedded images where possible. Do not replace the body with an AI summary or selectively omit terms. Show title and publication timestamp only when supplied by Binance. Keep the original Binance URL available as a separate action.
+- The detail API fetches the article by the exact Binance article code. If Binance does not return a body or the request fails, show a retry/original-link fallback; never fabricate a replacement body or campaign terms.
 
 ### 1. CoinGecko Demo API — Airdrop category
 - Use the free CoinGecko Demo API key supplied by the operator through server environment variable `COINGECKO_DEMO_API_KEY`; never hardcode or commit credentials.
@@ -1771,3 +1773,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Added regression tests for source allowlisting, automatic trust/publication state mapping, API provenance fields, and disabled sync with no approved free airdrop provider.
 - Provider availability research: DefiLlama free endpoints do not document an airdrop directory; CoinGecko free API is asset/market data, not airdrop discovery; CoinMarketCap's Airdrops endpoint is not in its free API plan; CryptoRank's Drophunting endpoint is Business-tier. These are not activated as free airdrop sources. The next engineering step is to identify and verify an eligible provider or keep discovery paused—never substitute scraping or paid calls.
 - Follow-up hardening: trusted catalog destinations must be HTTPS and must not embed URL credentials. The sync-status endpoint reports `source: "none"` and a non-successful refresh result while no eligible provider is active. Exact-head CI and production migration execution remain pending; do not treat this code checkpoint as validated deployment.
+### 2026-11-11 — full Binance announcement detail in the app
+
+- Added a backend detail endpoint keyed by the Binance CMS article code stored with each announcement. It reads the official public CMS detail endpoint and returns the original article title, HTML body, publication timestamp, catalog label and original URL.
+- The detail response preserves the original Binance HTML content rather than generating a summary or inventing missing reward/time/eligibility fields. Oversized or unavailable content fails closed and the client can retry or open the Binance original.
+- Added an in-app announcement detail view. It renders the full official body with JavaScript, file access, DOM storage and mixed content disabled; only HTTPS navigation is allowed. The original Binance page remains available as a separate action.
+- Added backend tests for original HTML/metadata normalization, detail endpoint retrieval and static /status route precedence.
+- This is an in-app rendering of the source announcement body, not a translation or independent verification of the claims. Any terms shown are exactly what Binance published.
