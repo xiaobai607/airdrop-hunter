@@ -17,13 +17,14 @@
 ### Current repository checkpoint
 
 - Repository: `xiaobai607/airdrop-hunter`; active delivery branch: `feature/mobile-browser-home-dock-batch`.
-- PR #135 is **Draft / Open / not merged**. Latest verified code head: `8b04ece17eecbde19820eed314b746d04b0e302f`.
-- Exact-head push workflow #1106 (`42978960542`) passed backend tests, including the new CoinGecko Demo API header-authentication test. PR workflow #1107 (`42978967023`) completed successfully but skipped backend/Android jobs because the PR event only ran change detection.
-- Previous Android code head `bff83f50` passed Android debug build, Android unit tests, and APK artifact upload in workflow #1101 (`42971171663`). The current commit changes backend code only; Android build was correctly skipped.
-- The current code includes the Airdrop Library Binance-first card placement and the public campaign count interpolation fix. The first fetched campaign remains in the list after the Binance entry; no campaign is deleted.
-- CoinGecko Demo API credentials are now sent using the recommended `x-cg-demo-api-key` header, not a query parameter. This reduces accidental exposure in URL logs; the key remains backend-only.
-- The PR branch contains the current Airdrop Library, browser dock, community/accounting, campaign discovery and Binance announcement changes. These branch changes are not yet part of main until the PR is reviewed and merged by explicit authorization.
-- No physical-device acceptance is implied by CI. No production live-sync or recovery drill is implied by a successful build.
+- PR #135 remains **Draft / Open / not merged**. Latest branch code head: `ef7155fe4933e7b7a77fcf7158831340f25b27a2`.
+- Exact-head backend push workflow #43003531309 passed: **232 passed, 3 warnings, 0 failed**. It includes the deterministic review-queue pagination test and the new title-search query parameter.
+- Android source changes at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed the Android unit-test suite, Debug APK assembly, and artifact upload in workflow #43002913809's Android job. Later commits changed only backend tests/API and documentation; Android source is unchanged.
+- Airdrop Hub now has a Room-backed public cache. On entry it returns cached rows first; once the cache is at least 8 hours old, the ViewModel refreshes the four-source pipeline in the background. Failed refreshes retain the last-known-good rows and use a 5-minute retry cooldown. Manual refresh remains available.
+- The discovery review-queue API now supports title search with `q`, in addition to stable `limit`/`offset` pagination. This is backend support only; the separate review APP remains deferred.
+- The four approved source adapters and central filtering/identity pipeline exist in code. Real provider configuration, live-data verification, campaign publication and device rendering remain incomplete; scheduled production sync stays disabled.
+- The branch includes the current Airdrop Library, browser dock, community/accounting, campaign discovery and Binance announcement changes. None of these branch changes are part of `main` until PR #135 is reviewed and explicitly merged.
+- CI success does not imply physical-device acceptance, production live-sync, or backup/recovery verification.
 
 ### Current product decisions — do not regress
 
@@ -103,10 +104,11 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 
 ### Latest continuation checkpoint — 2026-11-11
 
-- Code checkpoint: `bff83f50fc53dce6f845f975fc802146fa17a244`; exact-head Android build/unit tests/APK upload passed in Actions #1101. The subsequent PR workflow #1102 also succeeded; backend tests were skipped because this change set did not touch backend code.
-- Airdrop Library ordering: the Binance official entry occupies the first campaign-card slot; the first real campaign remains and is displayed second. This is implemented in code and awaits physical-device confirmation.
-- Documentation drift found during continuation: README.md and backend/.env.example still contained obsolete account-cloud-sync and RSS wording. These are being aligned with the current local-only privacy and four-source discovery rules.
-- Next implementation priority remains the four-source discovery pipeline, especially validating the live Binance CMS feeds and end-to-end real-data publication. Do not enable scheduled production sync until free-use, permissions, hosting cost, and real-data rendering are verified.
+- Current branch head: `ef7155fe4933e7b7a77fcf7158831340f25b27a2`. Backend validation passed at this exact head: 232 tests passed, 3 warnings, 0 failures (Actions run #43003531309).
+- Android source at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed unit tests, Debug APK assembly and artifact upload. The later branch commits did not modify Android files.
+- Airdrop Hub cache-first/background refresh is implemented with an 8-hour freshness interval, a 5-minute retry cooldown, stale-data retention and the existing manual refresh action. Physical-device behavior still needs verification.
+- Review queue pagination is stable and title-searchable. The separate review APP is explicitly deferred until the main APP is complete.
+- Next priority remains proving the four free data sources with real configured data, completing central-filter-to-campaign publication, and verifying the real Airdrop Library display. Scheduled production sync remains disabled until cost, source rights and live-data behavior are verified.
 
 ### Delivery batch summary
 
