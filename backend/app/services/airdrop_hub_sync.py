@@ -352,19 +352,19 @@ async def _fetch_binance_public_market_data(client: httpx.AsyncClient) -> list[d
 async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     errors: list[str] = []
+    # Match the public announcement-page request shape used by the
+    # currently maintained Binance announcement adapter: plain GET, browser
+    # UA, page referer, and the page language. Avoid a bot-identifying UA
+    # suffix and unnecessary JSON/body headers on a GET request.
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 "
-            "AirdropHunter-Discovery/1.0"
+            "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
         ),
         "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json",
-        "Origin": "https://www.binance.com",
         "Referer": "https://www.binance.com/en/messages/v2/group/announcement",
-        "clienttype": "web",
         "lang": "en",
-        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Language": "en",
     }
     # Discover the path from the public adapter's source code first. The
     # reference is only a discovery hint: all actual announcement data must
@@ -381,7 +381,7 @@ async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[st
             try:
                 response = await client.get(
                     endpoint,
-                    params={"type": 1, "pageSize": 30, "pageNo": 1, "catalogId": catalog_id},
+                    params={"type": 1, "pageSize": 20, "pageNo": 1, "catalogId": catalog_id},
                     headers=headers,
                 )
                 response.raise_for_status()
