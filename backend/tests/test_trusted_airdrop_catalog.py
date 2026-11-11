@@ -59,18 +59,33 @@ def test_public_project_schema_exposes_source_and_publication_provenance():
     assert item.publication_status == "PUBLISHED_SAFE"
 
 
-def test_sync_stays_off_until_a_free_airdrop_directory_is_approved(monkeypatch):
-    monkeypatch.setattr(catalog_sync, "TRUSTED_AIRDROP_PROVIDER_LABELS", {})
+def test_binance_announcement_headlines_are_imported_as_observation_leads():
+    payload = {
+        "data": {"catalogs": [{
+            "catalogId": 128,
+            "articles": [
+                {"title": "Project X Airdrop is Live", "code": "abc123"},
+                {"title": "Malformed item", "code": ""},
+            ],
+        }]}
+    }
+    rows = catalog_sync._normalize_binance_announcements(payload, catalog_id=128)
+    assert len(rows) == 1
+    assert rows[0]["name"] == "Project X Airdrop is Live"
+    assert rows[0]["link"] == "https://www.binance.com/en/support/announcement/abc123"
+    assert rows[0]["source_name"] == "binance-announcements"
+    assert rows[0]["trust_level"] == "TRUST_LEVEL_0"
+    assert rows[0]["publication_status"] == "OBSERVATION"
+    assert rows[0]["status"] == "待核实"
 
-    class NoNetworkDb:
-        pass
 
-    count = asyncio.run(catalog_sync.sync_airdrop_hub(NoNetworkDb()))
-
-    assert count == 0
-    assert catalog_sync.get_sync_status()["error"] == "no_trusted_free_airdrop_provider"
-    assert catalog_sync.get_sync_status()["source"] == "none"
-
+def test_binance_latest_activities_requires_airdrop_keyword():
+    payload = {"data": {"catalogs": [{"articles": [
+        {"title": "General Binance update", "code": "x1"},
+        {"title": "Launchpool Season announcement", "code": "x2"},
+    ]}]}}
+    rows = catalog_sync._normalize_binance_announcements(payload, catalog_id=93)
+    assert [row["source_key"] for row in rows] == ["binance:x2"]
 
 
 def test_trusted_catalog_destination_must_be_https_without_credentials():
