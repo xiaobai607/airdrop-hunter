@@ -264,19 +264,24 @@ fun BrowserAccountingToolbar(
                             requireUnconsumed = false,
                             pass = PointerEventPass.Initial
                         )
+                        // A timeout means the finger stayed down and stationary for the
+                        // full long-press interval. Early release or movement cancels the drag.
                         val longPressReached = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                            var stillPressed = true
-                            while (stillPressed) {
+                            while (true) {
                                 val event = awaitPointerEvent(PointerEventPass.Initial)
                                 val change = event.changes.firstOrNull { it.id == down.id }
                                 if (change == null || !change.pressed ||
-                                    kotlin.math.hypot(change.position.x - down.position.x, change.position.y - down.position.y) > viewConfiguration.touchSlop
+                                    kotlin.math.hypot(
+                                        change.position.x - down.position.x,
+                                        change.position.y - down.position.y
+                                    ) > viewConfiguration.touchSlop
                                 ) {
-                                    stillPressed = false
+                                    return@withTimeoutOrNull false
                                 }
                             }
+                            @Suppress("UNREACHABLE_CODE")
                             true
-                        } == true
+                        } == null
 
                         if (longPressReached) {
                             var lastPosition = down.position
