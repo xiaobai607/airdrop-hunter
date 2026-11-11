@@ -25,3 +25,21 @@ def test_credentialed_and_approved_sources_are_opt_in(monkeypatch):
         "coingecko-airdrop-category",
         "github-airdrop-lists",
     }
+
+
+
+def test_dexscreener_query_uses_airdrop_when_variable_is_absent_or_blank(monkeypatch):
+    from app.services.airdrop_hub_sync import _configured_dexscreener_search_queries
+
+    monkeypatch.delenv("DEXSCREENER_SEARCH_QUERIES", raising=False)
+    assert _configured_dexscreener_search_queries() == ["airdrop"]
+
+    monkeypatch.setenv("DEXSCREENER_SEARCH_QUERIES", " ,   , ")
+    assert _configured_dexscreener_search_queries() == ["airdrop"]
+
+
+def test_dexscreener_query_keeps_configured_terms_and_deduplicates(monkeypatch):
+    from app.services.airdrop_hub_sync import _configured_dexscreener_search_queries
+
+    monkeypatch.setenv("DEXSCREENER_SEARCH_QUERIES", "airdrop, defi,airdrop")
+    assert _configured_dexscreener_search_queries() == ["airdrop", "defi"]
