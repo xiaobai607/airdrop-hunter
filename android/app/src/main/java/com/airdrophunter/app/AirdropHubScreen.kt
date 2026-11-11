@@ -22,8 +22,7 @@ import com.airdrophunter.app.ui.theme.AppColors
 @Composable
 fun AirdropHubScreen(
     modifier: Modifier = Modifier,
-    vm: AirdropHubViewModel? = null,
-    onOpenCampaigns: () -> Unit = {}
+    vm: AirdropHubViewModel? = null
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -38,8 +37,6 @@ fun AirdropHubScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("空投发现", color = AppColors.TextPrimary,
-                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text("查看最新官方空投公告", color = AppColors.TextHelper,
                     style = MaterialTheme.typography.bodySmall)
             }
