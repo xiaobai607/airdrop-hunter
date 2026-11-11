@@ -44,6 +44,7 @@ def test_live_smoke_fails_when_no_configured_source_returns_records(monkeypatch,
 
     monkeypatch.setattr(smoke.httpx, "AsyncClient", lambda **_kwargs: FakeAsyncClient())
     monkeypatch.setattr(smoke, "_fetch_binance_observations", empty)
+    monkeypatch.setattr(smoke, "_fetch_binance_public_market_data", empty)
     monkeypatch.setattr(smoke, "_fetch_dexscreener_observations", empty)
     monkeypatch.delenv("COINGECKO_DEMO_API_KEY", raising=False)
     monkeypatch.delenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", raising=False)
@@ -52,4 +53,4 @@ def test_live_smoke_fails_when_no_configured_source_returns_records(monkeypatch,
 
     output = capsys.readouterr().out
     assert result == 1
-    assert "SUMMARY: successful_sources=0 attempted_sources=2" in output
+    assert "SUMMARY: successful_sources=0 attempted_sources=3" in output
