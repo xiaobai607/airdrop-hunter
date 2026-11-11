@@ -118,18 +118,9 @@ async def promote_pending_candidates_to_campaign_observations(db: AsyncSession) 
             await db.flush()
             created += 1
         else:
-            # Never upgrade trust or publication state from an RSS re-fetch.
-            campaign.source_name = candidate.source_name
-            campaign.source_url = candidate.source_url
-            campaign.name = payload["name"]
-            campaign.description = payload["description"]
+            # Existing rows may have been manually reviewed; RSS refreshes must
+            # never overwrite any human-verified fields or publication decisions.
             campaign.last_seen_at = now
-            campaign.official_url = None
-            campaign.trust_status = "unverified"
-            campaign.tier = "observation"
-            campaign.is_published = False
-            campaign.listing_reason = payload["listing_reason"]
-            campaign.review_reason = payload["review_reason"]
 
         snapshot_hash = _snapshot_hash(payload)
         snapshot_exists = await db.scalar(
