@@ -43,6 +43,13 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
             trust_level="TRUST_LEVEL_1", publication_status="PUBLISHED_SAFE"
         ))
         db.add(AirdropProject(
+            source_key="binance:filtered123", name="Filtered Binance News Test",
+            chain="Unknown", description="Central filter rejected this unrelated activity headline", status="待筛选",
+            link="https://www.binance.com/en/support/announcement/filtered123",
+            source_name="binance-announcements", trust_level="TRUST_LEVEL_0",
+            publication_status="OBSERVATION", filter_status="filtered",
+        ))
+        db.add(AirdropProject(
             source_key="binance:test123", name="Binance Observation Test",
             chain="Unknown", description="Unverified announcement lead", status="待核实",
             link="https://www.binance.com/en/support/announcement/test123",
@@ -73,7 +80,7 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         assert all_rows.status_code == 200
         assert solana_rows.status_code == 200
         assert solana_rows.json() == []
-        assert not any(row["name"] in {"Hub Solana Test", "Hub Ethereum Test"} for row in all_rows.json())
+        assert not any(row["name"] in {"Hub Solana Test", "Hub Ethereum Test", "Filtered Binance News Test"} for row in all_rows.json())
         observation = next(row for row in all_rows.json() if row["name"] == "Binance Observation Test")
         assert observation["link"].endswith("/test123")
         assert "publication_status" not in observation

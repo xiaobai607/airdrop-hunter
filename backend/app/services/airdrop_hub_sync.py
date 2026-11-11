@@ -527,7 +527,7 @@ async def _upsert_discovery_candidate(
             review_status="pending",
             filter_status=filter_result["status"],
             filter_reasons=filter_result["reasons"],
-            filter_metadata=filter_result["metadata"],
+            filter_metadata={**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"]},
         ))
     else:
         candidate.source_name = source_name
@@ -549,7 +549,13 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
         records = await fetcher(client)
         if not records: raise RuntimeError('empty source result')
         for record in records:
+            from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+            filter_result = evaluate_discovery_observation(record, now=now)
+            filter_metadata = {**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"]}
             project_record = {key: value for key, value in record.items() if not key.startswith("_") and key != "catalog_id"}
+            project_record["filter_status"] = filter_result["status"]
+            project_record["filter_reasons"] = filter_result["reasons"]
+            project_record["filter_metadata"] = filter_metadata
             if record.get("catalog_id") is not None:
                 project_record["description"] = f"{project_record.get('description', '')} Binance catalog ID: {record['catalog_id']}."
             current = await db.scalar(select(AirdropProject).where(AirdropProject.source_key == project_record['source_key']))

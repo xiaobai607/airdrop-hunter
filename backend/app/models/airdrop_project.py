@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import DateTime, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, JSON, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,5 +25,8 @@ class AirdropProject(Base):
     source_name: Mapped[str] = mapped_column(String(120), nullable=False, default="web3-discover")
     trust_level: Mapped[str] = mapped_column(String(24), nullable=False, default="TRUST_LEVEL_0", server_default="TRUST_LEVEL_0")
     publication_status: Mapped[str] = mapped_column(String(24), nullable=False, default="OBSERVATION", server_default="OBSERVATION", index=True)
+    filter_status: Mapped[str] = mapped_column(String(32), nullable=False, default="not_evaluated", server_default="not_evaluated", index=True)
+    filter_reasons: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    filter_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
     imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

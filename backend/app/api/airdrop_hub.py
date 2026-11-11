@@ -62,6 +62,7 @@ async def list_airdrop_hub(chain: str | None = Query(default=None, max_length=80
     statement = select(AirdropProject).where(
         AirdropProject.source_name == "binance-announcements",
         AirdropProject.publication_status == OBSERVATION,
+        AirdropProject.filter_status != "filtered",
     )
     if chain and chain.strip() and chain.strip().lower() != "all":
         statement = statement.where(AirdropProject.chain.ilike(f"%{chain.strip()}%"))
