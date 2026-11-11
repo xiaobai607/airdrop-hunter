@@ -2,7 +2,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from app.main import app
 from app.models import AirdropProject
-from app.services.airdrop_hub_sync import _normalize, _status_label
+from app.services.airdrop_hub_sync import _normalize, _normalize_binance_article_detail, _status_label
 
 def test_normalize_public_airdrop_payload():
     rows = _normalize({"data": [{
@@ -24,6 +24,24 @@ def test_normalize_rejects_missing_or_unsafe_links():
     ])
     assert len(rows) == 1
     assert rows[0]["name"] == "Valid project"
+
+
+def test_binance_article_detail_preserves_official_html_and_metadata():
+    detail = _normalize_binance_article_detail(
+        {"data": {
+            "title": "Official Airdrop Terms",
+            "body": "<h2>Reward</h2><p>Stake BNB to earn tokens.</p>",
+            "releaseDate": 1762800000000,
+            "catalogName": "Crypto Airdrop",
+        }},
+        fallback_title="Fallback title",
+        fallback_url="https://www.binance.com/en/support/announcement/example",
+    )
+    assert detail["title"] == "Official Airdrop Terms"
+    assert detail["content_html"] == "<h2>Reward</h2><p>Stake BNB to earn tokens.</p>"
+    assert detail["release_date"] == 1762800000000
+    assert detail["catalog_name"] == "Crypto Airdrop"
+    assert detail["original_url"].endswith("/example")
 
 def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
     from app.services import airdrop_hub_sync
@@ -52,6 +70,18 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         return 2
 
     monkeypatch.setattr("app.api.airdrop_hub.sync_airdrops", fake_sync)
+
+    from app.api import airdrop_hub as hub_api
+    async def fake_detail(code, *, fallback_title, fallback_url):
+        assert code == "test123"
+        return {
+            "title": fallback_title,
+            "content_html": "<p>Binance official full announcement content.</p>",
+            "release_date": 1762800000000,
+            "catalog_name": "Crypto Airdrop",
+            "original_url": fallback_url,
+        }
+    monkeypatch.setattr(hub_api, "fetch_binance_article_detail", fake_detail)
     with TestClient(app) as client:
         refresh = client.post("/api/airdrops/sync")
         assert refresh.status_code == 200
@@ -65,6 +95,11 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         assert observation["link"].endswith("/test123")
         assert "publication_status" not in observation
         assert "data_source" not in observation
+        detail = client.get("/api/airdrops/hub/" + observation["id"])
+        assert detail.status_code == 200
+        assert detail.json()["content_html"] == "<p>Binance official full announcement content.</p>"
+        assert detail.json()["title"] == "Binance Observation Test"
+        assert client.get("/api/airdrops/hub/status").status_code == 200
 
 def test_status_mapping_is_honest():
     assert _status_label("hot") == "热门"
