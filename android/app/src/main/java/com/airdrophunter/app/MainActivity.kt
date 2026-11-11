@@ -29,6 +29,7 @@ import androidx.lifecycle.lifecycleScope
 import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.TokenStore
+import com.airdrophunter.app.data.GlobalSyncScheduler
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
@@ -37,6 +38,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
+    override fun onStart() {
+        super.onStart()
+        // Recheck dynamic directories on every app foreground entry; cache TTLs suppress excess requests.
+        GlobalSyncScheduler.enqueueDynamicCatalogWarmup(applicationContext)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = android.graphics.Color.rgb(248, 249, 250)
