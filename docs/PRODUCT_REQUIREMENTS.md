@@ -2,6 +2,114 @@
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
+## 0.0 Current master checklist — authoritative status and remaining work (2026-11-11)
+
+> This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
+
+### Status definitions
+
+- **Complete in code + CI:** implementation exists and the exact relevant commit has passing automated checks. This does not imply production deployment or physical-device acceptance.
+- **Partial:** a foundation or part of the flow exists, but the complete user workflow is not proven.
+- **Pending verification:** implementation exists, but required real-device, live-data, production, or recovery verification has not passed.
+- **Pending implementation:** confirmed requirement has not yet been implemented end to end.
+- **Deferred / cancelled:** explicitly not part of the current release; do not reintroduce without user approval.
+
+### Current repository checkpoint
+
+- Repository: `xiaobai607/airdrop-hunter`; active delivery branch: `feature/mobile-browser-home-dock-batch`.
+- PR #135 is **Draft / Open / not merged**. Latest verified head at this checklist update: `ed77cfce71ced02d13b830f6977a491babf31a42`.
+- Exact-head CI run #1049 (`42949971315`) completed successfully: Android debug build/unit tests, backend tests, and artifact upload passed.
+- The PR branch contains the current Airdrop Library, browser dock, community/accounting, campaign discovery and Binance announcement changes. These branch changes are not yet part of main until the PR is reviewed and merged by explicit authorization.
+- No physical-device acceptance is implied by CI. No production live-sync or recovery drill is implied by a successful build.
+
+### Current product decisions — do not regress
+
+- Public discovery destination and page heading: **“空投库”**. Do not display “微社区广场” or the Steam-style discovery subtitle. The personal project destination remains **“库管理”**.
+- The Airdrop Library's primary purpose is to discover and display actual airdrop campaigns, not to act as a token screener, source-monitoring console, or moderation dashboard.
+- The only currently approved discovery sources are the four zero-cash-cost sources in Section 0.2: CoinGecko Demo API, GitHub Raw Content, DexScreener public API, and Binance public announcements. CoinMarketCal, DropsTab, Airdrops.io, paid APIs, paid scraping, paid proxies, and metered services are excluded.
+- CoinGecko/GitHub/DexScreener results are project/market leads only. They must not be displayed as confirmed campaigns without explicit campaign evidence. The primary visible campaign feed currently accepts explicit Binance announcement evidence.
+- The in-app Binance detail page must show the official CMS body without AI rewriting or invented terms. JavaScript stays disabled; do not weaken WebView security or guess image lazy-loading behavior.
+- Current-release personal wallets, personal ledger, personal project/task records and personal P&L remain local-only. Only eligible anonymous/de-identified aggregate contribution data may reach the public community service. Registration/login and private cloud restore are not current-release features.
+- Demo data must remain isolated from real data and public statistics. No mock record may enter real mode, publication APIs, or community aggregates.
+
+### Remaining work — authoritative delivery checklist
+
+#### A. Automatic airdrop discovery and publication — **PARTIAL; highest product priority**
+
+- [ ] Implement and validate the four approved adapters against their current documented free endpoints and terms:
+  - [ ] CoinGecko Demo API: discover the Airdrop category and cache token/project leads.
+  - [ ] GitHub Raw Content: parse only operator-configured public raw JSON/Markdown lists; verify license/attribution and official HTTPS project links.
+  - [ ] DexScreener: implement the user-approved latest/search discovery flow with bounded queries and thresholds; keep all results as market leads. Existing contract-address market enrichment is not a substitute for this adapter.
+  - [ ] Binance CMS: validate the official Crypto Airdrop and Latest Activities feeds with the approved keyword filter, stable article IDs and last-known-good behavior.
+- [ ] Verify the free-use path, rate limits, reuse rights, hosting/database limits and zero-cost guardrails for each adapter before enabling it. No paid fallback, card requirement, automatic upgrade or hidden metered dependency.
+- [ ] Complete campaign-level normalization, project/campaign identity linking, evidence snapshots, source attribution, deduplication, unknown/null semantics and status history.
+- [ ] Complete deterministic, versioned, explainable scoring and publication gates. Official HTTPS link verification and attributable evidence are mandatory; DEX liquidity/volume or project-list presence never proves an airdrop.
+- [ ] Connect the real campaign publication API to the Android Airdrop Library and Room cache. Real mode must show only approved real campaign records; demo mode remains separate.
+- [ ] Validate real source data end to end, including outages, malformed/empty responses, retries, idempotency, last-known-good cache and no false publication.
+- [ ] Keep scheduled production sync disabled until source rights, zero-cost hosting, database migrations, exact-head CI and real-data APP rendering are verified.
+
+Current evidence: campaign models, migrations, scoring/persistence foundations, publication API, Android campaign client/list and Binance announcement feed/detail code exist on PR #135. The campaign UI has shown an honest empty state because there is not yet a configured approved free campaign provider publishing real campaigns. The trusted-provider refactor explicitly leaves sync fail-closed when no eligible provider is configured. Therefore this feature is **not end-to-end complete**.
+
+#### B. Existing core app features — **CODE FOUNDATION LARGELY COMPLETE; DEVICE ACCEPTANCE PENDING**
+
+- [ ] Install the exact-head APK on the user's Android phone and exercise every main destination: Home, 空投库, 库管理, 我的.
+- [ ] Run the reported cross-screen crash regression across browser, chain/coin search, wallet management, project management, Airdrop Library and profile destinations.
+- [ ] Verify wallet address/network handling and external-wallet DApp handoff with MetaMask, OKX Wallet and Trust Wallet: connect, sign, send, reject, cancel, timeout and return callback. Airdrop Hunter never holds private keys or signs for the user.
+- [ ] Verify accounting end to end: manual bill entry, pending/confirmation flow, actual-vs-estimated separation, wallet/chain association, local persistence and totals.
+- [ ] Verify project/task lifecycle and “库管理”: private project isolation, official catalog binding, delisted-project marker, local accounting/history retention and eligible anonymous contribution rules.
+- [ ] Verify offline encrypted backup/export/import on a real device, including wrong password, corrupt file, duplicate import, version compatibility and post-restore data integrity.
+- [ ] Verify current-release privacy at runtime: no personal wallet addresses, personal ledger rows, transaction hashes, account identity or private project/task details are uploaded.
+- [ ] Verify cache-first behavior, stale-while-revalidate, refresh throttling, background responsiveness, last-known-good retention and source failure states on device/network interruption.
+
+#### C. Browser dock and UI acceptance — **IMPLEMENTED IN PR #135; DEVICE VERIFICATION PENDING**
+
+- [ ] Confirm the long horizontal glass dock proportions on the actual phone.
+- [ ] Confirm inner horizontal scrolling does not conflict with long-press drag of the whole dock.
+- [ ] Confirm edge snapping, safe-area bounds, add/remove/reorder/restore actions and all six tool actions.
+- [ ] Confirm dock position is transient and resets to the bottom after leaving/re-entering the browser; only selected tool IDs/order persist.
+- [ ] Confirm Home dashboard card layout/drag behavior and developer-controlled card dimensions.
+- [ ] Confirm the Airdrop Library heading is “空投库”, the obsolete Steam subtitle is absent, and demo/real datasets never mix.
+
+#### D. Binance announcement detail — **CODE + UNIT TESTS COMPLETE; REAL HTML/DEVICE VERIFICATION PENDING**
+
+- [ ] Inspect an actual Binance CMS detail response and confirm whether announcement images use direct `src`, `data-src`, or another loading pattern.
+- [ ] Verify HTTPS images load with JavaScript disabled. Do not add speculative HTML rewriting or enable JavaScript without a real fixture and security review.
+- [ ] Verify wide tables scroll horizontally, images scale to viewport, and long content remains readable on the user's phone.
+- [ ] Verify explicit user-clicked HTTPS links open the in-app browser and Back returns to the announcement detail; automatic redirects and non-HTTPS navigation remain blocked.
+
+#### E. Production deployment, operations and recovery — **PARTIAL**
+
+- [ ] Complete production environment variables/secrets, database, object/static storage and CDN configuration using verified $0 tiers.
+- [ ] Run production readiness smoke checks against the actual deployment and verify migrations at the real database head.
+- [ ] Perform an isolated PostgreSQL backup and restore drill, verify restored data and record evidence.
+- [ ] Verify deployment rollback and recovery procedures.
+- [ ] Activate scheduled community snapshots and airdrop sync only after configuration, cost, permissions and live-data checks pass. Skipped cron runs do not count as successful publishing.
+- [ ] Confirm monitoring/error visibility and safe behavior when providers, database, CDN or network fail.
+
+#### F. Final release gate — **PENDING**
+
+- [ ] Reconcile every still-valid requirement in Sections 1–10 against implementation and tests.
+- [ ] Close all device acceptance items in B–D and production/recovery items in E.
+- [ ] Run exact-head Android unit tests/build and backend tests after the final coherent change set.
+- [ ] Generate and install the final release candidate APK; complete a full regression pass.
+- [ ] Verify privacy, zero-cost operation, source permissions, data integrity, backup/restore and rollback.
+- [ ] Keep PR #135 Draft/Open until the user explicitly authorizes merge. Do not declare the project finished before all required gates pass.
+
+### Delivery batch summary
+
+| Area | Current status |
+|---|---|
+| Core product batches 01–13 | Code-level foundation recorded as complete; cross-screen/device regression still required |
+| Batch 14 — production operations/recovery | Partial; live configuration, restore drill and rollback evidence remain |
+| Batch 15 — navigation, account-scope UI and backup hardening | Code/CI complete; physical-device acceptance remains |
+| Airdrop discovery pipeline | Partial; adapters/provider configuration and real publication flow remain |
+| Binance announcement detail | Code/CI and wrapper unit tests complete; real HTML and device checks remain |
+| Final release | Pending |
+
+**Progress reporting rule:** do not use one unqualified percentage as a release-completion claim. Report code/CI progress separately from real-data, physical-device, production and final-release acceptance. A completed PR or successful CI is not a finished product.
+
+---
+
 ## 0.2 Latest user-confirmed data-discovery strategy — four-source, zero-budget standard (2026-11-11)
 
 The user approved four free public data sources for backend discovery: CoinGecko Demo API, GitHub Raw Content, DexScreener public API, and Binance public announcements. CoinMarketCal, DropsTab, Airdrops.io, paid APIs, paid trials, paid proxies, and paid scraping services are excluded.
