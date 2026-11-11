@@ -163,6 +163,13 @@ fun BrowserAccountingToolbar(
         showConfirm = true
     }
 
+    LaunchedEffect(initialShowBillList, pending) {
+        if (initialShowBillList && pending.isNotEmpty() && activeBill == null && !showConfirm) {
+            // Home's accounting shortcut opens the latest pending record directly.
+            openBill(pending.first())
+        }
+    }
+
     fun createMockBill() {
         if (creatingMockBill) return
         creatingMockBill = true
