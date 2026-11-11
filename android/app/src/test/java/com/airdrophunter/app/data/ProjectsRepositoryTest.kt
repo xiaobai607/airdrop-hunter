@@ -72,6 +72,18 @@ class ProjectsRepositoryTest {
 
 
 
+    @Test fun selectedCommunityOfficialIdIsPersistedOnLocalProject() {
+        val repository = ProjectsRepository(FakeRemote(), FakeLocal())
+        kotlinx.coroutines.runBlocking {
+            val created = repository.createProject(
+                ProjectWriteRequest("Linea", "zkEVM", "tracking",
+                    official_url = "https://linea.build/", community_official_id = "linea"),
+                guest = true
+            ).single()
+            assertEquals("linea", created.communityOfficialId)
+        }
+    }
+
     @Test fun browserProjectCreationCanPreserveItsStableLedgerId() {
         val local = FakeLocal()
         val repository = ProjectsRepository(FakeRemote(), local)
