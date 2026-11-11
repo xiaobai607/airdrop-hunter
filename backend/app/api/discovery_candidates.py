@@ -4,8 +4,8 @@ import hashlib
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, ValidationError
-from sqlalchemy import select
+from pydantic import BaseModel, ConfigDict, ValidationError, computed_field
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -45,6 +45,17 @@ class CandidateReviewResponse(DiscoveryCandidateResponse):
     identity_status: str
     identity_evidence: dict
     matched_source_key: str | None
+
+    @computed_field
+    @property
+    def identity_group_type(self) -> str:
+        return str((self.identity_evidence or {}).get("identity_group_type") or "unresolved")
+
+    @computed_field
+    @property
+    def identity_group_key(self) -> str | None:
+        value = (self.identity_evidence or {}).get("identity_group_key")
+        return str(value) if value else None
 
 
 class DiscoverySourceStatusResponse(BaseModel):
@@ -114,6 +125,58 @@ async def list_candidate_review_queue(
         AirdropDiscoveryCandidate.first_seen_at.asc()
     ).limit(limit)
     return list(await db.scalars(statement))
+
+
+@router.get(
+    "/identity-groups/{group_type}/{group_key}",
+    dependencies=[Depends(require_catalog_admin)],
+)
+async def get_discovery_identity_group(
+    group_type: str,
+    group_key: str,
+    status: str = Query(default="all", pattern="^(pending|approved|rejected|all)$"),
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return paged, complete membership for one strong identity group.
+
+    Campaign groups are exact-activity groups. Project groups are parent
+    relationships and deliberately include separate campaigns under a project.
+    """
+    if group_type not in {"campaign", "project"} or not re.fullmatch(r"[a-f0-9]{64}", group_key):
+        raise HTTPException(status_code=422, detail="身份分组类型或标识无效")
+
+    identity_column = (
+        AirdropDiscoveryCandidate.campaign_identity_key
+        if group_type == "campaign"
+        else AirdropDiscoveryCandidate.project_identity_key
+    )
+    base = select(AirdropDiscoveryCandidate).where(identity_column == group_key)
+    if status != "all":
+        base = base.where(AirdropDiscoveryCandidate.review_status == status)
+
+    total = await db.scalar(select(func.count()).select_from(base.subquery()))
+    statement = (
+        base.order_by(
+            AirdropDiscoveryCandidate.first_seen_at.asc(),
+            AirdropDiscoveryCandidate.id.asc(),
+        )
+        .offset(offset)
+        .limit(limit)
+    )
+    members = list(await db.scalars(statement))
+    return {
+        "identity_group_type": group_type,
+        "identity_group_key": group_key,
+        "membership_scope": "same_campaign" if group_type == "campaign" else "same_project_parent",
+        "total_count": int(total or 0),
+        "offset": offset,
+        "limit": limit,
+        "has_more": offset + len(members) < int(total or 0),
+        "next_offset": offset + len(members) if offset + len(members) < int(total or 0) else None,
+        "members": [CandidateReviewResponse.model_validate(item).model_dump(mode="json") for item in members],
+    }
 
 
 @router.post(
