@@ -94,3 +94,10 @@ Automated tests and CI validate the authored parser, fail-closed approval metada
 - The extracted path is never used with a host supplied by that source. The backend pins the host to `www.binance.com`, probes the discovered endpoint with the approved category IDs `128` and `93`, and requires a JSON `data.catalogs` response whose returned catalog ID matches the request.
 - The RSSHub file is an endpoint-discovery reference only, not an announcement data provider. Titles, article codes, detail pages, and HTML continue to come directly from Binance. If the reference is unavailable or changes format, the backend falls back to the known apex and legacy composite paths.
 - This reduces hard-coded endpoint drift but still relies on an observed, undocumented Binance web interface. It is not an official Binance API guarantee.
+
+
+### Endpoint discovery verification boundaries
+
+- The discovery parser accepts only a path embedded after the adapter's `${baseUrl}` template marker and matching `/bapi/.../cms/article/list/query`; it never accepts a host from the reference source.
+- The endpoint is probed separately for each approved category. A response must contain `data.catalogs`, and any non-empty catalog array must include the requested `catalogId`. A failed or malformed candidate is skipped in favor of the next known Binance path.
+- Automated MockTransport tests cover path extraction, host pinning, category validation, and fallback. A live Binance request still needs to be confirmed by the hosted backend workflow; web preview tools could not fetch Binance's CMS endpoint in this review.

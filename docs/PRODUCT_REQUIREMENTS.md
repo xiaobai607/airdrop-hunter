@@ -2095,3 +2095,10 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - The backend extracts only a constrained Binance CMS list path, fixes the destination host to `www.binance.com`, and verifies the live response structure and requested catalog ID before importing anything.
 - The reference repository supplies no announcement content to Airdrop Hunter; all imported records and article detail HTML still come directly from Binance. Discovery is cached for six hours, with apex/composite fallback paths retained.
 - Added tests for safe path extraction, successful dynamic discovery, and fallback when the discovery reference is unavailable. Exact-head CI and real provider connectivity are pending.
+
+
+### 2026-11-11 — Endpoint discovery implementation note
+
+- Tightened the discovery parser to extract only the route path after the source adapter's `${baseUrl}` marker. The reference cannot supply or change the destination host.
+- Exact-head automated test status is pending after the final parser correction; do not treat the earlier cancelled workflow attempt as validation.
+- Live provider availability remains a separate requirement from MockTransport test success.
