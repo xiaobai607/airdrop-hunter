@@ -297,7 +297,28 @@ async def fetch_binance_article_detail(article_code: str, *, fallback_title: str
         )
 
 
-async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
+async def _binance_http_error_label(exc: Exception) -> str:
+    """Expose bounded provider error metadata without logging response bodies."""
+    response = getattr(exc, "response", None)
+    status_code = getattr(response, "status_code", None)
+    label = f"{type(exc).__name__}(HTTP {status_code})" if status_code is not None else type(exc).__name__
+    if response is not None:
+        try:
+            payload = response.json()
+        except (ValueError, TypeError):
+            payload = None
+        if isinstance(payload, dict):
+            details = []
+            for key in ("code", "msg", "message"):
+                value = payload.get(key)
+                if isinstance(value, (str, int, float)) and str(value).strip():
+                    details.append(f"{key}={str(value).strip()[:120]}")
+            if details:
+                label = f"{label} [{'; '.join(details)}]"
+    return label
+
+
+def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     errors: list[str] = []
     headers = {
@@ -344,11 +365,7 @@ async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[st
                 break
             except (httpx.HTTPError, ValueError, TypeError) as exc:
                 last_error = exc
-                status_code = getattr(getattr(exc, "response", None), "status_code", None)
-                error_label = (
-                    f"{type(exc).__name__}(HTTP {status_code})"
-                    if status_code is not None else type(exc).__name__
-                )
+                error_label = _binance_http_error_label(exc)
                 logger.warning(
                     "Binance catalog %s endpoint %s failed: %s",
                     catalog_id,
@@ -356,11 +373,7 @@ async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[st
                     error_label,
                 )
         if last_error is not None:
-            status_code = getattr(getattr(last_error, "response", None), "status_code", None)
-            error_label = (
-                f"{type(last_error).__name__}(HTTP {status_code})"
-                if status_code is not None else type(last_error).__name__
-            )
+            error_label = _binance_http_error_label(last_error)
             errors.append(f"catalog {catalog_id}: {error_label}")
     if not records and errors:
         raise RuntimeError("Binance CMS categories unavailable: " + "; ".join(errors))
@@ -572,14 +585,17 @@ async def _fetch_github_observations(client: httpx.AsyncClient) -> list[dict[str
         raise RuntimeError(f"GitHub Raw 未解析到项目；失败文件数 {failures}")
     return rows
 
-async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
+def _configured_dexscreener_search_queries() -> list[str]:
+    """Use a safe free default when the optional Actions variable is absent or blank."""
+    raw = os.getenv("DEXSCREENER_SEARCH_QUERIES", "")
     queries = list(dict.fromkeys(
-        part.strip()
-        for part in os.getenv("DEXSCREENER_SEARCH_QUERIES", "airdrop").split(",")
-        if part.strip()
+        part.strip() for part in raw.split(",") if part.strip()
     ))[:8]
-    if not queries:
-        raise RuntimeError("DEXSCREENER_SEARCH_QUERIES 未配置有效搜索词")
+    return queries or ["airdrop"]
+
+
+async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
+    queries = _configured_dexscreener_search_queries()
 
     rows: list[dict[str, Any]] = []
     failures: list[str] = []
