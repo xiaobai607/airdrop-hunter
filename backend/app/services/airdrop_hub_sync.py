@@ -297,7 +297,7 @@ async def fetch_binance_article_detail(article_code: str, *, fallback_title: str
         )
 
 
-async def _binance_http_error_label(exc: Exception) -> str:
+def _binance_http_error_label(exc: Exception) -> str:
     """Expose bounded provider error metadata without logging response bodies."""
     response = getattr(exc, "response", None)
     status_code = getattr(response, "status_code", None)
@@ -318,7 +318,7 @@ async def _binance_http_error_label(exc: Exception) -> str:
     return label
 
 
-def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
+async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     errors: list[str] = []
     headers = {
