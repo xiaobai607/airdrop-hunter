@@ -222,6 +222,11 @@ private fun AirdropAnnouncementDetail(
                                         view: WebView,
                                         request: android.webkit.WebResourceRequest
                                     ): Boolean {
+                                        // Only explicit top-level user clicks may leave the
+                                        // source article. Block subframes and automatic redirects.
+                                        if (!request.isForMainFrame || !request.hasGesture) {
+                                            return true
+                                        }
                                         val target = request.url
                                         if (!target.scheme.equals("https", ignoreCase = true)) {
                                             return true
@@ -232,7 +237,13 @@ private fun AirdropAnnouncementDetail(
                                                     .putExtra(BrowserActivity.EXTRA_URL, target.toString())
                                                     .putExtra(BrowserActivity.EXTRA_TITLE, "公告链接")
                                             )
-                                        }.fold(onSuccess = { true }, onFailure = { false })
+                                        }.fold(
+                                            onSuccess = { true },
+                                            onFailure = {
+                                                Toast.makeText(viewContext, "无法打开公告链接", Toast.LENGTH_SHORT).show()
+                                                true
+                                            }
+                                        )
                                     }
                                 }
                                 loadDataWithBaseURL(
