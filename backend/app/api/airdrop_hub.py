@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal, get_db
 from app.routers.auth import limiter
 from app.models import AirdropProject
-from app.services.airdrop_hub_sync import get_sync_status
+from app.services.airdrop_hub_sync import TRUSTED_AIRDROP_PROVIDER_LABELS, get_sync_status
 from app.services.airdrop_sync import sync_airdrops
 
 router = APIRouter(prefix="/api/airdrops/hub", tags=["airdrop-hub"])
@@ -21,6 +21,9 @@ class AirdropHubItem(BaseModel):
     description: str
     status: str
     link: str
+    data_source: str
+    trust_level: str
+    publication_status: str
 
 class AirdropHubSyncStatus(BaseModel):
     last_attempt_at: str | None
@@ -47,11 +50,11 @@ async def _sync_now() -> dict[str, Any]:
 
 @router.get("", response_model=list[AirdropHubItem])
 async def list_airdrop_hub(chain: str | None = Query(default=None, max_length=80), db: AsyncSession = Depends(get_db)):
-    statement = select(AirdropProject)
+    statement = select(AirdropProject).where(AirdropProject.publication_status == "PUBLISHED_SAFE")
     if chain and chain.strip() and chain.strip().lower() != "all":
         statement = statement.where(AirdropProject.chain.ilike(f"%{chain.strip()}%"))
     rows = (await db.scalars(statement.order_by(AirdropProject.updated_at.desc(), AirdropProject.name.asc()))).all()
-    return [AirdropHubItem(id=str(x.id), name=x.name, chain=x.chain, description=x.description, status=x.status, link=x.link) for x in rows]
+    return [AirdropHubItem(id=str(x.id), name=x.name, chain=x.chain, description=x.description, status=x.status, link=x.link, data_source=f"Source: {TRUSTED_AIRDROP_PROVIDER_LABELS.get(x.source_name, x.source_name)}", trust_level=x.trust_level, publication_status=x.publication_status) for x in rows]
 
 @router.get("/status", response_model=AirdropHubSyncStatus)
 async def airdrop_hub_sync_status() -> dict[str, Any]:
