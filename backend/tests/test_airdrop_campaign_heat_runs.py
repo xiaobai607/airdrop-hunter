@@ -7,7 +7,9 @@ from app.models import (
     AirdropPipelineRun,
 )
 from app.services.airdrop_campaign_heat_runs import (
+    fail_campaign_heat_run,
     record_successful_campaign_heat_batch,
+    start_campaign_heat_run,
 )
 
 
