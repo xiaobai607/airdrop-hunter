@@ -12,6 +12,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -28,9 +29,22 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
     override suspend fun doWork(): Result {
         ApiClient.initialize(applicationContext)
         var succeeded = 0
-        runCatching { CommunityCatalogRepository.refreshCatalog() }.onSuccess { succeeded++ }
-        runCatching { MarketSearchRepository(OkxMarketRepository()).warmUpMarketCaches() }
-            .onSuccess { succeeded++ }
+        try {
+            CommunityCatalogRepository.refreshCatalog()
+            succeeded++
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Market warm-up continues independently if the community API is unavailable.
+        }
+        try {
+            MarketSearchRepository(OkxMarketRepository()).warmUpMarketCaches()
+            succeeded++
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Community directory cache remains usable if a market provider is unavailable.
+        }
         return if (succeeded > 0) Result.success() else Result.retry()
     }
 }
