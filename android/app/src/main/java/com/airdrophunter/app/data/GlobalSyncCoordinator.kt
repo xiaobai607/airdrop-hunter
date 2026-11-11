@@ -55,7 +55,10 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
             if (lastRefresh <= 0L || now < lastRefresh || now - lastRefresh >= AIRDROP_HUB_REFRESH_INTERVAL_MILLIS) {
                 // Refresh the approved public announcement feed off the UI thread.
                 // Mark success only after the server confirms the refresh request.
-                ApiClient.service.refreshAirdropHub()
+                val response = ApiClient.service.refreshAirdropHub()
+                if (!response.ok) {
+                    throw IllegalStateException(response.status.error ?: "Airdrop hub refresh was not successful")
+                }
                 preferences.edit().putLong(AIRDROP_HUB_REFRESH_KEY, now).apply()
                 succeeded++
             } else {

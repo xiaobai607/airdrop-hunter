@@ -59,7 +59,9 @@ class AirdropHubRepository(
         } catch (_: Exception) {
             null
         }
-        if (projects.isEmpty() && status?.last_attempt_at == null) {
+        // A previous failed attempt must not suppress the first successful sync forever.
+        // Retry while the server has never recorded a successful refresh, then re-read the list.
+        if (projects.isEmpty() && status?.last_success_at == null) {
             remote.sync()
             projects = remote.getProjects(chain)
         }

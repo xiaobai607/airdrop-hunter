@@ -2047,3 +2047,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Backend pytest reported one failure because the public API regression test both asserted that listing_reason was absent and later asserted that the same field contained a value. The latter assertion was stale and contradicted the intended public contract; the API response model was correct.
 - Corrected the regression test to assert absence of the complete set of internal scoring, trust, token-identity and market-telemetry fields. No internal field was restored to the public API.
 - Exact-head backend revalidation for this correction is pending. PR #135 remains Draft/Open/unmerged; the successful lightweight PR synchronize run #1086 skipped both heavy test suites and is not counted as full validation.
+
+
+### 2026-11-11 — homepage-triggered airdrop hub refresh reliability
+
+- Entering the Home screen now queues the public airdrop refresh worker without blocking navigation or foreground UI work. The existing six-hour successful-refresh cadence remains the request throttle.
+- The worker only records a successful refresh timestamp when the server response reports `ok=true`; unsuccessful server responses remain retryable on a later Home entry.
+- The airdrop hub repository retries an empty list when the server has no successful sync recorded, including the case where an earlier attempt exists but failed. A previously successful empty result is not repeatedly synchronized.
+- Added repository regression coverage for retry-after-failure and no-repeat-after-success. This is pending exact-head CI validation; server data availability and physical-device acceptance remain separate checks.

@@ -33,13 +33,26 @@ class FeatureRepositoryTest {
     }
 
     @Test
-    fun hubRepositoryDoesNotRepeatInitialSyncAfterAnAttempt() = runBlocking {
+    fun hubRepositoryRetriesWhenPreviousAttemptNeverSucceeded() = runBlocking {
         val remote = FakeHubRemote().apply {
             status = AirdropHubSyncStatusDto(last_attempt_at = "2026-01-01T00:00:00Z")
         }
-        AirdropHubRepository(remote).load("Base")
-        assertEquals(0, remote.syncCalls)
+        val snapshot = AirdropHubRepository(remote).load("Base")
+        assertEquals(1, remote.syncCalls)
+        assertEquals(1, snapshot.projects.size)
         assertEquals("Base", remote.lastChain)
+    }
+
+    @Test
+    fun hubRepositoryDoesNotRepeatSyncAfterSuccessfulRefresh() = runBlocking {
+        val remote = FakeHubRemote().apply {
+            status = AirdropHubSyncStatusDto(
+                last_attempt_at = "2026-01-01T00:00:00Z",
+                last_success_at = "2026-01-01T00:00:00Z"
+            )
+        }
+        AirdropHubRepository(remote).load(null)
+        assertEquals(0, remote.syncCalls)
     }
 
     @Test
@@ -78,7 +91,7 @@ private class FakeHubRemote : AirdropHubRemoteDataSource {
     private val items = listOf(AirdropHubDto("1", "Example", "Base", "desc", "active", "https://example.org"))
     override suspend fun getProjects(chain: String?): List<AirdropHubDto> {
         lastChain = chain
-        if (syncCalls == 0 && status.last_attempt_at == null) return emptyList()
+        if (syncCalls == 0 && status.last_success_at == null) return emptyList()
         return if (chain == null) items else items.filter { it.chain == chain }
     }
     override suspend fun getStatus() = status

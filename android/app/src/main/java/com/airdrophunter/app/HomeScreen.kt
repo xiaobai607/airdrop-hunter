@@ -51,6 +51,7 @@ import coil.compose.SubcomposeAsyncImage
 import com.airdrophunter.app.data.AirdropSite
 import com.airdrophunter.app.data.AirdropSiteStore
 import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.GlobalSyncScheduler
 import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AppColors
 import com.google.gson.Gson
@@ -92,6 +93,9 @@ fun HomeScreen(
     var sites by remember { mutableStateOf(AirdropSiteStore.defaults) }
 
     LaunchedEffect(isGuest, sessionScopeKey) {
+        // Entering Home always queues a non-blocking refresh check for public airdrop data.
+        // The worker applies its six-hour success cadence and keeps cached/server data usable.
+        GlobalSyncScheduler.enqueueDynamicCatalogWarmup(context)
         sites = withContext(Dispatchers.IO) { AirdropSiteStore.load() }
         homeViewModel.load(isGuest)
     }
