@@ -16,4 +16,4 @@ def test_web3_discover_api_import_requires_explicit_approval(monkeypatch):
     assert imported == 0
     status = airdrop_hub_sync.get_sync_status()
     assert status["imported_count"] == 0
-    assert status["error"] == "source_not_approved"
+    assert status["error"] == "no_trusted_free_airdrop_provider"
