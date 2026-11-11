@@ -8,7 +8,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,6 +37,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.roundToInt
 import androidx.compose.ui.window.Dialog
@@ -254,24 +257,52 @@ fun BrowserAccountingToolbar(
                     IntOffset(dragOffsetX.value.roundToInt(), dragOffsetY.value.roundToInt())
                 }
                 .pointerInput(maxWidth, maxHeight) {
-                    var dragStarted = false
-                    detectDragGesturesAfterLongPress(
-                        onDragStart = { dragStarted = true },
-                        onDragEnd = {
-                            if (dragStarted) animateDockToEdge()
-                            dragStarted = false
-                        },
-                        onDragCancel = {
-                            // A child LazyRow swipe can cancel the long-press detector.
-                            // Never snap the Dock unless its whole-component drag began.
-                            if (dragStarted) animateDockToEdge()
-                            dragStarted = false
-                        }
-                    ) { change, amount ->
-                        change.consume()
-                        scope.launch {
-                            dragOffsetX.snapTo((dragOffsetX.value + amount.x).coerceIn(-maxHorizontalDrag, maxHorizontalDrag))
-                            dragOffsetY.snapTo((dragOffsetY.value + amount.y).coerceIn(-maxVerticalDrag, 0f))
+                    awaitEachGesture {
+                        // Observe the gesture in the Initial pass so the parent Dock can
+                        // claim a long-press drag before the child LazyRow consumes motion.
+                        val down = awaitFirstDown(
+                            requireUnconsumed = false,
+                            pass = PointerEventPass.Initial
+                        )
+                        val longPressReached = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                            var stillPressed = true
+                            while (stillPressed) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                if (change == null || !change.pressed ||
+                                    (change.position - down.position).getDistance() > viewConfiguration.touchSlop
+                                ) {
+                                    stillPressed = false
+                                }
+                            }
+                            true
+                        } == true
+
+                        if (longPressReached) {
+                            var lastPosition = down.position
+                            var dragActive = true
+                            while (dragActive) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                if (change == null || !change.pressed) {
+                                    dragActive = false
+                                } else {
+                                    val delta = change.position - lastPosition
+                                    if (delta != androidx.compose.ui.geometry.Offset.Zero) {
+                                        // This pointerInput block is already a coroutine:
+                                        // update both outer offsets together, not the LazyRow items.
+                                        dragOffsetX.snapTo(
+                                            (dragOffsetX.value + delta.x).coerceIn(-maxHorizontalDrag, maxHorizontalDrag)
+                                        )
+                                        dragOffsetY.snapTo(
+                                            (dragOffsetY.value + delta.y).coerceIn(-maxVerticalDrag, 0f)
+                                        )
+                                        change.consume()
+                                    }
+                                    lastPosition = change.position
+                                }
+                            }
+                            animateDockToEdge()
                         }
                     }
                 }
