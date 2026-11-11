@@ -6,6 +6,7 @@ Provider failures preserve the last known campaign market fields.
 """
 import asyncio
 import math
+import time
 from collections import defaultdict
 from typing import Any, Awaitable, Callable
 
@@ -22,6 +23,9 @@ MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 DEX_BATCH_SIZE = 30
 DEX_MIN_INTERVAL_SECONDS = 2.0
 GECKO_MIN_INTERVAL_SECONDS = 6.0
+GECKO_CACHE_TTL_SECONDS = 300.0
+_GECKO_TRENDING_CACHE: set[tuple[str, str]] | None = None
+_GECKO_TRENDING_CACHE_AT = 0.0
 
 # Canonical app network -> (DexScreener chainId, GeckoTerminal network id).
 NETWORK_IDS: dict[str, tuple[str, str]] = {
@@ -248,6 +252,8 @@ async def collect_market_signals(
     dex_results: dict[tuple[str, str], dict[str, Any]] = {}
     try:
         batches = build_dex_batches(campaigns)
+        if not batches:
+            return dex_results, None
         for index, batch in enumerate(batches):
             if index:
                 await sleep(DEX_MIN_INTERVAL_SECONDS)
@@ -266,18 +272,28 @@ async def collect_market_signals(
                 # Preserve last-known-good values for this failed network batch.
                 continue
 
+        global _GECKO_TRENDING_CACHE, _GECKO_TRENDING_CACHE_AT
         trending_tokens: set[tuple[str, str]] | None = None
-        try:
-            await sleep(GECKO_MIN_INTERVAL_SECONDS)
-            payload = await _get_json(
-                active_client,
-                f"{GECKO_BASE_URL}/networks/trending_pools",
-                headers={"Accept": GECKO_ACCEPT},
-                sleep=sleep,
-            )
-            trending_tokens = parse_gecko_trending_tokens(payload)
-        except (httpx.HTTPError, ValueError, TypeError):
-            trending_tokens = None
+        now = time.monotonic()
+        if (
+            _GECKO_TRENDING_CACHE is not None
+            and now - _GECKO_TRENDING_CACHE_AT < GECKO_CACHE_TTL_SECONDS
+        ):
+            trending_tokens = set(_GECKO_TRENDING_CACHE)
+        else:
+            try:
+                await sleep(GECKO_MIN_INTERVAL_SECONDS)
+                payload = await _get_json(
+                    active_client,
+                    f"{GECKO_BASE_URL}/networks/trending_pools",
+                    headers={"Accept": GECKO_ACCEPT},
+                    sleep=sleep,
+                )
+                trending_tokens = parse_gecko_trending_tokens(payload)
+                _GECKO_TRENDING_CACHE = set(trending_tokens)
+                _GECKO_TRENDING_CACHE_AT = time.monotonic()
+            except (httpx.HTTPError, ValueError, TypeError):
+                trending_tokens = None
         return dex_results, trending_tokens
     finally:
         if owns_client:
