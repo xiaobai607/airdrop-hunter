@@ -193,7 +193,7 @@ The following decisions are newer than the older baseline below. Where older sec
 - Support both lightColorScheme and darkColorScheme. Use the same semantic roles in both schemes: Gas red, reward green, purple selected tab, readable primary text, muted secondary text, and suitable card/track surfaces. Selected-tab brand purple remains #7A58FF in light mode; use an accessible lighter purple variant in dark mode if needed.
 - This unified card is in the individual project detail page only. Do not add it to project list cards, personal ledger, or Micro Community Square overview.
 
-### Micro Community Square UI and isolated test mode
+### Airdrop Library UI and isolated test mode
 - The public discovery page is named “空投库”. Do not use “微社区广场” as its page heading and do not show the Steam-style discovery subtitle. Keep the “提交新空投项目” entry, search by project name/chain/tag, the “测试演示 / 全网真实” switch, ranking chips (吸金榜 / 避坑榜 / 新星榜), project filters, cached-snapshot warning, and honest empty state.
 - Test mode must include clearly labeled fictional airdrop projects as well as fictional metrics so the user can test list rendering, search, chain/tag filters, rankings, project detail navigation, and the Gas/reward bar. All demo projects and metrics are local UI fixtures only: no API submission, no local personal-ledger mutation, no public contribution, no real community rating, and no public statistics contamination. The “全网真实” mode must show only real catalog/snapshot data.
 - Demo/real mode must be clearly labeled and must never silently mix the two datasets.
@@ -634,7 +634,7 @@ Additional rules:
 
 - Full OKX-style portfolio/dashboard.
 - In-app seed phrase/private-key wallet creation or custody, app-owned private-key signing, and standalone native transfer/swap execution are cancelled. External-wallet DApp signing and transaction requests remain required: the user approves and signs only inside their chosen external wallet.
-- Self-written arbitrary-site crawling/scraping is cancelled. Free verified provider APIs, free allowlisted RSS/Atom feeds, freely accessible third-party airdrop platform listings, and user submissions are preferred discovery channels. Telegram/Discord are optional only when free and authorized. Paid X/API integrations and paid data services are out of scope unless the user explicitly changes the zero-cost rule.
+- Self-written arbitrary-site crawling/scraping, RSS/Atom discovery feeds, unapproved third-party airdrop directories, paid X/API integrations and paid data services are out of scope. The only currently approved discovery sources are CoinGecko Demo API, operator-configured GitHub Raw Content lists, DexScreener public API, and Binance public announcements, subject to the source-specific evidence, license, attribution and zero-cost rules in Section 0.2. Do not add Telegram/Discord or another provider without the user's explicit approval.
 - Automatic address recognition (deferred).
 - Community chat, groups, DMs, mentoring, and teaching/social features (deferred).
 - AI analysis is not a confirmed requirement.
@@ -1668,7 +1668,9 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 
 ---
 
-## 2026-11-11 — Zero-cost automated airdrop discovery, scoring and APP publication
+## Historical campaign-discovery architecture and implementation notes — source plan superseded (2026-11-11)
+
+> The broad RSS/Atom and provider plan originally recorded in this section is historical and is not authorization to enable those sources. The current approved four-source strategy in Section 0.2 and the master checklist in Section 0.0 override this section wherever source selection, activation or discovery policy differs. Retain the technical notes below as implementation history only; do not re-enable RSS/Atom or unapproved providers.
 
 This section records the user's explicit requirement that the airdrop collector, condition filters, scoring and APP publication form one connected product workflow. **Long-term cash cost must be $0.** This is a hard constraint, not a preference. This section overrides any earlier suggestion to use paid scraping actors, paid API tiers, usage-based services or automatic paid upgrades.
 
