@@ -407,6 +407,8 @@ def test_admin_review_queue_supports_stable_offset_pagination(monkeypatch):
             assert second.status_code == 200, second.text
             first_ids = [item["id"] for item in first.json()]
             second_ids = [item["id"] for item in second.json()]
+            assert len(first_ids) == 2
+            assert len(second_ids) == 1
             assert first_ids == expected_ids[:2]
             assert second_ids == expected_ids[2:]
             assert set(first_ids).isdisjoint(second_ids)

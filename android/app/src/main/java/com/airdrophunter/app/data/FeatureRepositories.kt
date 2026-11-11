@@ -166,10 +166,12 @@ class AirdropHubRepository(
     private fun cacheKey(chain: String?): String =
         "airdrop-hub:${chain?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: "all"}"
 
-    private fun parseTimestamp(value: String?): Long? = value?.let {
-        runCatching { java.time.Instant.parse(it).toEpochMilli() }
-            .recoverCatching { java.time.OffsetDateTime.parse(it).toInstant().toEpochMilli() }
-            .getOrNull()
+    private fun parseTimestamp(value: String?): Long? {
+        if (value.isNullOrBlank()) return null
+        return runCatching { java.time.Instant.parse(value).toEpochMilli() }.getOrNull()
+            ?: runCatching {
+                java.time.OffsetDateTime.parse(value).toInstant().toEpochMilli()
+            }.getOrNull()
     }
 
     companion object {
