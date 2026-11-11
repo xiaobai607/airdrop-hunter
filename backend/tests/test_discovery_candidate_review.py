@@ -384,7 +384,27 @@ def test_admin_review_queue_supports_stable_offset_pagination(monkeypatch):
                     )
                     candidates.append(candidate)
                     db.add(candidate)
+                filtered = AirdropDiscoveryCandidate(
+                    source_key=f"queue-page-filtered-{uuid4().hex}",
+                    source_name="test-source",
+                    source_url="https://source.example/list",
+                    title=f"Queue pagination {batch_marker} filtered",
+                    item_url="https://filtered.example/",
+                    summary="central filter rejected this observation",
+                    first_seen_at=now,
+                    last_seen_at=now,
+                    review_status="pending",
+                    filter_status="filtered",
+                    filter_reasons=["test_filter_rejection"],
+                    filter_metadata={},
+                    project_identity_key=None,
+                    campaign_identity_key=None,
+                    identity_status="insufficient_identity_evidence",
+                    identity_evidence={},
+                )
+                db.add(filtered)
                 await db.commit()
+                expected_ids = sorted(str(item.id) for item in candidates)
                 expected_ids = sorted(str(item.id) for item in candidates)
                 seeded = True
             yield db
@@ -411,5 +431,13 @@ def test_admin_review_queue_supports_stable_offset_pagination(monkeypatch):
             assert first_ids == expected_ids[:2]
             assert second_ids == expected_ids[2:]
             assert set(first_ids).isdisjoint(second_ids)
+            all_status = client.get(
+                "/api/airdrops/discovery/candidates/review-queue",
+                headers=headers,
+                params={"status": "all", "q": batch_marker, "limit": 10, "offset": 0},
+            )
+            assert all_status.status_code == 200, all_status.text
+            assert len(all_status.json()) == 4
+            assert any(item["filter_status"] == "filtered" for item in all_status.json())
     finally:
         app.dependency_overrides.pop(get_db, None)

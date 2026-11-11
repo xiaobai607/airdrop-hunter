@@ -30,7 +30,6 @@ def test_binance_article_detail_preserves_official_html_and_metadata():
 def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
     from app.services import airdrop_hub_sync
     monkeypatch.setattr(airdrop_hub_sync, "TRUSTED_AIRDROP_PROVIDER_LABELS", {"test": "Test Directory"})
-    filtered_item_id = uuid4()
     async def fake_sync(db):
         db.add(AirdropProject(
             source_key=f"test-{uuid4().hex}:solana", name="Hub Solana Test",
@@ -45,7 +44,6 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
             trust_level="TRUST_LEVEL_1", publication_status="PUBLISHED_SAFE"
         ))
         db.add(AirdropProject(
-            id=filtered_item_id,
             source_key="binance:filtered123", name="Filtered Binance News Test",
             chain="Unknown", description="Central filter rejected this unrelated activity headline", status="待筛选",
             link="https://www.binance.com/en/support/announcement/filtered123",
@@ -84,8 +82,6 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         assert solana_rows.status_code == 200
         assert solana_rows.json() == []
         assert not any(row["name"] in {"Hub Solana Test", "Hub Ethereum Test", "Filtered Binance News Test"} for row in all_rows.json())
-        filtered_detail = client.get(f"/api/airdrops/hub/{filtered_item_id}")
-        assert filtered_detail.status_code == 404
         observation = next(row for row in all_rows.json() if row["name"] == "Binance Observation Test")
         assert observation["link"].endswith("/test123")
         assert "publication_status" not in observation

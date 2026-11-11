@@ -143,6 +143,10 @@ async def list_candidate_review_queue(
     statement = select(AirdropDiscoveryCandidate)
     if status != "all":
         statement = statement.where(AirdropDiscoveryCandidate.review_status == status)
+    if status == "pending":
+        # The central filter has already rejected these observations; keep them
+        # in provenance/history, but do not flood the actionable review queue.
+        statement = statement.where(AirdropDiscoveryCandidate.filter_status != "filtered")
     if q and q.strip():
         statement = statement.where(AirdropDiscoveryCandidate.title.ilike(f"%{q.strip()}%"))
     statement = statement.order_by(
