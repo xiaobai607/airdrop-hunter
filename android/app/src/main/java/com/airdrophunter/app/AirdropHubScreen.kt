@@ -146,8 +146,9 @@ private fun AirdropAnnouncementDetail(
     var detail by remember(item.id) { mutableStateOf<AirdropHubDetailDto?>(null) }
     var loading by remember(item.id) { mutableStateOf(true) }
     var error by remember(item.id) { mutableStateOf<String?>(null) }
+    var reloadKey by remember(item.id) { mutableIntStateOf(0) }
 
-    LaunchedEffect(item.id) {
+    LaunchedEffect(item.id, reloadKey) {
         loading = true
         error = null
         try {
@@ -194,10 +195,7 @@ private fun AirdropAnnouncementDetail(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(error ?: "公告正文暂不可用", color = AppColors.TextSecondary)
-                OutlinedButton(onClick = {
-                    loading = true
-                    error = null
-                }) { Text("重新加载") }
+                OutlinedButton(onClick = { reloadKey += 1 }) { Text("重新加载") }
             }
             else -> {
                 detail!!.release_date?.let { timestamp ->
