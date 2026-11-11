@@ -337,6 +337,8 @@ async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[st
                 ):
                     raise ValueError("Binance CMS response catalog ID did not match request")
                 rows = _normalize_binance_announcements(payload, catalog_id=catalog_id)
+                for row in rows:
+                    row["source_url"] = str(response.request.url)
                 records.extend(rows)
                 last_error = None
                 break
@@ -420,6 +422,7 @@ def _normalize_github_airdrop_list(payload: Any, source_url: str) -> list[dict[s
             item_url,
             f"来自开源名单 {source_url}；项目状态及官网真实性待核实。",
         )
+        row["source_url"] = safe_source_url
         row["_filter_metadata"] = {
             "official_url": safe_official_url,
             "official_url_raw": official_text[:1000],
@@ -473,7 +476,10 @@ async def _fetch_coingecko_observations(client: httpx.AsyncClient) -> list[dict[
     for category_id in category_ids:
         response = await client.get('https://api.coingecko.com/api/v3/coins/markets', headers=auth_headers, params={'vs_currency': 'usd', 'category': category_id, 'order': 'market_cap_desc', 'per_page': 250, 'page': 1, 'sparkline': 'false'})
         response.raise_for_status()
-        rows.extend(_normalize_coingecko_coins(response.json(), category_id))
+        category_rows = _normalize_coingecko_coins(response.json(), category_id)
+        for row in category_rows:
+            row["source_url"] = str(response.request.url)
+        rows.extend(category_rows)
     return rows
 
 async def _fetch_github_observations(client: httpx.AsyncClient) -> list[dict[str, str]]:
@@ -513,7 +519,10 @@ async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dic
     for query in queries:
         response = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": query})
         response.raise_for_status()
-        rows.extend(_normalize_dexscreener_pairs(response.json(), query))
+        query_rows = _normalize_dexscreener_pairs(response.json(), query)
+        for row in query_rows:
+            row["source_url"] = str(response.request.url)
+        rows.extend(query_rows)
     if not rows: raise RuntimeError("DexScreener 本轮没有返回可解析的交易池记录")
     return rows
 
@@ -694,7 +703,10 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
             identity_result = await evaluate_discovery_identity(db, record)
             decision_result = compose_discovery_decision(filter_result, identity_result)
             filter_metadata = {**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"], "decision_version": 1}
-            project_record = {key: value for key, value in record.items() if not key.startswith("_") and key != "catalog_id"}
+            project_record = {
+                key: value for key, value in record.items()
+                if not key.startswith("_") and key not in {"catalog_id", "source_url"}
+            }
             project_record["filter_status"] = decision_result["disposition"]
             project_record["filter_reasons"] = decision_result["reasons"]
             project_record["filter_metadata"] = filter_metadata
