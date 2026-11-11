@@ -39,7 +39,7 @@ class CommunityProjectCatalogTest {
             .toggle("participation_requirements", "bridge")
             .toggle("funding_requirement", "gas_only")
         assertTrue(matchesAirdropFilters(project, selection))
-        assertFalse(matchesAirdropFilters(project, selection.toggle("funding_requirement", "locked_capital")))
+        assertFalse(matchesAirdropFilters(project, selection.toggle("campaign_stage", "claim_open")))
         assertTrue(matchesAirdropFilters(project, AirdropFilterSelection().toggle("campaign_stage", "unknown")))
         assertFalse(matchesAirdropFilters(project, AirdropFilterSelection().toggle("campaign_stage", "claim_open")))
     }
