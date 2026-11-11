@@ -118,8 +118,12 @@ def evaluate_campaign(
             if not market_clear:
                 reasons.append("已知代币合约缺少达到门槛的DEX市场信号")
     elif source_heat is not None and source_heat >= 40:
-        tier = "ordinary"
-        reasons.append("热度达到普通目录门槛，暂未发现明确的硬性风险")
+        if official_verified:
+            tier = "ordinary"
+            reasons.append("热度达到普通目录门槛，官方链接已核验且暂未发现明确的硬性风险")
+        else:
+            tier = "observation"
+            reasons.append("官方链接尚未核验，不能进入公开目录")
     else:
         tier = "observation"
         reasons.append("热度或来源证据不足，保留观察状态")
