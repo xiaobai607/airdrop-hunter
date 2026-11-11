@@ -56,3 +56,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     assert airdrop_campaigns is not None and airdrop_campaigns.down_revision == "0020_airdrop_filters"
     assert campaign_heat_source is not None and campaign_heat_source.down_revision == "0021_airdrop_campaigns"
     assert trusted_catalog_source is not None and trusted_catalog_source.down_revision == "0022_campaign_heat_source"
+    discovery_filter_decisions = scripts.get_revision("0024_discovery_filter_decisions")
+    assert discovery_filter_decisions is not None
+    assert discovery_filter_decisions.down_revision == "0023_trusted_catalog_source"
+    assert scripts.get_current_head() == "0024_discovery_filter_decisions"

@@ -63,7 +63,6 @@ async def _discover_binance_cms_endpoint(client: httpx.AsyncClient) -> str | Non
     except (httpx.HTTPError, ValueError, TypeError) as exc:
         logger.warning("Binance endpoint discovery reference unavailable: %s", type(exc).__name__)
     return None
-BINANCE_AIRDROP_KEYWORDS = re.compile(r"airdrop|launchpool|hodler|megadrop", re.IGNORECASE)
 
 # Populate only after a provider has a documented free airdrop-directory API
 # and its terms permit this product public catalog use. General token/TVL APIs
