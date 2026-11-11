@@ -41,6 +41,13 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
             link="https://ethereum.example/", source_name="test",
             trust_level="TRUST_LEVEL_1", publication_status="PUBLISHED_SAFE"
         ))
+        db.add(AirdropProject(
+            source_key=f"test-{uuid4().hex}:observation", name="Binance Observation Test",
+            chain="Unknown", description="Unverified announcement lead", status="待核实",
+            link="https://www.binance.com/en/support/announcement/test123",
+            source_name="binance-announcements", trust_level="TRUST_LEVEL_0",
+            publication_status="OBSERVATION"
+        ))
         await db.commit()
         return 2
 
@@ -55,6 +62,11 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         assert any(row["name"] == "Hub Solana Test" for row in solana_rows.json())
         assert all(row["chain"] == "Solana" for row in solana_rows.json())
         assert not any(row["name"] == "Hub Ethereum Test" for row in solana_rows.json())
+        observation_rows = client.get("/api/airdrops/hub")
+        observation = next(row for row in observation_rows.json() if row["name"] == "Binance Observation Test")
+        assert observation["publication_status"] == "OBSERVATION"
+        assert observation["trust_level"] == "TRUST_LEVEL_0"
+        assert observation["data_source"] == "Source: Binance Announcements"
 
 def test_status_mapping_is_honest():
     assert _status_label("hot") == "热门"
