@@ -1496,3 +1496,5 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - Selecting a directory row fills the current official name, description, and website URL, and saves the exact `community_official_id` association on the local project. User edits to the displayed name/description/URL do not replace that stable association ID. Private projects remain unassociated unless the user explicitly selects a community entry.
 - The directory uses a six-hour freshness window; market-price and hot-coin caches use the shared 15-minute cache policy. Warm-up sources fail independently, so one provider outage does not block the other directories or cached UI.
 - **Status:** source changes committed; exact-head Android/backend CI and first-launch/offline/refresh UI acceptance pending.
+
+- The picker opens with an empty search and displays every active cached directory entry immediately; typing filters by name, chain, and tags. It never relies on a hard-coded fallback list.
