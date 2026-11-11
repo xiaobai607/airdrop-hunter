@@ -69,6 +69,11 @@ async def list_airdrop_hub(chain: str | None = Query(default=None, max_length=80
     return [AirdropHubItem(id=str(x.id), name=x.name, chain=x.chain, description=x.description, status=x.status, link=x.link) for x in rows]
 
 
+@router.get("/status", response_model=AirdropHubSyncStatus)
+async def airdrop_hub_sync_status() -> dict[str, Any]:
+    return get_sync_status()
+
+
 @router.get("/{item_id}", response_model=AirdropHubDetail)
 async def get_airdrop_hub_detail(item_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     try:
@@ -91,10 +96,6 @@ async def get_airdrop_hub_detail(item_id: str, db: AsyncSession = Depends(get_db
             status_code=502,
             detail="暂时无法获取 Binance 公告正文，请稍后重试或打开官方原文",
         ) from exc
-
-@router.get("/status", response_model=AirdropHubSyncStatus)
-async def airdrop_hub_sync_status() -> dict[str, Any]:
-    return get_sync_status()
 
 @router.post("/refresh")
 @limiter.limit("1/minute")
