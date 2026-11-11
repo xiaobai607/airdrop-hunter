@@ -360,9 +360,9 @@ def test_admin_review_queue_supports_stable_offset_pagination(monkeypatch):
         nonlocal seeded, expected_ids
         async with AsyncSessionLocal() as db:
             if not seeded:
-                # Keep these rows ahead of unrelated candidates that may already
-                # exist in the shared test database; the endpoint sorts oldest first.
-                now = datetime(2000, 1, 1, tzinfo=timezone.utc)
+                # Use a sentinel timestamp before ordinary fixtures so this test's
+                # rows form the first contiguous page in the shared test database.
+                now = datetime(1900, 1, 1, tzinfo=timezone.utc)
                 candidates = []
                 for index in range(3):
                     candidate = AirdropDiscoveryCandidate(
