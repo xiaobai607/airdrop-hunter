@@ -1,3 +1,5 @@
+import com.airdrophunter.app.data.CommunityProjectCatalogDto
+
 package com.airdrophunter.app
 
 internal fun matchesCommunityProjectQuery(
@@ -50,7 +52,7 @@ internal val airdropFilterGroups = listOf(
         AirdropFilterOption("governance", "治理 / 投票"), AirdropFilterOption("testnet", "测试网交互"),
         AirdropFilterOption("points_quest", "积分 / 任务"), AirdropFilterOption("social", "社交任务"),
         AirdropFilterOption("referral", "邀请 / 推荐"), AirdropFilterOption("github_developer", "开发者贡献"),
-        AirdropFilterOption("event_poap", "活动 / POAP"), AirdropFilterOption("unknown", "参与条件未标注")
+        AirdropFilterOption("event_poap", "活动 / POAP"), AirdropFilterOption("minimum_tx_count", "交易次数门槛"), AirdropFilterOption("minimum_volume", "交易量门槛"), AirdropFilterOption("active_days", "多日 / 多月活跃"), AirdropFilterOption("unique_contracts", "交互合约数量"), AirdropFilterOption("gas_spend", "Gas 消耗"), AirdropFilterOption("snapshot_activity", "快照前历史行为"), AirdropFilterOption("wallet_age", "钱包历史"), AirdropFilterOption("multi_chain", "多链活动"), AirdropFilterOption("community_contribution", "社区贡献"), AirdropFilterOption("unknown", "参与条件未标注")
     )),
     AirdropFilterGroup("funding_requirement", "资金门槛", listOf(
         AirdropFilterOption("no_extra_capital", "无需额外本金"), AirdropFilterOption("gas_only", "仅需 Gas"),
@@ -79,6 +81,27 @@ internal val airdropFilterGroups = listOf(
         AirdropFilterOption("long_term", "长期持续"), AirdropFilterOption("unknown", "投入未知")
     ))
 )
+
+internal fun airdropFilterGroupsFor(directory: List<CommunityProjectCatalogDto>): List<AirdropFilterGroup> {
+    fun label(value: String): String = value.replace('_', ' ').replace('-', ' ')
+        .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+    return airdropFilterGroups.map { group ->
+        val discovered = when (group.key) {
+            "supported_chains" -> directory.flatMap { it.supported_chains.orEmpty() }
+            "categories" -> directory.flatMap { it.categories.orEmpty() }
+            "participation_requirements" -> directory.flatMap { it.participation_requirements.orEmpty() }
+            "funding_requirement" -> directory.mapNotNull { it.funding_requirement }
+            "campaign_stage" -> directory.mapNotNull { it.campaign_stage }
+            "reward_types" -> directory.flatMap { it.reward_types.orEmpty() }
+            "risk_flags" -> directory.flatMap { it.risk_flags.orEmpty() }
+            "effort_level" -> directory.mapNotNull { it.effort_level }
+            else -> emptyList()
+        }.filter { it.isNotBlank() }.distinct()
+        val known = group.options.map { it.value }.toSet()
+        val extra = discovered.filterNot { it in known }.map { AirdropFilterOption(it, label(it)) }
+        group.copy(options = group.options + extra)
+    }
+}
 
 internal data class AirdropFilterSelection(val values: Map<String, Set<String>> = emptyMap()) {
     val selectedCount: Int get() = values.values.sumOf { it.size }
