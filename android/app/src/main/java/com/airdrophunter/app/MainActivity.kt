@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
 }
 private data class Destination(val label: Int, val icon: ImageVector)
 
-private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY }
+private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY, ACCOUNTING }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,7 +108,7 @@ private fun AirdropHunterApp(
     }
 
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
-    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
+    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY, AppOverlay.ACCOUNTING) || selectedProject != null || selectedCommunityProject != null
 
     BackHandler(hasSecondaryDestination) {
         activeOverlay = AppOverlay.NONE
@@ -130,6 +130,7 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "$selectedMarketSymbol 行情"
         activeOverlay == AppOverlay.TRON_ENERGY -> "TRON 能量租赁助手"
+        activeOverlay == AppOverlay.ACCOUNTING -> "记账"
         selectedCommunityProject != null -> "项目微社区"
         else -> stringResource(R.string.project_detail)
     }
@@ -179,6 +180,7 @@ private fun AirdropHunterApp(
                 activeOverlay == AppOverlay.SOURCES -> SourcesScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.AIRDROP_HUB -> AirdropHubScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> AirdropCampaignsScreen(Modifier.fillMaxSize())
+                activeOverlay == AppOverlay.ACCOUNTING -> AccountingCenterScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.TRON_ENERGY -> TronEnergyAssistantScreen(
                     modifier = Modifier.fillMaxSize(),
                     onBack = { activeOverlay = AppOverlay.NONE },
@@ -255,7 +257,7 @@ private fun AirdropHunterApp(
                     onOpenProjects = { tab = 2 },
                     onOpenAirdropHub = { activeOverlay = AppOverlay.AIRDROP_HUB },
                     onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
-                    onOpenAccounting = { tab = 2 },
+                    onOpenAccounting = { activeOverlay = AppOverlay.ACCOUNTING },
                     isGuest = isGuest, onRequireAuth = onRequireAuth,
                     sessionScopeKey = sessionScopeKey
                     )
