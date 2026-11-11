@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal, get_db
 from app.routers.auth import limiter
 from app.models import AirdropProject
-from app.services.airdrop_hub_sync import OBSERVATION, SOURCE_LABELS, TRUSTED_AIRDROP_PROVIDER_LABELS, get_sync_status, sync_airdrop_hub
+from app.services.airdrop_hub_sync import OBSERVATION, get_sync_status, sync_airdrop_hub
 
 # Compatibility alias for existing sync route/tests; this is the approved four-source pipeline.
 sync_airdrops = sync_airdrop_hub
