@@ -851,18 +851,33 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
         logger.warning('Discovery source %s %s; continuing: %s', source_name, status, type(exc).__name__)
         return 0
 
+def _configured_discovery_sources() -> list[tuple[str, str, Any]]:
+    """Return zero-key public sources by default; credentialed/approved sources are opt-in."""
+    sources: list[tuple[str, str, Any]] = [
+        ('dexscreener-new-pools', 'https://api.dexscreener.com/latest/dex/search', _fetch_dexscreener_observations),
+        ('binance-announcements', BINANCE_CMS_SOURCE, _fetch_binance_observations),
+    ]
+    if os.getenv("COINGECKO_DEMO_API_KEY", "").strip():
+        sources.append((
+            'coingecko-airdrop-category',
+            'https://api.coingecko.com/api/v3/coins/categories/list',
+            _fetch_coingecko_observations,
+        ))
+    if os.getenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", "").strip():
+        sources.append((
+            'github-airdrop-lists',
+            'https://raw.githubusercontent.com/',
+            _fetch_github_observations,
+        ))
+    return sources
+
+
 async def sync_airdrop_hub(db: AsyncSession) -> int:
     now = datetime.now(timezone.utc)
     _sync_status.update({'last_attempt_at': now.isoformat(), 'error': None})
     total = 0
     async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), headers={'User-Agent': 'AirdropHunter/1.0', 'Accept': 'application/json'}) as client:
-        sources = [
-            ('coingecko-airdrop-category', 'https://api.coingecko.com/api/v3/coins/categories/list', _fetch_coingecko_observations),
-            ('github-airdrop-lists', 'https://raw.githubusercontent.com/', _fetch_github_observations),
-            ('dexscreener-new-pools', 'https://api.dexscreener.com/latest/dex/search', _fetch_dexscreener_observations),
-            ('binance-announcements', BINANCE_CMS_SOURCE, _fetch_binance_observations),
-        ]
-        for source_name, source_url, fetcher in sources:
+        for source_name, source_url, fetcher in _configured_discovery_sources():
             total += await _upsert_source_records(db, source_name, source_url, fetcher, client, now)
     if total == 0:
         _sync_status.update({'source': 'four-source-pipeline', 'error': '四个数据源本轮均未产生有效观察记录；已保留原有数据'})
