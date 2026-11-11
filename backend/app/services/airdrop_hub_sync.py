@@ -535,7 +535,7 @@ async def _upsert_discovery_candidate(
             project_identity_key=identity_result["project_identity_key"],
             campaign_identity_key=identity_result["campaign_identity_key"],
             identity_status=identity_result["identity_status"],
-            identity_evidence={key: identity_result[key] for key in ("project_identity_evidence", "campaign_identity_evidence", "matched_source_keys")},
+            identity_evidence={key: identity_result[key] for key in ("project_identity_evidence", "campaign_identity_evidence", "matched_source_keys", "identity_conflict")},
             matched_source_key=identity_result["matched_source_key"],
         ))
     else:
@@ -552,7 +552,7 @@ async def _upsert_discovery_candidate(
         candidate.project_identity_key = identity_result["project_identity_key"]
         candidate.campaign_identity_key = identity_result["campaign_identity_key"]
         candidate.identity_status = identity_result["identity_status"]
-        candidate.identity_evidence = {key: identity_result[key] for key in ("project_identity_evidence", "campaign_identity_evidence", "matched_source_keys")}
+        candidate.identity_evidence = {key: identity_result[key] for key in ("project_identity_evidence", "campaign_identity_evidence", "matched_source_keys", "identity_conflict")}
         candidate.matched_source_key = identity_result["matched_source_key"]
         # Preserve approved/rejected review decisions across future refreshes.
     return True
@@ -574,7 +574,7 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
             project_record["project_identity_key"] = identity_result["project_identity_key"]
             project_record["campaign_identity_key"] = identity_result["campaign_identity_key"]
             project_record["identity_status"] = identity_result["identity_status"]
-            project_record["identity_evidence"] = {key: identity_result[key] for key in ("project_identity_evidence", "campaign_identity_evidence", "matched_source_keys")}
+            project_record["identity_evidence"] = {key: identity_result[key] for key in ("project_identity_evidence", "campaign_identity_evidence", "matched_source_keys", "identity_conflict")}
             project_record["matched_source_key"] = identity_result["matched_source_key"]
             if record.get("catalog_id") is not None:
                 project_record["description"] = f"{project_record.get('description', '')} Binance catalog ID: {record['catalog_id']}."

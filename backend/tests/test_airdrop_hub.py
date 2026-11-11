@@ -516,3 +516,49 @@ def test_identity_url_is_https_only_and_ignores_tracking_parameters():
     unsafe = build_discovery_identity({"source_name": "github-airdrop-lists", "link": "http://project.example/path"})
     assert a["project_identity_key"] == b["project_identity_key"]
     assert unsafe["project_identity_key"] is None
+
+
+def test_same_campaign_evidence_is_grouped_and_conflicting_project_identity_is_flagged():
+    from app.services.airdrop_discovery_filter import build_discovery_identity, classify_identity_matches
+
+    current = build_discovery_identity({
+        "source_name": "github-airdrop-lists",
+        "_filter_metadata": {
+            "official_url": "https://project-alpha.example",
+            "campaign_url": "https://project-alpha.example/season",
+        },
+    })
+    class SameSourceA:
+        source_key = "source:a"
+        source_name = "github-airdrop-lists"
+        project_identity_key = current["project_identity_key"]
+        campaign_identity_key = current["campaign_identity_key"]
+
+    class SameSourceB:
+        source_key = "source:b"
+        source_name = "binance-announcements"
+        project_identity_key = current["project_identity_key"]
+        campaign_identity_key = current["campaign_identity_key"]
+
+    grouped = classify_identity_matches(current, [SameSourceA(), SameSourceB()])
+    assert grouped["identity_status"] == "same_project_same_campaign"
+    assert grouped["identity_conflict"] is False
+    assert grouped["matched_source_keys"] == ["source:a", "source:b"]
+
+    other_project = build_discovery_identity({
+        "source_name": "github-airdrop-lists",
+        "_filter_metadata": {
+            "official_url": "https://project-beta.example",
+            "campaign_url": "https://project-beta.example/season",
+        },
+    })
+    class ConflictingCampaign:
+        source_key = "source:conflict"
+        source_name = "another-provider"
+        project_identity_key = other_project["project_identity_key"]
+        campaign_identity_key = current["campaign_identity_key"]
+
+    conflicted = classify_identity_matches(current, [ConflictingCampaign()])
+    assert conflicted["identity_status"] == "identity_conflict_needs_review"
+    assert conflicted["identity_conflict"] is True
+    assert conflicted["matched_source_keys"] == ["source:conflict"]

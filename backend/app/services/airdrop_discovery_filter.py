@@ -91,20 +91,69 @@ def build_discovery_identity(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def classify_identity_matches(identity: dict[str, Any], matches: list[Any]) -> dict[str, Any]:
-    project_key, campaign_key = identity.get("project_identity_key"), identity.get("campaign_identity_key")
-    pm = [x for x in matches if project_key and getattr(x, "project_identity_key", None) == project_key]
-    cm = [x for x in matches if campaign_key and getattr(x, "campaign_identity_key", None) == campaign_key]
-    if cm and pm: status, selected = "same_project_same_campaign", cm[0]
-    elif cm: status, selected = "same_campaign_project_unconfirmed", cm[0]
-    elif pm and campaign_key:
-        distinct = [x for x in pm if getattr(x, "campaign_identity_key", None) and getattr(x, "campaign_identity_key", None) != campaign_key]
-        status, selected = ("same_project_distinct_campaign", distinct[0]) if distinct else ("same_project_campaign_unconfirmed", pm[0])
-    elif pm: status, selected = "same_project_campaign_unconfirmed", pm[0]
-    elif project_key or campaign_key: status, selected = "no_strong_match_found", None
-    else: status, selected = "insufficient_identity_evidence", None
-    return {**identity, "identity_status": status, "matched_source_key": getattr(selected, "source_key", None),
-            "matched_source_name": getattr(selected, "source_name", None),
-            "matched_source_keys": sorted({str(getattr(x, "source_key", "")) for x in pm + cm if getattr(x, "source_key", None)})}
+    """Classify project/campaign matches without hiding contradictory evidence."""
+    project_key = identity.get("project_identity_key")
+    campaign_key = identity.get("campaign_identity_key")
+    project_matches = [
+        item for item in matches
+        if project_key and getattr(item, "project_identity_key", None) == project_key
+    ]
+    campaign_matches = [
+        item for item in matches
+        if campaign_key and getattr(item, "campaign_identity_key", None) == campaign_key
+    ]
+
+    campaign_project_keys = {
+        getattr(item, "project_identity_key", None)
+        for item in campaign_matches
+        if getattr(item, "project_identity_key", None)
+    }
+    identity_conflict = (
+        len(campaign_project_keys) > 1
+        or bool(project_key and any(key != project_key for key in campaign_project_keys))
+    )
+
+    exact_pair_matches = [
+        item for item in campaign_matches
+        if project_key and getattr(item, "project_identity_key", None) == project_key
+    ]
+    if identity_conflict:
+        status, selected = "identity_conflict_needs_review", (campaign_matches or project_matches)[0]
+    elif exact_pair_matches:
+        status, selected = "same_project_same_campaign", exact_pair_matches[0]
+    elif campaign_matches:
+        status, selected = "same_campaign_project_unconfirmed", campaign_matches[0]
+    elif project_matches and campaign_key:
+        distinct = [
+            item for item in project_matches
+            if getattr(item, "campaign_identity_key", None)
+            and getattr(item, "campaign_identity_key", None) != campaign_key
+        ]
+        status, selected = (
+            ("same_project_distinct_campaign", distinct[0])
+            if distinct else ("same_project_campaign_unconfirmed", project_matches[0])
+        )
+    elif project_matches:
+        status, selected = "same_project_campaign_unconfirmed", project_matches[0]
+    elif project_key or campaign_key:
+        status, selected = "no_strong_match_found", None
+    else:
+        status, selected = "insufficient_identity_evidence", None
+
+    matched = project_matches + campaign_matches
+    matched_source_keys = sorted({
+        str(getattr(item, "source_key", ""))
+        for item in matched
+        if getattr(item, "source_key", None)
+    })
+    return {
+        **identity,
+        "identity_status": status,
+        "identity_conflict": identity_conflict,
+        "matched_source_key": getattr(selected, "source_key", None),
+        "matched_source_name": getattr(selected, "source_name", None),
+        "matched_source_keys": matched_source_keys,
+    }
 
 
 async def evaluate_discovery_identity(db: Any, record: dict[str, Any]) -> dict[str, Any]:
