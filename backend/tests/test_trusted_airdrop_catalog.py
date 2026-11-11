@@ -18,7 +18,7 @@ def test_only_explicitly_allowlisted_airdrop_directory_gets_trust_level_one(monk
     assert untrusted == ("TRUST_LEVEL_0", "OBSERVATION")
 
 
-def test_normalized_records_keep_source_and_trust_metadata():
+def test_normalized_records_keep_source_and_trust_metadata(monkeypatch):
     payload = {
         "airdrops": [{
             "id": "campaign-1",
@@ -35,7 +35,7 @@ def test_normalized_records_keep_source_and_trust_metadata():
     assert ordinary[0]["trust_level"] == "TRUST_LEVEL_0"
     assert ordinary[0]["publication_status"] == "OBSERVATION"
 
-    catalog_sync.TRUSTED_AIRDROP_PROVIDER_LABELS["approved-directory"] = "Approved Directory"
+    monkeypatch.setattr(catalog_sync, "TRUSTED_AIRDROP_PROVIDER_LABELS", {"approved-directory": "Approved Directory"})
     trusted = catalog_sync._normalize(payload, source_name="approved-directory")
     assert trusted[0]["trust_level"] == "TRUST_LEVEL_1"
     assert trusted[0]["publication_status"] == "PUBLISHED_SAFE"
