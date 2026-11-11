@@ -214,7 +214,11 @@ async def _get_json(
             if response.status_code in {408, 425, 429} or response.status_code >= 500:
                 if attempt == 0:
                     retry_after = _finite_number(response.headers.get("Retry-After"))
-                    await sleep(min(6.0, retry_after if retry_after is not None else 1.0))
+                    if response.status_code == 429:
+                        delay = min(60.0, max(6.0, retry_after or 6.0))
+                    else:
+                        delay = min(6.0, retry_after if retry_after is not None else 1.0)
+                    await sleep(delay)
                     continue
             response.raise_for_status()
             if len(response.content) > MAX_RESPONSE_BYTES:
