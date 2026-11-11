@@ -29,6 +29,7 @@ TRUST_LEVEL_0 = "TRUST_LEVEL_0"
 TRUST_LEVEL_1 = "TRUST_LEVEL_1"
 OBSERVATION = "OBSERVATION"
 PUBLISHED_SAFE = "PUBLISHED_SAFE"
+SOURCE_LABELS = {"binance-announcements": "Binance Announcements"}
 
 def _source_publication_state(source_name: str) -> tuple[str, str]:
     if source_name in TRUSTED_AIRDROP_PROVIDER_LABELS:
