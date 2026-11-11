@@ -221,7 +221,7 @@ def test_identity_group_endpoint_returns_complete_campaign_members_with_paginati
             first = client.get(
                 f"/api/airdrops/discovery/identity-groups/campaign/{campaign_key}",
                 headers=headers,
-                params={"q": batch_marker, "limit": 2, "offset": 0},
+                params={"limit": 2, "offset": 0},
             )
             assert first.status_code == 200, first.text
             payload = first.json()
@@ -234,7 +234,7 @@ def test_identity_group_endpoint_returns_complete_campaign_members_with_paginati
             second = client.get(
                 f"/api/airdrops/discovery/identity-groups/campaign/{campaign_key}",
                 headers=headers,
-                params={"q": batch_marker, "limit": 2, "offset": 2},
+                params={"limit": 2, "offset": 2},
             )
             assert second.status_code == 200
             assert second.json()["total_count"] == 3
@@ -395,12 +395,12 @@ def test_admin_review_queue_supports_stable_offset_pagination(monkeypatch):
             first = client.get(
                 "/api/airdrops/discovery/candidates/review-queue",
                 headers=headers,
-                params={"limit": 2, "offset": 0},
+                params={"q": batch_marker, "limit": 2, "offset": 0},
             )
             second = client.get(
                 "/api/airdrops/discovery/candidates/review-queue",
                 headers=headers,
-                params={"limit": 2, "offset": 2},
+                params={"q": batch_marker, "limit": 2, "offset": 2},
             )
             assert first.status_code == 200, first.text
             assert second.status_code == 200, second.text
