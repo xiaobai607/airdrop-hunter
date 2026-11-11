@@ -411,7 +411,9 @@ fun ProjectsScreen(
     }
 
     if (showCommunityPicker) {
-        val selectableProjects = communityDirectory.filter { it.is_active && it.matchesSearch(communitySearchQuery) }
+        val selectableProjects = communityDirectory.filter {
+            it.is_active && (communitySearchQuery.isBlank() || it.matchesSearch(communitySearchQuery))
+        }
         AlertDialog(
             onDismissRequest = { showCommunityPicker = false },
             containerColor = AppColors.Surface,
