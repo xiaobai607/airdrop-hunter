@@ -18,8 +18,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.AirdropCampaignDto
-import com.airdrophunter.app.data.AirdropCampaignViewModelFactory
-import com.airdrophunter.app.data.AirdropCampaignFilters
 import com.airdrophunter.app.ui.theme.AppColors
 
 @Composable
