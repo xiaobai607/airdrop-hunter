@@ -118,7 +118,7 @@ internal fun matchesAirdropFilters(metadata: AirdropFilterMetadata, selection: A
     )
     return selection.values.all { (group, selected) ->
         val actual = valuesByGroup[group].orEmpty()
-        if ("unknown" in selected) actual.isEmpty() || actual == listOf("unknown")
-        else actual.any { it in selected }
+        actual.isEmpty() && "unknown" in selected ||
+            actual.any { it in selected }
     }
 }
