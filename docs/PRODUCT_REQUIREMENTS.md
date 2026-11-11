@@ -2,6 +2,21 @@
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
+## 0.2 Latest user-confirmed data-discovery strategy — trusted third-party directories only
+
+This section supersedes all earlier RSS/Atom discovery, wild-source crawling, and manual source-triage plans wherever they conflict.
+
+- Stop all RSS/Atom ingestion immediately. The scheduled sync must not call `sync_rss_discovery_candidates` or `promote_pending_candidates_to_campaign_observations`. Existing RSS code/data may remain for migration compatibility, but it is dormant and must not create new candidates, campaigns, or public listings.
+- New discovery is restricted to explicitly allowlisted, reputable third-party providers that publish a structured airdrop/campaign directory and permit the intended API use and redistribution. Do not treat a general token/market API as an airdrop directory.
+- Provider trust is source-level provenance, not proof that every project, URL, smart contract, claim page, or reward is harmless. For a provider explicitly approved as a trusted airdrop-directory source, skip the old manual/source-risk-review queue and fast-track records to `TRUST_LEVEL_1` + `PUBLISHED_SAFE` after deterministic import validation: required project name, valid HTTPS destination, bounded field sizes, stable source identity, deduplication, and source attribution. These checks are automated ingestion integrity checks, not a return to manual review.
+- Do not mark records from a provider that only supplies token prices, protocol metadata, TVL, trending assets, or general crypto listings as airdrop-verified. CoinGecko market/token data and DefiLlama protocol/TVL data are enrichment/identity context only unless the provider publishes an actual airdrop directory.
+- Every public project object must include `data_source`, e.g. `Source: DefiLlama`, and the persisted source identity must remain available for auditing. The API must not infer or fabricate a source label.
+- Preserve last-known-good catalog data when an upstream provider fails. Do not wipe the catalog on empty/error responses. Use bounded response sizes, timeouts, conservative polling, stable IDs, and idempotent upserts.
+- Zero-budget constraint is absolute: no paid endpoints, no trial-only credits that later bill, no paid API keys, no scraping paywalled pages, and no unapproved republication of third-party datasets.
+- Provider research checkpoint (2026-11-11): DefiLlama's currently documented free API is a DeFi/protocol/market data API; no official Airdrops API endpoint was found. CoinGecko's free Demo API provides crypto asset/market data, not a curated airdrop directory. CoinMarketCap documents an Airdrops API, but its Airdrops endpoint requires a paid plan. CryptoRank advertises a Drophunting endpoint, but its documented access is Business-tier, not its free Sandbox tier. Therefore none of these is currently an eligible free airdrop-directory provider. Do not activate any of them as an airdrop source until a genuinely free, documented airdrop endpoint and its reuse terms are verified.
+- Existing `web3-discover` JSON/MCP source is not automatically promoted to trusted status: its source identity/republication permission has not been approved as a head-tier provider. Keep it disabled until separately validated. No trusted provider is activated by this requirements change alone.
+- The project API's `data_source` contract and source trust/publication fields must be implemented independently of whether a live provider is currently available. No record may be labelled `TRUST_LEVEL_1` or `PUBLISHED_SAFE` merely because its source name resembles a trusted brand.
+
 ## 0.1 Latest user-confirmed corrections — 2026-11-11 (authoritative overrides)
 
 The following decisions are newer than the older baseline below. Where older sections conflict, this section and the explicit replacements noted in those sections win.
