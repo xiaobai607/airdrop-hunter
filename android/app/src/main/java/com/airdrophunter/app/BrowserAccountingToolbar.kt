@@ -260,8 +260,10 @@ fun BrowserAccountingToolbar(
                         }
                     ) { change, amount ->
                         change.consume()
-                        dragOffsetX.snapTo((dragOffsetX.value + amount.x).coerceIn(-maxHorizontalDrag, maxHorizontalDrag))
-                        dragOffsetY.snapTo((dragOffsetY.value + amount.y).coerceIn(-maxVerticalDrag, 0f))
+                        scope.launch {
+                            dragOffsetX.snapTo((dragOffsetX.value + amount.x).coerceIn(-maxHorizontalDrag, maxHorizontalDrag))
+                            dragOffsetY.snapTo((dragOffsetY.value + amount.y).coerceIn(-maxVerticalDrag, 0f))
+                        }
                     }
                 }
         ) {
