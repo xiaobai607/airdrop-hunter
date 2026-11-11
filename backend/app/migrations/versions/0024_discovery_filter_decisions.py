@@ -10,7 +10,7 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    op.add_column("airdrop_discovery_candidates", sa.Column("filter_status", sa.String(32), nullable=False, server_default="eligible_for_review"))
+    op.add_column("airdrop_discovery_candidates", sa.Column("filter_status", sa.String(32), nullable=False, server_default="not_evaluated"))
     op.add_column("airdrop_discovery_candidates", sa.Column("filter_reasons", sa.JSON(), nullable=False, server_default=sa.text("'[]'")))
     op.add_column("airdrop_discovery_candidates", sa.Column("filter_metadata", sa.JSON(), nullable=False, server_default=sa.text("'{}'")))
     op.create_index("ix_airdrop_discovery_candidates_filter_status", "airdrop_discovery_candidates", ["filter_status"])

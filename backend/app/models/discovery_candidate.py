@@ -28,6 +28,6 @@ class AirdropDiscoveryCandidate(Base):
     review_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending", index=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reviewed_catalog_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    filter_status: Mapped[str] = mapped_column(String(32), nullable=False, default="eligible_for_review", server_default="eligible_for_review", index=True)
+    filter_status: Mapped[str] = mapped_column(String(32), nullable=False, default="not_evaluated", server_default="not_evaluated", index=True)
     filter_reasons: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     filter_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
