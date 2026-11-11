@@ -5,6 +5,7 @@ GeckoTerminal trending pools are fetched once per sync, never per campaign.
 Provider failures preserve the last known campaign market fields.
 """
 import asyncio
+import json
 import math
 import time
 from collections import defaultdict
@@ -210,20 +211,26 @@ async def _get_json(
     last_error: Exception | None = None
     for attempt in range(2):
         try:
-            response = await client.get(url, headers=headers)
-            if response.status_code in {408, 425, 429} or response.status_code >= 500:
-                if attempt == 0:
-                    retry_after = _finite_number(response.headers.get("Retry-After"))
-                    if response.status_code == 429:
-                        delay = min(60.0, max(6.0, retry_after or 6.0))
-                    else:
-                        delay = min(6.0, retry_after if retry_after is not None else 1.0)
-                    await sleep(delay)
-                    continue
-            response.raise_for_status()
-            if len(response.content) > MAX_RESPONSE_BYTES:
-                raise ValueError("Public market response exceeded the size limit")
-            return response.json()
+            async with client.stream("GET", url, headers=headers) as response:
+                if response.status_code in {408, 425, 429} or response.status_code >= 500:
+                    if attempt == 0:
+                        retry_after = _finite_number(response.headers.get("Retry-After"))
+                        if response.status_code == 429:
+                            delay = min(60.0, max(6.0, retry_after or 6.0))
+                        else:
+                            delay = min(6.0, retry_after if retry_after is not None else 1.0)
+                        await sleep(delay)
+                        continue
+                response.raise_for_status()
+                declared_size = _finite_number(response.headers.get("Content-Length"))
+                if declared_size is not None and declared_size > MAX_RESPONSE_BYTES:
+                    raise ValueError("Public market response exceeded the size limit")
+                body = bytearray()
+                async for chunk in response.aiter_bytes():
+                    body.extend(chunk)
+                    if len(body) > MAX_RESPONSE_BYTES:
+                        raise ValueError("Public market response exceeded the size limit")
+                return json.loads(body)
         except (httpx.TransportError, httpx.HTTPStatusError) as error:
             last_error = error
             status = error.response.status_code if isinstance(error, httpx.HTTPStatusError) else None
@@ -235,7 +242,6 @@ async def _get_json(
     if last_error:
         raise last_error
     raise RuntimeError("Public market request failed")
-
 
 async def collect_market_signals(
     campaigns: list[AirdropCampaign],
