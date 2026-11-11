@@ -6,6 +6,7 @@ from app.services.airdrop_hub_sync import (
     _configured_github_raw_sources,
     _normalize_binance_announcements,
     _normalize_binance_article_detail,
+    _normalize_dexscreener_pairs,
     _normalize_github_airdrop_list,
 )
 

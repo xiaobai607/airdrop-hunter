@@ -69,7 +69,10 @@ def test_binance_latest_activities_requires_airdrop_keyword():
         {"title": "Launchpool Season announcement", "code": "x2"},
     ]}]}}
     rows = catalog_sync._normalize_binance_announcements(payload, catalog_id=93)
-    assert [row["source_key"] for row in rows] == ["binance:x2"]
+    assert [row["source_key"] for row in rows] == ["binance:x1", "binance:x2"]
+    from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+    decisions = [evaluate_discovery_observation(row) for row in rows]
+    assert [decision["status"] for decision in decisions] == ["filtered", "eligible_for_review"]
 
 
 def test_trusted_catalog_destination_must_be_https_without_credentials():
@@ -85,7 +88,12 @@ def test_coingecko_airdrop_category_and_coin_normalization():
         {"id": "airdrop", "name": "Airdrop"},
         {"id": "layer-1", "name": "Layer 1"},
     ])
-    assert categories == ["airdrop"]
+    assert categories == [
+        {"id": "airdrop", "name": "Airdrop"},
+        {"id": "layer-1", "name": "Layer 1"},
+    ]
+    from app.services.airdrop_discovery_filter import select_coingecko_airdrop_categories
+    assert select_coingecko_airdrop_categories(categories) == ["airdrop"]
     rows = catalog_sync._normalize_coingecko_coins(
         [{"id": "sample-token", "name": "Sample Token"}], "airdrop"
     )
@@ -111,7 +119,7 @@ def test_github_raw_json_and_markdown_normalization():
     assert all(row["publication_status"] == "OBSERVATION" for row in json_rows + markdown_rows)
 
 
-def test_dexscreener_only_imports_recent_active_liquid_pools():
+def test_dexscreener_adapter_retains_pairs_for_centralized_filtering():
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     payload = {"pairs": [
         {
@@ -134,10 +142,12 @@ def test_dexscreener_only_imports_recent_active_liquid_pools():
         },
     ]}
     rows = catalog_sync._normalize_dexscreener_pairs(payload, "BASE")
-    assert len(rows) == 1
+    assert len(rows) == 2
+    from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+    decisions = [evaluate_discovery_observation(row) for row in rows]
+    assert [decision["status"] for decision in decisions] == ["eligible_for_review", "filtered"]
     assert rows[0]["name"] == "New Token (NEW)"
     assert rows[0]["source_name"] == "dexscreener-new-pools"
-    assert rows[0]["status"] == "交易活跃·待核实"
     assert rows[0]["publication_status"] == "OBSERVATION"
 
 
