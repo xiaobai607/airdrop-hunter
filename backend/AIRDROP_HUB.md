@@ -119,3 +119,10 @@ This is a discovery/review queue, not the published Airdrop Library. Binance ann
 Binance category 93 headlines are all retained by the adapter; the filter applies the existing `airdrop|launchpool|hodler|megadrop` rule. Category 128 remains eligible without that title rule. DexScreener retains parseable observations and structured age/liquidity/volume/trade metadata; the filter applies the existing thresholds unchanged (age <= 7 days, liquidity >= USD 10,000, 24h volume >= USD 50,000, 24h buys+sells >= 20). CoinGecko category responses are normalized as facts and category selection is centralized. Adapter-local deduplication is removed from Binance and DexScreener.
 
 Filter status/reasons/metadata are separate from human `review_status`, which refreshes never overwrite. This is the first responsibility-boundary pass, not a claim that cross-provider project/campaign clustering is finished. Name-only matching must not merge projects or campaigns; uncertain matches remain separate pending review.
+
+
+## Centralized project/campaign identity classification (2026-11-11)
+
+Identity decisions are part of the single discovery filter. The filter uses only strong evidence: chain + contract address, exact HTTPS official project URL, and exact HTTPS campaign/activity URL. EVM contract addresses are case-normalized; non-EVM addresses retain case. Tracking parameters are removed from official URLs. Project names and tickers are never identity keys.
+
+Project identity and campaign identity are stored separately on both raw catalog observations and review candidates. The filter can classify a record as the same project but a distinct campaign, the same campaign, or insufficient evidence. A match records the source key and evidence; it does not merge, delete, or overwrite any provider observation. A project match without campaign evidence is explicitly not a campaign duplicate. Existing records are not retroactively merged; identity decisions are recalculated as new observations arrive.

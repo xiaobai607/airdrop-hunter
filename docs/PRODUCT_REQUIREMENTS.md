@@ -2116,3 +2116,8 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 The active architecture has exactly three stages: source acquisition; one centralized filter; and the Airdrop Library. Result organization belongs to the filter, not a separate stage. Adapters do not apply keyword, liquidity, volume, pool-age, transaction-count, duplicate, or merge rules. They retain parseable observations and provenance. The first pass centralizes the existing Binance title rule, DexScreener thresholds and CoinGecko Airdrop category selection without changing thresholds. Filtered observations remain stored, with filter reasons and structured evidence separate from human review status.
 
 Project identity and campaign identity are distinct. Project-name similarity alone must never merge records; one project can have multiple campaigns and one campaign can have evidence from multiple providers. Full cross-provider clustering remains unfinished and must not be represented as complete.
+
+
+## 2026-11-11 — centralized identity classification
+
+Project and campaign identity classification is a responsibility of the unified discovery filter, not source adapters. Strong identity evidence is limited to chain+contract, exact HTTPS official project URL, and exact HTTPS campaign/activity URL. Never infer identity from names or tickers. Keep project and campaign identity separate. Store match status, evidence and matched source key without deleting, merging or suppressing raw source records. Same-project/different-campaign records remain distinct. No strong evidence means insufficient identity evidence, not a guessed match.
