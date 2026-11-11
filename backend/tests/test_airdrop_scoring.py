@@ -45,6 +45,7 @@ def test_ended_campaign_with_retroactive_possibility_is_not_archived():
     result = evaluate_campaign({
         "temperature": 55, "campaign_status": "ended",
         "retroactive_possible": True, "trust_status": "verified",
+        "official_url_verified": True,
     })
     assert result["tier"] == "ordinary"
 
@@ -82,3 +83,26 @@ def test_corrobated_risk_is_held_out_of_publication():
     })
     assert result["tier"] == "observation"
     assert result["is_published"] is False
+
+
+def test_ordinary_campaign_without_verified_official_url_stays_observation():
+    result = evaluate_campaign({
+        "temperature": 55,
+        "campaign_status": "ongoing",
+        "trust_status": "verified",
+        "official_url_verified": False,
+    })
+    assert result["tier"] == "observation"
+    assert result["is_published"] is False
+    assert "官方链接尚未核验" in result["listing_reason"]
+
+
+def test_ordinary_campaign_with_verified_official_url_can_publish():
+    result = evaluate_campaign({
+        "temperature": 55,
+        "campaign_status": "ongoing",
+        "trust_status": "verified",
+        "official_url_verified": True,
+    })
+    assert result["tier"] == "ordinary"
+    assert result["is_published"] is True
