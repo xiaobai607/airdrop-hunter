@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -84,7 +85,7 @@ class _FakeDb:
         self.committed = True
 
 
-async def test_recalculate_campaign_scores_only_publishes_verified_campaigns():
+def test_recalculate_campaign_scores_only_publishes_verified_campaigns():
     verified = _campaign()
     unverified = _campaign(
         trust_status="unverified",
@@ -93,7 +94,7 @@ async def test_recalculate_campaign_scores_only_publishes_verified_campaigns():
     )
     db = _FakeDb([verified, unverified])
 
-    result = await recalculate_campaign_scores(db)
+    result = asyncio.run(recalculate_campaign_scores(db))
 
     assert result == {"evaluated": 2, "updated": 2, "publishable": 1, "held": 1}
     assert verified.tier == "featured"
@@ -105,7 +106,7 @@ async def test_recalculate_campaign_scores_only_publishes_verified_campaigns():
     assert db.committed is True
 
 
-async def test_recalculation_is_idempotent_when_decision_has_not_changed():
+def test_recalculation_is_idempotent_when_decision_has_not_changed():
     campaign = _campaign(
         tier="featured",
         is_published=True,
@@ -125,7 +126,7 @@ async def test_recalculation_is_idempotent_when_decision_has_not_changed():
     )
     db = _FakeDb([campaign])
 
-    result = await recalculate_campaign_scores(db)
+    result = asyncio.run(recalculate_campaign_scores(db))
 
     assert result == {"evaluated": 1, "updated": 0, "publishable": 0, "held": 0}
     assert db.added == []
