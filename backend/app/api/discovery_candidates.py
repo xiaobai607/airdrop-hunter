@@ -37,6 +37,14 @@ class CandidateReviewResponse(DiscoveryCandidateResponse):
     review_status: str
     reviewed_at: datetime | None
     reviewed_catalog_id: str | None
+    filter_status: str
+    filter_reasons: list[str]
+    filter_metadata: dict
+    project_identity_key: str | None
+    campaign_identity_key: str | None
+    identity_status: str
+    identity_evidence: dict
+    matched_source_key: str | None
 
 
 class DiscoverySourceStatusResponse(BaseModel):
@@ -121,6 +129,8 @@ async def approve_discovery_candidate(
         raise HTTPException(status_code=404, detail="待审核项目不存在")
     if candidate.review_status != "pending":
         raise HTTPException(status_code=409, detail="该候选项目已经审核，不能重复操作")
+    if candidate.filter_status == "filtered":
+        raise HTTPException(status_code=409, detail="该候选已被中央筛选器过滤，不能直接加入社区目录")
 
     try:
         submission = ProjectSubmission(name=candidate.title, url=candidate.item_url)

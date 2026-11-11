@@ -608,3 +608,34 @@ def test_identity_groups_keep_campaigns_separate_under_one_project():
     }, [])
     assert unresolved["identity_group_type"] == "unresolved"
     assert unresolved["identity_group_key"] is None
+
+
+def test_central_discovery_decision_composes_filter_and_identity_without_publishing():
+    from app.services.airdrop_discovery_filter import compose_discovery_decision
+
+    eligible = compose_discovery_decision(
+        {"status": "eligible_for_review", "reasons": [], "metadata": {}, "evaluated_at": "2026-11-11T00:00:00+00:00"},
+        {"identity_status": "same_project_distinct_campaign", "identity_conflict": False,
+         "identity_group_type": "campaign", "identity_group_key": "campaign-key"},
+    )
+    assert eligible["disposition"] == "keep"
+    assert eligible["identity_group_type"] == "campaign"
+    assert eligible["identity_group_key"] == "campaign-key"
+    assert eligible["reasons"] == []
+
+    conflict = compose_discovery_decision(
+        {"status": "eligible_for_review", "reasons": [], "metadata": {}, "evaluated_at": "2026-11-11T00:00:00+00:00"},
+        {"identity_status": "identity_conflict_needs_review", "identity_conflict": True,
+         "identity_group_type": "needs_review", "identity_group_key": None},
+    )
+    assert conflict["disposition"] == "needs_review"
+    assert conflict["identity_group_key"] is None
+    assert conflict["reasons"] == ["project_campaign_identity_conflict_needs_manual_review"]
+
+    filtered = compose_discovery_decision(
+        {"status": "filtered", "reasons": ["liquidity_below_existing_limit"], "metadata": {}, "evaluated_at": "2026-11-11T00:00:00+00:00"},
+        {"identity_status": "identity_conflict_needs_review", "identity_conflict": True,
+         "identity_group_type": "needs_review", "identity_group_key": None},
+    )
+    assert filtered["disposition"] == "filtered"
+    assert "project_campaign_identity_conflict_needs_manual_review" in filtered["reasons"]

@@ -496,6 +496,7 @@ async def _upsert_discovery_candidate(
     record: dict[str, Any],
     now: datetime,
     identity_result: dict[str, Any] | None = None,
+    decision_result: dict[str, Any] | None = None,
 ) -> bool:
     """Feed every provider observation into one review queue without auto-publishing it."""
     item_url = _valid_http_url(record.get("link"))
@@ -513,9 +514,10 @@ async def _upsert_discovery_candidate(
         )
     )
     candidate_source_url = _valid_http_url(record.get("source_url")) or source_url
-    from app.services.airdrop_discovery_filter import evaluate_discovery_identity, evaluate_discovery_observation
-    filter_result = evaluate_discovery_observation(record, now=now)
+    from app.services.airdrop_discovery_filter import compose_discovery_decision, evaluate_discovery_identity, evaluate_discovery_observation
     identity_result = identity_result or await evaluate_discovery_identity(db, record)
+    filter_result = evaluate_discovery_observation(record, now=now)
+    decision_result = decision_result or compose_discovery_decision(filter_result, identity_result)
     summary = str(record.get("description") or "")[:10000]
     if candidate is None:
         db.add(AirdropDiscoveryCandidate(
@@ -529,9 +531,9 @@ async def _upsert_discovery_candidate(
             first_seen_at=now,
             last_seen_at=now,
             review_status="pending",
-            filter_status=filter_result["status"],
-            filter_reasons=filter_result["reasons"],
-            filter_metadata={**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"]},
+            filter_status=decision_result["disposition"],
+            filter_reasons=decision_result["reasons"],
+            filter_metadata={**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"], "decision_version": 1},
             project_identity_key=identity_result["project_identity_key"],
             campaign_identity_key=identity_result["campaign_identity_key"],
             identity_status=identity_result["identity_status"],
@@ -546,9 +548,9 @@ async def _upsert_discovery_candidate(
         candidate.summary = summary
         candidate.published_at = record.get("published_at")
         candidate.last_seen_at = now
-        candidate.filter_status = filter_result["status"]
-        candidate.filter_reasons = filter_result["reasons"]
-        candidate.filter_metadata = filter_result["metadata"]
+        candidate.filter_status = decision_result["disposition"]
+        candidate.filter_reasons = decision_result["reasons"]
+        candidate.filter_metadata = {**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"], "decision_version": 1}
         candidate.project_identity_key = identity_result["project_identity_key"]
         candidate.campaign_identity_key = identity_result["campaign_identity_key"]
         candidate.identity_status = identity_result["identity_status"]
@@ -563,13 +565,14 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
         records = await fetcher(client)
         if not records: raise RuntimeError('empty source result')
         for record in records:
-            from app.services.airdrop_discovery_filter import evaluate_discovery_identity, evaluate_discovery_observation
+            from app.services.airdrop_discovery_filter import compose_discovery_decision, evaluate_discovery_identity, evaluate_discovery_observation
             filter_result = evaluate_discovery_observation(record, now=now)
             identity_result = await evaluate_discovery_identity(db, record)
-            filter_metadata = {**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"]}
+            decision_result = compose_discovery_decision(filter_result, identity_result)
+            filter_metadata = {**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"], "decision_version": 1}
             project_record = {key: value for key, value in record.items() if not key.startswith("_") and key != "catalog_id"}
-            project_record["filter_status"] = filter_result["status"]
-            project_record["filter_reasons"] = filter_result["reasons"]
+            project_record["filter_status"] = decision_result["disposition"]
+            project_record["filter_reasons"] = decision_result["reasons"]
             project_record["filter_metadata"] = filter_metadata
             project_record["project_identity_key"] = identity_result["project_identity_key"]
             project_record["campaign_identity_key"] = identity_result["campaign_identity_key"]
@@ -590,6 +593,7 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
                 record=record,
                 now=now,
                 identity_result=identity_result,
+                decision_result=decision_result,
             )
         await record_discovery_source_status(db, source_name, source_url, now, 'success', item_count=len(records))
         await db.commit()

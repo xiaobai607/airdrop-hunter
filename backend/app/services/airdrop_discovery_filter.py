@@ -42,6 +42,31 @@ def evaluate_discovery_observation(record: dict[str, Any], *, now: datetime | No
     return {"status": "filtered" if reasons else "eligible_for_review", "reasons": reasons, "metadata": metadata, "evaluated_at": (now or datetime.now(timezone.utc)).isoformat()}
 
 
+def compose_discovery_decision(filter_result: dict[str, Any], identity_result: dict[str, Any]) -> dict[str, Any]:
+    """Combine content filtering and identity evidence into one explainable disposition.
+
+    'keep' means retain as an observation for human review; it never means publish.
+    """
+    reasons = list(filter_result.get("reasons") or [])
+    identity_conflict = bool(identity_result.get("identity_conflict"))
+    if identity_conflict:
+        reasons.append("project_campaign_identity_conflict_needs_manual_review")
+    if filter_result.get("status") == "filtered":
+        disposition = "filtered"
+    elif identity_conflict:
+        disposition = "needs_review"
+    else:
+        disposition = "keep"
+    return {
+        **filter_result,
+        "disposition": disposition,
+        "reasons": reasons,
+        "identity_status": identity_result.get("identity_status"),
+        "identity_group_type": identity_result.get("identity_group_type"),
+        "identity_group_key": identity_result.get("identity_group_key"),
+    }
+
+
 def _canonical_identity_url(value: Any) -> str | None:
     if not isinstance(value, str): return None
     try:
