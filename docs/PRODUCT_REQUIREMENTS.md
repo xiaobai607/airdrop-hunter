@@ -1922,3 +1922,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - A follow-up source review found a literal escaped newline embedded in the `LazyColumn` import line and removed the duplicate `items` import.
 - Corrected the import without changing Dock gesture, layout, clipping, snapping, or persistence behavior.
 - Commit `81314ddd1d1dfe3297eba309965d29cf6afdb846` contains the source cleanup. A fresh exact-head CI run is required; the prior Dock run was still in progress and is not treated as a pass.
+
+
+### 2026-11-11 — Browser Dock ordinary-swipe cancellation guard
+
+- Added an explicit `dragStarted` guard around the outer `detectDragGesturesAfterLongPress` detector.
+- Edge snapping now runs only after `onDragStart` confirms the long-press whole-Dock drag actually began. A normal horizontal LazyRow swipe that cancels the parent detector must not trigger Dock movement or edge snapping.
+- Kept the outer Box as the single movable target, retained the clipped capsule/LazyRow child and Animatable edge-snap animation. This is source-level hardening; gesture arbitration and feel still require physical-device acceptance.
+- Commit `dfa1a0a39d3419d603bf2c520fb4a590c16f4ec8` contains the guard. The prior import cleanup is in `81314ddd1d1dfe3297eba309965d29cf6afdb846`.
