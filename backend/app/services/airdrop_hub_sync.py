@@ -16,9 +16,6 @@ from app.services.discovery_source_status import record_discovery_source_status
 
 logger = logging.getLogger("airdrop_hunter.airdrop_sync")
 
-JSON_SOURCE = "https://web3-discover.vercel.app/api/airdrops.json"
-MCP_SOURCE = "https://web3-discover.vercel.app/api/mcp"
-
 BINANCE_CMS_SOURCE = "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
 BINANCE_CATALOGS = (128, 93)
 BINANCE_AIRDROP_KEYWORDS = re.compile(r"airdrop|launchpool|hodler|megadrop", re.IGNORECASE)
@@ -114,113 +111,6 @@ def _configured_github_raw_urls() -> list[str]:
         if len(urls) == 20:
             break
     return urls
-
-
-def _status_label(value: Any) -> str:
-    raw = str(value or "").strip().lower().replace("_", " ").replace("-", " ")
-    if any(token in raw for token in ("hot", "popular", "trending")):
-        return "热门"
-    if any(token in raw for token in ("upcoming", "pre tge", "pre token", "待发币")):
-        return "待发币"
-    if any(token in raw for token in ("active", "ongoing", "live", "进行中")):
-        return "进行中"
-    if any(token in raw for token in ("ended", "expired", "closed", "已结束")):
-        return "已结束"
-    return str(value or "待确认")[:40]
-
-
-def _as_items(payload: Any) -> list[dict[str, Any]]:
-    if isinstance(payload, list):
-        return [item for item in payload if isinstance(item, dict)]
-    if not isinstance(payload, dict):
-        return []
-    for key in ("airdrops", "data", "projects", "items", "results"):
-        value = payload.get(key)
-        if isinstance(value, list):
-            return [item for item in value if isinstance(item, dict)]
-        if isinstance(value, dict):
-            nested = _as_items(value)
-            if nested:
-                return nested
-    return []
-
-
-def _normalize(payload: Any, *, source_name: str = "web3-discover") -> list[dict[str, str]]:
-    normalized: list[dict[str, str]] = []
-    trust_level, publication_status = _source_publication_state(source_name)
-    for item in _as_items(payload):
-        name = str(item.get("project") or item.get("name") or item.get("title") or item.get("project_name") or "").strip()
-        link = _valid_http_url(item.get("officialUrl") or item.get("official_url") or item.get("website") or item.get("link") or item.get("url"))
-        if not name or not link:
-            continue
-        description = str(item.get("blurb") or item.get("short_description") or item.get("description") or item.get("summary") or "").strip()
-        chains = item.get("blockchains") or item.get("chains") or item.get("chain") or item.get("blockchain") or "Unknown"
-        if isinstance(chains, str):
-            chain_values = [part.strip() for part in re.split(r"[,;/|]", chains) if part.strip()]
-        elif isinstance(chains, list):
-            chain_values = [str(part).strip() for part in chains if str(part).strip()]
-        else:
-            chain_values = ["Unknown"]
-        if not chain_values:
-            chain_values = ["Unknown"]
-        status = _status_label(item.get("status"))
-        source_id = str(item.get("slug") or item.get("id") or name.lower().replace(" ", "-"))
-        for chain in chain_values:
-            key = f"{source_id}:{chain.lower()}"
-            normalized.append({
-                "source_key": key[:240],
-                "name": name[:180],
-                "chain": chain[:80],
-                "description": description[:10000],
-                "status": status,
-                "link": link,
-                "source_name": source_name,
-                "trust_level": trust_level,
-                "publication_status": publication_status,
-            })
-    return normalized
-
-
-async def _fetch_source(client: httpx.AsyncClient) -> tuple[list[dict[str, str]], str]:
-    errors: list[str] = []
-    try:
-        response = await client.get(JSON_SOURCE)
-        response.raise_for_status()
-        records = _normalize(response.json())
-        if records:
-            return records, JSON_SOURCE
-        errors.append("JSON 数据源返回空数据或格式不受支持")
-    except (httpx.HTTPError, ValueError) as exc:
-        errors.append(f"JSON 数据源失败：{type(exc).__name__}")
-
-    # The same public directory also exposes a no-key MCP tool endpoint.
-    try:
-        response = await client.post(
-            MCP_SOURCE,
-            json={
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "tools/call",
-                "params": {"name": "list_active_airdrops", "arguments": {"limit": 100, "sort_by": "added"}},
-            },
-        )
-        response.raise_for_status()
-        body = response.json()
-        content = ((body.get("result") or {}).get("content") or [])
-        text_payload = next((part.get("text") for part in content if isinstance(part, dict) and part.get("text")), None)
-        if text_payload:
-            try:
-                parsed = json.loads(text_payload)
-            except ValueError:
-                parsed = None
-            records = _normalize(parsed if parsed is not None else _extract_json(text_payload))
-            if records:
-                return records, MCP_SOURCE
-        errors.append("MCP 数据源没有返回可识别的项目列表")
-    except (httpx.HTTPError, ValueError, TypeError) as exc:
-        errors.append(f"MCP 数据源失败：{type(exc).__name__}")
-
-    raise RuntimeError("；".join(errors))
 
 
 def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[dict[str, str]]:
@@ -334,17 +224,6 @@ async def _fetch_binance_observations(client: httpx.AsyncClient) -> list[dict[st
     if not by_key and errors:
         raise RuntimeError("Binance CMS categories unavailable: " + "; ".join(errors))
     return list(by_key.values())
-
-
-def _extract_json(text: str) -> Any:
-    start = text.find("{")
-    end = text.rfind("}")
-    if start >= 0 and end > start:
-        try:
-            return json.loads(text[start:end + 1])
-        except ValueError:
-            return None
-    return None
 
 
 def _observation_record(source_name: str, source_key: str, name: str, link: str, description: str, chain: str = 'Unknown', status: str = '待核实') -> dict[str, str]:

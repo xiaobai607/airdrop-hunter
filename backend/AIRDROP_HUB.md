@@ -23,8 +23,8 @@ Binance CMS access does not require an API key. CoinGecko requires the Demo key.
 
 ## Explicitly inactive legacy paths
 
-- The old `web3-discover` JSON/MCP directory is not part of `sync_airdrop_hub` and is not an approved provider.
-- RSS/Atom ingestion is not called by the scheduled importer. Legacy RSS parser, candidate tables and review endpoints may remain in the repository for compatibility, but no wild RSS feeds are configured or automatically searched.
+- The old `web3-discover` JSON/MCP adapter has been removed; its former endpoints and parser are no longer present in the active importer.
+- RSS/Atom ingestion is not called by the scheduled importer. Legacy RSS parser, candidate tables and review endpoints remain dormant for compatibility; the scheduled workflow no longer injects RSS configuration, and no wild RSS feeds are configured or automatically searched.
 - Do not re-enable public web search, arbitrary RSS discovery, or unreviewed aggregators as a shortcut.
 
 ## Configuration
@@ -40,7 +40,7 @@ Binance CMS access does not require an API key. CoinGecko requires the Demo key.
 - `GET /api/airdrops/hub?chain=Solana` — SQL-filtered results; Binance announcements currently use `Unknown` chain unless the source explicitly supplies one.
 - `GET /api/airdrops/hub/{id}` — fetches the original Binance CMS article body and metadata.
 - `GET /api/airdrops/hub/status` — latest in-process sync status.
-- `POST /api/airdrops/hub/refresh` and compatibility alias `POST /api/airdrops/sync` — trigger the same four-source sync, subject to rate limits.
+- `POST /api/airdrops/hub/refresh` and compatibility alias `POST /api/airdrops/sync` — trigger the same four-source sync, subject to rate limits. The scheduled GitHub workflow invokes the importer only when `AIRDROP_DISCOVERY_SYNC_ENABLED=true` and `DATABASE_URL` is configured.
 
 ## Scheduled import
 

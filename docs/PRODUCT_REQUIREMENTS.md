@@ -2007,3 +2007,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Malformed percent escapes and whitespace/control characters are rejected before a configured source is fetched.
 - Removed redundant environment parsing in the fetch adapter; all configured URLs now pass through the single strict validator.
 - Added regressions for malformed/out-of-range ports, empty user-info, encoded traversal/separators, duplicate URLs, and the 20-source cap.
+
+
+### 2026-11-11 — Retire the unreachable legacy public-directory adapter
+
+- Removed the unused `web3-discover` JSON/MCP URLs, generic payload normalizer, MCP response parser and dead fetch function from the active airdrop hub service. The importer continues to use only its four explicitly listed source adapters.
+- Removed unit tests that only exercised the retired generic directory normalizer; retained the regression that confirms the legacy source label cannot be treated as trusted/publishable.
+- Renamed the scheduled workflow to describe configured source observations and removed unused RSS and legacy approval environment variables. The daily schedule remains gated by `AIRDROP_DISCOVERY_SYNC_ENABLED=true`; it runs the current four-source importer and its separate market-enrichment/scoring steps, not RSS ingestion.
+- RSS parser, candidate models and review endpoints remain dormant compatibility code; they are not invoked by the importer. No old RSS feed is re-enabled.

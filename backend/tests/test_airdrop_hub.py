@@ -4,34 +4,10 @@ from app.main import app
 from app.models import AirdropProject
 from app.services.airdrop_hub_sync import (
     _configured_github_raw_urls,
-    _normalize,
     _normalize_binance_announcements,
     _normalize_binance_article_detail,
     _normalize_github_airdrop_list,
-    _status_label,
 )
-
-def test_normalize_public_airdrop_payload():
-    rows = _normalize({"data": [{
-        "slug": "sample-airdrop", "project": "Sample Protocol",
-        "blockchains": ["Ethereum", "Arbitrum"], "blurb": "A public test listing",
-        "status": "upcoming", "officialUrl": "https://sample.example/"
-    }]})
-    assert len(rows) == 2
-    assert {row["chain"] for row in rows} == {"Ethereum", "Arbitrum"}
-    assert all(row["name"] == "Sample Protocol" for row in rows)
-    assert all(row["status"] == "待发币" for row in rows)
-    assert len({row["source_key"] for row in rows}) == 2
-
-def test_normalize_rejects_missing_or_unsafe_links():
-    rows = _normalize([
-        {"name": "No link project", "chain": "Ethereum"},
-        {"name": "Unsafe link project", "chain": "Solana", "link": "javascript:alert(1)"},
-        {"name": "Valid project", "chain": "Base", "link": "https://valid.example"},
-    ])
-    assert len(rows) == 1
-    assert rows[0]["name"] == "Valid project"
-
 
 def test_binance_article_detail_preserves_official_html_and_metadata():
     detail = _normalize_binance_article_detail(
@@ -107,13 +83,6 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         assert detail.json()["content_html"] == "<p>Binance official full announcement content.</p>"
         assert detail.json()["title"] == "Binance Observation Test"
         assert client.get("/api/airdrops/hub/status").status_code == 200
-
-def test_status_mapping_is_honest():
-    assert _status_label("hot") == "热门"
-    assert _status_label("upcoming") == "待发币"
-    assert _status_label("active") == "进行中"
-
-
 
 def test_github_raw_configuration_requires_exact_https_raw_file_urls(monkeypatch):
     import json
