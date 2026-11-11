@@ -18,6 +18,7 @@ import com.airdrophunter.app.data.AuthRepository
 import com.airdrophunter.app.data.RetrofitAuthRemoteDataSource
 import com.airdrophunter.app.data.RetrofitProfileRemoteDataSource
 import com.airdrophunter.app.data.AirdropHubRepository
+import com.airdrophunter.app.data.AirdropCampaignRepository
 import com.airdrophunter.app.data.RetrofitAirdropHubRemoteDataSource
 import com.airdrophunter.app.data.AirdropsRepository
 import com.airdrophunter.app.data.AccountingRepository
@@ -59,6 +60,10 @@ class AppContainer {
 
     val profileRepository: ProfileRepository by lazy {
         ProfileRepository(RetrofitProfileRemoteDataSource(apiService))
+    }
+
+    val airdropCampaignRepository: AirdropCampaignRepository by lazy {
+        AirdropCampaignRepository(apiService)
     }
 
     val airdropHubRepository: AirdropHubRepository by lazy {

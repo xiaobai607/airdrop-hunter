@@ -1637,3 +1637,12 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Added API serialization and pagination-bound tests.
 - This is a read-only publication surface. It does not ingest sources, approve candidates, change publication state or activate any scheduled job.
 - Next implementation work: build the approved zero-cost RSS/Atom candidate-to-campaign adapter with strict host allowlisting, source snapshots, deduplication and fail-closed behavior; then add a reviewed/approved promotion step and connect Android Room caching.
+
+
+### 2026-11-11 implementation progress — Android campaign data client
+
+- Added Kotlin campaign DTOs matching the public campaign API.
+- Added query/filter request model with stable cache keys.
+- Added a Room-backed public cache repository using the existing `CacheStore` and bounded stale-while-revalidate coordinator. Cache data is public catalog content only; no wallet or personal ledger fields are sent.
+- Registered the repository in the application composition root and added the Retrofit endpoint binding.
+- The existing UI is intentionally unchanged in this step; the next step is a focused campaign-list presentation using the new repository, after API/CI verification. The collector and source adapters remain disabled until permitted $0 feeds are configured.
