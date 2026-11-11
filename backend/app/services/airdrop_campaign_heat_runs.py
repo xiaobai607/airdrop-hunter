@@ -1,6 +1,6 @@
 """Record trustworthy, successful campaign-heat observations.
 
-Call this only after one complete provider batch has been fetched and validated.
+Call only after one complete provider batch has been fetched and validated.
 RSS intake and DEX market enrichment are not campaign-heat observations.
 """
 from datetime import datetime, timezone
@@ -25,15 +25,16 @@ def _validated_observations(observations: list[dict]) -> list[dict]:
     for item in observations:
         try:
             campaign_id = uuid.UUID(str(item["campaign_id"]))
-            heat = float(item["heat"])
+            raw_heat = float(item["heat"])
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("Each heat observation needs a campaign_id and numeric heat") from exc
-        if not math.isfinite(heat) or not 0 <= heat <= 100:
+        if not math.isfinite(raw_heat) or not 0 <= raw_heat <= 100:
             raise ValueError("Campaign heat must be a finite number from 0 to 100")
         if campaign_id in seen:
             raise ValueError("A campaign may appear only once in a heat batch")
         seen.add(campaign_id)
-        normalized.append({"campaign_id": campaign_id, "heat": round(heat, 2)})
+        # The campaign's canonical temperature field is integer-valued.
+        normalized.append({"campaign_id": campaign_id, "heat": int(round(raw_heat))})
     return normalized
 
 
@@ -43,15 +44,19 @@ async def record_successful_campaign_heat_batch(
     source_name: str,
     source_url: str,
     observations: list[dict],
-    run_id: uuid.UUID | None = None,
+    run_id: uuid.UUID,
 ) -> dict[str, int | bool]:
-    """Persist one completed heat batch; reuse run_id when retrying the same run.
+    """Persist one completed heat batch exactly once.
 
-    A provider failure must never call this function. Unknown/missing campaign
-    heat is omitted, not interpreted as zero. Only explicit observations update
-    counters. A heat value below 40 increments the consecutive-success counter;
-    a value of 40 or above resets it. The scoring engine performs archival only
-    after the counter reaches three.
+    The caller must create/persist a pipeline run ID before fetching and reuse
+    that same ID on retries. Provider failures must never call this success
+    recorder; they must leave the campaign counters unchanged and mark their
+    pipeline run failed in the caller's failure path.
+
+    Unknown/missing campaign heat is omitted, never converted to zero. Each
+    explicit successful observation updates the campaign temperature. Only
+    consecutive low-heat successes from the same source increment the counter;
+    a source change starts a new streak, and heat >= 40 resets it.
     """
     name = str(source_name or "").strip()
     parsed_url = urlparse(str(source_url or "").strip())
@@ -59,10 +64,11 @@ async def record_successful_campaign_heat_batch(
         raise ValueError("A heat source name is required")
     if parsed_url.scheme != "https" or not parsed_url.hostname:
         raise ValueError("A heat source URL must be HTTPS")
+    if not isinstance(run_id, uuid.UUID):
+        raise ValueError("A stable pipeline run_id is required for idempotency")
 
     rows = _validated_observations(observations)
-    effective_run_id = run_id or uuid.uuid4()
-    existing_run = await db.get(AirdropPipelineRun, effective_run_id)
+    existing_run = await db.get(AirdropPipelineRun, run_id)
     if existing_run is not None:
         return {
             "replayed": True,
@@ -71,29 +77,30 @@ async def record_successful_campaign_heat_batch(
         }
 
     now = datetime.now(timezone.utc)
-    run = AirdropPipelineRun(
-        id=effective_run_id,
+    campaigns: list[tuple[AirdropCampaign, dict]] = []
+    for row in rows:
+        campaign = await db.get(AirdropCampaign, row["campaign_id"])
+        if campaign is not None:
+            campaigns.append((campaign, row))
+
+    db.add(AirdropPipelineRun(
+        id=run_id,
         source_name=name,
         status="success",
         items_seen=len(rows),
         items_created=0,
-        items_updated=len(rows),
-        items_rejected=0,
+        items_updated=len(campaigns),
+        items_rejected=len(rows) - len(campaigns),
         started_at=now,
         finished_at=now,
-    )
-    db.add(run)
+    ))
 
-    updated = 0
-    for row in rows:
-        campaign = await db.get(AirdropCampaign, row["campaign_id"])
-        if campaign is None:
-            continue
-
+    for campaign, row in campaigns:
+        heat = row["heat"]
         payload = {
-            "campaign_id": str(row["campaign_id"]),
-            "heat": row["heat"],
-            "pipeline_run_id": str(effective_run_id),
+            "campaign_id": str(campaign.id),
+            "heat": heat,
+            "pipeline_run_id": str(run_id),
         }
         snapshot_hash = hashlib.sha256(
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -106,13 +113,17 @@ async def record_successful_campaign_heat_batch(
             normalized_payload=payload,
             captured_at=now,
         ))
-        campaign.low_heat_success_count = (
-            int(campaign.low_heat_success_count or 0) + 1
-            if row["heat"] < 40
-            else 0
-        )
+
+        if heat >= 40:
+            campaign.low_heat_success_count = 0
+        elif campaign.last_heat_source_name == name:
+            campaign.low_heat_success_count = int(campaign.low_heat_success_count or 0) + 1
+        else:
+            campaign.low_heat_success_count = 1
+
+        campaign.temperature = heat
+        campaign.last_heat_source_name = name
         campaign.last_source_success_at = now
-        updated += 1
 
     await db.commit()
-    return {"replayed": False, "observed": len(rows), "updated": updated}
+    return {"replayed": False, "observed": len(rows), "updated": len(campaigns)}
