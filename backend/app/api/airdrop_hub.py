@@ -44,7 +44,8 @@ async def _sync_now() -> dict[str, Any]:
     async with AsyncSessionLocal() as db:
         try:
             count = await sync_airdrops(db)
-            return {"ok": True, "imported_count": count, "status": get_sync_status()}
+            status = get_sync_status()
+            return {"ok": status.get("error") is None, "imported_count": count, "status": status}
         except Exception as exc:
             raise HTTPException(status_code=503, detail="空投数据源暂时不可用，请稍后重试") from exc
 
