@@ -2127,3 +2127,10 @@ Project identity and campaign identity are distinct. Project-name similarity alo
 ## 2026-11-11 — centralized identity classification
 
 Project and campaign identity classification is a responsibility of the unified discovery filter, not source adapters. Strong identity evidence is limited to chain+contract, exact HTTPS official project URL, and exact HTTPS campaign/activity URL. Never infer identity from names or tickers. Keep project and campaign identity separate. Store match status, evidence and matched source key without deleting, merging or suppressing raw source records. Same-project/different-campaign records remain distinct. No strong evidence means insufficient identity evidence, not a guessed match.
+## 2026-11-11 — DexScreener query fault isolation
+
+- A single failed DexScreener search term no longer aborts the entire provider run. Each configured term is requested independently; failures are logged and remaining terms continue.
+- Successful term results are retained when another term fails. The provider is marked failed only when no valid observation rows are produced; all-failed runs preserve the previous source data through the existing per-provider transaction boundary.
+- Added regression tests for partial success and all-term failure. Exact-head workflow #43006252003 passed: **234 passed, 3 warnings, 0 failed**. Android build was skipped because this batch changed backend code only.
+- Configuration review: CoinGecko discovery is disabled until COINGECKO_DEMO_API_KEY is configured; GitHub Raw discovery is disabled until at least one manually approved, license-reviewed, commit-pinned source is configured. The example DexScreener terms (SOL, ETH, USDC) are broad market searches, not proof of airdrop campaigns. Binance remains a separate official-announcement observation source.
+- No production live-data claim is made from unit tests. Real provider credentials/configuration, live responses, and the end-to-end filter-to-library display still require verification. Scheduled production sync remains disabled.
