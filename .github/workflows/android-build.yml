@@ -26,6 +26,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   changes:
@@ -43,6 +44,11 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          GH_TOKEN: ${{ github.token }}
           MANUAL_SCOPE: ${{ inputs.scope || 'both' }}
         run: |
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
@@ -59,7 +65,46 @@ jobs:
             exit 0
           fi
 
-          git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt
+          # Compare only changes since the last fully successful validation of this PR.
+          # If no successful baseline exists, or this is a manual rerun, validate the
+          # complete PR diff so cancelled/failed work can never hide untested changes.
+          diff_base="$BASE_SHA"
+          compare_full_pr=true
+          if [[ "$RUN_ATTEMPT" -gt 1 ]]; then
+            echo "Rerun attempt detected; using the complete PR diff."
+          elif [[ -n "$PR_NUMBER" ]]; then
+            if runs_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/android-build.yml/runs" -f branch="$HEAD_REF" -f event=pull_request -F per_page=100 2>/dev/null)"; then
+              previous_sha="$(jq -r --arg run_id "$RUN_ID" --arg pr_number "$PR_NUMBER" '
+                [.workflow_runs[]?
+                  | select((.id | tostring) != $run_id)
+                  | select(.status == "completed" and .conclusion == "success")
+                  | select(any(.pull_requests[]?; (.number | tostring) == $pr_number))]
+                | .[0].head_sha // empty
+              ' <<< "$runs_json")"
+              if [[ -n "$previous_sha" ]]; then
+                if ! git cat-file -e "${previous_sha}^{commit}" 2>/dev/null; then
+                  git fetch --no-tags origin "$previous_sha" || true
+                fi
+                if git cat-file -e "${previous_sha}^{commit}" 2>/dev/null; then
+                  diff_base="$previous_sha"
+                  compare_full_pr=false
+                  echo "Using last successful PR validation as the change baseline: $previous_sha"
+                else
+                  echo "::warning::Previous successful head is unavailable locally; falling back to the complete PR diff."
+                fi
+              else
+                echo "No previous successful run for this PR; using the complete PR diff."
+              fi
+            else
+              echo "::warning::Could not read previous workflow runs; falling back to the complete PR diff."
+            fi
+          fi
+
+          if [[ "$compare_full_pr" == "true" ]]; then
+            git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt
+          else
+            git diff --name-only "$diff_base" "$HEAD_SHA" > changed-files.txt
+          fi
           if grep -Eq '^(android/|gradle/|gradlew$|settings\.gradle|build\.gradle|gradle\.properties$)' changed-files.txt; then
             echo "android=true" >> "$GITHUB_OUTPUT"
           else

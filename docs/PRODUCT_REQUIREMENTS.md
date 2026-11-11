@@ -1989,3 +1989,11 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Binance announcement article codes containing unexpected characters are rejected rather than silently rewritten into a potentially different article identifier.
 - Added backend regression tests for exact-host validation, explicit official-site fields, HTTPS Markdown links, and malformed Binance article codes.
 - This hardens ingestion boundaries only. It does not certify a GitHub repository's license, configure any external list, validate live provider terms, or mark the four-source discovery pipeline end-to-end complete.
+
+
+### 2026-11-11 — Incremental pull-request CI change detection
+
+- Updated Android/backend job selection to compare the current PR head against the most recent fully successful validation head for that same PR, rather than rechecking the PR's entire cumulative diff on every synchronize event.
+- The workflow uses the complete base-to-head PR diff when no successful baseline exists, when a run is manually retried, or when the prior head/API lookup is unavailable. This preserves first-run coverage and prevents cancelled/failed runs from becoming a baseline that could hide unvalidated changes.
+- Added read-only Actions permission for retrieving the prior workflow run. Android and backend suites still run independently according to the changed file groups; workflow and documentation-only edits remain excluded from this build workflow.
+- This reduces repeated work on mixed Android/backend PRs without disabling CI or weakening the fallback path. Validate the behavior on subsequent PR pushes; no new workflow run is expected from this workflow-only/docs-only commit because those paths are ignored by the workflow trigger.
