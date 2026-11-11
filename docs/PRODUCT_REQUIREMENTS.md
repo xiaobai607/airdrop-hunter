@@ -2204,3 +2204,13 @@ Project and campaign identity classification is a responsibility of the unified 
 - Public-source adapters now include the HTTP status code (when available) in Binance and DexScreener failure summaries, instead of reporting only the generic `HTTPStatusError` class.
 - This is diagnostic-only: it does not convert provider errors into success, bypass rate limits, or change publication eligibility.
 - Commit: `fcb7bca5cc50ea73dd6a55e979bbf64a5b8581b0`. CI status and a repeat live smoke result are not yet available through the current GitHub run lookup; do not mark live providers validated.
+
+
+### 2026-11-11 — follow-up to live provider smoke failure
+
+- The 21:14 read-only smoke run showed Binance catalog 128 and 93 returning HTTP 400. The response status alone does not identify the invalid request field, so do not guess at a fix or treat this as a WAF block. The Binance adapter now includes only bounded JSON error metadata (code, msg, message) in its diagnostic label when the response provides it; response bodies are not logged.
+- The same run showed DexScreener was not queried because the Actions variable was present but contained no usable terms. The adapter now falls back to the free public search term airdrop when the variable is absent, blank, or whitespace/separator-only; explicitly configured non-empty terms remain supported and deduplicated.
+- Added regression tests for the DexScreener default and configured-term behavior.
+- Commits: 6565861679d6b7c94b2548953f4b1339fd340f00 (adapter fix/diagnostics), e48367b3ab08499c744dcc7e42f5b0c1acfa16b6 (tests).
+- Automated tests and a new live smoke run have not yet been observed. Binance remains unverified until its new bounded error metadata identifies the HTTP 400 cause and a subsequent live request returns parseable records. DexScreener also remains unverified until the fallback query returns parseable records.
+- Production scheduled sync remains disabled; no database writes or publishing were performed; PR #135 remains Draft/Open/unmerged.
