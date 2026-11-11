@@ -1625,3 +1625,15 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 8. **Release gate:** do not enable scheduled production sync or claim automatic publication works until source rights, free hosting, API integration, exact-head CI and real-data APP rendering are all verified. Physical-device acceptance is separate from CI.
 
 **Current status at adoption:** the repository already has an RSS/Atom candidate importer, a separate project-level `airdrop_hub_projects` table, a gated structured-source importer, a daily GitHub Actions workflow that is disabled unless explicitly configured, an existing filter metadata migration and a public catalog filter API. These are partial foundations only. The end-to-end campaign-aware pipeline, evidence-aware scoring/tiering, approved free market enrichment, campaign publication API and Android real-campaign integration are not yet proven complete. Do not describe the feature as finished based on the presence of the current importer or filter UI.
+
+
+---
+
+## 2026-11-11 implementation progress — campaign publication API
+
+- Added `backend/app/api/airdrop_campaigns.py` and registered `GET /api/airdrop-campaigns`.
+- The endpoint exposes only records explicitly marked published and in the featured/ordinary tiers. Observation and archived records are not exposed by the public endpoint.
+- Supports bounded pagination and filters for tier, chain, campaign status, campaign type, KYC state and text query. Response includes the evidence-facing fields, source heat, market fields, scoring version and listing reason.
+- Added API serialization and pagination-bound tests.
+- This is a read-only publication surface. It does not ingest sources, approve candidates, change publication state or activate any scheduled job.
+- Next implementation work: build the approved zero-cost RSS/Atom candidate-to-campaign adapter with strict host allowlisting, source snapshots, deduplication and fail-closed behavior; then add a reviewed/approved promotion step and connect Android Room caching.
