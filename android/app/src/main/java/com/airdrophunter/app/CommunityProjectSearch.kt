@@ -12,3 +12,6 @@ internal fun matchesCommunityProjectQuery(
         chain.contains(normalized, ignoreCase = true) ||
         tags.any { it.contains(normalized, ignoreCase = true) }
 }
+
+internal fun matchesCommunityProjectStatus(isActive: Boolean, showDelistedOnly: Boolean): Boolean =
+    if (showDelistedOnly) !isActive else isActive
