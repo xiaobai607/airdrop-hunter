@@ -1,10 +1,10 @@
 """Persist conservative project and campaign identity decisions.
-Revision ID: 0025_discovery_identity_classification
+Revision ID: 0025_identity_classification
 Revises: 0024_discovery_filter_decisions
 """
 from alembic import op
 import sqlalchemy as sa
-revision = "0025_discovery_identity_classification"
+revision = "0025_identity_classification"
 down_revision = "0024_discovery_filter_decisions"
 branch_labels = None
 depends_on = None

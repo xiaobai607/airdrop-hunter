@@ -9,9 +9,9 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     config = Config(str(backend_dir / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    discovery_identity = scripts.get_revision("0025_discovery_identity_classification")
+    discovery_identity = scripts.get_revision("0025_identity_classification")
     assert discovery_identity is not None and discovery_identity.down_revision == "0024_discovery_filter_decisions"
-    assert scripts.get_current_head() == "0025_discovery_identity_classification"
+    assert scripts.get_current_head() == "0025_identity_classification"
     bootstrap = scripts.get_revision("0001_bootstrap")
     ledger = scripts.get_revision("0002_personal_ledger")
     nullable_reward = scripts.get_revision("0003_nullable_expected_reward")
@@ -61,4 +61,4 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     discovery_filter_decisions = scripts.get_revision("0024_discovery_filter_decisions")
     assert discovery_filter_decisions is not None
     assert discovery_filter_decisions.down_revision == "0023_trusted_catalog_source"
-    assert scripts.get_current_head() == "0024_discovery_filter_decisions"
+    assert scripts.get_current_head() == "0025_identity_classification"
