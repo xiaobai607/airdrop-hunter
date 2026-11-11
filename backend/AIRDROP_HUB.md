@@ -73,7 +73,7 @@ The script runs the four-source catalog sync, then attempts campaign market enri
 
 ## Validation boundary
 
-Automated tests and CI validate the authored parser, fail-closed approval metadata, commit pinning, filtering, source isolation and API contracts. They do not prove that external providers are currently available, that the operator's legal review is correct, that a real campaign is claimable, or that the Binance article HTML renders correctly on a physical phone.
+Automated tests and CI validate the authored parser, fail-closed approval metadata, commit pinning, filtering, source isolation and API contracts. Exact-head Push workflow #1111 for commit `2546778c` passed with 213 backend tests. CI does not prove that external providers are currently available, that the operator's legal review is correct, that a real campaign is claimable, or that the Binance article HTML renders correctly on a physical phone.
 
 ### Binance CMS category IDs (verified 2026-11-11)
 

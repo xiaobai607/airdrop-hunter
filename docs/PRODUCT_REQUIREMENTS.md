@@ -2081,4 +2081,4 @@ Multi-select values inside one group use OR; selections across groups use AND. S
 - Exact-head CI for the prior `(128, 49)` change passed, but a subsequent comparison against Binance's own announcement category pages exposed a semantic mapping error: category `93` is **Latest Activities**, while `49` is **Latest Binance News**. Category `128` is **Crypto Airdrop**.
 - Corrected the importer and its regression test to request `(128, 93)`. The Latest Activities feed remains keyword-filtered; unrelated general Binance news is not added to the airdrop hub.
 - Official category pages checked: `/en/support/announcement/list/128` (Crypto Airdrop) and `/en/support/announcement/list/93` (Latest Activities); `/en/support/announcement/list/49` is Latest Binance News.
-- This correction supersedes the immediately preceding catalog mapping. Exact-head backend CI is pending.
+- This correction supersedes the immediately preceding catalog mapping. Exact-head Push workflow #1111 for commit `2546778c` passed: `pytest -q` reported 213 passed, 3 warnings in 8.54s. Android build was skipped because this commit changed backend files only.
