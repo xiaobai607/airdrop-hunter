@@ -9,7 +9,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     config = Config(str(backend_dir / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0022_campaign_heat_source"
+    assert scripts.get_current_head() == "0023_trusted_catalog_source"
     bootstrap = scripts.get_revision("0001_bootstrap")
     ledger = scripts.get_revision("0002_personal_ledger")
     nullable_reward = scripts.get_revision("0003_nullable_expected_reward")
@@ -32,6 +32,7 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     airdrop_filters = scripts.get_revision("0020_airdrop_filters")
     airdrop_campaigns = scripts.get_revision("0021_airdrop_campaigns")
     campaign_heat_source = scripts.get_revision("0022_campaign_heat_source")
+    trusted_catalog_source = scripts.get_revision("0023_trusted_catalog_source")
     assert bootstrap is not None and bootstrap.down_revision is None
     assert ledger is not None and ledger.down_revision == "0001_bootstrap"
     assert nullable_reward is not None and nullable_reward.down_revision == "0002_personal_ledger"
@@ -54,3 +55,4 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     assert airdrop_filters is not None and airdrop_filters.down_revision == "0019_comm_dash"
     assert airdrop_campaigns is not None and airdrop_campaigns.down_revision == "0020_airdrop_filters"
     assert campaign_heat_source is not None and campaign_heat_source.down_revision == "0021_airdrop_campaigns"
+    assert trusted_catalog_source is not None and trusted_catalog_source.down_revision == "0022_campaign_heat_source"
