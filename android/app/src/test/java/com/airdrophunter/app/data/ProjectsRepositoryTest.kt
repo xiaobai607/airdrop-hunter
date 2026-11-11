@@ -16,15 +16,21 @@ class ProjectsRepositoryTest {
         }
     }
 
-    private class FakeRemote : ProjectsRemoteDataSource {
+    private open class FakeRemote : ProjectsRemoteDataSource {
         val projects = mutableListOf<ProjectDto>()
         val tasks = mutableMapOf<String, MutableList<TaskDto>>()
         var projectCreateCalls = 0
         override suspend fun getProjects() = projects.toList()
         override suspend fun createProject(request: ProjectWriteRequest): ProjectDto {
             projectCreateCalls++
-            return ProjectDto("remote-${projectCreateCalls}", request.name, request.description, request.status)
-                .also { projects.add(it) }
+            val existing = request.client_project_id?.let { key ->
+                projects.firstOrNull { it.client_project_id == key }
+            }
+            if (existing != null) return existing
+            return ProjectDto(
+                "remote-${projectCreateCalls}", request.name, request.description, request.status,
+                client_project_id = request.client_project_id
+            ).also { projects.add(it) }
         }
         override suspend fun updateProject(projectId: String, request: ProjectWriteRequest): ProjectDto =
             projects.first { it.id == projectId }.copy(
@@ -63,6 +69,64 @@ class ProjectsRepositoryTest {
 
     private fun project(id: String, name: String = id) =
         ProjectDto(id, name, "", "tracking")
+
+
+
+    @Test fun selectedCommunityOfficialIdIsPersistedOnLocalProject() {
+        val repository = ProjectsRepository(FakeRemote(), FakeLocal())
+        kotlinx.coroutines.runBlocking {
+            val created = repository.createProject(
+                ProjectWriteRequest("Linea", "zkEVM", "tracking",
+                    official_url = "https://linea.build/", community_official_id = "linea"),
+                guest = true
+            ).single()
+            assertEquals("linea", created.communityOfficialId)
+        }
+    }
+
+    @Test fun browserProjectCreationCanPreserveItsStableLedgerId() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            val created = repository.createProject(
+                ProjectWriteRequest("Browser project", "local", "tracking"),
+                guest = true,
+                localId = "stable-ledger-project-id"
+            )
+            assertEquals("stable-ledger-project-id", created.single().id)
+        }
+    }
+
+    @Test fun authenticatedProjectIsSavedLocallyWhenServerCreateFails() {
+        val local = FakeLocal()
+        val remote = object : FakeRemote() {
+            override suspend fun createProject(request: ProjectWriteRequest): ProjectDto {
+                throw IllegalStateException("offline")
+            }
+        }
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val created = repository.createProject(
+                ProjectWriteRequest("Offline project", "saved locally", "tracking"), guest = false
+            )
+            assertEquals("Offline project", created.single().name)
+            assertTrue(created.single().syncPending)
+            assertTrue(local.account.containsKey("projects"))
+            assertFalse(local.guest.containsKey("projects"))
+        }
+    }
+
+    @Test fun legacyPnlProjectsMigrateWithinTheirOwnScope() {
+        val local = FakeLocal()
+        val repository = ProjectsRepository(FakeRemote(), local)
+        kotlinx.coroutines.runBlocking {
+            local.write("pnl_projects", com.google.gson.Gson().toJson(listOf(project("legacy"))), guest = true)
+            val migrated = repository.readCachedProjects(guest = true)
+            assertEquals(listOf("legacy"), migrated.map { it.id })
+            assertTrue(local.guest.containsKey("projects"))
+            assertFalse(local.account.containsKey("projects"))
+        }
+    }
 
     @Test fun authenticatedClaimUrlIsRetrievedThroughOwnedWalletEndpoint() {
         val repository = ProjectsRepository(FakeRemote(), FakeLocal())
@@ -306,6 +370,106 @@ class ProjectsRepositoryTest {
             }.exceptionOrNull()
             assertTrue(error is IllegalArgumentException)
             assertEquals("Original", repository.readCachedTasks("p1", true).single().task_name)
+        }
+    }
+
+
+    @Test fun pendingAuthenticatedProjectRetriesWithStableIdempotencyKey() {
+        val local = FakeLocal()
+        var failFirst = true
+        val remote = object : FakeRemote() {
+            override suspend fun createProject(request: ProjectWriteRequest): ProjectDto {
+                projectCreateCalls++
+                if (failFirst) {
+                    failFirst = false
+                    // Simulate server committed but response was lost: retain the row,
+                    // then throw as a transport timeout would.
+                    val committed = ProjectDto(
+                        "remote-stable", request.name, request.description, request.status,
+                        client_project_id = request.client_project_id
+                    )
+                    projects.add(committed)
+                    throw IllegalStateException("response timeout")
+                }
+                val existing = projects.firstOrNull { it.client_project_id == request.client_project_id }
+                return existing ?: super.createProject(request)
+            }
+        }
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val created = repository.createProject(
+                ProjectWriteRequest("Retry safely", "details", "tracking"),
+                guest = false,
+                localId = "7b7d6b55-06d6-4d91-a1db-5fb7f55b4d01"
+            ).single()
+            assertTrue(created.syncPending)
+            assertEquals(1, remote.projectCreateCalls)
+
+            val refreshed = repository.refreshProjects()
+            assertEquals(2, remote.projectCreateCalls)
+            assertEquals(1, refreshed.size)
+            assertEquals(created.id, refreshed.single().id)
+            assertEquals("remote-stable", refreshed.single().remoteId)
+            assertFalse(refreshed.single().syncPending)
+        }
+    }
+
+
+
+    @Test fun pendingAuthenticatedProjectCanBeEditedOfflineAndSyncsLatestValues() {
+        val local = FakeLocal()
+        var failCreate = true
+        val remote = object : FakeRemote() {
+            override suspend fun createProject(request: ProjectWriteRequest): ProjectDto {
+                projectCreateCalls++
+                if (failCreate) throw IllegalStateException("offline")
+                return super.createProject(request)
+            }
+        }
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val pending = repository.createProject(
+                ProjectWriteRequest("Original", "old", "tracking"), guest = false
+            ).single()
+            assertTrue(pending.syncPending)
+            val edited = repository.updateProject(
+                pending,
+                ProjectWriteRequest("Edited offline", "latest details", "completed"),
+                guest = false
+            ).single()
+            assertEquals("Edited offline", edited.name)
+            assertEquals("latest details", edited.description)
+            assertTrue(edited.syncPending)
+
+            failCreate = false
+            val synced = repository.refreshProjects().single()
+            assertEquals("Edited offline", synced.name)
+            assertEquals("latest details", synced.description)
+            assertEquals("completed", synced.status)
+            assertFalse(synced.syncPending)
+        }
+    }
+
+    @Test fun deletingPendingAuthenticatedProjectDoesNotCallRemoteDelete() {
+        val local = FakeLocal()
+        var remoteDeleteCalls = 0
+        val remote = object : FakeRemote() {
+            override suspend fun createProject(request: ProjectWriteRequest): ProjectDto {
+                throw IllegalStateException("offline")
+            }
+            override suspend fun deleteProject(projectId: String) {
+                remoteDeleteCalls++
+            }
+        }
+        val repository = ProjectsRepository(remote, local)
+        kotlinx.coroutines.runBlocking {
+            val pending = repository.createProject(
+                ProjectWriteRequest("Delete offline", "", "tracking"), guest = false
+            ).single()
+            assertTrue(pending.syncPending)
+            val remaining = repository.deleteProject(pending, guest = false)
+            assertTrue(remaining.isEmpty())
+            assertEquals(0, remoteDeleteCalls)
         }
     }
 

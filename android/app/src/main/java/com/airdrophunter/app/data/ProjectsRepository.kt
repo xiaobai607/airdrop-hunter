@@ -67,46 +67,112 @@ class ProjectsRepository(
     private fun <T> decodeList(json: String?, type: java.lang.reflect.Type): List<T> =
         json?.let { runCatching { gson.fromJson<List<T>>(it, type) }.getOrNull() }.orEmpty()
 
-    private suspend fun mergePnlProjects(base: List<ProjectDto>): List<ProjectDto> {
-        val extras = decodeList<ProjectDto>(local.read("pnl_projects", guest = true), projectsType)
-        return (base + extras).distinctBy { it.id }
+    private suspend fun mergePnlProjects(base: List<ProjectDto>, guest: Boolean): List<ProjectDto> {
+        // Migrate legacy browser-accounting projects inside their original scope.
+        // Guest projects must never leak into an authenticated account cache.
+        val extras = decodeList<ProjectDto>(local.read("pnl_projects", guest), projectsType)
+        val merged = (base + extras).distinctBy { it.id }
+        if (extras.isNotEmpty()) local.write("projects", gson.toJson(merged), guest)
+        return merged
     }
 
     suspend fun readCachedProjects(guest: Boolean): List<ProjectDto> {
         val cached = decodeList<ProjectDto>(local.read("projects", guest), projectsType)
-        return mergePnlProjects(cached)
+        return mergePnlProjects(cached, guest)
     }
 
     suspend fun refreshProjects(): List<ProjectDto> {
+        var cached = decodeList<ProjectDto>(local.read("projects", guest = false), projectsType)
+        // Retry only projects marked pending. The stable local ID is the server-side
+        // idempotency key, so a lost response cannot create a second server project.
+        cached.filter { it.syncPending }.forEach { pending ->
+            try {
+                val response = remote.createProject(pending.toWriteRequest().copy(client_project_id = pending.id))
+                // A previous request may have committed before its response was lost.
+                // Reapply the latest local fields before clearing the pending marker.
+                remote.updateProject(
+                    response.id,
+                    pending.toWriteRequest().copy(client_project_id = pending.id)
+                )
+                cached = cached.map { current ->
+                    if (current.id == pending.id) current.copy(
+                        remoteId = response.id,
+                        syncPending = false,
+                        client_project_id = pending.id
+                    ) else current
+                }
+                local.write("projects", gson.toJson(cached), guest = false)
+            } catch (cancelled: java.util.concurrent.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Keep the pending row visible; the next refresh safely retries the same key.
+            }
+        }
         val fetched = remote.getProjects()
-        local.write("projects", gson.toJson(fetched), guest = false)
-        return mergePnlProjects(fetched)
+        // Match by the server-echoed idempotency key first, then the known transport ID.
+        val merged = fetched.map { server ->
+            cached.firstOrNull {
+                it.id == server.client_project_id ||
+                    it.remoteId == server.id ||
+                    (it.remoteId == null && it.id == server.id)
+            }?.let {
+                server.copy(id = it.id, remoteId = server.id, syncPending = false,
+                    client_project_id = it.id)
+            } ?: server.copy(remoteId = server.id, syncPending = false)
+        } + cached.filter { it.syncPending && fetched.none { server -> server.client_project_id == it.id } }
+        val unique = merged.distinctBy { it.id }
+        local.write("projects", gson.toJson(unique), guest = false)
+        return mergePnlProjects(unique, guest = false)
     }
 
-    suspend fun createProject(request: ProjectWriteRequest, guest: Boolean): List<ProjectDto> {
+    suspend fun createProject(request: ProjectWriteRequest, guest: Boolean, localId: String? = null): List<ProjectDto> {
         val normalized = normalizeProjectRequest(request)
-        if (guest) {
-            val current = readCachedProjects(guest = true)
-            val created = ProjectDto(
-                id = UUID.randomUUID().toString(),
-                name = normalized.name,
-                description = normalized.description,
-                status = normalized.status,
-                official_url = normalized.official_url,
-                claim_url = normalized.claim_url,
-                twitter_url = normalized.twitter_url,
-                deadline = normalized.deadline,
-                expected_income = normalized.expected_income,
-                gas_cost = normalized.gas_cost,
-                actual_income = normalized.actual_income
-            )
-            val updated = current + created
-            local.write("projects", gson.toJson(updated), guest = true)
-            return mergePnlProjects(updated)
+        val current = readCachedProjects(guest)
+        val created = ProjectDto(
+            id = localId?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString(),
+            name = normalized.name,
+            description = normalized.description,
+            status = normalized.status,
+            official_url = normalized.official_url,
+            claim_url = normalized.claim_url,
+            twitter_url = normalized.twitter_url,
+            deadline = normalized.deadline,
+            expected_income = normalized.expected_income,
+            gas_cost = normalized.gas_cost,
+            actual_income = normalized.actual_income,
+            communityOfficialId = normalized.community_official_id?.trim()?.takeIf { it.isNotEmpty() },
+            syncPending = !guest
+        )
+        val updated = current + created
+        // Local persistence is the success boundary; the network is secondary.
+        local.write("projects", gson.toJson(updated), guest)
+        if (guest) return mergePnlProjects(updated, guest = true)
+
+        return try {
+            val serverProject = remote.createProject(normalized.copy(client_project_id = created.id))
+            val synchronized = updated.map {
+                if (it.id == created.id) it.copy(remoteId = serverProject.id, syncPending = false, client_project_id = created.id) else it
+            }
+            local.write("projects", gson.toJson(synchronized), guest = false)
+            mergePnlProjects(synchronized, guest = false)
+        } catch (_: Exception) {
+            // Preserve the local project and pending marker for the explicit sync-retry flow.
+            mergePnlProjects(updated, guest = false)
         }
-        remote.createProject(normalized)
-        return refreshProjects()
     }
+
+    private fun ProjectDto.toWriteRequest() = ProjectWriteRequest(
+        name = name,
+        description = description,
+        status = status,
+        official_url = official_url,
+        claim_url = claim_url,
+        twitter_url = twitter_url,
+        deadline = deadline,
+        expected_income = expected_income,
+        gas_cost = gas_cost,
+        actual_income = actual_income
+    )
 
     suspend fun updateProject(
         project: ProjectDto,
@@ -114,8 +180,8 @@ class ProjectsRepository(
         guest: Boolean
     ): List<ProjectDto> {
         val normalized = normalizeProjectRequest(request)
-        if (guest) {
-            val current = decodeList<ProjectDto>(local.read("projects", true), projectsType)
+        if (guest || project.syncPending) {
+            val current = decodeList<ProjectDto>(local.read("projects", guest), projectsType)
             require(current.any { it.id == project.id }) { "项目不存在或不是本地自建项目" }
             val updatedProject = project.copy(
                 name = normalized.name,
@@ -130,15 +196,15 @@ class ProjectsRepository(
                 actual_income = normalized.actual_income
             )
             val updated = current.map { if (it.id == project.id) updatedProject else it }
-            local.write("projects", gson.toJson(updated), guest = true)
-            return mergePnlProjects(updated)
+            local.write("projects", gson.toJson(updated), guest)
+            return mergePnlProjects(updated, guest)
         }
-        remote.updateProject(project.id, normalized)
+        remote.updateProject(project.remoteId ?: project.id, normalized)
         return refreshProjects()
     }
 
     suspend fun deleteProject(project: ProjectDto, guest: Boolean): List<ProjectDto> {
-        if (!guest) remote.deleteProject(project.id)
+        if (!guest && !project.syncPending) remote.deleteProject(project.remoteId ?: project.id)
         val current = readCachedProjects(guest)
         val updated = current.filterNot { it.id == project.id }
         local.write("projects", gson.toJson(updated), guest)
@@ -146,7 +212,7 @@ class ProjectsRepository(
         // confirmed P&L and interaction history intact when a project is removed.
         local.write("tasks:${project.id}", "[]", guest)
         runCatching { CacheStore.saveProjectWalletAssignments(project.id, emptySet()) }
-        return mergePnlProjects(updated)
+        return mergePnlProjects(updated, guest)
     }
 
     suspend fun readCachedTasks(projectId: String, guest: Boolean): List<TaskDto> =

@@ -1,8 +1,5 @@
 package com.airdrophunter.app.data
 
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-
 class MarketSearchRepository(
     private val okxRepository: OkxMarketRepository,
     private val cacheRefresh: CacheRefreshCoordinator = CacheRefreshCoordinator.shared
@@ -69,28 +66,25 @@ class MarketSearchRepository(
 
     suspend fun refreshHotCoins(): List<HotCoin> = loadHotCoins(manual = true)
 
-    suspend fun searchLocalDapps(query: String): List<CommunityProjectCatalogDto> {
-        val raw = CacheStore.readPublic(DAPP_CATALOG_CACHE_KEY) ?: return emptyList()
-        val type = object : TypeToken<List<CommunityProjectCatalogDto>>() {}.type
-        val entries = runCatching { Gson().fromJson<List<CommunityProjectCatalogDto>>(raw, type) }.getOrNull().orEmpty()
-        return entries.filter { it.matchesSearch(query) }
-    }
+    suspend fun searchLocalDapps(query: String): List<CommunityProjectCatalogDto> =
+        CommunityCatalogRepository.readCatalog().orEmpty()
+            .filter { it.is_active && it.matchesSearch(query) }
 
-    suspend fun searchRemoteDapps(query: String): List<CommunityProjectCatalogDto> {
-        val result = cacheRefresh.load(
-            cacheKey = DAPP_CATALOG_CACHE_KEY,
-            source = DAPP_CATALOG_SOURCE,
-            readCache = {
-                CacheStore.readPublic(DAPP_CATALOG_CACHE_KEY)?.let { raw ->
-                    val type = object : TypeToken<List<CommunityProjectCatalogDto>>() {}.type
-                    runCatching { Gson().fromJson<List<CommunityProjectCatalogDto>>(raw, type) }.getOrNull()
-                }
-            },
-            fetch = { ApiClient.service.getCommunityCatalog() },
-            save = { entries -> CacheStore.writePublic(DAPP_CATALOG_CACHE_KEY, Gson().toJson(entries)) }
-        )
-        val entries = result.data ?: throw IllegalStateException(result.errorMessage ?: "DApp 目录暂时不可用")
-        return entries.filter { it.matchesSearch(query) }
+    suspend fun searchRemoteDapps(query: String): List<CommunityProjectCatalogDto> =
+        CommunityCatalogRepository.refreshCatalog()
+            .filter { it.is_active && it.matchesSearch(query) }
+
+    /** Preload the dynamic market lists used by Home and global search. */
+    suspend fun warmUpMarketCaches() {
+        val priceResult = try { searchRemoteCoins(""); true }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
+        val hotCoinResult = try { loadHotCoins(); true }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
+        if (!priceResult && !hotCoinResult) {
+            throw IllegalStateException("行情目录预加载失败")
+        }
     }
 
     private suspend fun ensureSeedCoins() {
@@ -123,7 +117,5 @@ class MarketSearchRepository(
         private const val COINPAPRIKA_SOURCE = "coinpaprika"
         private const val HOT_COIN_CACHE_KEY = "global-search-hot-coins"
         private const val OKX_SOURCE = "okx-spot"
-        private const val DAPP_CATALOG_CACHE_KEY = "global-search-dapp-catalog"
-        private const val DAPP_CATALOG_SOURCE = "community-catalog"
     }
 }

@@ -8,10 +8,11 @@ from fastapi.testclient import TestClient
 from app.database import get_db
 from fastapi import HTTPException
 from app.main import app
-from app.api.community_stats import CommunityAssetAmount, normalize_public_asset_breakdown
+from app.api.community_stats import CommunityAssetAmount, CommunityContributionRequest, normalize_public_asset_breakdown
 from app.models import CommunityProjectStats, User
 from app.routers.auth import get_optional_current_user
 from app.services.transaction_verification import VerificationResult
+from app.services.community_privacy import anonymous_contributor_fingerprint
 
 
 @pytest.fixture(autouse=True)
@@ -40,6 +41,30 @@ def _headers(client, prefix: str):
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
+
+
+def test_reward_confirmation_defaults_to_unconfirmed():
+    payload = CommunityContributionRequest(
+        event_id=uuid4(),
+        network="ethereum",
+        wallet_address="0x1234567890abcdef1234567890abcdef12345678",
+        tx_hash="0x" + "a" * 64,
+        public_contribution_opt_in=True,
+        gas_cost_usd=Decimal("1.00"),
+    )
+    assert payload.actual_reward_confirmed is False
+
+
+def test_contributor_id_is_hmac_fingerprinted_and_never_returned_raw(monkeypatch):
+    contributor_id = uuid4()
+    monkeypatch.setenv("COMMUNITY_CONTRIBUTOR_HMAC_SECRET", "test-secret-that-is-long-enough-123456")
+    first = anonymous_contributor_fingerprint(contributor_id)
+    second = anonymous_contributor_fingerprint(contributor_id)
+    other = anonymous_contributor_fingerprint(uuid4())
+    assert first == second
+    assert first != other
+    assert len(first) == 64
+    assert str(contributor_id) not in first
 
 
 def test_public_valuation_source_is_allowlisted_and_cannot_embed_private_identifiers():
@@ -133,6 +158,7 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
             "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
             "tx_hash": "0x" + "a" * 64,
             "public_contribution_opt_in": True,
+            "actual_reward_confirmed": True,
             "gas_cost_usd": "2.50",
             "actual_reward_usd": "12.00",
             "asset_breakdown": [
@@ -150,7 +176,9 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert first.status_code == 200
         assert first.json()["total_gas_cost_usd"] == 2.5
         assert first.json()["total_actual_reward_usd"] == 12.0
-        assert first.json()["data_quality"] == "user_confirmed"
+        assert first.json()["total_reward_usd"] == 12.0
+        assert first.json()["total_estimated_reward_usd"] == 0.0
+        assert first.json()["data_quality"] == "approximate_actual_and_estimated"
         assert first.json()["verification_tier"] == "amount_verified"
         assert first.json()["gas_by_verification_tier"]["amount_verified"] == 2.5
         assert "total_interactions" not in first.json()
@@ -180,6 +208,30 @@ def test_community_contribution_is_idempotent_and_public_stats_are_aggregated():
         assert "contribution_count" not in public.json()
 
 
+def test_estimated_reward_contributes_to_approximate_public_income_without_becoming_actual():
+    with TestClient(app) as client:
+        payload = {
+            "event_id": str(uuid4()),
+            "network": "base",
+            "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
+            "tx_hash": "0x" + "e" * 64,
+            "public_contribution_opt_in": True,
+            "gas_cost_usd": "1.25",
+            "actual_reward_usd": "0",
+            "estimated_reward_usd": "18.75",
+            "actual_reward_confirmed": False,
+            "contributor_id": str(uuid4()),
+        }
+        response = client.post("/api/community/projects/base/contributions", json=payload)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_gas_cost_usd"] == 1.25
+        assert body["total_actual_reward_usd"] == 0.0
+        assert body["total_estimated_reward_usd"] == 18.75
+        assert body["total_reward_usd"] == 18.75
+        assert body["data_quality"] == "approximate_actual_and_estimated"
+
+
 def test_guest_can_contribute_to_public_stats_idempotently():
     with TestClient(app) as client:
         payload = {
@@ -188,6 +240,7 @@ def test_guest_can_contribute_to_public_stats_idempotently():
             "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
             "tx_hash": "0x" + "b" * 64,
             "public_contribution_opt_in": True,
+            "actual_reward_confirmed": True,
             "gas_cost_usd": "0.75",
             "actual_reward_usd": "3.25",
         }
@@ -222,6 +275,9 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
             return type("RatingStats", (), {"average": None, "count": 0})()
 
     class FakeDatabase:
+        async def scalar(self, statement):
+            return type("ActiveCatalogEntry", (), {"is_active": True})()
+
         async def execute(self, statement):
             if not captured:
                 captured.update(statement.compile().params)
@@ -255,7 +311,7 @@ def test_authenticated_public_contribution_does_not_persist_account_identity():
     try:
         with TestClient(app) as client:
             response = client.post(
-                "/api/community/projects/anonymous-test/contributions",
+                "/api/community/projects/linea/contributions",
                 json={
                     "event_id": str(event_id),
                     "network": "ethereum",
@@ -345,11 +401,55 @@ def test_same_transaction_hash_cannot_be_reused_for_another_event():
             "gas_cost_usd": "1.00",
             "actual_reward_usd": "2.00",
         }
-        first = client.post("/api/community/projects/replay-test/contributions", json=first_payload)
+        first = client.post("/api/community/projects/zksync/contributions", json=first_payload)
         assert first.status_code == 200
         second_payload = {**first_payload, "event_id": str(uuid4())}
-        second = client.post("/api/community/projects/replay-test/contributions", json=second_payload)
+        second = client.post("/api/community/projects/base/contributions", json=second_payload)
         assert second.status_code == 409
+
+
+def test_inactive_or_unknown_catalog_project_cannot_receive_new_contributions(monkeypatch):
+    monkeypatch.setenv("COMMUNITY_CATALOG_ADMIN_TOKEN", "catalog-test-secret")
+    headers = {"X-Catalog-Admin-Token": "catalog-test-secret"}
+    catalog_payload = {
+        "project_official_id": "inactive-contribution-test",
+        "name": "Inactive Contribution Test",
+        "chain": "Ethereum L2",
+        "logo": "I",
+        "description": "Test only",
+        "tags": ["test"],
+        "website_url": "https://example.org",
+        "is_active": True,
+        "sort_order": 999,
+    }
+    with TestClient(app) as client:
+        created = client.post("/api/community/catalog", headers=headers, json=catalog_payload)
+        assert created.status_code == 201
+        deactivated = client.put(
+            "/api/community/catalog/inactive-contribution-test",
+            headers=headers,
+            json={**catalog_payload, "is_active": False},
+        )
+        assert deactivated.status_code == 200
+
+        payload = {
+            "event_id": str(uuid4()),
+            "network": "ethereum",
+            "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
+            "tx_hash": "0x" + "f" * 64,
+            "public_contribution_opt_in": True,
+            "gas_cost_usd": "1.00",
+            "actual_reward_usd": "2.00",
+        }
+        inactive = client.post(
+            "/api/community/projects/inactive-contribution-test/contributions",
+            json=payload,
+        )
+        assert inactive.status_code == 404
+        assert inactive.json()["detail"] == "该项目不在当前有效社区目录中，不能新增公共贡献"
+
+        unknown = client.post("/api/community/projects/not-in-catalog/contributions", json=payload)
+        assert unknown.status_code == 404
 
 
 def test_community_contribution_requires_transaction_link_fields():
@@ -365,7 +465,7 @@ def test_community_contribution_requires_transaction_link_fields():
 def test_public_contribution_requires_explicit_opt_in():
     with TestClient(app) as client:
         response = client.post(
-            "/api/community/projects/consent-test/contributions",
+            "/api/community/projects/linea/contributions",
             json={
                 "event_id": str(uuid4()),
                 "network": "ethereum",

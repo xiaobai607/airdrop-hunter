@@ -1,44 +1,128 @@
-# Airdrop Hub data import
+# Airdrop Hub data pipeline — current implementation
 
-The public airdrop catalog is stored in Neon PostgreSQL. Android reads normalized records from the backend; it does not scrape third-party pages.
+This document describes the active importer, not the retired public-search/RSS experiments. The Android app reads normalized records from the backend; it does not scrape arbitrary websites.
 
-## Existing structured source
+## Active source adapters
 
-1. Primary: `https://web3-discover.vercel.app/api/airdrops.json`
-2. Fallback: the public `list_active_airdrops` JSON-RPC tool on `https://web3-discover.vercel.app/api/mcp`
+The scheduled sync calls four isolated adapters:
 
-The importer maps project, chain, description, status, and source project URL fields. Rows without a name or valid HTTP(S) link are discarded. A multi-chain entry is stored once per chain. `source_key` provides idempotent upserts.
+1. **Binance official CMS announcements** — reads the configured Binance CMS announcement categories. Records are announcement leads, not an inferred campaign database. The app displays the official headline and original link; the detail endpoint retrieves the original Binance article body.
+2. **CoinGecko Airdrop category** — requires `COINGECKO_DEMO_API_KEY`. Category/market rows are token discovery observations only. A token appearing in this category is not proof of a currently claimable airdrop.
+3. **Operator-approved GitHub Raw lists** — configured through `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS`, a JSON array of manually reviewed source records. Every record must include a unique source ID, exact repository identity, HTTPS Raw file URL pinned to a full 40-character commit SHA, SPDX-style license identifier, HTTPS license reference, explicit attribution text, `review_status: "approved"`, and an ISO review date. The repository identity must match the Raw URL owner/repository. URL-only legacy configuration is ignored. The entire configuration fails closed if any entry is incomplete, unapproved, duplicated, unsafe, unpinned, or if more than 20 entries are supplied. The operator must update/review the record when changing the pinned commit.
+4. **DexScreener new-pool observations** — optional search terms come from `DEXSCREENER_SEARCH_QUERIES` (comma-separated, maximum eight). The current filter requires a pool no older than seven days, at least USD 10,000 liquidity, at least USD 50,000 24-hour volume, and at least 20 24-hour buys/sells combined. These are market-activity clues only, never confirmed airdrops.
 
-## RSS/Atom discovery candidates
+Binance CMS access does not require an API key. CoinGecko requires the Demo key. GitHub Raw files are not fetched unless the operator supplies a complete manually approved source record. The code validates the shape of that approval record; it does **not** independently verify the license text, the license URL's legal effect, the repository owner's authority, or whether the license covers the intended public-catalog reuse. An operator must inspect the repository's license and attribution/redistribution terms before marking a source approved. A public Raw URL, a syntactically valid license identifier, or a license URL alone is not permission.
 
-The scheduled importer also supports explicitly configured RSS 2.0 and Atom feeds. These records are stored in the separate `airdrop_discovery_candidates` table and exposed as candidates; they are NOT silently promoted into the verified community project catalog and do not create Gas, reward, rating, or participation metrics.
+## Trust and publication boundary
 
-Configure Render environment variables:
+- `TRUSTED_AIRDROP_PROVIDER_LABELS` is currently empty. No third-party directory provider is approved for automatic `PUBLISHED_SAFE` publication.
+- CoinGecko, GitHub Raw and DexScreener rows remain `TRUST_LEVEL_0` / `OBSERVATION`. They must not be presented as confirmed airdrop campaigns.
+- GitHub Raw attribution, license identifier/reference and review date are preserved in each imported lead's internal description for provenance. This does not convert a lead into a verified campaign.
+- Binance announcement rows also remain observation records. The public `GET /api/airdrops/hub` list intentionally exposes only Binance announcement records, with the visible status set to `待核实`; the source is official, but the app does not invent reward amounts, dates, eligibility or participation terms.
+- The Binance detail endpoint displays the original CMS HTML. Missing terms stay missing; the app does not summarize or guess them.
+- Source failures are isolated. A failed source is rolled back and recorded as failed without deleting that source's last-known-good rows or blocking the other adapters.
 
-- `AIRDROP_RSS_FEEDS`: semicolon-separated `name=https://host/path.xml` entries.
-- `AIRDROP_RSS_ALLOWED_HOSTS`: comma-separated exact hostnames permitted for feed retrieval, e.g. `feeds.example,feeds.other.example`.
+## Explicitly inactive legacy paths
 
-Every feed must use HTTPS and its exact hostname must be allowlisted. Redirects are disabled, each feed is isolated from failures in other feeds, response size is capped, and malformed/unsafe feed entries are ignored. Configure only feeds whose availability and terms permit automated retrieval. RSSHub can be used as a feed endpoint when you operate or trust the instance and have checked its terms; it is not assumed to support every website.
+- The old `web3-discover` JSON/MCP adapter has been removed; its former endpoints and parser are no longer present in the active importer.
+- URL-only `AIRDROP_GITHUB_RAW_SOURCES` configuration is no longer accepted. It cannot bypass the license/attribution approval gate.
+- RSS/Atom ingestion is not called by the scheduled importer. Legacy RSS parser, candidate tables and review endpoints remain dormant for compatibility; the scheduled workflow no longer injects RSS configuration, and no wild RSS feeds are configured or automatically searched.
+- Do not re-enable public web search, arbitrary RSS discovery, or unreviewed aggregators as a shortcut.
 
-The importer stores title, item URL, summary, feed attribution, publication time, and first/last-seen times. It does not crawl linked pages or infer that a feed item is an official project website.
+## Configuration
 
-## Initial import / scheduled refresh
+- `COINGECKO_DEMO_API_KEY`: optional; without it the CoinGecko adapter reports a source-level configuration failure.
+- `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS`: optional JSON array of complete manually approved records. Each entry has exactly these fields:
 
-From the repository's `backend` directory, run:
+```json
+[
+  {
+    "source_id": "operator-reviewed-list",
+    "url": "https://raw.githubusercontent.com/OWNER/REPO/FULL_40_CHARACTER_COMMIT_SHA/path/to/list.json",
+    "repository": "OWNER/REPO",
+    "license_id": "MIT",
+    "license_url": "https://spdx.org/licenses/MIT.html",
+    "attribution": "Exact attribution text required by the repository terms",
+    "review_status": "approved",
+    "reviewed_at": "2026-11-11"
+  }
+]
+```
+
+  The example is a schema illustration, not an approved real source. Do not copy it as a production source or invent repository details. Every URL must use the exact `raw.githubusercontent.com` host, HTTPS, and a full commit SHA; branch names such as `main` are rejected.
+- `DEXSCREENER_SEARCH_QUERIES`: optional comma-separated query terms; defaults to `SOL,ETH,USDC` and is capped at eight terms.
+- Binance CMS categories are code-configured.
+
+## API
+
+- `GET /api/airdrops/hub` — Binance announcement leads only.
+- `GET /api/airdrops/hub?chain=Solana` — SQL-filtered results; Binance announcements currently use `Unknown` chain unless the source explicitly supplies one.
+- `GET /api/airdrops/hub/{id}` — fetches the original Binance CMS article body and metadata.
+- `GET /api/airdrops/hub/status` — latest in-process sync status.
+- `POST /api/airdrops/hub/refresh` and compatibility alias `POST /api/airdrops/sync` — trigger the same four-source sync, subject to rate limits. The scheduled GitHub workflow invokes the importer only when `AIRDROP_DISCOVERY_SYNC_ENABLED=true` and `DATABASE_URL` is configured.
+
+## Scheduled import
+
+From the repository's `backend` directory:
 
 ```bash
 python -m scripts.sync_airdrop_hub
 ```
 
-Schedule this command daily as a Render Cron Job (working directory: `backend`). It attempts the structured source and configured RSS feeds independently, so one provider failure does not block the other. If no RSS feeds are configured, RSS intake safely does nothing.
+The script runs the four-source catalog sync, then attempts campaign market enrichment and score recalculation as separate steps. A failure in one enrichment step is logged without fabricating an airdrop record. Configure a daily Render Cron Job only if the deployment is intended to run this script; this document does not claim that a production cron is already configured.
 
-## API
+## Validation boundary
 
-- `GET /api/airdrops/hub` — structured airdrop catalog.
-- `GET /api/airdrops/hub?chain=Solana` — SQL-filtered chain results.
-- `GET /api/airdrops/hub/status` — structured source sync status.
-- `POST /api/airdrops/hub/refresh` — retry the structured source import.
-- `GET /api/airdrops/discovery/candidates` — normalized RSS/Atom candidate list.
-- `GET /api/airdrops/discovery/candidates?q=testnet&limit=50` — title search.
+Automated tests and CI validate the authored parser, fail-closed approval metadata, commit pinning, filtering, source isolation and API contracts. Exact-head Push workflow #1111 for commit `2546778c` passed with 213 backend tests. CI does not prove that external providers are currently available, that the operator's legal review is correct, that a real campaign is claimable, or that the Binance article HTML renders correctly on a physical phone.
 
-The RSS candidate import currently runs through the scheduled backend script. Existing catalog rows are not deleted when a source is unavailable.
+### Binance CMS category IDs (verified 2026-11-11)
+
+- `128` is Binance's **Crypto Airdrop** category (`/en/support/announcement/list/128`).
+- `93` is Binance's **Latest Activities** category (`/en/support/announcement/list/93`). This is the activity feed used by the importer; titles are still keyword-filtered for airdrop/Launchpool/HODLer/Megadrop relevance.
+- `49` is **not** Latest Activities; the official announcement UI identifies it as **Latest Binance News**. Do not use it as the activity category.
+- The importer therefore requests only catalog IDs `(128, 93)`. It does not ingest the general news category.
+
+### Binance announcement list endpoint compatibility (2026-11-11)
+
+- The current RSSHub Binance announcement adapter uses Binance's newer observed route `/bapi/apex/v1/public/apex/cms/article/list/query` with the same `type/pageNo/pageSize/catalogId` parameters and `data.catalogs[].articles[]` response structure.
+- The importer now tries that route first and falls back per category to the former `/bapi/composite/v1/public/cms/article/list/query` route if the request fails or the response does not contain `data.catalogs`.
+- This is a compatibility measure based on observed frontend usage, not a Binance-supported public API guarantee. A live provider smoke test is still required; MockTransport tests only verify request construction and fallback behavior.
+
+### Binance endpoint self-discovery
+
+- At each discovery-cache expiry (6 hours), the backend reads the public RSSHub Binance announcement adapter source at `https://raw.githubusercontent.com/DIYgod/RSSHub/master/lib/routes/binance/announcement.ts` and extracts only a path matching `/bapi/.../cms/article/list/query`.
+- The extracted path is never used with a host supplied by that source. The backend pins the host to `www.binance.com`, probes the discovered endpoint with the approved category IDs `128` and `93`, and requires a JSON `data.catalogs` response whose returned catalog ID matches the request.
+- The RSSHub file is an endpoint-discovery reference only, not an announcement data provider. Titles, article codes, detail pages, and HTML continue to come directly from Binance. If the reference is unavailable or changes format, the backend falls back to the known apex and legacy composite paths.
+- This reduces hard-coded endpoint drift but still relies on an observed, undocumented Binance web interface. It is not an official Binance API guarantee.
+
+
+### Endpoint discovery verification boundaries
+
+- The discovery parser accepts only a path embedded after the adapter's `${baseUrl}` template marker and matching `/bapi/.../cms/article/list/query`; it never accepts a host from the reference source.
+- The endpoint is probed separately for each approved category. A response must contain `data.catalogs`, and any non-empty catalog array must include the requested `catalogId`. A failed or malformed candidate is skipped in favor of the next known Binance path.
+- Automated MockTransport tests cover path extraction, host pinning, category validation, and fallback. A live Binance request still needs to be confirmed by the hosted backend workflow; web preview tools could not fetch Binance's CMS endpoint in this review.
+
+
+## Unified multi-source candidate queue (2026-11-11)
+
+Every successful provider observation is now also upserted into the same `airdrop_discovery_candidates` review queue exposed by `/api/airdrops/discovery/candidates`. The queue preserves provider identity, source URL, original item URL, summary, first/last-seen timestamps and review status. A stable SHA-256 key scopes each record to its provider and original source key, avoiding the 64-character database key limit without losing the original key in the source catalog.
+
+This is a discovery/review queue, not the published Airdrop Library. Binance announcements, CoinGecko category tokens, GitHub list entries and DexScreener pools remain unverified observations. Refreshes update candidate details and last-seen time but never reset an operator's approved/rejected review decision. Unsafe or non-HTTPS item links are not added to the review queue. Provider failures remain isolated and do not erase last-known-good records.
+
+
+## Three-stage discovery architecture (2026-11-11)
+
+1. **Source acquisition** — adapters discover endpoints, fetch provider responses, and normalize observations. They do not apply product relevance thresholds, keyword screening, cross-provider duplicate decisions, or project/campaign merging.
+2. **One centralized discovery filter** — owns category selection, relevance thresholds, classification, project/campaign identity analysis, duplicate decisions, source precedence, conflict handling, and eligibility. A filter decision never deletes raw observations or provenance.
+3. **Airdrop Library** — receives only records that pass centralized review/publication rules. Unverified market/category leads never become confirmed campaigns solely by passing a filter.
+
+Binance category 93 headlines are all retained by the adapter; the filter applies the existing `airdrop|launchpool|hodler|megadrop` rule. Category 128 remains eligible without that title rule. DexScreener retains parseable observations and structured age/liquidity/volume/trade metadata; the filter applies the existing thresholds unchanged (age <= 7 days, liquidity >= USD 10,000, 24h volume >= USD 50,000, 24h buys+sells >= 20). CoinGecko category responses are normalized as facts and category selection is centralized. Adapter-local deduplication is removed from Binance and DexScreener.
+
+Filter status/reasons/metadata are separate from human `review_status`, which refreshes never overwrite. This is the first responsibility-boundary pass, not a claim that cross-provider project/campaign clustering is finished. Name-only matching must not merge projects or campaigns; uncertain matches remain separate pending review.
+
+
+## Centralized project/campaign identity classification (2026-11-11)
+
+Identity decisions are part of the single discovery filter. The filter uses only strong evidence: chain + contract address, exact HTTPS official project URL, and exact HTTPS campaign/activity URL. EVM contract addresses are case-normalized; non-EVM addresses retain case. Tracking parameters are removed from official URLs. Project names and tickers are never identity keys.
+
+Project identity and campaign identity are stored separately on both raw catalog observations and review candidates. The filter can classify a record as the same project but a distinct campaign, the same campaign, or insufficient evidence. A match records the source key and evidence; it does not merge, delete, or overwrite any provider observation. A project match without campaign evidence is explicitly not a campaign duplicate. Existing records are not retroactively merged; identity decisions are recalculated as new observations arrive.

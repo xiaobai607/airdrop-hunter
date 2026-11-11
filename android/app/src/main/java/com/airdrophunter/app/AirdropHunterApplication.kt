@@ -20,6 +20,8 @@ class AirdropHunterApplication : Application() {
         // tasks keep their own cadence, account boundary, and retry semantics.
         ApiClient.initialize(this)
         GlobalSyncScheduler.ensurePeriodic(this)
+        // Queue Room-first dynamic directory and market cache warm-up on every app process start.
+        // UI reads the last successful cache immediately; the worker revalidates in the background.
         GlobalSyncScheduler.enqueueNow(this)
 
         val metadata = Core.Model.AppMetaData(

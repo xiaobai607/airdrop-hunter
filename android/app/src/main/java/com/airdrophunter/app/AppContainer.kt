@@ -18,6 +18,7 @@ import com.airdrophunter.app.data.AuthRepository
 import com.airdrophunter.app.data.RetrofitAuthRemoteDataSource
 import com.airdrophunter.app.data.RetrofitProfileRemoteDataSource
 import com.airdrophunter.app.data.AirdropHubRepository
+import com.airdrophunter.app.data.AirdropCampaignRepository
 import com.airdrophunter.app.data.RetrofitAirdropHubRemoteDataSource
 import com.airdrophunter.app.data.AirdropsRepository
 import com.airdrophunter.app.data.AccountingRepository
@@ -61,6 +62,10 @@ class AppContainer {
         ProfileRepository(RetrofitProfileRemoteDataSource(apiService))
     }
 
+    val airdropCampaignRepository: AirdropCampaignRepository by lazy {
+        AirdropCampaignRepository(apiService)
+    }
+
     val airdropHubRepository: AirdropHubRepository by lazy {
         AirdropHubRepository(RetrofitAirdropHubRemoteDataSource(apiService))
     }
@@ -70,7 +75,7 @@ class AppContainer {
     }
 
     val accountingRepository: AccountingRepository by lazy {
-        AccountingRepository(CacheStoreAccountingLocalDataSource(), apiService)
+        AccountingRepository(CacheStoreAccountingLocalDataSource(), apiService, projectsRepository = projectsRepository)
     }
 
     val okxMarketRepository: OkxMarketRepository by lazy {

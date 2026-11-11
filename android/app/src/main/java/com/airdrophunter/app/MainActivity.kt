@@ -29,6 +29,7 @@ import androidx.lifecycle.lifecycleScope
 import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.TokenStore
+import com.airdrophunter.app.data.GlobalSyncScheduler
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
@@ -37,6 +38,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
+    override fun onStart() {
+        super.onStart()
+        // Recheck dynamic directories on every app foreground entry; cache TTLs suppress excess requests.
+        GlobalSyncScheduler.enqueueDynamicCatalogWarmup(applicationContext)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = android.graphics.Color.rgb(248, 249, 250)
@@ -47,28 +54,34 @@ class MainActivity : ComponentActivity() {
             AirdropHunterTheme {
                 val initialToken = remember { TokenStore.readTokenBlocking() }
                 val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = initialToken)
-                val sessionScopeKey = remember(token) { CacheStore.accountScopeKey(token) }
-                var showAuth by rememberSaveable { mutableStateOf(false) }
-                LaunchedEffect(token) { if (!token.isNullOrBlank()) showAuth = false }
-                if (showAuth && token.isNullOrBlank()) {
-                    AuthScreen(onGuestMode = { showAuth = false })
-                } else {
-                    AirdropHunterApp(
-                        isGuest = token.isNullOrBlank(),
-                        sessionScopeKey = sessionScopeKey,
-                        onRequireAuth = { showAuth = true },
-                        onLogout = { lifecycleScope.launch { TokenStore.clearToken(applicationContext) } },
-                        onOpenAuth = { showAuth = true }
-                    )
-                }
+                // Keep a legacy local namespace stable without treating it as a login session.
+                val localScopeKey = remember(token) { CacheStore.accountScopeKey(token) }
+                AirdropHunterApp(
+                    isGuest = true,
+                    sessionScopeKey = localScopeKey,
+                    onRequireAuth = {
+                        Toast.makeText(
+                            applicationContext,
+                            "当前版本暂不开放注册/登录，个人数据仅保存在本机",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    },
+                    onLogout = {},
+                    onOpenAuth = {
+                        Toast.makeText(
+                            applicationContext,
+                            "当前版本暂不开放注册/登录，个人数据仅保存在本机",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                )
             }
         }
     }
 }
-
 private data class Destination(val label: Int, val icon: ImageVector)
 
-private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY }
+private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY, ACCOUNTING }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,7 +108,7 @@ private fun AirdropHunterApp(
     }
 
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
-    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
+    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY, AppOverlay.ACCOUNTING) || selectedProject != null || selectedCommunityProject != null
 
     BackHandler(hasSecondaryDestination) {
         activeOverlay = AppOverlay.NONE
@@ -111,11 +124,13 @@ private fun AirdropHunterApp(
     )
     val secondaryTitle = when {
         activeOverlay == AppOverlay.SOURCES -> stringResource(R.string.sources_title)
-        activeOverlay == AppOverlay.AIRDROP_HUB -> "空投大厅"
+        activeOverlay == AppOverlay.AIRDROP_HUB -> "空投发现"
+        activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> "空投活动"
         activeOverlay == AppOverlay.WALLET_MANAGER -> "钱包管理"
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "$selectedMarketSymbol 行情"
         activeOverlay == AppOverlay.TRON_ENERGY -> "TRON 能量租赁助手"
+        activeOverlay == AppOverlay.ACCOUNTING -> "记账"
         selectedCommunityProject != null -> "项目微社区"
         else -> stringResource(R.string.project_detail)
     }
@@ -164,6 +179,11 @@ private fun AirdropHunterApp(
             when {
                 activeOverlay == AppOverlay.SOURCES -> SourcesScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.AIRDROP_HUB -> AirdropHubScreen(Modifier.fillMaxSize())
+                activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> AirdropCampaignsScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onOpenBinanceOfficial = { activeOverlay = AppOverlay.AIRDROP_HUB }
+                )
+                activeOverlay == AppOverlay.ACCOUNTING -> AccountingCenterScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.TRON_ENERGY -> TronEnergyAssistantScreen(
                     modifier = Modifier.fillMaxSize(),
                     onBack = { activeOverlay = AppOverlay.NONE },
@@ -238,8 +258,9 @@ private fun AirdropHunterApp(
                     onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
                     onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
                     onOpenProjects = { tab = 2 },
-                    onOpenAirdropHub = { activeOverlay = AppOverlay.AIRDROP_HUB },
+                    onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
                     onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
+                    onOpenAccounting = { activeOverlay = AppOverlay.ACCOUNTING },
                     isGuest = isGuest, onRequireAuth = onRequireAuth,
                     sessionScopeKey = sessionScopeKey
                     )

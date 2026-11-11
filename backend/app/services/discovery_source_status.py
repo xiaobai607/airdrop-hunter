@@ -30,7 +30,7 @@ async def record_discovery_source_status(
     error: str | None = None,
 ) -> AirdropDiscoverySourceStatus:
     """Persist only safe source health metadata; never store response bodies or credentials."""
-    if status not in {"success", "failed"}:
+    if status not in {"success", "empty", "stale", "failed"}:
         raise ValueError("Unsupported discovery source status")
     normalized_name = source_name.strip()[:120]
     safe_url = _safe_source_url(source_url)

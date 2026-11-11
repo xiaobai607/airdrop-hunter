@@ -3,7 +3,7 @@ import ipaddress
 import os
 import re
 import secrets
-from typing import Annotated
+from typing import Annotated, Literal
 from datetime import datetime
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
@@ -58,6 +58,17 @@ class CatalogWrite(BaseModel):
     logo: str = Field(default="", max_length=12)
     description: str = Field(default="", max_length=5000)
     tags: list[str] = Field(default_factory=list, max_length=20)
+    supported_chains: list[str] = Field(default_factory=list, max_length=30)
+    categories: list[str] = Field(default_factory=list, max_length=30)
+    participation_requirements: list[str] = Field(default_factory=list, max_length=40)
+    funding_requirement: Literal["unknown", "no_extra_capital", "gas_only", "low_capital", "capital_required", "locked_capital"] = "unknown"
+    campaign_stage: Literal["unknown", "testnet", "points_season", "mainnet_activity", "snapshot_announced", "claim_open", "ended"] = "unknown"
+    reward_types: list[str] = Field(default_factory=list, max_length=12)
+    risk_flags: list[str] = Field(default_factory=list, max_length=30)
+    effort_level: Literal["unknown", "quick", "recurring", "long_term"] = "unknown"
+    criteria_source_url: str = Field(default="", max_length=1000)
+    metadata_verified_at: datetime | None = None
+    metadata_note: str = Field(default="", max_length=2000)
     website_url: str = Field(default="", max_length=1000)
     is_active: bool = False
     sort_order: int = Field(default=100, ge=0, le=100000)
@@ -89,6 +100,24 @@ class CatalogWrite(BaseModel):
         if any(len(tag) > 32 for tag in tags):
             raise ValueError("单个标签不能超过32个字符")
         return tags
+
+    @field_validator("supported_chains", "categories", "participation_requirements", "reward_types", "risk_flags")
+    @classmethod
+    def normalize_filter_values(cls, value: list[str]) -> list[str]:
+        values = list(dict.fromkeys(item.strip().lower() for item in value if item.strip()))
+        if any(len(item) > 48 for item in values):
+            raise ValueError("筛选字段单项不能超过48个字符")
+        return values
+
+    @field_validator("criteria_source_url")
+    @classmethod
+    def validate_criteria_source_url(cls, value: str) -> str:
+        value = value.strip()
+        if value:
+            parsed = urlparse(value)
+            if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+                raise ValueError("筛选规则来源必须是有效的 HTTPS URL")
+        return value
 
     @field_validator("website_url")
     @classmethod
@@ -169,7 +198,20 @@ class CatalogResponse(BaseModel):
     logo: str
     description: str
     tags: list[str]
+    supported_chains: list[str]
+    categories: list[str]
+    participation_requirements: list[str]
+    funding_requirement: str
+    campaign_stage: str
+    reward_types: list[str]
+    risk_flags: list[str]
+    effort_level: str
+    criteria_source_url: str
+    metadata_verified_at: datetime | None
+    metadata_note: str
     website_url: str
+    is_active: bool
+    sort_order: int
     created_at: datetime
 
 
@@ -183,9 +225,10 @@ def require_catalog_admin(token: Annotated[str | None, Header(alias="X-Catalog-A
 
 @router.get("", response_model=list[CatalogResponse])
 async def list_community_catalog(db: Annotated[AsyncSession, Depends(get_db)]):
+    # Return inactive entries too. Clients need an explicit is_active=false signal
+    # to distinguish a confirmed delisting from an offline or incomplete directory.
     rows = await db.scalars(
         select(CommunityProjectCatalogEntry)
-        .where(CommunityProjectCatalogEntry.is_active.is_(True))
         .order_by(CommunityProjectCatalogEntry.sort_order.asc(), CommunityProjectCatalogEntry.name.asc())
     )
     return list(rows)
@@ -252,6 +295,16 @@ async def submit_community_project(
         logo=payload.logo,
         description="",
         tags=[],
+        supported_chains=[],
+        categories=[],
+        participation_requirements=[],
+        funding_requirement="unknown",
+        campaign_stage="unknown",
+        reward_types=[],
+        risk_flags=[],
+        effort_level="unknown",
+        criteria_source_url="",
+        metadata_note="用户提交项目，空投资格条件尚未核验。",
         website_url=canonical_url,
         is_active=True,
         sort_order=100000,

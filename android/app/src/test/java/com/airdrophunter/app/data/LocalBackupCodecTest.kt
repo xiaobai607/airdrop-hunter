@@ -30,6 +30,12 @@ class LocalBackupCodecTest {
   val error=assertThrows(IllegalArgumentException::class.java) { LocalBackupCodec.decode(LocalBackupCodec.encode(sample(),"correct-horse-1"),"incorrect-horse") }
   assertEquals("文件损坏或密码错误，导入失败",error.message)
  }
+ @Test fun shortImportPasswordUsesTheSameSafeFailureMessage() {
+  val error=assertThrows(IllegalArgumentException::class.java) {
+   LocalBackupCodec.decode(LocalBackupCodec.encode(sample(),"correct-horse-1"),"short")
+  }
+  assertEquals("文件损坏或密码错误，导入失败",error.message)
+ }
  @Test fun tamperedFileIsRejected() {
   val bytes=LocalBackupCodec.encode(sample(),"correct-horse-1"); bytes[bytes.lastIndex]=(bytes.last().toInt() xor 1).toByte()
   val error=assertThrows(IllegalArgumentException::class.java) { LocalBackupCodec.decode(bytes,"correct-horse-1") }

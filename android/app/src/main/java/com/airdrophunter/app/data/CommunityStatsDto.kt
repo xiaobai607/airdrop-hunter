@@ -8,6 +8,9 @@ data class CommunityContributionRequest(
     val public_contribution_opt_in: Boolean,
     val gas_cost_usd: Double,
     val actual_reward_usd: Double,
+    val estimated_reward_usd: Double? = null,
+    val actual_reward_confirmed: Boolean = true,
+    val contributor_id: String? = null,
     val asset_breakdown: List<LedgerAssetAmount> = emptyList()
 )
 
@@ -15,7 +18,9 @@ data class CommunityProjectStatsDto(
     val project_official_id: String,
     val total_gas_cost_usd: Double,
     val total_actual_reward_usd: Double,
-    val data_quality: String = "user_confirmed",
+    val total_reward_usd: Double = total_actual_reward_usd,
+    val total_estimated_reward_usd: Double = 0.0,
+    val data_quality: String = "approximate_actual_and_estimated",
     val verification_tier: String? = null,
     val average_rating: Double? = null,
     val rating_count: Long = 0,

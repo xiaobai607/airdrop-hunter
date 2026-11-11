@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
@@ -20,19 +21,19 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.runtime.*
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
-import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.CommunityProjectSubmissionRequest
 import com.airdrophunter.app.ui.theme.AppColors
@@ -40,17 +41,23 @@ import java.time.Instant
 import java.util.Locale
 
 private data class CommunityProject(
-    val id: String, val name: String, val chain: String, val logo: String, val websiteUrl: String,
+    val id: String, val name: String, val chain: String, val logo: String,
     val reward: Double, val gas: Double, val createdAt: String,
     val tags: List<String>, val isDemo: Boolean = false,
     val demoScore: Double = 0.0,
     val averageRating: Double? = null, val ratingCount: Long = 0,
-    val gasByVerificationTier: Map<String, Double> = emptyMap()
+    val gasByVerificationTier: Map<String, Double> = emptyMap(),
+    val isActive: Boolean = true,
+    val supportedChains: List<String> = emptyList(),
+    val categories: List<String> = emptyList(),
+    val participationRequirements: List<String> = emptyList(),
+    val fundingRequirement: String = "unknown",
+    val campaignStage: String = "unknown",
+    val rewardTypes: List<String> = emptyList(),
+    val riskFlags: List<String> = emptyList(),
+    val effortLevel: String = "unknown"
 ) {
-    val label: String get() = if (isDemo) "测试演示" else if (gas > 0.0 || reward > 0.0) "真实贡献" else "暂无贡献"
-    val metricWeights: Pair<Float, Float> get() = communityMetricWeights(gas, reward)
-    val gasWeight: Float get() = metricWeights.first
-    val rewardWeight: Float get() = metricWeights.second
+    val label: String get() = when { isDemo -> "测试演示"; !isActive -> "社区已下架"; gas > 0.0 || reward > 0.0 -> "全网数据"; else -> "暂无贡献" }
     val reputationLabel: String get() = when {
         isDemo && demoScore >= 4.5 -> "好评如潮"
         isDemo && demoScore >= 4.0 -> "整体较好"
@@ -68,27 +75,13 @@ private enum class CommunityRanking(val title: String) {
     REWARD("🔥 吸金榜"), GAS("💀 避坑榜"), NEW("🚀 新星榜")
 }
 
-private data class CommunityDemoMetrics(val reward: Double, val gas: Double, val score: Double)
-
-private val communityDemoMetrics = mapOf(
-    "linea" to CommunityDemoMetrics(184.20, 42.80, 4.9),
-    "scroll" to CommunityDemoMetrics(128.60, 38.60, 4.8),
-    "zksync" to CommunityDemoMetrics(156.00, 62.00, 4.7),
-    "starknet" to CommunityDemoMetrics(98.00, 51.00, 4.4),
-    "base" to CommunityDemoMetrics(226.00, 73.00, 4.9),
-    "arbitrum" to CommunityDemoMetrics(142.00, 84.00, 4.2),
-    "optimism" to CommunityDemoMetrics(117.00, 49.00, 4.6)
-)
-
 @Composable
 fun CommunitySquareScreen(
     modifier: Modifier = Modifier,
     onProjectSelected: (String, String, String) -> Unit
 ) {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
-    val activeToken by TokenStore.observeToken(context).collectAsStateWithLifecycle(initialValue = TokenStore.readTokenBlocking())
     val joinedIds by CacheStore.observeUserProjects().collectAsStateWithLifecycle(initialValue = emptyList())
     val favorites by CacheStore.observeCommunityFavorites().collectAsStateWithLifecycle(initialValue = emptyList())
     val favoriteIds = remember(favorites) { favorites.map { it.projectOfficialId }.toSet() }
@@ -99,40 +92,45 @@ fun CommunitySquareScreen(
     var catalogError by remember { mutableStateOf<String?>(null) }
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
     var useDemoData by remember { mutableStateOf(BuildConfig.DEBUG) }
-    var selectedTag by remember { mutableStateOf<String?>(null) }
     var favoritesOnly by remember { mutableStateOf(false) }
+    var showAirdropFilters by remember { mutableStateOf(false) }
+    var airdropFilterSelection by remember { mutableStateOf(AirdropFilterSelection()) }
+    val visibleAirdropFilterGroups = remember(catalogEntries) { airdropFilterGroupsFor(catalogEntries) }
     var searchQuery by remember { mutableStateOf("") }
     var showSubmissionDialog by remember { mutableStateOf(false) }
     var submissionName by remember { mutableStateOf("") }
     var submissionUrl by remember { mutableStateOf("") }
     var submittingProject by remember { mutableStateOf(false) }
     var addingProjectIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    val allTags = remember(catalogEntries) { catalogEntries.flatMap { it.tags }.distinct().sorted() }
-
-    LaunchedEffect(activeToken) {
+    LaunchedEffect(Unit) {
         ApiClient.initialize(context)
-        // Guest state remains local; signed-in favorites merge with the account cloud.
-        CacheStore.syncCommunityFavorites()
 
         fun applyOverallSnapshot(snapshot: com.airdrophunter.app.data.CommunitySnapshotDto?) {
             if (snapshot == null) return
-            catalogEntries = snapshot.projects.map { project ->
-                com.airdrophunter.app.data.CommunityProjectCatalogDto(
-                    project_official_id = project.project_official_id,
-                    name = project.name,
-                    chain = project.chain,
-                    logo = project.logo,
-                    description = project.description,
-                    tags = project.tags,
-                    website_url = project.website_url,
-                    created_at = project.created_at
-                )
+            // A snapshot is a metrics source, not the authoritative directory. It is
+            // only a first-install display fallback until the directory endpoint responds.
+            if (catalogEntries.isEmpty()) {
+                catalogEntries = snapshot.projects.map { project ->
+                    com.airdrophunter.app.data.CommunityProjectCatalogDto(
+                        project_official_id = project.project_official_id,
+                        name = project.name,
+                        chain = project.chain,
+                        logo = project.logo,
+                        description = project.description,
+                        tags = project.tags,
+                        website_url = project.website_url,
+                        created_at = project.created_at,
+                        is_active = true
+                    )
+                }
             }
             communityStats = snapshot.projects.associate { project ->
                 project.project_official_id to CommunityProjectStatsDto(
                     project_official_id = project.project_official_id,
                     total_gas_cost_usd = project.gas_cost_usd_valuation,
                     total_actual_reward_usd = project.actual_reward_usd_valuation,
+                    total_reward_usd = project.reward_usd_valuation.takeIf { it > 0.0 } ?: project.actual_reward_usd_valuation,
+                    total_estimated_reward_usd = project.estimated_reward_usd_valuation,
                     gas_by_verification_tier = project.gas_by_verification_tier,
                     data_quality = snapshot.data_quality,
                     average_rating = project.average_rating,
@@ -141,13 +139,25 @@ fun CommunitySquareScreen(
             }
         }
 
-        // Room is the first paint. CDN revalidation happens silently afterwards.
+        // The official directory and public metric snapshots are separate datasets.
+        // Paint the last successful Room directory immediately; network failure never
+        // changes an entry's active state or removes a locally cached official ID.
+        val cachedCatalog = com.airdrophunter.app.data.CommunityCatalogRepository.readCatalog()
+        if (!cachedCatalog.isNullOrEmpty()) catalogEntries = cachedCatalog
         val cachedOverall = com.airdrophunter.app.data.CommunitySnapshotRepository.readSnapshot("overall")
         applyOverallSnapshot(cachedOverall)
         try {
+            val refreshedCatalog = com.airdrophunter.app.data.CommunityCatalogRepository.refreshCatalog()
+            catalogEntries = refreshedCatalog
+            catalogError = null
+        } catch (_: Exception) {
+            if (catalogEntries.isEmpty() && cachedOverall == null) {
+                catalogError = "社区目录暂不可用，联网后会自动重试"
+            }
+        }
+        try {
             val refreshed = com.airdrophunter.app.data.CommunitySnapshotRepository.refreshSnapshots()
             applyOverallSnapshot(refreshed["overall"] ?: cachedOverall)
-            if (catalogEntries.isEmpty()) catalogError = "静态社区快照暂不可用，联网后会自动重试"
         } catch (_: Exception) {
             // A failed CDN request must never erase the last good Room snapshot.
             applyOverallSnapshot(cachedOverall)
@@ -156,31 +166,76 @@ fun CommunitySquareScreen(
         }
     }
 
-    val combinedProjects = catalogEntries.map { entry ->
-        val demo = communityDemoMetrics[entry.project_official_id]
+    val realProjects = catalogEntries.map { entry ->
         val stats = communityStats[entry.project_official_id]
-        val showDemo = BuildConfig.DEBUG && useDemoData && demo != null
         CommunityProject(
             id = entry.project_official_id,
             name = entry.name,
             chain = entry.chain,
             logo = entry.logo.ifBlank { entry.name.take(1).uppercase() },
-            websiteUrl = entry.website_url,
-            reward = if (showDemo) demo!!.reward else stats?.total_actual_reward_usd ?: 0.0,
-            gas = if (showDemo) demo!!.gas else stats?.total_gas_cost_usd ?: 0.0,
+            reward = stats?.total_reward_usd ?: stats?.total_actual_reward_usd ?: 0.0,
+            gas = stats?.total_gas_cost_usd ?: 0.0,
             createdAt = entry.created_at,
             tags = entry.tags,
-            isDemo = showDemo,
-            demoScore = demo?.score ?: 0.0,
+            isDemo = false,
             averageRating = stats?.average_rating,
             ratingCount = stats?.rating_count ?: 0L,
-            gasByVerificationTier = if (showDemo) emptyMap() else stats?.gas_by_verification_tier.orEmpty()
+            gasByVerificationTier = stats?.gas_by_verification_tier.orEmpty(),
+            isActive = entry.is_active,
+            supportedChains = entry.supported_chains.orEmpty(),
+            categories = entry.categories.orEmpty(),
+            participationRequirements = entry.participation_requirements.orEmpty(),
+            fundingRequirement = entry.funding_requirement.takeUnless { it.isNullOrBlank() } ?: "unknown",
+            campaignStage = entry.campaign_stage.takeUnless { it.isNullOrBlank() } ?: "unknown",
+            rewardTypes = entry.reward_types.orEmpty(),
+            riskFlags = entry.risk_flags.orEmpty(),
+            effortLevel = entry.effort_level.takeUnless { it.isNullOrBlank() } ?: "unknown"
         )
     }
-    val displayedProjects = combinedProjects.filter {
-        (selectedTag == null || selectedTag in it.tags) &&
-            (!favoritesOnly || it.id in favoriteIds) &&
-            matchesCommunityProjectQuery(it.name, it.chain, it.tags, searchQuery)
+    // Synthetic projects exist only in the DEBUG test mode. They never enter the catalog,
+    // API, personal project library, ledger, or contribution outbox.
+    val demoProjects = listOf(
+        CommunityProject(id = "demo:novalayer", name = "NovaLayer", chain = "Arbitrum", logo = "N",
+            reward = 184.20, gas = 42.80, createdAt = "2026-11-10T08:00:00Z",
+            tags = listOf("Layer2", "DeFi", "测试网"), isDemo = true, demoScore = 4.8),
+        CommunityProject(id = "demo:orbitfi", name = "OrbitFi", chain = "Base", logo = "O",
+            reward = 128.60, gas = 38.60, createdAt = "2026-11-09T08:00:00Z",
+            tags = listOf("DeFi", "零成本", "生态"), isDemo = true, demoScore = 4.6),
+        CommunityProject(id = "demo:zetabridge", name = "ZetaBridge", chain = "Optimism", logo = "Z",
+            reward = 156.00, gas = 62.00, createdAt = "2026-11-08T08:00:00Z",
+            tags = listOf("跨链", "Layer2"), isDemo = true, demoScore = 4.2),
+        CommunityProject(id = "demo:pixelquest", name = "PixelQuest", chain = "BNB Chain", logo = "P",
+            reward = 98.00, gas = 51.00, createdAt = "2026-11-07T08:00:00Z",
+            tags = listOf("GameFi", "测试网"), isDemo = true, demoScore = 3.8),
+        CommunityProject(id = "demo:aetherrollup", name = "Aether Rollup", chain = "Ethereum", logo = "A",
+            reward = 226.00, gas = 73.00, createdAt = "2026-11-06T08:00:00Z",
+            tags = listOf("Layer2", "空投", "生态"), isDemo = true, demoScore = 4.9),
+        CommunityProject(id = "demo:lumenprotocol", name = "Lumen Protocol", chain = "Polygon", logo = "L",
+            reward = 64.00, gas = 18.50, createdAt = "2026-11-05T08:00:00Z",
+            tags = listOf("DeFi", "零成本"), isDemo = true, demoScore = 4.0)
+    )
+    // Demo and real datasets are mutually exclusive; the mode switch never mixes them.
+    val combinedProjects = if (BuildConfig.DEBUG && useDemoData) demoProjects else realProjects
+    val displayedProjects = combinedProjects.filter { project ->
+        // Real discovery always excludes entries explicitly marked inactive.
+        // Inactive entries remain in the cached directory for the personal library.
+        (useDemoData || project.isActive) &&
+            (!favoritesOnly || project.id in favoriteIds) &&
+            matchesCommunityProjectQuery(project.name, project.chain, project.tags, searchQuery) &&
+            matchesAirdropFilters(
+                AirdropFilterMetadata(
+                    chain = project.chain,
+                    supportedChains = project.supportedChains,
+                    categories = project.categories,
+                    participationRequirements = project.participationRequirements,
+                    fundingRequirement = project.fundingRequirement,
+                    campaignStage = project.campaignStage,
+                    rewardTypes = project.rewardTypes,
+                    riskFlags = project.riskFlags,
+                    effortLevel = project.effortLevel
+                ),
+                airdropFilterSelection
+            )
     }
         .let { filtered ->
             when (ranking) {
@@ -199,8 +254,7 @@ fun CommunitySquareScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("微社区广场", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("像逛 Steam 一样发现空投项目，按收益、风险和标签探索", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Text("空投库", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 OutlinedButton(
                     onClick = { showSubmissionDialog = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -224,9 +278,24 @@ fun CommunitySquareScreen(
                         }
                     }
                 )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(
+                        onClick = { showAirdropFilters = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (airdropFilterSelection.selectedCount == 0) "筛选空投条件" else "筛选空投条件 · ${airdropFilterSelection.selectedCount}")
+                    }
+                    FilterChip(
+                        selected = favoritesOnly,
+                        onClick = { favoritesOnly = !favoritesOnly },
+                        label = { Text("我的收藏") },
+                        shape = RoundedCornerShape(999.dp)
+                    )
+                }
                 Surface(color = if (useDemoData) Color(0xFFFFF4E5) else Color(0xFFE8F7EF), shape = RoundedCornerShape(999.dp)) {
                     Text(
-                        if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网统计仅累计用户手动确认的真实贡献",
+                        if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网真实数据 · 脱敏汇总",
                         Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         color = if (useDemoData) Color(0xFF9A5B12) else Color(0xFF19764F),
                         style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
@@ -258,29 +327,11 @@ fun CommunitySquareScreen(
                 }
                 Text(when {
                     useDemoData -> "按测试演示样本的收益和 Gas 排列"
-                    statsLoading -> "正在读取全网已确认统计…"
-                    ranking == CommunityRanking.REWARD -> "按全网用户确认的实际收益排列"
-                    ranking == CommunityRanking.GAS -> "按全网用户确认的 Gas 消耗排列"
+                    statsLoading -> "正在读取全网统计…"
+                    ranking == CommunityRanking.REWARD -> "按全网收益概况排列（含预估与实际）"
+                    ranking == CommunityRanking.GAS -> "按全网 Gas 支出排列"
                     else -> "按项目收录时间排列"
                 }, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-            }
-        }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("项目标签", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly },
-                        label = { Text("我的收藏") }, shape = RoundedCornerShape(999.dp),
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary))
-                    FilterChip(selected = selectedTag == null, onClick = { selectedTag = null },
-                        label = { Text("全部") }, shape = RoundedCornerShape(999.dp),
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary))
-                    allTags.forEach { tag ->
-                        FilterChip(selected = selectedTag == tag, onClick = { selectedTag = if (selectedTag == tag) null else tag },
-                            label = { Text(tag) }, shape = RoundedCornerShape(999.dp),
-                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary))
-                    }
-                }
             }
         }
         item {
@@ -298,6 +349,7 @@ fun CommunitySquareScreen(
             item {
                 Text(
                     when {
+                        airdropFilterSelection.selectedCount > 0 -> "没有找到符合筛选条件的项目，可以重置条件再试"
                         favoritesOnly && searchQuery.isNotBlank() -> "没有找到符合搜索条件的收藏项目"
                         favoritesOnly -> "还没有收藏项目，点击项目卡片上的爱心即可收藏"
                         searchQuery.isNotBlank() -> "没有找到匹配的社区项目"
@@ -327,18 +379,18 @@ fun CommunitySquareScreen(
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Surface(
-                                color = if (project.isDemo) Color(0xFFFFF4E5) else Color(0xFFEAF7EF),
+                                color = when { project.isDemo -> Color(0xFFFFF4E5); !project.isActive -> Color(0xFFFFE8E8); else -> Color(0xFFEAF7EF) },
                                 shape = RoundedCornerShape(999.dp)
                             ) {
                                 Text(
                                     project.label, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    color = if (project.isDemo) Color(0xFF9A5B12) else Color(0xFF19764F),
+                                    color = when { project.isDemo -> Color(0xFF9A5B12); !project.isActive -> Color(0xFFC62828); else -> Color(0xFF19764F) },
                                     style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
                         IconButton(
-                            enabled = project.id in joinedOfficialIds || project.id !in addingProjectIds,
+                            enabled = !project.isDemo && (project.id in joinedOfficialIds || project.id !in addingProjectIds),
                             onClick = {
                                 if (project.id !in joinedOfficialIds) scope.launch {
                                     addingProjectIds = addingProjectIds + project.id
@@ -362,9 +414,8 @@ fun CommunitySquareScreen(
                         }
                         IconButton(onClick = {
                             scope.launch {
-                                if (CacheStore.toggleCommunityFavorite(project.id, project.name)) {
-                                    CacheStore.syncCommunityFavorites()
-                                }
+                                // Favorites are personal local data in the current release.
+                                CacheStore.toggleCommunityFavorite(project.id, project.name)
                             }
                         }) {
                             Icon(
@@ -388,24 +439,25 @@ fun CommunitySquareScreen(
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
-                    if (project.gas > 0.0 || project.reward > 0.0) {
-                        Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            if (project.gasWeight > 0f) {
-                                Box(Modifier.weight(project.gasWeight).fillMaxHeight().background(Color(0xFFE76565), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))
-                            }
-                            if (project.rewardWeight > 0f) {
-                                Box(Modifier.weight(project.rewardWeight).fillMaxHeight().background(Color(0xFF31B77D), RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)))
-                            }
+                    val totalGasReward = project.gas.coerceAtLeast(0.0) + project.reward.coerceAtLeast(0.0)
+                    if (totalGasReward > 0.0) {
+                        val gasShare = (project.gas.coerceAtLeast(0.0) / totalGasReward).toFloat().coerceIn(0f, 1f)
+                        val comparisonBrush = when {
+                            gasShare <= 0f -> SolidColor(Color(0xFF31B77D))
+                            gasShare >= 1f -> SolidColor(Color(0xFFE76565))
+                            else -> Brush.horizontalGradient(
+                                colorStops = arrayOf(
+                                    0f to Color(0xFFE76565),
+                                    gasShare to Color(0xFFE76565),
+                                    gasShare to Color(0xFF31B77D),
+                                    1f to Color(0xFF31B77D)
+                                )
+                            )
                         }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(String.format(Locale.US, "Gas USD估值 $%,.2f", project.gas), color = Color(0xFFD34F4F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                            Text(String.format(Locale.US, "实际收益 USD估值 $%,.2f", project.reward), color = Color(0xFF16845B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                        }
-                        if (!project.isDemo && project.gasByVerificationTier.isNotEmpty()) {
-                            CommunityVerificationTierBar(values = project.gasByVerificationTier, compact = true)
-                        }
-                    } else {
-                        Text("暂无已确认 Gas / 实际收益数据", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                        Box(
+                            Modifier.fillMaxWidth().height(10.dp)
+                                .background(comparisonBrush, RoundedCornerShape(999.dp))
+                        )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         project.tags.forEach { tag ->
@@ -414,38 +466,49 @@ fun CommunitySquareScreen(
                             }
                         }
                     }
-                    if (project.websiteUrl.isNotBlank()) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                project.websiteUrl,
-                                Modifier.weight(1f),
-                                color = AppColors.TextSecondary,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            TextButton(
-                                onClick = {
-                                    runCatching { uriHandler.openUri(project.websiteUrl) }
-                                        .onFailure {
-                                            Toast.makeText(context, "无法打开项目链接", Toast.LENGTH_SHORT).show()
-                                        }
-                                },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                            ) {
-                                Text("打开链接")
-                            }
-                        }
-                    } else {
-                        Text("项目链接待补充", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Text("查看评价  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                    }
+
 
                 }
             }
         }
+    }
+
+    if (showAirdropFilters) {
+        AlertDialog(
+            onDismissRequest = { showAirdropFilters = false },
+            title = { Text("空投条件筛选") },
+            text = {
+                Column(
+                    Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text("同一组内多选为“满足任一项”，不同组之间为“同时满足”。只按目录中已核验/已录入的信息筛选，未标注条件不会被猜测。", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
+                    visibleAirdropFilterGroups.forEach { group ->
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(group.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            group.options.chunked(3).forEach { optionRow ->
+                                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    optionRow.forEach { option ->
+                                        val selected = option.value in airdropFilterSelection.values[group.key].orEmpty()
+                                        FilterChip(
+                                            selected = selected,
+                                            onClick = { airdropFilterSelection = airdropFilterSelection.toggle(group.key, option.value) },
+                                            label = { Text(option.label, maxLines = 1, style = MaterialTheme.typography.labelSmall) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAirdropFilters = false }) { Text("完成 · ${displayedProjects.size} 个结果") }
+            },
+            dismissButton = {
+                TextButton(onClick = { airdropFilterSelection = AirdropFilterSelection() }) { Text("重置条件") }
+            }
+        )
     }
 
     if (showSubmissionDialog) {
@@ -495,7 +558,7 @@ fun CommunitySquareScreen(
                                 ).show()
                                 if (result.status == "published") {
                                     runCatching {
-                                        catalogEntries = ApiClient.service.getCommunityCatalog()
+                                        catalogEntries = com.airdrophunter.app.data.CommunityCatalogRepository.refreshCatalog().filter { it.is_active }
                                     }
                                 }
                                 submissionName = ""

@@ -1,23 +1,31 @@
 package com.airdrophunter.app
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +35,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.ui.platform.LocalDensity
+import kotlin.math.roundToInt
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,7 +58,13 @@ fun BrowserAccountingToolbar(
     walletAddress: String,
     chainName: String,
     onCopyAddress: () -> Unit,
-    modifier: Modifier = Modifier
+    onRefreshPage: () -> Unit,
+    onCopyPageUrl: () -> Unit,
+    onOpenPageExternally: () -> Unit,
+    modifier: Modifier = Modifier,
+    initialShowBillList: Boolean = false,
+    initialCreateMockBill: Boolean = false,
+    showDock: Boolean = true
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -54,7 +74,7 @@ fun BrowserAccountingToolbar(
 
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var activeBill by remember { mutableStateOf<PendingBillEntity?>(null) }
-    var showBillList by remember { mutableStateOf(false) }
+    var showBillList by remember { mutableStateOf(initialShowBillList) }
     var showConfirm by remember { mutableStateOf(false) }
     var showProjectPicker by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
@@ -71,18 +91,42 @@ fun BrowserAccountingToolbar(
     var rewardSymbol by remember { mutableStateOf("") }
     var rewardDecimals by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
-    var publicContributionOptIn by remember { mutableStateOf(false) }
     var creatingMockBill by remember { mutableStateOf(false) }
+    var showToolManager by remember { mutableStateOf(false) }
+    val toolOptions = listOf(
+        "mock_bill" to "模拟账单",
+        "copy_address" to "复制地址",
+        "pending_bills" to "待确认账单",
+        "refresh_page" to "刷新网页",
+        "copy_url" to "复制网址",
+        "open_external" to "外部打开"
+    )
+    val preferences = remember(context) { context.getSharedPreferences("browser_dock_preferences", android.content.Context.MODE_PRIVATE) }
+    var selectedToolIds by remember {
+        mutableStateOf(preferences.getString("selected_tools", null)?.split(",")?.filter { id -> toolOptions.any { it.first == id } }
+            ?.distinct()?.takeIf { it.isNotEmpty() } ?: toolOptions.map { it.first })
+    }
+    val dragOffsetX = remember { androidx.compose.animation.core.Animatable(0f) }
+    val dragOffsetY = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(selectedToolIds) {
+        preferences.edit().putString("selected_tools", selectedToolIds.joinToString(",")).apply()
+    }
 
     LaunchedEffect(accountingRepository) {
         projects = accountingRepository.loadProjects()
         selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
     }
 
-    fun saveProjectLocally(project: ProjectDto) {
-        projects = (projects.filterNot { it.id == project.id } + project)
-        selectedProjectLocalId = project.id
-        scope.launch { accountingRepository.saveLocalProject(project) }
+    fun saveProjectLocally(project: ProjectDto, onSaved: () -> Unit = {}) {
+        scope.launch {
+            runCatching { accountingRepository.saveLocalProject(project) }
+                .onSuccess { updated ->
+                    projects = updated
+                    selectedProjectLocalId = project.id
+                    onSaved()
+                }
+                .onFailure { Toast.makeText(context, "项目保存失败，请重试", Toast.LENGTH_SHORT).show() }
+        }
     }
 
     fun createAndSelectProject() {
@@ -94,9 +138,10 @@ fun BrowserAccountingToolbar(
             description = "本地自定义项目",
             status = "tracking"
         )
-        saveProjectLocally(project)
-        newProjectName = ""
-        showProjectPicker = false
+        saveProjectLocally(project) {
+            newProjectName = ""
+            showProjectPicker = false
+        }
     }
 
     fun openBill(bill: PendingBillEntity) {
@@ -104,7 +149,6 @@ fun BrowserAccountingToolbar(
         gas = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 }?.let { String.format(Locale.US, "%.2f", it) }.orEmpty()
         reward = ""
         rewardUsdEdited = false
-        publicContributionOptIn = false
         val existingAssets = LedgerAssetBreakdownCodec.decode(bill.assetBreakdownJson)
         val gasAsset = existingAssets.firstOrNull { it.kind == "gas" }
         val rewardAsset = existingAssets.firstOrNull { it.kind == "reward" }
@@ -121,6 +165,13 @@ fun BrowserAccountingToolbar(
         }
         showBillList = false
         showConfirm = true
+    }
+
+    LaunchedEffect(initialShowBillList, pending) {
+        if (initialShowBillList && pending.isNotEmpty() && activeBill == null && !showConfirm) {
+            // Home's accounting shortcut opens the latest pending record directly.
+            openBill(pending.first())
+        }
     }
 
     fun createMockBill() {
@@ -149,6 +200,10 @@ fun BrowserAccountingToolbar(
         }
     }
 
+    LaunchedEffect(initialCreateMockBill) {
+        if (initialCreateMockBill) createMockBill()
+    }
+
     fun deleteDraft(bill: PendingBillEntity) {
         scope.launch {
             val ok = runCatching { accountingRepository.deletePendingBill(bill.id) }.isSuccess
@@ -162,45 +217,272 @@ fun BrowserAccountingToolbar(
         isValidNativeAssetInput(gasNative, gasSymbol, gasDecimals) &&
             isValidNativeAssetInput(rewardNative, rewardSymbol, rewardDecimals)
 
-    Surface(
-        modifier = modifier,
-        color = Color(0xCCFFFFFF),
-        shape = CircleShape,
-        border = BorderStroke(1.dp, AppColors.Border.copy(alpha = 0.8f)),
-        shadowElevation = 5.dp
+    if (showDock) BoxWithConstraints(
+        modifier = modifier.fillMaxSize()
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp)
-        ) {
-            AccountingCapsuleButton(
-                description = "模拟抓取账单",
-                background = Color(0xFFEAF7F1),
-                tint = Color(0xFF16845B),
-                loading = creatingMockBill,
-                onClick = ::createMockBill
-            ) {
-                if (creatingMockBill) CircularProgressIndicator(Modifier.size(19.dp), color = Color(0xFF16845B), strokeWidth = 2.dp)
-                else Icon(Icons.Default.FlashOn, contentDescription = "模拟抓取账单", tint = Color(0xFF16845B), modifier = Modifier.size(20.dp))
+        val dockWidth = minOf(maxWidth * 0.94f, 420.dp)
+        val maxHorizontalDrag = with(androidx.compose.ui.platform.LocalDensity.current) {
+            ((maxWidth - dockWidth) / 2f).toPx()
+        }
+        val maxVerticalDrag = with(androidx.compose.ui.platform.LocalDensity.current) {
+            (maxHeight - 124.dp).coerceAtLeast(0.dp).toPx()
+        }
+        val dockShape = RoundedCornerShape(50)
+        val leftSnap = -maxHorizontalDrag
+        val rightSnap = maxHorizontalDrag
+
+        fun animateDockToEdge() {
+            val targetX = when {
+                maxHorizontalDrag <= 0f -> 0f
+                dragOffsetX.value < 0f -> leftSnap
+                else -> rightSnap
             }
-            AccountingCapsuleButton(
-                description = "复制钱包地址",
-                background = Color(0xFFEDF3FF),
-                tint = Color(0xFF356BC5),
-                onClick = onCopyAddress
-            ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "复制钱包地址", tint = Color(0xFF356BC5), modifier = Modifier.size(18.dp))
-            }
-            AccountingCapsuleButton(
-                description = "待确认账单",
-                background = Color(0xFFFFF4E8),
-                tint = Color(0xFF9A5A16),
-                onClick = { showBillList = true }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "待确认账单", tint = Color(0xFF9A5A16), modifier = Modifier.size(20.dp))
+            val targetY = dragOffsetY.value.coerceIn(-maxVerticalDrag, 0f)
+            scope.launch {
+                launch { dragOffsetX.animateTo(targetX, androidx.compose.animation.core.tween(260)) }
+                launch { dragOffsetY.animateTo(targetY, androidx.compose.animation.core.tween(260)) }
             }
         }
+
+        // One outer movable target owns both the translucent capsule and its tools.
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 24.dp)
+                .fillMaxWidth(0.94f)
+                .widthIn(max = 420.dp)
+                .height(100.dp)
+                .shadow(
+                    elevation = 12.dp,
+                    shape = dockShape,
+                    ambientColor = Color.Black.copy(alpha = 0.20f),
+                    spotColor = Color.Black.copy(alpha = 0.24f)
+                )
+                .offset {
+                    IntOffset(dragOffsetX.value.roundToInt(), dragOffsetY.value.roundToInt())
+                }
+                .pointerInput(maxWidth, maxHeight) {
+                    awaitEachGesture {
+                        // Observe the gesture in the Initial pass so the parent Dock can
+                        // claim a long-press drag before the child LazyRow consumes motion.
+                        val down = awaitFirstDown(
+                            requireUnconsumed = false,
+                            pass = PointerEventPass.Initial
+                        )
+                        // A timeout means the finger stayed down and stationary for the
+                        // full long-press interval. Early release or movement cancels the drag.
+                        val longPressReached = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                            var cancelled = false
+                            while (!cancelled) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                if (change == null || !change.pressed ||
+                                    kotlin.math.hypot(
+                                        change.position.x - down.position.x,
+                                        change.position.y - down.position.y
+                                    ) > viewConfiguration.touchSlop
+                                ) {
+                                    cancelled = true
+                                }
+                            }
+                            false
+                        } == null
+
+                        if (longPressReached) {
+                            var lastPosition = down.position
+                            var dragActive = true
+                            while (dragActive) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                if (change == null || !change.pressed) {
+                                    dragActive = false
+                                } else {
+                                    val delta = change.position - lastPosition
+                                    if (delta != androidx.compose.ui.geometry.Offset.Zero) {
+                                        // This pointerInput block is already a coroutine:
+                                        // update both outer offsets together, not the LazyRow items.
+                                        val nextX = (dragOffsetX.value + delta.x)
+                                            .coerceIn(-maxHorizontalDrag, maxHorizontalDrag)
+                                        val nextY = (dragOffsetY.value + delta.y)
+                                            .coerceIn(-maxVerticalDrag, 0f)
+                                        scope.launch {
+                                            dragOffsetX.snapTo(nextX)
+                                            dragOffsetY.snapTo(nextY)
+                                        }
+                                        change.consume()
+                                    }
+                                    lastPosition = change.position
+                                }
+                            }
+                            animateDockToEdge()
+                        }
+                    }
+                }
+        ) {
+            // Clip the capsule background and LazyRow together to the pill boundary.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(dockShape)
+                    .background(Color.White.copy(alpha = 0.35f))
+                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)), dockShape)
+            ) {
+                androidx.compose.foundation.lazy.LazyRow(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(selectedToolIds, key = { it }) { id ->
+                        val option = toolOptions.firstOrNull { it.first == id } ?: return@items
+                        val icon = when (id) {
+                            "mock_bill" -> Icons.Filled.Bolt
+                            "copy_address" -> Icons.Filled.ContentCopy
+                            "pending_bills" -> Icons.Filled.ReceiptLong
+                            "refresh_page" -> Icons.Filled.Refresh
+                            "copy_url" -> Icons.Filled.Link
+                            else -> Icons.Filled.OpenInNew
+                        }
+                        val iconBackground = when (id) {
+                            "mock_bill" -> Color(0xFFFF8A00)
+                            "copy_address" -> Color(0xFF2563EB)
+                            "pending_bills" -> Color(0xFF7C3AED)
+                            "refresh_page" -> Color(0xFF0891B2)
+                            "copy_url" -> Color(0xFF059669)
+                            else -> Color(0xFFEA580C)
+                        }
+                        val action: () -> Unit = when (id) {
+                            "mock_bill" -> { { createMockBill() } }
+                            "copy_address" -> { { onCopyAddress() } }
+                            "pending_bills" -> { { showBillList = true } }
+                            "refresh_page" -> { { onRefreshPage() } }
+                            "copy_url" -> { { onCopyPageUrl() } }
+                            else -> { { onOpenPageExternally() } }
+                        }
+                        Surface(
+                            onClick = action,
+                            enabled = !(id == "mock_bill" && creatingMockBill),
+                            modifier = Modifier.size(width = 68.dp, height = 78.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.Transparent
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(iconBackground),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(Modifier.height(3.dp))
+                                Text(
+                                    option.second,
+                                    color = AppColors.TextPrimary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                    item(key = "add_tool") {
+                        Surface(
+                            onClick = { showToolManager = true },
+                            modifier = Modifier.size(width = 68.dp, height = 78.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.Transparent
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Color.White.copy(alpha = 0.88f))
+                                        .border(
+                                            width = 1.dp,
+                                            color = Color.White.copy(alpha = 0.95f),
+                                            shape = RoundedCornerShape(16.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Add,
+                                        contentDescription = "添加工具",
+                                        tint = Color(0xFF374151),
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                                Spacer(Modifier.height(3.dp))
+                                Text(
+                                    "添加",
+                                    color = AppColors.TextPrimary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showToolManager) {
+        AlertDialog(
+            onDismissRequest = { showToolManager = false },
+            title = { Text("管理工具") },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("勾选显示的工具；使用上下箭头调整顺序。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                    toolOptions.forEach { option ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = option.first in selectedToolIds,
+                                onCheckedChange = { checked ->
+                                    selectedToolIds = if (checked) selectedToolIds + option.first else selectedToolIds - option.first
+                                }
+                            )
+                            Text(option.second, modifier = Modifier.weight(1f), color = AppColors.TextPrimary)
+                            TextButton(
+                                enabled = option.first in selectedToolIds && selectedToolIds.indexOf(option.first) > 0,
+                                onClick = {
+                                    val index = selectedToolIds.indexOf(option.first)
+                                    if (index > 0) selectedToolIds = selectedToolIds.toMutableList().also {
+                                        val item = it.removeAt(index); it.add(index - 1, item)
+                                    }
+                                }
+                            ) { Text("↑") }
+                            TextButton(
+                                enabled = option.first in selectedToolIds && selectedToolIds.indexOf(option.first) < selectedToolIds.lastIndex,
+                                onClick = {
+                                    val index = selectedToolIds.indexOf(option.first)
+                                    if (index >= 0 && index < selectedToolIds.lastIndex) selectedToolIds = selectedToolIds.toMutableList().also {
+                                        val item = it.removeAt(index); it.add(index + 1, item)
+                                    }
+                                }
+                            ) { Text("↓") }
+                        }
+                    }
+                    if (selectedToolIds.isEmpty()) Text("至少选择一个工具，或稍后通过默认配置恢复。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = { TextButton(onClick = { showToolManager = false }) { Text("完成") } },
+            dismissButton = {
+                TextButton(onClick = { selectedToolIds = toolOptions.map { it.first } }) { Text("恢复默认") }
+            }
+        )
     }
 
     if (showBillList) {
@@ -335,24 +617,17 @@ fun BrowserAccountingToolbar(
                         shape = RoundedCornerShape(13.dp)
                     )
                     Text("请手动填写最终实际收益；如果实际为零，也请明确输入 0。未填写不能确认入账。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = publicContributionOptIn,
-                            onCheckedChange = { publicContributionOptIn = it },
-                            enabled = !saving && selectedProject?.communityOfficialId != null &&
-                                ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(contributionNetwork) &&
-                                contributionHashValid
-                        )
-                        Text("将本笔数据匿名贡献至全网大盘（需链上核验）", color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                    if (selectedProject?.communityOfficialId == null ||
-                        !ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(contributionNetwork)) {
-                        Text("该项目或网络暂不支持公共链上核验；个人账本仍可正常保存。", color = AppColors.TextHelper,
-                            style = MaterialTheme.typography.labelSmall)
-                    } else if (!contributionHashValid) {
-                        Text("当前 Tx Hash 格式无效；取消授权仍可正常保存个人账本。",
-                            color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                    if (ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+                            selectedProject?.communityOfficialId, ManualRewardKind.USD, contributionNetwork, bill.txHash
+                        )) {
+                        Text("该项目属于社区目录，符合条件的记录将自动参与社区脱敏统计；链上核验通过后才计入公共数据。个人账单明细不会公开。",
+                            color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                    } else if (selectedProject?.communityOfficialId == null) {
+                        Text("这是私人自建项目，仅保存到个人账本，不参与社区统计。",
+                            color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    } else {
+                        Text("当前交易暂不满足社区核验条件；个人账本仍可正常保存。",
+                            color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     }
                     Text("原生币种明细（不同币种分别记录，不相加）", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -394,7 +669,7 @@ fun BrowserAccountingToolbar(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Button(
-                        enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null && nativeAssetsValid && (!publicContributionOptIn || contributionHashValid),
+                        enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null && nativeAssetsValid,
                         onClick = {
                             val project = projects.firstOrNull { it.id == selectedProjectLocalId } ?: return@Button
                             val safeGas = gasValue ?: return@Button
@@ -426,10 +701,13 @@ fun BrowserAccountingToolbar(
                             val assetJson = LedgerAssetBreakdownCodec.encode(assets)
                             saving = true
                             scope.launch {
+                                val autoContribute = ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+                                    project.communityOfficialId, ManualRewardKind.USD, contributionNetwork, bill.txHash
+                                )
                                 val ok = runCatching {
                                     accountingRepository.confirmPendingBill(
                                         bill.id, project.id, project.communityOfficialId, project.name, safeGas, safeReward, assetJson,
-                                        publicContributionOptIn
+                                        autoContribute
                                     )
                                 }.getOrDefault(false)
                                 saving = false
@@ -437,7 +715,7 @@ fun BrowserAccountingToolbar(
                                     showConfirm = false
                                     activeBill = null
                                     Toast.makeText(context,
-                                        if (publicContributionOptIn) "私账已确认，匿名贡献等待链上核验" else "已确认入账",
+                                        if (autoContribute) "已确认入账；社区脱敏统计等待链上核验" else "已确认入账",
                                         Toast.LENGTH_SHORT).show()
                                 } else {
                                     Toast.makeText(context, "入账失败，请重试", Toast.LENGTH_SHORT).show()
@@ -526,30 +804,26 @@ fun BrowserAccountingToolbar(
     }
 }
 
-@Composable
-private fun AccountingCapsuleButton(
-    description: String,
-    background: Color,
-    tint: Color,
-    loading: Boolean = false,
-    onClick: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        enabled = !loading,
-        shape = CircleShape,
-        color = background.copy(alpha = 0.82f),
-        modifier = Modifier.size(40.dp),
-        border = BorderStroke(1.dp, tint.copy(alpha = 0.14f))
-    ) {
-        Box(contentAlignment = Alignment.Center) { content() }
-    }
-}
-
 private fun isValidNativeAssetInput(amount: String, symbol: String, decimals: String): Boolean {
     if (amount.isBlank()) return true
     val value = amount.toBigDecimalOrNull() ?: return false
     if (value.signum() < 0 || symbol.isBlank()) return false
     return decimals.isBlank() || decimals.toIntOrNull()?.let { it in 0..36 } == true
+}
+
+
+@Composable
+fun AccountingCenterScreen(modifier: Modifier = Modifier) {
+    BrowserAccountingToolbar(
+        walletAddress = "",
+        chainName = "unknown",
+        onCopyAddress = {},
+        onRefreshPage = {},
+        onCopyPageUrl = {},
+        onOpenPageExternally = {},
+        modifier = modifier,
+        initialShowBillList = false,
+        initialCreateMockBill = true,
+        showDock = false
+    )
 }

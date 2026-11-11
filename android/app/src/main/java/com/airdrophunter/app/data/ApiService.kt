@@ -16,7 +16,18 @@ interface ApiService {
     @GET("api/auth/me") suspend fun getMe(): UserProfileDto
     @GET("api/sources") suspend fun getSources(): List<SourceDto>
     @GET("api/airdrops") suspend fun getAirdrops(): List<AirdropDto>
+    @GET("api/airdrop-campaigns") suspend fun getAirdropCampaigns(
+        @Query("tier") tier: String? = null,
+        @Query("chain") chain: String? = null,
+        @Query("status") status: String? = null,
+        @Query("campaign_type") campaignType: String? = null,
+        @Query("kyc") kyc: String? = null,
+        @Query("q") query: String? = null,
+        @Query("limit") limit: Int = 40,
+        @Query("offset") offset: Int = 0
+    ): List<AirdropCampaignDto>
     @GET("api/airdrops/hub") suspend fun getAirdropHub(@Query("chain") chain: String? = null): List<AirdropHubDto>
+    @GET("api/airdrops/hub/{itemId}") suspend fun getAirdropHubDetail(@Path("itemId") itemId: String): AirdropHubDetailDto
     @GET("api/airdrops/hub/status") suspend fun getAirdropHubStatus(): AirdropHubSyncStatusDto
     @POST("api/airdrops/sync") suspend fun syncAirdrops(): AirdropHubRefreshResponse
     @POST("api/airdrops/hub/refresh") suspend fun refreshAirdropHub(): AirdropHubRefreshResponse

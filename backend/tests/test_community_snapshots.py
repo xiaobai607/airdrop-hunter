@@ -6,7 +6,7 @@ import pytest
 
 from app.services.community_snapshot_schedule import due_windows
 from app.services.community_snapshot_storage import LocalSnapshotPublisher
-from app.services.community_snapshots import assemble_snapshot
+from app.services.community_snapshots import assemble_snapshot, _range_distribution
 
 
 def test_due_windows_follow_asia_shanghai_schedule():
@@ -34,7 +34,10 @@ def test_snapshot_contains_money_ratings_and_catalog_metadata_only():
     assert snapshot["usd_values_are_valuations"] is True
     assert project["gas_cost_usd_valuation"] == 2.5
     assert project["actual_reward_usd_valuation"] == 12.0
-    assert project["net_result_usd_valuation"] == 9.5
+    assert project["reward_usd_valuation"] == 12.0
+    assert project["estimated_reward_usd_valuation"] == 0.0
+    assert "net_result_usd_valuation" not in project
+    assert snapshot["data_quality"] == "approximate_actual_and_estimated_rewards"
     assert project["gas_by_verification_tier"] == {
         "user_reported": 0.5, "transaction_linked": 1.0, "amount_verified": 1.0
     }
@@ -69,6 +72,58 @@ def test_snapshot_contains_money_ratings_and_catalog_metadata_only():
     assert "tx_hash" not in project
 
 
+
+
+def test_public_reward_uses_actual_when_confirmed_and_estimate_when_not():
+    now = datetime(2026, 11, 9, 8, 0, tzinfo=timezone.utc)
+    snapshot = assemble_snapshot(
+        "overall",
+        now,
+        [
+            {
+                "project_official_id": "actual-project",
+                "name": "Actual",
+                "chain": "Base",
+                "logo": "",
+                "description": "",
+                "website_url": "",
+                "created_at": now,
+                "tags": [],
+                "gas_cost_usd": 2.0,
+                "actual_reward_usd": 12.0,
+                "estimated_reward_usd": 4.0,
+                "reward_usd": 12.0,
+            },
+            {
+                "project_official_id": "estimate-project",
+                "name": "Estimate",
+                "chain": "Arbitrum",
+                "logo": "",
+                "description": "",
+                "website_url": "",
+                "created_at": now,
+                "tags": [],
+                "gas_cost_usd": 1.0,
+                "actual_reward_usd": 0.0,
+                "estimated_reward_usd": 8.0,
+                "reward_usd": 8.0,
+            },
+        ],
+        [],
+    )
+    projects = {row["project_official_id"]: row for row in snapshot["projects"]}
+    assert projects["actual-project"]["reward_usd_valuation"] == 12.0
+    assert projects["actual-project"]["estimated_reward_usd_valuation"] == 4.0
+    assert projects["estimate-project"]["reward_usd_valuation"] == 8.0
+    assert snapshot["summary"]["reward_total_usd"] == 20.0
+
+
+def test_range_distribution_uses_anonymous_quantile_buckets_without_individual_rows():
+    distribution = _range_distribution([10, 20, 30, 40, 50, 60])
+    assert sum(item["count"] for item in distribution) == 6
+    assert sum(item["percentage"] for item in distribution) == pytest.approx(100.0)
+    assert all("range_label" in item for item in distribution)
+    assert all("wallet_address" not in item for item in distribution)
 
 
 def test_snapshot_skips_malformed_native_amount_without_crashing():

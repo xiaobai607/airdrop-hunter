@@ -20,6 +20,7 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
         }
         ApiClient.initialize(applicationContext)
         val batches = CacheStore.getPendingCommunitySyncBatches()
+        val anonymousContributorId = CacheStore.getOrCreateAnonymousContributorId()
         for (batch in batches) {
             for (entry in batch.entries) {
                 val network = entry.network?.takeIf { it.isNotBlank() }
@@ -42,6 +43,9 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
                             public_contribution_opt_in = true,
                             gas_cost_usd = entry.gasCostUsd,
                             actual_reward_usd = entry.actualRewardUsd,
+                            estimated_reward_usd = entry.expectedRewardUsd,
+                            actual_reward_confirmed = entry.actualRewardConfirmed,
+                            contributor_id = anonymousContributorId,
                             asset_breakdown = LedgerAssetBreakdownCodec.decode(entry.assetBreakdownJson)
                         ),
                         batch.authorizationHeader

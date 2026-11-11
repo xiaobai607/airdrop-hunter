@@ -96,7 +96,9 @@ class AccountingRepository(
     private val api: ApiService? = null,
     private val gson: Gson = Gson(),
     private val accessTokenProvider: () -> String? = { TokenStore.readTokenBlocking() },
-    personalLedgerRemote: PersonalLedgerRemoteDataSource? = null
+    personalLedgerRemote: PersonalLedgerRemoteDataSource? = null,
+    private val projectsRepository: ProjectsRepository? = null,
+    private val privateCloudSyncEnabled: Boolean = CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED
 ) {
     private val ledgerRemote = personalLedgerRemote ?: api?.let(::ApiPersonalLedgerRemoteDataSource)
     private val projectsType = object : TypeToken<List<ProjectDto>>() {}.type
@@ -105,6 +107,14 @@ class AccountingRepository(
 
     suspend fun loadProjects(): List<ProjectDto> {
         syncAndScheduleIfNeeded()
+        val repository = projectsRepository
+        if (repository != null) {
+            val guest = !privateCloudSyncEnabled || accessTokenProvider().isNullOrBlank()
+            val cached = repository.readCachedProjects(guest)
+            if (guest) return cached
+            return runCatching { repository.refreshProjects() }.getOrDefault(cached)
+        }
+        // Compatibility path for tests/older composition roots only.
         val sources = listOfNotNull(
             local.readLocal("projects"),
             local.read("projects"),
@@ -116,12 +126,28 @@ class AccountingRepository(
     }
 
     suspend fun saveLocalProject(project: ProjectDto): List<ProjectDto> {
-        val existing = local.readLocal("pnl_projects")?.let { raw ->
-            runCatching { gson.fromJson<List<ProjectDto>>(raw, projectsType) }.getOrNull()
-        }.orEmpty()
-        val updated = existing.filterNot { it.id == project.id } + project
-        local.writeLocal("pnl_projects", gson.toJson(updated))
-        return updated
+        val repository = projectsRepository ?: run {
+            val existing = local.readLocal("pnl_projects")?.let { raw ->
+                runCatching { gson.fromJson<List<ProjectDto>>(raw, projectsType) }.getOrNull()
+            }.orEmpty()
+            val updated = existing.filterNot { it.id == project.id } + project
+            local.writeLocal("pnl_projects", gson.toJson(updated))
+            return updated
+        }
+        val guest = !privateCloudSyncEnabled || accessTokenProvider().isNullOrBlank()
+        val request = ProjectWriteRequest(
+            name = project.name,
+            description = project.description,
+            status = project.status,
+            official_url = project.official_url,
+            claim_url = project.claim_url,
+            twitter_url = project.twitter_url,
+            deadline = project.deadline,
+            expected_income = project.expected_income,
+            gas_cost = project.gas_cost,
+            actual_income = project.actual_income
+        )
+        return repository.createProject(request, guest, localId = project.id)
     }
 
     suspend fun addPendingBill(bill: PendingBillEntity) = local.addPendingBill(bill)
@@ -149,15 +175,17 @@ class AccountingRepository(
     }
 
     private suspend fun syncAndScheduleIfNeeded() {
+        if (!privateCloudSyncEnabled) return
         if (accessTokenProvider().isNullOrBlank()) return
         if (!syncPersonalLedger()) local.schedulePrivateLedgerSync()
     }
 
     /**
-     * Account records are uploaded only while authenticated. Guest records stay in
-     * the guest-local cache and never call the private account endpoint.
+     * Historical private-cloud implementation retained for a future phase.
+     * Current-release policy returns before any private account endpoint is called.
      */
     suspend fun syncPersonalLedger(): Boolean {
+        if (!privateCloudSyncEnabled) return true
         // Bind every request and local-cache operation to the session that started
         // this sync. An account switch during network work cannot redirect records.
         val accessToken = accessTokenProvider()?.takeIf { it.isNotBlank() } ?: return false

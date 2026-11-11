@@ -61,7 +61,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
 import com.airdrophunter.app.data.ApiClient
-import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
@@ -166,7 +165,7 @@ private fun BrowserScreen(
     var pendingDappConnection by remember { mutableStateOf<PendingDappConnection?>(null) }
     var pendingDappExternalRequest by remember { mutableStateOf<PendingDappExternalRequest?>(null) }
     var waitingDappWalletApproval by remember { mutableStateOf(false) }
-    val authorizedDappOrigins = remember { mutableStateMapOf<String, String>() }
+    val authorizedDappOrigins by DappOriginPermissionStore.authorizedOrigins.collectAsState()
     val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsState()
     val connectedSessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsState()
     val activeWalletConnectTopic by WalletConnectSessionDelegate.sessionTopic.collectAsState()
@@ -257,7 +256,7 @@ private fun BrowserScreen(
                     connectedDappAccounts.isNotEmpty()
 
             if (!completingUserApprovedConnection) {
-                authorizedDappOrigins.clear()
+                DappOriginPermissionStore.revokeAll()
                 pendingDappExternalRequest?.let { pending ->
                     DappProviderBridge.error(pending.replyProxy, pending.request.id, 4100, "外部钱包会话已变化，请重新连接")
                     pendingDappExternalRequest = null
@@ -280,7 +279,7 @@ private fun BrowserScreen(
         if (waitingDappWalletApproval && connectedDappAccounts.isNotEmpty()) {
             val pending = pendingDappConnection
             if (pending != null) {
-                authorizedDappOrigins[pending.origin] = currentDappAuthorizationStamp()
+                DappOriginPermissionStore.grant(pending.origin, currentDappAuthorizationStamp())
                 val addresses = JSONArray(connectedDappAccounts.map { it.address }.distinct())
                 DappProviderBridge.success(pending.replyProxy, pending.request.id, addresses)
             }
@@ -541,7 +540,7 @@ private fun BrowserScreen(
                                     val previousOrigin = runCatching { DappProviderBridge.origin(Uri.parse(currentPageUrl)) }.getOrNull()
                                     val currentOrigin = runCatching { DappProviderBridge.origin(Uri.parse(it)) }.getOrNull()
                                     if (previousOrigin != null && currentOrigin != previousOrigin) {
-                                        authorizedDappOrigins.clear()
+                                        DappOriginPermissionStore.revokeAll()
                                     }
                                     if (isNewDocument) {
                                         pendingDappConnection?.let { pending ->
@@ -612,27 +611,8 @@ private fun BrowserScreen(
                         pageState = BrowserPageState.Loading
                         browser?.settings?.userAgentString = CHROME_MOBILE_USER_AGENT
                         browser?.reload()
-                    },
-                    onOpenExternal = {
-                        val uri = Uri.parse(currentPageUrl)
-                        val chromeIntent = Intent(Intent.ACTION_VIEW, uri).apply { setPackage("com.android.chrome") }
-                        try {
-                            context.startActivity(chromeIntent)
-                        } catch (_: Exception) {
-                            try {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-                            } catch (_: Exception) {
-                                Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                    onCopyUrl = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Page URL", currentPageUrl))
-                        Toast.makeText(context, "网址已复制", Toast.LENGTH_SHORT).show()
                     }
                 )
-            }
             }
             BrowserAccountingToolbar(
                 walletAddress = quickCopyAddress.ifBlank { selectedWallet?.address.orEmpty() },
@@ -646,8 +626,24 @@ private fun BrowserScreen(
                         Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier.align(Alignment.CenterHorizontally).navigationBarsPadding().padding(bottom = 8.dp)
+                onRefreshPage = { browser?.reload() },
+                onCopyPageUrl = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Page URL", currentPageUrl))
+                    Toast.makeText(context, "网址已复制", Toast.LENGTH_SHORT).show()
+                },
+                onOpenPageExternally = {
+                    val uri = Uri.parse(currentPageUrl)
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 8.dp)
             )
+            }
+
         }
     }
 
@@ -717,7 +713,7 @@ private fun BrowserScreen(
                 TextButton(onClick = {
                     val addresses = connectedDappAccounts.map { it.address }.distinct()
                     if (addresses.isNotEmpty()) {
-                        authorizedDappOrigins[pending.origin] = currentDappAuthorizationStamp()
+                        DappOriginPermissionStore.grant(pending.origin, currentDappAuthorizationStamp())
                         DappProviderBridge.success(pending.replyProxy, pending.request.id, JSONArray(addresses))
                         pendingDappConnection = null
                     } else {
@@ -777,9 +773,7 @@ private const val IOS_SAFARI_USER_AGENT =
 private fun BrowserPageOverlay(
     state: BrowserPageState,
     onBack: () -> Unit,
-    onRetry: () -> Unit,
-    onOpenExternal: () -> Unit,
-    onCopyUrl: () -> Unit
+    onRetry: () -> Unit
 ) {
     val infinite = rememberInfiniteTransition(label = "loading-pulse")
     val pulse by infinite.animateFloat(0.92f, 1.08f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse")
@@ -809,10 +803,6 @@ private fun BrowserPageOverlay(
                 Button(onClick = onRetry, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
                     Text("重新加载")
                 }
-                OutlinedButton(onClick = onOpenExternal, modifier = Modifier.fillMaxWidth()) {
-                    Text("在外部浏览器打开")
-                }
-                TextButton(onClick = onCopyUrl, modifier = Modifier.fillMaxWidth()) { Text("复制网址") }
                 TextButton(onClick = onBack) { Text("返回") }
             }
         }

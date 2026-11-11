@@ -24,12 +24,50 @@ def _number(value: Decimal | int | float | None) -> float:
     return float(value or 0)
 
 
+def _range_distribution(values: list[float], max_buckets: int = 5) -> list[dict]:
+    ordered = sorted(value for value in values if value >= 0)
+    if not ordered:
+        return []
+    if ordered[0] == ordered[-1]:
+        return [{
+            "range_label": "≈$" + format(ordered[0], ",.0f"),
+            "count": len(ordered),
+            "percentage": 100.0,
+        }]
+    bucket_count = min(max_buckets, len(ordered))
+    buckets: dict[str, dict] = {}
+    for index in range(bucket_count):
+        start = index * len(ordered) // bucket_count
+        end = (index + 1) * len(ordered) // bucket_count
+        group = ordered[start:end]
+        if not group:
+            continue
+        low, high = group[0], group[-1]
+        label = "$" + format(low, ",.0f") + "–$" + format(high, ",.0f") if low != high else "≈$" + format(low, ",.0f")
+        item = buckets.setdefault(label, {"range_label": label, "count": 0})
+        item["count"] += len(group)
+    total = len(ordered)
+    result = []
+    assigned_percentage = 0.0
+    items = list(buckets.values())
+    for index, item in enumerate(items):
+        percentage = (
+            round(100.0 - assigned_percentage, 1)
+            if index == len(items) - 1
+            else round(item["count"] * 100.0 / total, 1)
+        )
+        assigned_percentage += percentage
+        result.append({**item, "percentage": percentage})
+    return result
+
+
 def assemble_snapshot(
     window: str,
     generated_at: datetime,
     project_rows: list[dict],
     rating_rows: list[dict],
     asset_rows: list[dict] | None = None,
+    summary: dict | None = None,
 ) -> dict:
     """Build a privacy-safe snapshot with USD valuations and token-separated native totals."""
     if window not in WINDOW_DURATIONS:
@@ -92,7 +130,9 @@ def assemble_snapshot(
         weighted_score = sum(score * count for score, count in distribution.items())
         average_rating = weighted_score / rating_count if rating_count else None
         gas = _number(row["gas_cost_usd"])
-        reward = _number(row["actual_reward_usd"])
+        reward = _number(row.get("reward_usd", row.get("actual_reward_usd")))
+        actual_reward = _number(row.get("actual_reward_usd"))
+        estimated_reward = _number(row.get("estimated_reward_usd"))
         gas_by_verification_tier = {
             "user_reported": _number(row.get("gas_user_reported_usd")),
             "transaction_linked": _number(row.get("gas_transaction_linked_usd")),
@@ -126,9 +166,10 @@ def assemble_snapshot(
             "created_at": _iso(created_at),
             "tags": row.get("tags", []),
             "gas_cost_usd_valuation": gas,
-            "actual_reward_usd_valuation": reward,
+            "reward_usd_valuation": reward,
+            "actual_reward_usd_valuation": actual_reward,
+            "estimated_reward_usd_valuation": estimated_reward,
             "gas_by_verification_tier": gas_by_verification_tier,
-            "net_result_usd_valuation": reward - gas,
             "gas_by_token": token_rows("gas"),
             "reward_by_token": token_rows("reward"),
             "average_rating": average_rating,
@@ -145,7 +186,17 @@ def assemble_snapshot(
         "window_end": _iso(generated_at),
         "metric_currency": "USD",
         "usd_values_are_valuations": True,
-        "data_quality": "user_confirmed_actual_contributions_only",
+        "data_quality": "approximate_actual_and_estimated_rewards",
+        "summary": summary or {
+            "gas_total_usd": sum(project["gas_cost_usd_valuation"] for project in projects),
+            "gas_by_chain": [],
+            "reward_total_usd": sum(project["reward_usd_valuation"] for project in projects),
+            "gas_range_distribution": [],
+            "reward_range_distribution": [],
+            "cumulative_contributors": 0,
+            "active_30d_contributors": 0,
+            "contributor_count_basis": "anonymous_installation_fingerprint",
+        },
         "projects": projects,
     }
 
@@ -172,7 +223,12 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
             CommunityProjectCatalogEntry.website_url,
             CommunityProjectCatalogEntry.created_at.label("created_at"),
             func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_cost_usd"),
-            func.coalesce(func.sum(CommunityContribution.actual_reward_usd), 0).label("actual_reward_usd"),
+            func.coalesce(func.sum(case((CommunityContribution.actual_reward_confirmed.is_(True), CommunityContribution.actual_reward_usd), else_=0)), 0).label("actual_reward_usd"),
+            func.coalesce(func.sum(case((CommunityContribution.actual_reward_confirmed.is_(False), CommunityContribution.estimated_reward_usd), else_=0)), 0).label("estimated_reward_usd"),
+            func.coalesce(func.sum(case(
+                (CommunityContribution.actual_reward_confirmed.is_(True), CommunityContribution.actual_reward_usd),
+                else_=func.coalesce(CommunityContribution.estimated_reward_usd, 0),
+            )), 0).label("reward_usd"),
             func.coalesce(func.sum(case((CommunityContribution.verification_tier == "user_reported", CommunityContribution.gas_cost_usd), else_=0)), 0).label("gas_user_reported_usd"),
             func.coalesce(func.sum(case((CommunityContribution.verification_tier == "transaction_linked", CommunityContribution.gas_cost_usd), else_=0)), 0).label("gas_transaction_linked_usd"),
             func.coalesce(func.sum(case((CommunityContribution.verification_tier == "amount_verified", CommunityContribution.gas_cost_usd), else_=0)), 0).label("gas_amount_verified_usd"),
@@ -225,4 +281,105 @@ async def generate_snapshot(db: AsyncSession, window: str, generated_at: datetim
     ).where(and_(*asset_conditions))
     asset_rows = (await db.execute(asset_stmt)).mappings().all()
 
-    return assemble_snapshot(window, now, list(metric_rows), list(rating_rows), list(asset_rows))
+    public_reward_expr = case(
+        (CommunityContribution.actual_reward_confirmed.is_(True), CommunityContribution.actual_reward_usd),
+        else_=func.coalesce(CommunityContribution.estimated_reward_usd, 0),
+    )
+    summary_conditions = [CommunityContribution.user_id.is_(None)]
+    if duration is not None:
+        summary_conditions.append(CommunityContribution.created_at >= now - duration)
+    summary_totals_stmt = (
+        select(
+            func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_total_usd"),
+            func.coalesce(func.sum(public_reward_expr), 0).label("reward_total_usd"),
+        )
+        .select_from(CommunityContribution)
+        .join(
+            CommunityProjectCatalogEntry,
+            CommunityProjectCatalogEntry.project_official_id == CommunityContribution.project_official_id,
+        )
+        .where(and_(*summary_conditions))
+    )
+    summary_totals = (await db.execute(summary_totals_stmt)).mappings().one()
+
+    chain_conditions = [CommunityContribution.user_id.is_(None)]
+    if duration is not None:
+        chain_conditions.append(CommunityContribution.created_at >= now - duration)
+    chain_stmt = (
+        select(
+            CommunityContribution.network,
+            func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_usd"),
+        )
+        .select_from(CommunityContribution)
+        .join(
+            CommunityProjectCatalogEntry,
+            CommunityProjectCatalogEntry.project_official_id == CommunityContribution.project_official_id,
+        )
+        .where(and_(*chain_conditions))
+        .group_by(CommunityContribution.network)
+        .order_by(func.sum(CommunityContribution.gas_cost_usd).desc())
+    )
+    chain_rows = (await db.execute(chain_stmt)).mappings().all()
+
+    contributor_conditions = [
+        CommunityContribution.user_id.is_(None),
+        CommunityContribution.contributor_fingerprint.is_not(None),
+    ]
+    if duration is not None:
+        contributor_conditions.append(CommunityContribution.created_at >= now - duration)
+    contributor_stmt = (
+        select(
+            CommunityContribution.contributor_fingerprint,
+            func.coalesce(func.sum(CommunityContribution.gas_cost_usd), 0).label("gas_usd"),
+            func.coalesce(func.sum(public_reward_expr), 0).label("reward_usd"),
+        )
+        .select_from(CommunityContribution)
+        .join(
+            CommunityProjectCatalogEntry,
+            CommunityProjectCatalogEntry.project_official_id == CommunityContribution.project_official_id,
+        )
+        .where(and_(*contributor_conditions))
+        .group_by(CommunityContribution.contributor_fingerprint)
+    )
+    contributor_rows = (await db.execute(contributor_stmt)).mappings().all()
+
+    all_contributor_count = await db.scalar(
+        select(func.count(func.distinct(CommunityContribution.contributor_fingerprint)))
+        .select_from(CommunityContribution)
+        .join(
+            CommunityProjectCatalogEntry,
+            CommunityProjectCatalogEntry.project_official_id == CommunityContribution.project_official_id,
+        )
+        .where(
+            CommunityContribution.user_id.is_(None),
+            CommunityContribution.contributor_fingerprint.is_not(None),
+        )
+    ) or 0
+    active_contributor_count = await db.scalar(
+        select(func.count(func.distinct(CommunityContribution.contributor_fingerprint)))
+        .select_from(CommunityContribution)
+        .join(
+            CommunityProjectCatalogEntry,
+            CommunityProjectCatalogEntry.project_official_id == CommunityContribution.project_official_id,
+        )
+        .where(
+            CommunityContribution.user_id.is_(None),
+            CommunityContribution.contributor_fingerprint.is_not(None),
+            CommunityContribution.created_at >= now - timedelta(days=30),
+        )
+    ) or 0
+
+    summary = {
+        "gas_total_usd": _number(summary_totals["gas_total_usd"]),
+        "gas_by_chain": [
+            {"chain": str(row["network"] or "unknown"), "gas_usd": _number(row["gas_usd"])}
+            for row in chain_rows
+        ],
+        "reward_total_usd": _number(summary_totals["reward_total_usd"]),
+        "gas_range_distribution": _range_distribution([_number(row["gas_usd"]) for row in contributor_rows]),
+        "reward_range_distribution": _range_distribution([_number(row["reward_usd"]) for row in contributor_rows]),
+        "cumulative_contributors": int(all_contributor_count),
+        "active_30d_contributors": int(active_contributor_count),
+        "contributor_count_basis": "anonymous_installation_fingerprint",
+    }
+    return assemble_snapshot(window, now, list(metric_rows), list(rating_rows), list(asset_rows), summary)

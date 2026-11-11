@@ -24,6 +24,30 @@ class ManualProjectAccountingPolicyTest {
         publicContributionOptIn = optIn
     )
 
+
+    @Test
+    fun communityDirectoryRecordsContributeByDefaultOnlyWhenVerifiable() {
+        val hash = "0x" + "c".repeat(64)
+        assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "linea", ManualRewardKind.USD, "ethereum", hash
+        ))
+        assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "scroll", ManualRewardKind.MANUAL_USD_VALUATION, "base", hash
+        ))
+        assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            null, ManualRewardKind.USD, "ethereum", hash
+        ))
+        assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "linea", ManualRewardKind.POINTS, "ethereum", hash
+        ))
+        assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "linea", ManualRewardKind.USD, "ethereum", ""
+        ))
+        assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "linea", ManualRewardKind.USD, "tron", hash
+        ))
+    }
+
     @Test
     fun perWalletUsdRewardProducesExplicitNetProfit() {
         val batch = ManualProjectAccountingPolicy.prepare(

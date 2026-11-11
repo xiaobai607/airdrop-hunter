@@ -12,6 +12,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -20,14 +21,69 @@ import java.util.concurrent.TimeUnit
  * A lightweight dispatcher runs every 15 minutes and schedules each source into
  * its own unique WorkManager queue. Failures retry independently. Individual
  * workers decide whether their own data source is due:
- * public contributions 15m; wallet activity/private ledger/favorites 8h.
+ * public contributions 15m; wallet activity 8h; dynamic market/community catalogs are
+ * warmed on launch and revalidated from their own Room cache TTLs; the public Binance airdrop hub is revalidated every 6h. Personal cloud sync is disabled.
  */
+private const val AIRDROP_HUB_REFRESH_KEY = "airdrop_hub_last_success"
+private const val AIRDROP_HUB_REFRESH_INTERVAL_MILLIS = 6 * 60 * 60 * 1000L
+
+class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) :
+    CoroutineWorker(appContext, params) {
+    override suspend fun doWork(): Result {
+        ApiClient.initialize(applicationContext)
+        var succeeded = 0
+        try {
+            CommunityCatalogRepository.refreshCatalog()
+            succeeded++
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Market warm-up continues independently if the community API is unavailable.
+        }
+        try {
+            MarketSearchRepository(OkxMarketRepository()).warmUpMarketCaches()
+            succeeded++
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Community directory cache remains usable if a market provider is unavailable.
+        }
+        try {
+            val preferences = applicationContext.getSharedPreferences("global_sync_cadence_v1", Context.MODE_PRIVATE)
+            val now = System.currentTimeMillis()
+            val lastRefresh = preferences.getLong(AIRDROP_HUB_REFRESH_KEY, 0L)
+            if (lastRefresh <= 0L || now < lastRefresh || now - lastRefresh >= AIRDROP_HUB_REFRESH_INTERVAL_MILLIS) {
+                // Refresh the approved public announcement feed off the UI thread.
+                // Mark success only after the server confirms the refresh request.
+                val response = ApiClient.service.refreshAirdropHub()
+                if (!response.ok) {
+                    throw IllegalStateException(response.status.error ?: "Airdrop hub refresh was not successful")
+                }
+                preferences.edit().putLong(AIRDROP_HUB_REFRESH_KEY, now).apply()
+                succeeded++
+            } else {
+                succeeded++
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Keep cached public announcements usable; the next foreground entry retries.
+        }
+        return if (succeeded > 0) Result.success() else Result.retry()
+    }
+}
+
 class GlobalSyncDispatcherWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         GlobalSyncScheduler.enqueueSyncTasks(applicationContext)
         return Result.success()
     }
+}
+
+/** Current release stores every personal record locally; private cloud sync is deferred. */
+internal object CurrentReleaseDataPolicy {
+    const val PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED = false
 }
 
 object GlobalSyncScheduler {
@@ -46,6 +102,17 @@ object GlobalSyncScheduler {
     }
 
     internal const val FORCE_KEY = "force_sync"
+
+    /** Queue dynamic catalogs whenever the app enters the foreground. */
+    fun enqueueDynamicCatalogWarmup(context: Context) {
+        val request = OneTimeWorkRequestBuilder<DynamicCatalogWarmupWorker>()
+            .setConstraints(constraints())
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
+            "global-sync-dynamic-catalogs", ExistingWorkPolicy.KEEP, request
+        )
+    }
 
     fun enqueueNow(
         context: Context,
@@ -74,17 +141,6 @@ object GlobalSyncScheduler {
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
-        val personalLedger = OneTimeWorkRequestBuilder<PersonalLedgerSyncWorker>()
-            .setInputData(workDataOf(FORCE_KEY to forcePersonalLedger))
-            .setConstraints(network)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
-        val favorites = OneTimeWorkRequestBuilder<CommunityFavoriteSyncWorker>()
-            .setInputData(workDataOf(FORCE_KEY to forceFavorites))
-            .setConstraints(network)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
-
         // Each source has its own unique queue. A failure in one source retries
         // independently and cannot block unrelated ledger, wallet, or favorite work.
         workManager.enqueueUniqueWork(
@@ -97,16 +153,8 @@ object GlobalSyncScheduler {
             if (forceWalletActivity) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
             walletActivity
         )
-        workManager.enqueueUniqueWork(
-            "global-sync-private-ledger",
-            if (forcePersonalLedger) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
-            personalLedger
-        )
-        workManager.enqueueUniqueWork(
-            "global-sync-community-favorites",
-            if (forceFavorites) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
-            favorites
-        )
+        enqueueDynamicCatalogWarmup(context)
+
     }
 }
 

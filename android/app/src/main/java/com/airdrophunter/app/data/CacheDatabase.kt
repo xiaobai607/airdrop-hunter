@@ -94,6 +94,8 @@ data class CommunitySyncOutboxEntity(
     val lastAttemptAt: Long? = null, val lastError: String? = null,
     val assetBreakdownJson: String? = null,
     @ColumnInfo(defaultValue = "0") val terminalFailure: Boolean = false,
+    @ColumnInfo(defaultValue = "1") val actualRewardConfirmed: Boolean = true,
+    val expectedRewardUsd: Double? = null,
     val network: String? = null,
     val walletAddress: String? = null,
     val txHash: String? = null,
@@ -356,7 +358,7 @@ interface LocalBackupDao {
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectWalletAssignments(rows:List<ProjectWalletAssignmentEntity>)
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class], version = 20, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class], version = 21, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
@@ -653,13 +655,19 @@ object CacheStore {
             db.execSQL("ALTER TABLE user_interactions ADD COLUMN publicContributionError TEXT")
         }
     }
+    private val MIGRATION_20_21 = object : Migration(20, 21) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN actualRewardConfirmed INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN expectedRewardUsd REAL")
+        }
+    }
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -795,6 +803,7 @@ object CacheStore {
      * remain fixed for the entire operation, including a concurrent account switch.
      */
     suspend fun syncCommunityFavorites(): Boolean = withContext(Dispatchers.IO) {
+        if (!CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED) return@withContext false
         val token = TokenStore.readTokenBlocking()
         val scope = accountScopeFromToken(token)
         if (token.isNullOrBlank() || scope == "guest" || scope == "invalid-session") return@withContext false
@@ -876,8 +885,9 @@ object CacheStore {
             if (guestEntries.isNotEmpty()) result += CommunitySyncBatch("guest", "", guestEntries)
             if (activeScope != "guest" && activeScope != "invalid-session") {
                 val accountEntries = dao.getPending(activeScope, limit)
-                if (accountEntries.isNotEmpty() && !token.isNullOrBlank()) {
-                    result += CommunitySyncBatch(activeScope, "Bearer $token", accountEntries)
+                if (accountEntries.isNotEmpty()) {
+                    // Current-release contributions are anonymous; no account bearer is attached.
+                    result += CommunitySyncBatch(activeScope, "", accountEntries)
                 }
             }
             result
@@ -995,9 +1005,12 @@ object CacheStore {
         if (projectLocalId.isBlank() || !gas.isFinite() || !reward.isFinite() || gas < 0.0 || reward < 0.0) return@withContext false
         val db = database ?: return@withContext false
         val scope = currentAccountScope()
+        val requestedOfficialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
+        val directoryDelisted = CommunityCatalogRepository.isExplicitlyDelisted(requestedOfficialId)
         db.withTransaction {
             val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
-            val canonicalOfficialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
+            val canonicalOfficialId = requestedOfficialId
+            val effectiveContributionOptIn = publicContributionOptIn && !directoryDelisted
             val effectiveNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
                 ?: when (bill.chain.trim().lowercase()) {
                     "ethereum", "erc20" -> "ethereum"
@@ -1006,10 +1019,10 @@ object CacheStore {
                     "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" -> bill.chain.trim().lowercase()
                     else -> "unknown"
                 }
-            if (publicContributionOptIn && (
-                    canonicalOfficialId == null ||
-                    !ManualProjectAccountingPolicy.isTransactionHashFormatValid(effectiveNetwork, bill.txHash)
-                )) return@withTransaction false
+            if (publicContributionOptIn && canonicalOfficialId == null) return@withTransaction false
+            if (effectiveContributionOptIn && !ManualProjectAccountingPolicy.isTransactionHashFormatValid(effectiveNetwork, bill.txHash)) {
+                return@withTransaction false
+            }
             val effectiveAssetBreakdown = assetBreakdownJson ?: bill.assetBreakdownJson
             if (
                 bill.txHash.isNotBlank() && bill.walletAddress.isNotBlank() &&
@@ -1038,8 +1051,8 @@ object CacheStore {
                 occurred_at = Instant.ofEpochMilli(bill.timestamp).toString(),
                 extra = mapOf(
                     "project_official_id" to (canonicalOfficialId ?: ""),
-                    "public_contribution_opt_in" to publicContributionOptIn.toString(),
-                    "public_contribution_status" to if (publicContributionOptIn) "pending_verification" else "private",
+                    "public_contribution_opt_in" to effectiveContributionOptIn.toString(),
+                    "public_contribution_status" to if (effectiveContributionOptIn) "pending_verification" else "private",
                     // Demo transactions remain available for local UI testing but are never synced.
                     "is_demo" to isDemoAccountingTransaction(bill.txHash, bill.walletAddress, bill.interactionMethod).toString()
                 ) + (effectiveAssetBreakdown?.let { mapOf("asset_breakdown" to it) } ?: emptyMap())
@@ -1087,11 +1100,11 @@ object CacheStore {
                     assetBreakdownJson = effectiveAssetBreakdown,
                     expectedGasCostUsd = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 },
                     expectedRewardUsd = null,
-                    publicContributionOptIn = publicContributionOptIn,
-                    publicContributionStatus = if (publicContributionOptIn) "pending_verification" else "private"
+                    publicContributionOptIn = effectiveContributionOptIn,
+                    publicContributionStatus = if (effectiveContributionOptIn) "pending_verification" else "private"
                 )
             )
-            if (publicContributionOptIn) {
+            if (effectiveContributionOptIn) {
                 db.communitySyncOutboxDao().insert(
                     CommunitySyncOutboxEntity(
                         id = bill.id,
@@ -1104,7 +1117,9 @@ object CacheStore {
                         network = effectiveNetwork,
                         walletAddress = bill.walletAddress,
                         txHash = bill.txHash,
-                        occurredAt = recordedAt
+                        occurredAt = recordedAt,
+                        actualRewardConfirmed = true,
+                        expectedRewardUsd = ledgerEntry.expected_reward_usd?.toDouble()
                     )
                 )
             }
@@ -1128,6 +1143,7 @@ object CacheStore {
         if (scope == "invalid-session") return@withContext false
         val officialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
         if (batch.entries.any { it.publicContributionOptIn } && officialId == null) return@withContext false
+        val directoryDelisted = CommunityCatalogRepository.isExplicitlyDelisted(officialId)
         val timestamp = System.currentTimeMillis()
         val rowIds = batch.entries.map { entry ->
             java.util.UUID.nameUUIDFromBytes("$batchId:${entry.walletId}".toByteArray(Charsets.UTF_8)).toString()
@@ -1149,6 +1165,7 @@ object CacheStore {
             }.orEmpty().toMutableList()
             batch.entries.forEachIndexed { index, entry ->
                 val reward = entry.reward
+                val contributionOptIn = entry.publicContributionOptIn && !directoryDelisted
                 val rewardUsd = entry.actualRewardUsd?.toDouble()
                 val complete = rewardUsd != null
                 val gas = entry.gasCostUsd.toDouble()
@@ -1183,8 +1200,8 @@ object CacheStore {
                     "reward_quote_source" to (reward.quoteSource ?: ""),
                     "reward_quote_timestamp" to (reward.quoteTimestamp?.toString() ?: ""),
                     "usd_profit_complete" to complete.toString(),
-                    "public_contribution_opt_in" to entry.publicContributionOptIn.toString(),
-                    "public_contribution_status" to if (entry.publicContributionOptIn && complete && officialId != null) "pending_verification" else if (entry.publicContributionOptIn) "not_eligible" else "private",
+                    "public_contribution_opt_in" to contributionOptIn.toString(),
+                    "public_contribution_status" to if (contributionOptIn && complete && officialId != null) "pending_verification" else if (contributionOptIn) "not_eligible" else "private",
                     "project_official_id" to (officialId ?: ""),
                     "asset_breakdown" to (assetJson ?: "")
                 )
@@ -1218,10 +1235,10 @@ object CacheStore {
                     rewardAmount = reward.amount?.toDouble(), rewardUnit = reward.unit,
                     rewardUsdValuation = rewardUsd, rewardQuoteSource = reward.quoteSource,
                     rewardQuoteTimestamp = reward.quoteTimestamp, usdProfitComplete = complete,
-                    publicContributionOptIn = entry.publicContributionOptIn,
-                    publicContributionStatus = if (entry.publicContributionOptIn && complete && officialId != null) "pending_verification" else if (entry.publicContributionOptIn) "not_eligible" else "private"
+                    publicContributionOptIn = contributionOptIn,
+                    publicContributionStatus = if (contributionOptIn && complete && officialId != null) "pending_verification" else if (contributionOptIn) "not_eligible" else "private"
                 ))
-                if (entry.publicContributionOptIn && complete) {
+                if (contributionOptIn && complete) {
                     db.communitySyncOutboxDao().insert(
                         CommunitySyncOutboxEntity(
                             id = id,
@@ -1234,7 +1251,9 @@ object CacheStore {
                             network = entry.network,
                             walletAddress = entry.walletAddress,
                             txHash = entry.txHash,
-                            occurredAt = recordedAt
+                            occurredAt = recordedAt,
+                            actualRewardConfirmed = complete,
+                            expectedRewardUsd = null
                         )
                     )
                 }
@@ -1520,6 +1539,18 @@ object CacheStore {
         }
         Unit
     }
+    suspend fun getOrCreateAnonymousContributorId(): String = withContext(Dispatchers.IO) {
+        val scope = currentAccountScope()
+        val db = database ?: return@withContext java.util.UUID.randomUUID().toString()
+        val key = "$scope:local:community_contributor_id"
+        val existing = db.cacheDao().read(key)?.trim()
+        val validExisting = existing?.let { runCatching { java.util.UUID.fromString(it) }.isSuccess } == true
+        if (validExisting) return@withContext existing!!
+        val generated = java.util.UUID.randomUUID().toString()
+        db.cacheDao().write(CachedPayload(key, generated, System.currentTimeMillis()))
+        generated
+    }
+
     // Public community snapshots are shared across guest and signed-in sessions.
     suspend fun readPublic(key: String): String? = withContext(Dispatchers.IO) {
         runCatching { database?.cacheDao()?.read("public:community:$key") }.getOrNull()

@@ -1,17 +1,19 @@
 # Airdrop Hunter
 
-Airdrop Hunter is an Android-first workspace for discovering airdrop projects, organizing public wallet addresses, tracking project tasks, recording Gas and realized rewards, and viewing anonymous community project statistics.
+Airdrop Hunter is an Android-first app for discovering verified airdrop announcements, organizing projects and tasks, tracking public wallet activity, and recording Gas costs and realized rewards.
 
 The authoritative product scope, privacy rules, confirmed UI behavior, implementation status, and next development order live in **[Product Requirements & Progress Ledger](docs/PRODUCT_REQUIREMENTS.md)**. That document is the single source of truth; this README is only a repository and setup guide.
 
 ## Product boundaries
 
-- Guest mode is fully usable. Guest personal ledgers and addresses stay in app-private local storage; they are not uploaded as a private cloud backup.
-- Logged-in users can sync their own detailed personal ledger to their account-private cloud storage and restore it on another device.
-- Both guests and logged-in users may contribute eligible, user-confirmed Gas, actual rewards, and participation totals to public community statistics. Public contributions are anonymous aggregates only.
-- Wallet support is read-only. The app does not collect seed phrases/private keys or custody assets, sign transactions, transfer tokens, swap, or approve contracts.
-- Public micro-community project discovery, project statistics, rankings, and star ratings are in scope. Chat, groups, DMs, mentoring, and teaching/social features are deferred.
-- Project discovery is free-first: stable public APIs, permitted RSS/Atom feeds, and user submissions; no paid data APIs or arbitrary-site scraping.
+- The primary discovery destination is **空投库**. It displays explicit airdrop campaign/announcement evidence, not a generic token screener or source-monitoring dashboard.
+- Current approved discovery sources are Binance public announcements, CoinGecko Demo API, manually reviewed GitHub Raw lists, and DexScreener public API. CoinGecko/GitHub/DexScreener observations are leads only; they are not proof of an active airdrop.
+- No paid data APIs, paid scraping, paid proxies, paid trials, or hidden metered fallbacks.
+- Personal wallets, detailed personal ledger entries, transaction hashes, private project/task records, and personal P&L remain local-only in this release. Only eligible anonymous/de-identified aggregate contribution data may be sent to the public community service.
+- Registration/login and private cloud restore are not current-release features.
+- Demo data is isolated from real data and cannot enter real publication or public statistics.
+- Wallet support is non-custodial. The app never collects seed phrases/private keys or signs transactions for the user.
+- Chat, groups, DMs, mentoring, and teaching/social features are deferred.
 
 ## Repository layout
 
@@ -19,7 +21,7 @@ The authoritative product scope, privacy rules, confirmed UI behavior, implement
 - `backend/`: FastAPI service, SQLAlchemy models, and Alembic migrations.
 - `database/`: PostgreSQL schema and migration notes.
 - `docs/`: product requirements, progress ledger, development and security notes.
-- `.github/workflows/`: Android build/backend tests and optional static community snapshot publishing.
+- `.github/workflows/`: Android/backend validation and optional scheduled publishing workflows.
 
 ## Quick start
 
@@ -28,10 +30,10 @@ The authoritative product scope, privacy rules, confirmed UI behavior, implement
 Requires JDK 17 and Android SDK. From `android/`:
 
 ```bash
-gradle :app:assembleDebug
+gradle :app:testDebugUnitTest :app:assembleDebug
 ```
 
-GitHub Actions builds the debug APK and runs Android unit tests on pushes and pull requests.
+GitHub Actions runs Android unit tests and builds a debug APK when Android source files change.
 
 ### Backend
 
@@ -43,21 +45,32 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 alembic upgrade head
+pytest
 uvicorn app.main:app --reload
 ```
 
-Health endpoint: `GET /health`. Review the migration rules in [Development Guide](docs/DEVELOPMENT.md) before applying schema changes.
+Health endpoint: `GET /health`. Review [Development Guide](docs/DEVELOPMENT.md) before changing or applying database migrations.
 
 ## Configuration and secrets
 
-Set `DATABASE_URL` to a PostgreSQL connection URL. Production deployments must provide it explicitly. Do not commit API keys, wallet seed phrases, private keys, access tokens, or production credentials. Provider credentials belong in backend environment variables or GitHub Actions secrets. The Android APK must not contain server/provider secrets.
+Set `DATABASE_URL` for PostgreSQL and `JWT_SECRET_KEY` for server-side signing. Optional discovery settings are documented in `backend/.env.example` and [Airdrop Hub data pipeline](backend/AIRDROP_HUB.md).
 
-The community static snapshot publisher remains disabled until its object-storage/CDN settings and database access are configured. See the product requirements for the exact variables and activation conditions.
+- `COINGECKO_DEMO_API_KEY` is optional; without it, CoinGecko discovery remains unavailable.
+- `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS` accepts only complete, manually reviewed, license/attribution-approved records pinned to a full commit SHA. A public URL alone is not permission to reuse content.
+- `DEXSCREENER_SEARCH_QUERIES` is an optional bounded list of discovery queries.
+- Binance public CMS announcements do not require an API key.
+- Scheduled production sync remains disabled until the free-use path, source permissions, hosting/database limits, and live-data rendering are verified.
+
+Never commit API keys, wallet secrets, access tokens, or production credentials. Provider credentials belong in backend environment variables or GitHub Actions secrets; the Android APK must not contain provider secrets.
 
 ## Current implementation boundaries
 
-- Core Android/backend code has CI coverage, but real-device acceptance is still required for WalletConnect/WebView behavior, transaction import, guest data clearing, account switching, and cross-device private-ledger restore.
-- Community snapshot generation, Room caching, and CDN client code are merged; production CDN/R2 and scheduled publishing are not yet configured.
-- The current public contribution schema stores USD-denominated totals. Token-by-token public amount aggregation is a future schema extension; unlike tokens must never be summed as if they were the same currency.
-- Provider integrations are enabled individually only after checking free access, terms, quotas, and reliability.
-- Push notifications, production backup/restore verification, alerting, retention, and incident response remain operational work.
+- A successful CI run proves only the checks that actually ran. It does not prove physical-device acceptance, current provider availability, production deployment, or backup/restore recovery.
+- CoinGecko, GitHub Raw, and DexScreener observations remain internal discovery leads unless separate explicit campaign evidence is obtained.
+- The Binance announcement detail page displays the original CMS article body without AI rewriting or invented campaign terms. JavaScript remains disabled in the WebView.
+- Community snapshot generation, Room caching, and CDN client code do not imply that production CDN/storage or scheduled publishing is configured.
+- Production backup/restore drills, monitoring, retention, incident response, and final release acceptance remain operational work.
+
+## Project status
+
+See the top-level checklist in [Product Requirements & Progress Ledger](docs/PRODUCT_REQUIREMENTS.md) for the current code/CI, real-data, device, production, and release status. PR #135 must remain Draft/Open until the user explicitly authorizes merging.

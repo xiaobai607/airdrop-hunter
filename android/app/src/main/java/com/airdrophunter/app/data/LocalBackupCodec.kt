@@ -37,8 +37,8 @@ object LocalBackupCodec {
  }
 
  fun decode(bytes:ByteArray,password:String):LocalBackupSnapshot {
-  require(password.length>=8) { "备份密码至少需要8位" }
   return try {
+   require(password.length>=8)
    require(bytes.size in (magic.size+1+SALT+NONCE+16)..MAX_BYTES)
    require(bytes.copyOfRange(0,magic.size).contentEquals(magic))
    require(bytes[magic.size]==VERSION)

@@ -6,7 +6,18 @@ data class AirdropHubDto(
     val chain: String,
     val description: String,
     val status: String,
-    val link: String
+    val link: String,
+    val data_source: String = "",
+    val trust_level: String = "TRUST_LEVEL_0",
+    val publication_status: String = "OBSERVATION"
+)
+
+data class AirdropHubDetailDto(
+    val title: String,
+    val content_html: String,
+    val release_date: Long? = null,
+    val catalog_name: String = "",
+    val original_url: String
 )
 
 data class AirdropHubSyncStatusDto(
