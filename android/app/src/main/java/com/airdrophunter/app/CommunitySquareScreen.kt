@@ -46,7 +46,15 @@ private data class CommunityProject(
     val demoScore: Double = 0.0,
     val averageRating: Double? = null, val ratingCount: Long = 0,
     val gasByVerificationTier: Map<String, Double> = emptyMap(),
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val supportedChains: List<String> = emptyList(),
+    val categories: List<String> = emptyList(),
+    val participationRequirements: List<String> = emptyList(),
+    val fundingRequirement: String = "unknown",
+    val campaignStage: String = "unknown",
+    val rewardTypes: List<String> = emptyList(),
+    val riskFlags: List<String> = emptyList(),
+    val effortLevel: String = "unknown"
 ) {
     val label: String get() = when { isDemo -> "测试演示"; !isActive -> "社区已下架"; gas > 0.0 || reward > 0.0 -> "全网数据"; else -> "暂无贡献" }
     val reputationLabel: String get() = when {
@@ -83,20 +91,15 @@ fun CommunitySquareScreen(
     var catalogError by remember { mutableStateOf<String?>(null) }
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
     var useDemoData by remember { mutableStateOf(BuildConfig.DEBUG) }
-    var selectedTag by remember { mutableStateOf<String?>(null) }
     var favoritesOnly by remember { mutableStateOf(false) }
-    var showDelistedOnly by remember { mutableStateOf(false) }
+    var showAirdropFilters by remember { mutableStateOf(false) }
+    var airdropFilterSelection by remember { mutableStateOf(AirdropFilterSelection()) }
     var searchQuery by remember { mutableStateOf("") }
     var showSubmissionDialog by remember { mutableStateOf(false) }
     var submissionName by remember { mutableStateOf("") }
     var submissionUrl by remember { mutableStateOf("") }
     var submittingProject by remember { mutableStateOf(false) }
     var addingProjectIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    val allTags = remember(catalogEntries, useDemoData) {
-        if (BuildConfig.DEBUG && useDemoData) listOf("Layer2", "DeFi", "测试网", "零成本", "生态", "跨链", "GameFi", "空投")
-        else catalogEntries.flatMap { it.tags }.distinct().sorted()
-    }
-
     LaunchedEffect(Unit) {
         ApiClient.initialize(context)
 
@@ -176,7 +179,15 @@ fun CommunitySquareScreen(
             averageRating = stats?.average_rating,
             ratingCount = stats?.rating_count ?: 0L,
             gasByVerificationTier = stats?.gas_by_verification_tier.orEmpty(),
-            isActive = entry.is_active
+            isActive = entry.is_active,
+            supportedChains = entry.supported_chains,
+            categories = entry.categories,
+            participationRequirements = entry.participation_requirements,
+            fundingRequirement = entry.funding_requirement,
+            campaignStage = entry.campaign_stage,
+            rewardTypes = entry.reward_types,
+            riskFlags = entry.risk_flags,
+            effortLevel = entry.effort_level
         )
     }
     // Synthetic projects exist only in the DEBUG test mode. They never enter the catalog,
@@ -203,11 +214,26 @@ fun CommunitySquareScreen(
     )
     // Demo and real datasets are mutually exclusive; the mode switch never mixes them.
     val combinedProjects = if (BuildConfig.DEBUG && useDemoData) demoProjects else realProjects
-    val displayedProjects = combinedProjects.filter {
-        (useDemoData || matchesCommunityProjectStatus(it.isActive, showDelistedOnly)) &&
-            (selectedTag == null || selectedTag in it.tags) &&
-            (!favoritesOnly || it.id in favoriteIds) &&
-            matchesCommunityProjectQuery(it.name, it.chain, it.tags, searchQuery)
+    val displayedProjects = combinedProjects.filter { project ->
+        // Real discovery always excludes entries explicitly marked inactive.
+        // Inactive entries remain in the cached directory for the personal library.
+        (useDemoData || project.isActive) &&
+            (!favoritesOnly || project.id in favoriteIds) &&
+            matchesCommunityProjectQuery(project.name, project.chain, project.tags, searchQuery) &&
+            matchesAirdropFilters(
+                AirdropFilterMetadata(
+                    chain = project.chain,
+                    supportedChains = project.supportedChains,
+                    categories = project.categories,
+                    participationRequirements = project.participationRequirements,
+                    fundingRequirement = project.fundingRequirement,
+                    campaignStage = project.campaignStage,
+                    rewardTypes = project.rewardTypes,
+                    riskFlags = project.riskFlags,
+                    effortLevel = project.effortLevel
+                ),
+                airdropFilterSelection
+            )
     }
         .let { filtered ->
             when (ranking) {
@@ -251,6 +277,21 @@ fun CommunitySquareScreen(
                         }
                     }
                 )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(
+                        onClick = { showAirdropFilters = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (airdropFilterSelection.selectedCount == 0) "筛选空投条件" else "筛选空投条件 · ${airdropFilterSelection.selectedCount}")
+                    }
+                    FilterChip(
+                        selected = favoritesOnly,
+                        onClick = { favoritesOnly = !favoritesOnly },
+                        label = { Text("我的收藏") },
+                        shape = RoundedCornerShape(999.dp)
+                    )
+                }
                 Surface(color = if (useDemoData) Color(0xFFFFF4E5) else Color(0xFFE8F7EF), shape = RoundedCornerShape(999.dp)) {
                     Text(
                         if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网真实数据 · 脱敏汇总",
@@ -290,37 +331,6 @@ fun CommunitySquareScreen(
                     ranking == CommunityRanking.GAS -> "按全网 Gas 支出排列"
                     else -> "按项目收录时间排列"
                 }, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-            }
-        }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("项目状态", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = !showDelistedOnly, onClick = { showDelistedOnly = false },
-                        label = { Text("正常项目") }, shape = RoundedCornerShape(999.dp),
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary))
-                    FilterChip(selected = showDelistedOnly, onClick = { showDelistedOnly = true },
-                        label = { Text("已下架") }, shape = RoundedCornerShape(999.dp),
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFFFE8E8), selectedLabelColor = Color(0xFFC62828)))
-                }
-            }
-        }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("项目标签", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly },
-                        label = { Text("我的收藏") }, shape = RoundedCornerShape(999.dp),
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary))
-                    FilterChip(selected = selectedTag == null, onClick = { selectedTag = null },
-                        label = { Text("全部") }, shape = RoundedCornerShape(999.dp),
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary))
-                    allTags.forEach { tag ->
-                        FilterChip(selected = selectedTag == tag, onClick = { selectedTag = if (selectedTag == tag) null else tag },
-                            label = { Text(tag) }, shape = RoundedCornerShape(999.dp),
-                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary))
-                    }
-                }
             }
         }
         item {
@@ -460,6 +470,44 @@ fun CommunitySquareScreen(
                 }
             }
         }
+    }
+
+    if (showAirdropFilters) {
+        AlertDialog(
+            onDismissRequest = { showAirdropFilters = false },
+            title = { Text("空投条件筛选") },
+            text = {
+                Column(
+                    Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text("同一组内多选为“满足任一项”，不同组之间为“同时满足”。只按目录中已核验/已录入的信息筛选，未标注条件不会被猜测。", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
+                    airdropFilterGroups.forEach { group ->
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(group.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            group.options.chunked(3).forEach { optionRow ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    optionRow.forEach { option ->
+                                        val selected = option.value in airdropFilterSelection.values[group.key].orEmpty()
+                                        FilterChip(
+                                            selected = selected,
+                                            onClick = { airdropFilterSelection = airdropFilterSelection.toggle(group.key, option.value) },
+                                            label = { Text(option.label, maxLines = 1, style = MaterialTheme.typography.labelSmall) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAirdropFilters = false }) { Text("完成 · ${displayedProjects.size} 个结果") }
+            },
+            dismissButton = {
+                TextButton(onClick = { airdropFilterSelection = AirdropFilterSelection() }) { Text("重置条件") }
+            }
+        )
     }
 
     if (showSubmissionDialog) {
