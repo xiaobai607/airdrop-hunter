@@ -562,3 +562,49 @@ def test_same_campaign_evidence_is_grouped_and_conflicting_project_identity_is_f
     assert conflicted["identity_status"] == "identity_conflict_needs_review"
     assert conflicted["identity_conflict"] is True
     assert conflicted["matched_source_keys"] == ["source:conflict"]
+
+
+def test_identity_groups_keep_campaigns_separate_under_one_project():
+    from app.services.airdrop_discovery_filter import build_discovery_identity, classify_identity_matches
+
+    first = build_discovery_identity({
+        "source_name": "github-airdrop-lists",
+        "_filter_metadata": {
+            "official_url": "https://project.example",
+            "campaign_url": "https://project.example/season-one",
+        },
+    })
+    second = build_discovery_identity({
+        "source_name": "github-airdrop-lists",
+        "_filter_metadata": {
+            "official_url": "https://project.example",
+            "campaign_url": "https://project.example/season-two",
+        },
+    })
+    first_group = classify_identity_matches(first, [])
+    second_group = classify_identity_matches(second, [])
+
+    assert first_group["identity_group_type"] == "campaign"
+    assert second_group["identity_group_type"] == "campaign"
+    assert first_group["identity_group_key"] == first["campaign_identity_key"]
+    assert second_group["identity_group_key"] == second["campaign_identity_key"]
+    assert first_group["identity_group_key"] != second_group["identity_group_key"]
+    assert first["project_identity_key"] == second["project_identity_key"]
+
+    project_only = classify_identity_matches({
+        "project_identity_key": first["project_identity_key"],
+        "campaign_identity_key": None,
+        "project_identity_evidence": first["project_identity_evidence"],
+        "campaign_identity_evidence": {},
+    }, [])
+    assert project_only["identity_group_type"] == "project"
+    assert project_only["identity_group_key"] == first["project_identity_key"]
+
+    unresolved = classify_identity_matches({
+        "project_identity_key": None,
+        "campaign_identity_key": None,
+        "project_identity_evidence": {},
+        "campaign_identity_evidence": {},
+    }, [])
+    assert unresolved["identity_group_type"] == "unresolved"
+    assert unresolved["identity_group_key"] is None

@@ -146,10 +146,24 @@ def classify_identity_matches(identity: dict[str, Any], matches: list[Any]) -> d
         for item in matched
         if getattr(item, "source_key", None)
     })
+
+    # Campaign groups represent the same evidenced activity. Project groups are
+    # only a parent relationship and must never be treated as campaign duplicates.
+    if identity_conflict:
+        group_type, group_key = "needs_review", None
+    elif campaign_key:
+        group_type, group_key = "campaign", campaign_key
+    elif project_key:
+        group_type, group_key = "project", project_key
+    else:
+        group_type, group_key = "unresolved", None
+
     return {
         **identity,
         "identity_status": status,
         "identity_conflict": identity_conflict,
+        "identity_group_type": group_type,
+        "identity_group_key": group_key,
         "matched_source_key": getattr(selected, "source_key", None),
         "matched_source_name": getattr(selected, "source_name", None),
         "matched_source_keys": matched_source_keys,
