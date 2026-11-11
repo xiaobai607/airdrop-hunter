@@ -1511,3 +1511,117 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - The catalog stores the source URL, verification timestamp, and curator note for condition metadata. User-submitted projects enter the directory with empty/unknown eligibility metadata until reviewed.
 - The taxonomy covers common airdrop mechanics including on-chain interaction, bridge, swap/trade, LP, lending, staking/restaking, token/NFT holding, governance, testnet, points/quests, social/referrals, developer contributions, KYC/region restrictions, lockups, approval/deposit risks, points/token/NFT/allowlist/rebate rewards, and different funding/effort levels.
 - The discovery filter is not an eligibility checker and must not promise an airdrop or guarantee a wallet will qualify. Eligibility can depend on project-specific snapshots, thresholds, activity duration/volume, multipliers, and anti-Sybil rules; always distinguish observed campaign metadata from confirmed eligibility.
+
+
+---
+
+## 2026-11-11 — Zero-cost automated airdrop discovery, scoring and APP publication
+
+This section records the user's explicit requirement that the airdrop collector, condition filters, scoring and APP publication form one connected product workflow. **Long-term cash cost must be $0.** This is a hard constraint, not a preference. This section overrides any earlier suggestion to use paid scraping actors, paid API tiers, usage-based services or automatic paid upgrades.
+
+### Product outcome and end-to-end flow
+
+1. Discover candidate campaigns from permitted free public sources and approved RSS/Atom feeds.
+2. Normalize, deduplicate and retain source attribution and timestamps.
+3. Verify project identity, official URLs, campaign status and known eligibility conditions; keep unsupported fields unknown.
+4. Enrich only eligible candidates with free public market signals where a token contract is explicitly known.
+5. Apply deterministic, versioned, explainable hard gates, scores and tiers.
+6. Publish only records that meet the relevant publication policy to the APP's public airdrop discovery catalog.
+7. Android reads cached catalog/filter data first (Room), then silently revalidates; source/network failure never empties or corrupts the last-known-good cache.
+
+The collector, normalization/verification, filter metadata, scoring/tiering and publication are separate modules with stable interfaces. Replacing one source must not require rewriting the Android UI or scoring engine.
+
+### Zero-cash-cost and billing guardrails (hard requirements)
+
+- No paid subscription, paid API tier, per-result/per-request scraper, paid proxy, paid CAPTCHA solver, paid AI inference, or metered service is allowed in the production pipeline.
+- No automatic trial-to-paid conversion, plan upgrade, overage, credit top-up, or automatic payment is permitted. Do not require a credit card as a condition of running the collector.
+- A free trial or temporary promotional credit is not a long-term free dependency.
+- GitHub Actions and hosting/database services may be used only within a verified $0 plan and its included limits. Add strict timeouts, concurrency limits, bounded retries, response-size limits and request budgets. If a provider's free allowance or terms change, stop that adapter rather than incur charges.
+- Do not silently switch to a paid fallback. If no compliant free provider is available, keep cached data, mark the source unavailable and allow manual candidate submission/review.
+- Current repository workflow `.github/workflows/airdrop-discovery-cron.yml` is gated by `AIRDROP_DISCOVERY_SYNC_ENABLED`, requires a configured database and is scheduled daily. It must remain disabled until source permissions and production free-tier configuration are confirmed. A skipped workflow is not a successful data sync.
+- The current web3-discover JSON/MCP importer is already explicitly gated by `AIRDROP_HUB_SOURCE_APPROVED=true`. Keep it fail-closed until the source owner/terms explicitly permit automated retrieval, storage and public republication. Do not enable it merely because the endpoint is public.
+- Apify/Airdrops.io scraper is excluded from the zero-cost production dependency set: it is not a confirmed permanently free service, its actor availability/maintenance can change, and reuse/public republication rights have not been established. Do not call it from CI or backend.
+- Chainbase is excluded from the initial implementation. Do not introduce API-key or quota dependencies for it.
+- DexScreener and GeckoTerminal may be used only through their public free endpoints, within their published limits and terms. Re-check current documentation before implementation; do not treat public API access as unlimited or as a guarantee of permanent availability.
+- Keep a provider cost/terms register in source documentation: provider, endpoint, whether a key is required, current free allowance/rate limit, data license/attribution, last verification date, enable flag and safe fallback. No adapter can be enabled without a documented $0 path and reuse permission.
+
+### Sources and adapter policy
+
+- Candidate discovery: permitted public RSS 2.0/Atom feeds and explicitly approved public structured datasets. Feed hosts must be HTTPS and exact-host allowlisted. Redirects are disabled, responses are size-capped, requests are timed out, and each feed fails independently.
+- The existing RSS/Atom importer stores discovery candidates separately; candidate records are not automatically trusted or silently inserted into the verified official community project directory.
+- Official project websites and official announcements are preferred for identity, links, status and campaign terms. Fetch only where the site's terms/robots/access rules permit it; no login bypass, CAPTCHA bypass, anti-bot circumvention or scraping behind authentication.
+- DexScreener: query only by explicit chain/network identifier plus token contract address. Never match a token solely by project name or ticker. A project with no token/contract is `not_applicable` or `unknown`, not failed or fraudulent. Liquidity and 24-hour volume are market signals, not proof of project legitimacy.
+- GeckoTerminal: cache public trending-pool data and use it as an optional ranking signal. Do not fan out a request per project when a cached global trending response can answer the question. Respect the conservative documented request limit and independent adapter timeout.
+- Chainbase and all paid scraping providers remain out of scope unless the user explicitly changes the $0 requirement.
+- Preserve source name, source URL, retrieval time, publication time where available, attribution/license note and raw normalized source snapshot. Do not persist or publicly reproduce content where the source terms prohibit it.
+
+### Data model boundaries
+
+- A protocol/project and an individual campaign/airdrop are different entities. One project can have multiple campaigns, seasons, snapshots, points programs or claim windows.
+- Existing `airdrop_hub_projects` is a project-level imported directory and existing `airdrop_discovery_candidates` is a candidate inbox. Do not overload either table with campaign-specific status, snapshot dates, claim windows, KYC or task requirements.
+- Add a campaign-level record/table for each distinct airdrop season or opportunity, linked to a project where identity is known. Keep source records/snapshots separate from the current normalized view.
+- Store at minimum: stable source identity/dedup key; project/campaign identity; official URL; source and attribution; chain/ecosystem; campaign type; campaign stage/status; start/end/snapshot/claim/TGE times when evidenced; task/participation requirements; KYC/phone/region restrictions; effort/difficulty; capital/Gas/cost requirements; reward type; risk evidence; token contract/network when known; source heat fields; market snapshots; trust state; first/last seen and last successful verification timestamps.
+- Nullable/unknown values are mandatory where the source does not establish a fact. Empty string, zero, false and unknown must not be conflated. Never infer zero cost, KYC-free, no phone requirement, claimability or confirmed token distribution from missing data.
+- Store source snapshots and score/tier history so that changes can be explained and audited. Include `scoring_version`, `score_breakdown`, `listing_reason`, `review_reason` and status-change history.
+- Keep the official community project directory (`community_project_catalog`) separate from campaign discovery. A campaign can optionally link to a stable official project ID after identity verification; importing a campaign must not create a fake community project, public Gas/reward statistics or a personal ledger entry.
+
+### Filtering taxonomy and APP behavior
+
+The existing “筛选空投条件” concept remains the user-facing filter entry point; do not create a duplicate filter panel. Extend its metadata from curated project-only fields to campaign-aware values where necessary.
+
+- Ecosystem/network: Ethereum, Solana, Base, Arbitrum, Optimism, Starknet and other evidenced networks.
+- Campaign status: upcoming, ongoing, snapshot announced/near, claim open, ended, unknown/TBD.
+- Campaign type: testnet, points/quests, on-chain interaction, holder snapshot, retroactive, social/referral, developer contribution and other evidenced types.
+- Friction: KYC, phone, region, task count, difficulty/effort, recurring time and expected capital/Gas cost.
+- Reward: token, NFT, points, allowlist, rebate/other; distinguish confirmed rewards from speculative expectations.
+- Trust/risk: official link verified, source-linked/community-reported, pending verification, conflicting sources, evidence-backed risk flags.
+- Heat/market: source temperature/opportunity score, DEX liquidity and 24h volume where applicable, GeckoTerminal trending signal, freshness.
+- Time: campaign start/end, snapshot/claim/TGE proximity, source last-updated time.
+
+Multi-select values inside one group use OR; selections across groups use AND. Show unknown as unknown and allow users to choose whether to include/exclude unknown values. The filter is discovery assistance, not a guarantee of wallet eligibility.
+
+### Scoring, hard gates and four publication tiers
+
+- Use deterministic rules, not an opaque LLM decision. Every published tier must include a concise reason and a machine-readable score breakdown.
+- Do not double-count `temperature` and `opportunityScore` as independent full-weight signals when the upstream score already incorporates heat, friction, freshness and accessibility. If both are present, document their relationship and calibrate weights.
+- Missing values are neutral/unknown, not zero and not a negative penalty unless a rule explicitly says otherwise.
+- Ended campaigns with credible retroactive eligibility remain discoverable as retroactive/ended-with-opportunity; archive only when ended and no remaining/retroactive path is evidenced.
+- Scam/rug/hack keyword matches alone are not definitive. Require corroborated, attributable evidence; otherwise send to observation/review with the evidence attached.
+- A DEX pair, liquidity or trending rank never proves legitimacy. Pre-token projects without a contract are not automatically penalized for missing DEX data.
+- Configurable main/featured tier: source heat threshold (initial reference: temperature >=70 OR opportunityScore >=70), adequate verified market signal only where a token exists, no unresolved hard risk, and KYC-free/explicitly no-KYC evidence where the campaign is promoted specifically as low-friction. Gecko trending may add a “精选+” marker but is not mandatory.
+- Ordinary directory: medium heat (initial reference 40–69), no corroborated hard risk, with missing optional market/KYC signals clearly labelled.
+- Observation: high heat but no market data where a token should exist; high friction such as KYC plus high effort/cost; low trust; conflicting evidence; or unresolved verification. Re-evaluate on later successful runs.
+- Archive: explicitly ended with no evidenced retroactive path; or heat below 40 for three consecutive successful source runs; or corroborated disqualifying risk. Failed source runs do not increment low-heat counters and must freeze state.
+- All thresholds, liquidity/volume requirements and weights are configurable and versioned. “Liquidity non-zero” alone is not an adequate market-quality threshold; establish conservative minimums from observed data before enabling that gate.
+- Keep the raw source score, market signals, trust assessment, friction assessment and final tier separate in the explanation.
+
+### Pipeline schedule, reliability and free operation
+
+- Default cadence: once every 12 hours where the free hosting/Actions allowance safely supports it; daily is the fallback. Do not add more frequent schedules without evidence that they remain within $0 limits.
+- Use one scheduled job with concurrency protection and a strict maximum runtime. Batch source requests, cache global market responses, deduplicate before enrichment, and only enrich candidates that pass initial gates.
+- Each adapter has its own timeout, bounded retry/backoff, rate limiter, maximum response size and last-success timestamp. One provider failure must not stop other adapters.
+- A failed/empty/invalid source response must never overwrite good data with an empty catalog. Retain last-known-good rows and record the failed run.
+- Pipeline runs are idempotent. Re-running the same source snapshot must not duplicate projects/campaigns or increment low-heat counters more than once.
+- Keep operational logs bounded and free of secrets, wallet addresses, transaction hashes and personal ledger data. Do not send personal user data to the collector.
+
+### API and Android publication integration
+
+- Backend owns discovery, source snapshots, validation, deterministic scoring/tiering and public catalog publication. Android does not scrape third-party sources.
+- Expose campaign-aware public read endpoints with stable IDs, tier, filter metadata, source/verification status, last-updated timestamp and explanation. Add admin/review controls only behind existing server-side admin protection; never embed an admin token in the APK.
+- Android consumes the same published campaign catalog and filter metadata, persists it in Room, renders cached results immediately and refreshes silently. The existing Airdrop Library/discovery UI should show real published campaigns, not synthetic fixtures in real mode.
+- Keep demo mode isolated: synthetic fixtures never enter the real API, public catalog, scoring history or user ledger.
+- Importing a campaign into a user's personal library is a local user action. It must not create a community contribution, public project rating, personal cloud sync or public financial statistic.
+- The public discovery catalog is separate from the user's private projects, tasks, wallets and ledger. Current-release local-only personal-data rules remain authoritative.
+
+### Implementation sequence and acceptance gates
+
+1. **Requirements/source audit:** confirm source permissions, free-tier terms, hosting/DB cost guardrails and existing API/Room integration before enabling any provider.
+2. **Backend data foundation:** add separate project/campaign/source snapshot/market snapshot/pipeline run/score history/status history models and Alembic migrations after inspecting the current migration head. Preserve existing candidate and community-catalog data.
+3. **Free adapters:** implement permitted RSS/Atom and approved structured-source adapters first; add optional DexScreener/GeckoTerminal adapters only after current free API terms/rates are verified. Keep all adapters feature-flagged and fail-closed.
+4. **Normalization and scoring:** add deduplication, evidence-aware status normalization, deterministic tier rules, scoring version/explanation and successful-run-only archive counters.
+5. **Publication API:** expose only approved tiered campaign records; keep observation/review candidates separate from the default public list.
+6. **Android integration:** connect the existing discovery/filter UI to the real campaign API and Room cache; preserve offline/last-known-good behavior and current visual requirements.
+7. **Validation:** unit tests for each adapter/parser, unsafe URL rejection, deduplication, unknown/null handling, source outages, retry/idempotency, tokenless campaigns, contract-only market matching, score explanation/versioning, hard gates, retroactive-ended cases, three successful low-heat runs, no increment on failed runs, API tier visibility, Room cache/revalidation and demo/real isolation. Run Android build/unit tests, backend pytest and exact-head Actions.
+8. **Release gate:** do not enable scheduled production sync or claim automatic publication works until source rights, free hosting, API integration, exact-head CI and real-data APP rendering are all verified. Physical-device acceptance is separate from CI.
+
+**Current status at adoption:** the repository already has an RSS/Atom candidate importer, a separate project-level `airdrop_hub_projects` table, a gated structured-source importer, a daily GitHub Actions workflow that is disabled unless explicitly configured, an existing filter metadata migration and a public catalog filter API. These are partial foundations only. The end-to-end campaign-aware pipeline, evidence-aware scoring/tiering, approved free market enrichment, campaign publication API and Android real-campaign integration are not yet proven complete. Do not describe the feature as finished based on the presence of the current importer or filter UI.
