@@ -291,12 +291,14 @@ fun BrowserAccountingToolbar(
                                     if (delta != androidx.compose.ui.geometry.Offset.Zero) {
                                         // This pointerInput block is already a coroutine:
                                         // update both outer offsets together, not the LazyRow items.
-                                        dragOffsetX.snapTo(
-                                            (dragOffsetX.value + delta.x).coerceIn(-maxHorizontalDrag, maxHorizontalDrag)
-                                        )
-                                        dragOffsetY.snapTo(
-                                            (dragOffsetY.value + delta.y).coerceIn(-maxVerticalDrag, 0f)
-                                        )
+                                        val nextX = (dragOffsetX.value + delta.x)
+                                            .coerceIn(-maxHorizontalDrag, maxHorizontalDrag)
+                                        val nextY = (dragOffsetY.value + delta.y)
+                                            .coerceIn(-maxVerticalDrag, 0f)
+                                        scope.launch {
+                                            dragOffsetX.snapTo(nextX)
+                                            dragOffsetY.snapTo(nextY)
+                                        }
                                         change.consume()
                                     }
                                     lastPosition = change.position
