@@ -41,6 +41,7 @@ object Web3DraftStatus {
     const val RECEIPT_NEEDS_SYNC = "receipt_needs_sync"
     const val TIMED_OUT_NEEDS_SYNC = "timed_out_needs_sync"
     const val CANCELLED = "cancelled"
+    const val ACCOUNTED = "accounted"
     const val WALLET_UNAVAILABLE = "wallet_unavailable"
 }
 
@@ -454,6 +455,13 @@ class Web3TransactionRepository(
         if (draft.chainId != chainId) return false
         if (draft.txHash != null) return draft.txHash.equals(hash, true)
         return dao.attachHash(draftId, scope, hash.lowercase(), System.currentTimeMillis()) == 1
+    }
+
+    suspend fun markAccounted(draftId: String) {
+        dao.setStatus(
+            draftId, scopeProvider(), Web3DraftStatus.ACCOUNTED,
+            null, System.currentTimeMillis()
+        )
     }
 
     suspend fun markWalletRejected(draftId: String) {
