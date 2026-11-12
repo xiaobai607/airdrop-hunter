@@ -275,6 +275,7 @@ object Web3RpcRegistry {
     fun endpoint(chainId: Long): String? = endpoints[chainId]
     fun isOptimisticRollup(chainId: Long): Boolean = chainId in setOf(10L, 8453L)
     fun requiresL1Fee(chainId: Long): Boolean = chainId in setOf(10L, 8453L, 42161L)
+    fun requiresOperatorFee(chainId: Long): Boolean = chainId in setOf(10L, 8453L)
 }
 
 class Web3RpcClient {
@@ -323,6 +324,23 @@ class Web3RpcClient {
         val result = request(tx.chainId, "eth_estimateGas", JSONArray().put(request))
             .getString("result")
         return parseRpcQuantity(result) ?: error("Invalid eth_estimateGas result")
+    }
+
+    suspend fun getOperatorFee(
+        chainId: Long,
+        gasUsed: BigInteger,
+        blockNumber: String?
+    ): BigInteger? {
+        if (!Web3RpcRegistry.requiresOperatorFee(chainId)) return BigInteger.ZERO
+        val block = blockNumber?.takeIf { it.startsWith("0x") } ?: return null
+        val calldata = "0x275aedd2" + gasUsed.toString(16).padStart(64, '0')
+        val params = JSONArray()
+            .put(JSONObject()
+                .put("to", "0x420000000000000000000000000000000000000F")
+                .put("data", calldata))
+            .put(block)
+        val result = request(chainId, "eth_call", params).optString("result")
+        return parseRpcQuantity(result)
     }
 
     suspend fun getTransaction(chainId: Long, txHash: String): JSONObject? {
