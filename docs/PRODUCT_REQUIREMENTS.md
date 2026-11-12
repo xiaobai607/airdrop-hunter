@@ -2340,3 +2340,13 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Follow-up caller audit found that the Airdrop Hub manual refresh still passed `force=true`, bypassing the shared cooldown; that bypass is removed. Market hot-coin and campaign manual-refresh methods now surface `throttled` as an error instead of silently returning cached data as if a fetch succeeded. Campaign UI displays the refresh error while retaining its existing rows. OKX detail already surfaces `throttled`; community catalog/snapshot and remote market-search calls are background/read-through paths rather than explicit manual refreshes.
 - **Status:** wallet balance scheduled refresh and campaign cache-first/background warm-up are implemented and exact-head CI verified. Physical-device behavior, provider live responses and real wallet-balance correctness remain pending. Manual-throttle caller audit fixes are in this follow-up batch and await its CI.
 - Progress estimate after the passing batch: **code/CI implementation ~70%**; **overall release readiness ~43%**. This is a rounded project-level estimate, not a statement of device, live-data or production completion.
+
+
+### 2026-11-12 — refresh-throttle caller audit follow-up verified
+
+- Exact-head Android workflow **#43152173285** completed successfully on code commit `a7dc2647596f6a2f2c41cec900dfb0a49578560f`: `changes` and `android-build` jobs passed. `backend-tests` was skipped by the workflow's change filtering; this is not a backend test pass.
+- The follow-up removes the Airdrop Hub manual-refresh `force=true` bypass, and makes Market hot-coin and campaign manual refresh paths surface the coordinator's throttled result rather than silently treating cached fallback as a successful refresh. Campaign UI retains existing rows while showing the refresh error.
+- Wallet balance background worker and campaign cache-first/background warm-up from commit `66b5e0b89b59cb7922824c7d60057361edb039b8` remain covered by passing exact-head Android CI #43151808498. The follow-up CI above verifies the additional caller/UI changes on top.
+- **Status:** this caller-audit follow-up is complete in code and exact-head Android CI. This does not claim physical-device acceptance, provider live-data validation, or production deployment.
+- PR #135 remains **Draft / Open / unmerged**. No production sync was enabled.
+- Updated estimate: **code/CI implementation ~72%**; **overall release readiness ~44%**. Estimates remain rounded project-level indicators, not test coverage. Remaining work includes a deeper all-caller/scope audit, missing regression tests where appropriate, physical-device acceptance, live provider validation and release gates.
