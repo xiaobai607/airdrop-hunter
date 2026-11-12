@@ -2350,3 +2350,17 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **Status:** this caller-audit follow-up is complete in code and exact-head Android CI. This does not claim physical-device acceptance, provider live-data validation, or production deployment.
 - PR #135 remains **Draft / Open / unmerged**. No production sync was enabled.
 - Updated estimate: **code/CI implementation ~72%**; **overall release readiness ~44%**. Estimates remain rounded project-level indicators, not test coverage. Remaining work includes a deeper all-caller/scope audit, missing regression tests where appropriate, physical-device acceptance, live provider validation and release gates.
+
+
+### 2026-11-12 — background worker must not treat stale fallback as successful refresh
+
+**Audit finding:** the coordinator intentionally returns last-known-good cached data after a provider failure, together with `stale=true` and `errorMessage`. The wallet asset repository currently drops those result fields when constructing `WalletAssetSnapshot`; the wallet activity snapshot also lacks equivalent status fields. Both WorkManager workers can therefore mistake a stale fallback for a successful refresh and advance the 8-hour `SyncCadence`, delaying the next retry despite the provider request having failed.
+
+**Required correction (approved as reliability work within the existing wallet refresh scope):**
+- Preserve coordinator `stale`, `errorMessage`, and `throttled` in both wallet snapshot models; never erase the old cached payload.
+- Workers may mark the 8-hour cadence successful only when the coordinator result is genuinely fresh/successful (or the cached payload is already fresh). A stale fallback with an error must cause `Result.retry()` and must not advance the success cadence.
+- Cancellation must continue propagating; no account/session or wallet/network scope may be broadened.
+- Add repository/worker regression tests proving provider failure + cached payload keeps the payload, exposes stale/error state, and does not mark cadence success; successful refresh still marks cadence.
+- This is background refresh reliability, not private cloud sync or a change to registration/account behavior.
+
+**Status:** audit-confirmed defect; requirement recorded before implementation. Implementation and exact-head CI pending.
