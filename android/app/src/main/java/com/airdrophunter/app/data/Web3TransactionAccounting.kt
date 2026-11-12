@@ -19,6 +19,7 @@ import androidx.work.WorkerParameters
 import com.airdrophunter.app.AirdropHunterApplication
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -252,9 +253,9 @@ class Web3TransactionRepository(
             it.matches(Regex("^0x[a-fA-F0-9]{40}$"))
         }
         val value = transaction.optString("value").takeIf { it.isNotBlank() }
-            ?.let(WalletTransactionLinkParser::parseQuantity)?.toString()
+            ?.let(WalletTransactionLinkParser::parseQuantity)?.toString() ?: "0"
         val data = transaction.optString("data", "0x")
-            .takeIf { it.matches(Regex("^0x([a-fA-F0-9]{2})*$")) }
+            .takeIf { it.matches(Regex("^0x([a-fA-F0-9]{2})*$")) } ?: "0x"
         val now = System.currentTimeMillis()
         val row = Web3TransactionDraftEntity(
             id = UUID.randomUUID().toString(),
@@ -399,6 +400,52 @@ class Web3TransactionRepository(
             draftId, scopeProvider(), Web3DraftStatus.TIMED_OUT_NEEDS_SYNC,
             "钱包未返回交易 Hash；需要同步链上记录确认", System.currentTimeMillis()
         )
+    }
+
+    fun observeDrafts(): Flow<List<Web3TransactionDraftEntity>> =
+        dao.observeAll(scopeProvider())
+
+    suspend fun createPendingAccountingBill(draftId: String): PendingBillEntity? {
+        val draft = dao.find(draftId, scopeProvider()) ?: return null
+        if (draft.status !in setOf(Web3DraftStatus.CONFIRMED, Web3DraftStatus.CONFIRMED_FAILED)) return null
+        val totalWei = draft.totalFeeWei?.toBigIntegerOrNull() ?: return null
+        val l1Wei = draft.l1Fee?.toBigIntegerOrNull() ?: BigInteger.ZERO
+        val l2Wei = totalWei.subtract(l1Wei).takeIf { it.signum() >= 0 } ?: return null
+        val symbol = when (draft.chainId) {
+            56L -> "BNB"
+            137L -> "POL"
+            else -> "ETH"
+        }
+        fun nativeAmount(wei: BigInteger): String =
+            java.math.BigDecimal(wei).movePointLeft(18).stripTrailingZeros().toPlainString()
+        val assets = listOf(
+            LedgerAssetAmount("gas", nativeAmount(totalWei), symbol, 18),
+            LedgerAssetAmount("l2_fee", nativeAmount(l2Wei), symbol, 18),
+            LedgerAssetAmount("l1_fee", nativeAmount(l1Wei), symbol, 18)
+        )
+        val network = when (draft.chainId) {
+            1L -> "ethereum"
+            10L -> "optimism"
+            56L -> "bsc"
+            137L -> "polygon"
+            8453L -> "base"
+            42161L -> "arbitrum"
+            else -> "eip155:${draft.chainId}"
+        }
+        val bill = PendingBillEntity(
+            id = "WEB3-${draft.id}",
+            txHash = draft.txHash ?: return null,
+            walletAddress = draft.walletAddress.orEmpty(),
+            gasCostUsd = 0.0,
+            interactionMethod = if (draft.receiptStatus == 1) "Web3 链上交互" else "Web3 失败交易 Gas",
+            timestamp = draft.updatedAt,
+            chain = network,
+            accountScope = draft.accountScope,
+            network = network,
+            assetBreakdownJson = LedgerAssetBreakdownCodec.encode(assets)
+        )
+        CacheStore.addPendingBill(bill)
+        return bill
     }
 
     suspend fun findById(id: String): Web3TransactionDraftEntity? =
