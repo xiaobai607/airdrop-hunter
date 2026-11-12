@@ -202,6 +202,9 @@ internal object SyncCadence {
         key + ":" + CacheStore.accountScopeKey(accessToken)
 }
 
+internal fun shouldMarkSyncCadenceSuccess(stale: Boolean, errorMessage: String?, throttled: Boolean): Boolean =
+    !stale && errorMessage == null && !throttled
+
 internal fun isSyncCadenceDue(lastSuccessAtMillis: Long, nowMillis: Long, intervalMillis: Long): Boolean {
     require(intervalMillis > 0)
     return lastSuccessAtMillis <= 0L ||

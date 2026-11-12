@@ -45,6 +45,8 @@ data class WalletActivitySnapshot(
     val networksChecked: List<String> = emptyList(),
     val networksUnavailable: List<String> = emptyList(),
     val fetchedAtEpochMillis: Long = 0L,
+    val stale: Boolean = false,
+    val errorMessage: String? = null,
     val throttled: Boolean = false
 )
 
@@ -91,7 +93,7 @@ class WalletActivityRepository(
             }
         )
         return (result.data ?: throw IllegalStateException(result.errorMessage ?: "交易记录暂不可用"))
-            .copy(throttled = result.throttled)
+            .copy(stale = result.stale, errorMessage = result.errorMessage, throttled = result.throttled)
     }
 
     private fun cacheKey(wallet: WalletDto) = "wallet_activity:${wallet.id}"

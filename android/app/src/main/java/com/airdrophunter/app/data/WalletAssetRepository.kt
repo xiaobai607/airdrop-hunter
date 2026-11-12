@@ -58,7 +58,7 @@ class WalletAssetRepository(
             ) }
         )
         return (result.data ?: throw IllegalStateException(result.errorMessage ?: "余额暂不可用"))
-            .copy(throttled = result.throttled)
+            .copy(stale = result.stale, errorMessage = result.errorMessage, throttled = result.throttled)
     }
 
     private suspend fun readAssets(

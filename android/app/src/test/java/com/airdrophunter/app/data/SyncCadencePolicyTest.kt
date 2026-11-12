@@ -7,6 +7,13 @@ import org.junit.Test
 class SyncCadencePolicyTest {
     private val eightHours = 8L * 60L * 60L * 1000L
 
+    @Test fun staleFallbackOrThrottleMustNotAdvanceSuccessfulSyncCadence() {
+        assertFalse(shouldMarkSyncCadenceSuccess(stale = true, errorMessage = "provider unavailable", throttled = false))
+        assertFalse(shouldMarkSyncCadenceSuccess(stale = false, errorMessage = null, throttled = true))
+        assertFalse(shouldMarkSyncCadenceSuccess(stale = false, errorMessage = "provider unavailable", throttled = false))
+        assertTrue(shouldMarkSyncCadenceSuccess(stale = false, errorMessage = null, throttled = false))
+    }
+
     @Test fun firstRunIsDue() {
         assertTrue(isSyncCadenceDue(0L, 100L, eightHours))
     }

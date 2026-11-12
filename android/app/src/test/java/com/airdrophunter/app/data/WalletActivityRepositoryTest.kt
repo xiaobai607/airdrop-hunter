@@ -24,6 +24,7 @@ class WalletActivityRepositoryTest {
 
     private class FakeRemote : WalletActivityRemoteDataSource {
         var evmCalls = 0
+        var failure: Exception? = null
         val chainCalls = mutableListOf<String>()
         val authorizationHeaders = mutableListOf<String?>()
         val authModes = mutableListOf<String?>()
@@ -41,6 +42,7 @@ class WalletActivityRepositoryTest {
             authorizationHeaders += authorizationHeader
             authModes += authMode
             chainCalls += chain
+            failure?.let { throw it }
             return emptyList()
         }
     }
@@ -128,6 +130,25 @@ class WalletActivityRepositoryTest {
         assertTrue(repeatedManual.throttled)
         assertEquals(1, metadata.size)
         assertTrue(metadata.keys.single().first.startsWith("guest:wallet-1:tron"))
+    }
+
+
+    @Test
+    fun staleCachedSnapshotExposesProviderFailureInsteadOfLookingSuccessful() = runBlocking {
+        val local = FakeLocal()
+        val remote = FakeRemote().apply { failure = IllegalStateException("provider unavailable") }
+        val wallet = wallet("T" + "3".repeat(33), WalletEcosystem.TRON)
+        val key = "guest:wallet_activity:wallet-1"
+        local.sessionRows[key] = com.google.gson.Gson().toJson(
+            WalletActivitySnapshot(transactions = emptyList(), networksChecked = listOf("tron"))
+        )
+        val repository = WalletActivityRepository(remote, local)
+
+        val result = repository.refresh(wallet, guest = true, accessToken = null)
+
+        assertTrue(result.stale)
+        assertEquals("provider unavailable", result.errorMessage)
+        assertEquals(listOf("tron"), repository.readCached(wallet, true, null)?.networksChecked)
     }
 
     private fun wallet(address: String, ecosystem: String) = WalletDto(

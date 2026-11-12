@@ -41,12 +41,15 @@ class WalletActivitySyncWorker(
         var hadFailure = false
         for (wallet in wallets) {
             try {
-                app.appContainer.walletActivityRepository.refresh(
+                val snapshot = app.appContainer.walletActivityRepository.refresh(
                     wallet,
                     guest,
                     accessToken,
                     force = inputData.getBoolean(GlobalSyncScheduler.FORCE_KEY, false)
                 )
+                if (!shouldMarkSyncCadenceSuccess(snapshot.stale, snapshot.errorMessage, snapshot.throttled)) {
+                    hadFailure = true
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

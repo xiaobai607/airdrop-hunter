@@ -51,8 +51,12 @@ class WalletAssetSyncWorker(
                     !SyncCadence.isDue(applicationContext, cadenceKey, 8, TimeUnit.HOURS)
                 ) continue
                 try {
-                    repository.refresh(wallet.id, wallet.address, network, accessToken)
-                    SyncCadence.markSuccess(applicationContext, cadenceKey)
+                    val snapshot = repository.refresh(wallet.id, wallet.address, network, accessToken)
+                    if (shouldMarkSyncCadenceSuccess(snapshot.stale, snapshot.errorMessage, snapshot.throttled)) {
+                        SyncCadence.markSuccess(applicationContext, cadenceKey)
+                    } else {
+                        hadFailure = true
+                    }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
