@@ -5,4 +5,10 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">?android:colorBackground</item>
     </style>
+
+    <style name="Theme.AirdropHunter.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#F8F9FA</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.AirdropHunter</item>
+    </style>
 </resources>
