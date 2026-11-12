@@ -20,6 +20,13 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun rejectsValuesOutsideUint256Range() {
+        val max = BigInteger.ONE.shiftLeft(256).subtract(BigInteger.ONE)
+        assertEquals(max, WalletTransactionLinkParser.parseQuantity("0x" + max.toString(16)))
+        assertNull(WalletTransactionLinkParser.parseQuantity("0x" + BigInteger.ONE.shiftLeft(256).toString(16)))
+    }
+
+    @Test
     fun validatesTransactionHashes() {
         val valid = "0x" + "a".repeat(64)
         assertTrue(Web3TransactionRepository.isValidTxHash(valid))
