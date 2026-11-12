@@ -100,7 +100,7 @@ class CacheRefreshCoordinator(
         CacheStore.readCacheMetadata(key, source)
     },
     private val writeMetadata: suspend (CacheMetadataEntity) -> Unit = { metadata ->
-        writeMetadata(metadata)
+        CacheStore.writeCacheMetadata(metadata)
     }
 ) {
     // Fixed stripes bound memory while ensuring same-key work never runs concurrently.
