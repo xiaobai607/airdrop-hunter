@@ -2913,3 +2913,11 @@ Implementation status: requirement approved; existing coordinator already has a 
 - `CacheDatabase.confirmPendingBill()` 在同一个 Room transaction 中校验 Web3 草稿状态、写入个人账本并将草稿置为 `ACCOUNTED`，随后删除待确认单，具备原子确认与重复确认保护。
 - 当前代码仍未完成最终编译/单元测试/真机验收；现有测试主要覆盖 L1/L2/Operator Fee 计算规则，尚未覆盖完整 Repository→Toolbar→Room 确认流程、缺价表单及进程恢复端到端场景。上述状态是源码静态审计结论，不代表运行验证。
 - 本次只更正错误的接线审计记录，未触发 Gradle、CI 或 APK 构建；PR #135 保持 Draft/Open/Unmerged。
+
+
+### 2026-11-12 — 手动 TxHash 补核安全收紧（未构建）
+
+- 手动补核现在要求 RPC 返回交易对象中的 `hash` 与用户输入的 TxHash 一致，并严格核对原始请求的发送地址、目标地址、原生币金额和 calldata。
+- 原始请求包含 calldata 时，RPC 缺失 `input/data` 不再被视为通过；缺失发送地址、目标地址、金额或交易 Hash 等必要字段也不能静默跳过校验。
+- 将比对规则提取为纯 Kotlin `Web3ManualTransactionVerifier`，新增单元测试覆盖 Hash 不匹配、calldata 缺失/不匹配、发送地址缺失和金额缺失等情况。
+- 本轮仅提交源码和测试，尚未执行 Gradle 编译、单元测试、CI 或真机验收；PR #135 继续保持 Draft/Open/Unmerged。
