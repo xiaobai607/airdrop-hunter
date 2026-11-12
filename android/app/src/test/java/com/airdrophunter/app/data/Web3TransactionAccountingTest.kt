@@ -358,4 +358,18 @@ class Web3TransactionAccountingTest {
         assertFalse(Web3DraftStatus.isReceiptWorkComplete(Web3DraftStatus.WAITING_RECEIPT))
         assertFalse(Web3DraftStatus.isReceiptWorkComplete(Web3DraftStatus.RECEIPT_NEEDS_SYNC))
     }
+
+    @Test
+    fun receiptWorkerCannotChangeFinalizedOrWalletPendingStates() {
+        assertTrue(Web3DraftStatus.canUpdateReceiptStatus(Web3DraftStatus.WAITING_RECEIPT))
+        assertTrue(Web3DraftStatus.canUpdateReceiptStatus(Web3DraftStatus.WAITING_L1_FEE))
+        assertTrue(Web3DraftStatus.canUpdateReceiptStatus(Web3DraftStatus.WAITING_OPERATOR_FEE))
+        assertTrue(Web3DraftStatus.canUpdateReceiptStatus(Web3DraftStatus.RECEIPT_NEEDS_SYNC))
+        assertTrue(Web3DraftStatus.canUpdateReceiptStatus(Web3DraftStatus.TIMED_OUT_NEEDS_SYNC))
+        assertFalse(Web3DraftStatus.canUpdateReceiptStatus(Web3DraftStatus.ACCOUNTED))
+        assertFalse(Web3DraftStatus.canUpdateReceiptStatus(Web3DraftStatus.CONFIRMED))
+        assertFalse(Web3DraftStatus.canUpdateReceiptStatus(Web3DraftStatus.CONFIRMED_FAILED))
+        assertFalse(Web3DraftStatus.canUpdateReceiptStatus(Web3DraftStatus.CANCELLED))
+        assertFalse(Web3DraftStatus.canUpdateReceiptStatus(Web3DraftStatus.WAITING_HASH))
+    }
 }
