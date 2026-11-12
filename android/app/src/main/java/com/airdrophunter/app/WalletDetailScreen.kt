@@ -91,9 +91,9 @@ private fun WalletActivityPanel(
     var addingHash by remember(wallet.address, sessionToken) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(wallet.address, refreshNonce, sessionToken) {
+        // Keep last-known-good rows visible while Room is read and the coordinator
+        // refreshes. The remember keys above already isolate wallet/session changes.
         isLoading = true
-        transactions = emptyList()
-        networksUnavailable = emptyList()
         errorMessage = null
         try {
             activityRepository.readCached(wallet, sessionIsGuest, sessionToken)?.let { cached ->
