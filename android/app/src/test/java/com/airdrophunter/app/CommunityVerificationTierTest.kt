@@ -7,7 +7,7 @@ import org.junit.Test
 class CommunityVerificationTierTest {
     @Test
     fun contributionStatusShowsPendingVerifiedAndRejectedStates() {
-        assertEquals("等待链上核验", communityContributionStatusLabel("pending_verification", null))
+        assertEquals("等待提交公共统计", communityContributionStatusLabel("pending_verification", null))
         assertEquals("链上精确核验", communityContributionStatusLabel("verified", "amount_verified"))
         assertEquals("链上已确认", communityContributionStatusLabel("verified", "transaction_linked"))
         assertEquals("用户自报已计入公共统计", communityContributionStatusLabel("verified", "user_reported"))
