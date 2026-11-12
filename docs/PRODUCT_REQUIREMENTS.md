@@ -2512,3 +2512,8 @@ Implementation status: requirement approved; existing coordinator already has a 
 **Additional cancellation-safety audit note (2026-11-12):**
 - Review of the cache-first implementation found that using Kotlin `runCatching` around the initial Room read could swallow `CancellationException` and incorrectly continue as if the cache were empty. The cache read and metadata read must explicitly rethrow cancellation while allowing ordinary storage-read failures to fall back safely.
 - This is an implementation-safety correction within the cache-first requirement; no product-scope expansion.
+
+
+**Cancellation-safety implementation follow-up — 2026-11-12:**
+- Code commit `464406e64ebfbbcaeee4e4097af94ffc0d2f7e8a` replaces the cache-read `runCatching` with explicit cancellation propagation and safe handling of ordinary Room/metadata read failures.
+- The first cache-first code commit `1dc66b2c4473708b6ab81d0d89ae98ce9f6d0e75` is awaiting exact-head CI; this cancellation correction is a newer code head and must receive its own exact-head verification.
