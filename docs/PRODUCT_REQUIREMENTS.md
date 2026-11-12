@@ -2375,3 +2375,12 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Added regression tests for wallet-activity provider failure with a retained cached snapshot and for the cadence-success decision. These tests passed in the exact-head workflow.
 - **Status:** implementation and exact-head Android CI complete. Physical-device verification, live wallet provider correctness and background scheduling under real Android battery/network constraints remain pending.
 - PR #135 remains **Draft / Open / unmerged**. No production sync, deployment or account-flow change was made.
+
+
+### 2026-11-12 — campaign cache fallback must expose refresh failure in the list
+
+**Audit finding:** `AirdropCampaignRepository.load()` returns `result.data` whenever cached rows exist, even when the coordinator reports `stale=true` and an `errorMessage` after a failed provider refresh. `AirdropCampaignsViewModel.load()` then clears its UI error. The old rows remain visible (correct), but the user cannot tell that the refresh failed (incorrect).
+
+**Required correction:** expose a typed campaign load result containing rows + stale/error status; keep the existing simple `load()` API compatible for background callers, while the screen ViewModel uses the status-aware path and displays a non-blocking warning above the retained campaign list. A successful/fresh cache read must not show an error. Manual throttling behavior remains unchanged. Add repository/ViewModel regression coverage as feasible.
+
+**Status:** audit-confirmed UI observability gap; requirement recorded before implementation. Implementation and exact-head CI pending.
