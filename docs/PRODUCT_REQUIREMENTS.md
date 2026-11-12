@@ -2761,3 +2761,6 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 最新代码头：44aac7876210bbc0bf16db3d3c88dccbec5409e0。PR #135 仍为 Draft/Open/Unmerged。
 
 - 延迟初始化安全性补充：WalletConnect 初始化器公开 ready 状态；钱包管理和 DApp 连接入口在 AppKit 完成初始化前禁用并显示初始化提示，避免把启动优化变成过早调用未就绪 SDK。
+
+- 延迟钱包 SDK 的交互保护补丁：`0fae6da0777b06a0374efa9a847fe9d4cc31a792` 暴露 AppKit ready 状态并禁用未就绪的连接按钮；`118a63681cffb0556763728e7cf3eff6e1d9a90f` 修正 DApp 授权弹窗在 SDK 尚未就绪时误关闭/卡住的问题，等待 ready 后才允许用户确认连接。
+- 最新代码头（文档提交前）：`118a63681cffb0556763728e7cf3eff6e1d9a90f`。仍按用户要求暂不启动最终 APK 构建。
