@@ -2,6 +2,9 @@ package com.airdrophunter.app
 
 import android.app.Application
 import android.util.Log
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.airdrophunter.app.data.ApiClient
 import com.reown.android.Core
 import com.reown.android.CoreClient
@@ -10,6 +13,10 @@ import com.reown.appkit.client.Modal
 import com.reown.appkit.presets.AppKitChainsPresets
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class AirdropHunterApplication : Application() {
     val appContainer: AppContainer by lazy { AppContainer() }
@@ -20,7 +27,19 @@ class AirdropHunterApplication : Application() {
         // One coordinator serializes all background sync pipelines. Individual
         // tasks keep their own cadence, account boundary, and retry semantics.
         ApiClient.initialize(this)
-
+        ProcessLifecycleOwner.get().lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onStart(owner: LifecycleOwner) {
+                    CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                        runCatching {
+                            appContainer.web3TransactionRepository.markOldWalletRequestsForSync()
+                        }.onFailure {
+                            Log.w("AirdropWallet", "Wallet-return reconciliation failed", it)
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 
