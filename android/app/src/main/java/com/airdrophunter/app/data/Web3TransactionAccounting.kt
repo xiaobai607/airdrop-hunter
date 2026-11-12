@@ -163,27 +163,39 @@ object WalletTransactionLinkParser {
         }
 
         val queryAddress = if (scheme == "trust" || scheme == "trustwallet") null
-            else uri.getQueryParameter("address")
-        val to = uri.getQueryParameter("to")
+            else queryParameter(uri, "address")
+        val to = queryParameter(uri, "to")
             ?: queryAddress
             ?: pathRecipient
             ?: return null
         if (!addressPattern.matches(to)) return null
 
-        val rawChain = uri.getQueryParameter("chainId") ?: pathChainId ?: return null
+        val rawChain = queryParameter(uri, "chainId") ?: pathChainId ?: return null
         val chainId = parseQuantity(rawChain)?.takeIf {
             it.signum() > 0 && it.bitLength() <= 63
         }?.toLong() ?: return null
 
-        val value = parseQuantity(uri.getQueryParameter("value") ?: "0x0")
+        val value = parseQuantity(queryParameter(uri, "value") ?: "0x0")
             ?: return null
-        val data = uri.getQueryParameter("data") ?: "0x"
+        val data = queryParameter(uri, "data") ?: "0x"
         if (!dataPattern.matches(data)) return null
 
-        val from = uri.getQueryParameter("from")
+        val from = queryParameter(uri, "from")
             ?.takeIf(addressPattern::matches)
 
         return ParsedWalletTransaction(chainId, from, to, value, data)
+    }
+
+    private fun queryParameter(uri: Uri, name: String): String? {
+        val query = uri.toString().substringAfter("?", "").substringBefore("#")
+        if (query.isBlank()) return null
+        query.split("&").forEach { part ->
+            val pieces = part.split("=", limit = 2)
+            if (Uri.decode(pieces[0]) == name) {
+                return Uri.decode(pieces.getOrElse(1) { "" })
+            }
+        }
+        return null
     }
 
     fun parseQuantity(raw: String): BigInteger? = runCatching {
