@@ -42,6 +42,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -313,7 +314,7 @@ fun HomeScreen(
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.SemiBold)
-                                    Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                    Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 if (editingDashboard) {
                                     TextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
@@ -563,7 +564,7 @@ private object HomeDashboardLayoutStore {
     }
     fun subtitle(id: String) = when (id) {
         "airdrop_navigation" -> "常用活动网站"
-        "accounting" -> "记录 Gas 消耗与实际收益"
+        "accounting" -> "记录Gas与收益"
         "wallet_management" -> "管理已保存地址"
         "tron_energy" -> "租赁前核对转出地址"
         "airdrop_library" -> "浏览已核验的公开空投活动"
