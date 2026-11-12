@@ -2963,3 +2963,8 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 后台恢复仍由 Application 的 ProcessLifecycleOwner 在进程回到前台时扫描超时钱包请求并重新调度所有有 Hash 的待查回执；WorkManager 对每个 draft 使用唯一任务。超时仅表示待同步核对，不代表链上失败。
 - 静态审计发现并修复了“DApp 先收到成功、Room 后异步写 Hash”的崩溃窗口；尚未运行 Android 编译或测试，因此 Activity/SDK 生命周期与 Reown 1.3.3 的实际回调仍需最终构建和真机验证。
 - 本轮未运行 Gradle、CI 或 APK 构建；PR #135 保持 Draft/Open/Unmerged。
+
+- **进程级恢复实现：** Web3 草稿现在持久化 WalletConnect requestId 与 session topic；Room schema 从 23 升至 24，新增 nullable session topic 列及组合索引，使用 23→24 非破坏性 Migration，旧草稿不丢失但缺少 topic 的旧请求不会被猜测匹配。
+- AppKit 初始化完成后启动 Application 级 response observer，独立于 BrowserActivity 的 Compose 生命周期监听 WalletConnect 响应；仅处理 `eth_sendTransaction`，要求有效 Hash、非空 session topic、有效 chainId，并在数据库中找到唯一 requestId/topic/chain 匹配草稿后才绑定 Hash、入队 receipt。重复响应幂等；已 ACCOUNTED 草稿不会被重复入队；匹配不唯一或缺字段时拒绝自动绑定。
+- BrowserActivity 原有 DApp 回调仍负责当前页面的 JSON-RPC 响应；进程级观察器只负责恢复本地账务，不尝试在进程死亡后伪造或补发已失效的 JavaScript reply proxy。
+- 新增纯 Kotlin 响应身份校验单元测试。源码静态检查确认 BrowserActivity 已持久化 topic、Application observer 已接线、schema 24 migration 已注册、恢复测试已加入；尚未执行 Gradle 编译或测试，Room Migration 与 Reown 回调时序仍待最终构建/设备验收。
