@@ -640,7 +640,7 @@ fun BrowserAccountingToolbar(
                     )
                     Text("请手动填写最终实际收益；如果实际为零，也请明确输入 0。未填写不能确认入账。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     if (ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
-                            selectedProject?.communityOfficialId, ManualRewardKind.USD, contributionNetwork, bill.txHash
+                            selectedProject?.communityOfficialId, contributionNetwork, bill.txHash
                         )) {
                         Text("该项目属于社区目录，符合条件的记录会自动参与脱敏统计；未提供 Tx Hash 按用户自报计入，提供后须通过链上核验。个人账单明细不会公开。",
                             color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
@@ -767,7 +767,7 @@ fun BrowserAccountingToolbar(
                             saving = true
                             scope.launch {
                                 val autoContribute = ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
-                                    project.communityOfficialId, ManualRewardKind.USD, contributionNetwork, bill.txHash
+                                    project.communityOfficialId, contributionNetwork, bill.txHash
                                 )
                                 val ok = runCatching {
                                     accountingRepository.confirmPendingBill(
