@@ -2895,7 +2895,7 @@ Implementation status: requirement approved; existing coordinator already has a 
 ### 2026-11-12 — Web3 记账安全与恢复补强
 
 - 钱包超时改为持久化 30 秒 WorkManager 任务；只有明确 EIP-1193 4001 拒绝才取消。进程回到前台时由 `ProcessLifecycleOwner` 扫描超时草稿，并重新入队尚未完成的回执任务，覆盖“Hash 已写库、进程在调度前被杀”的窗口。
-- Arbitrum 优先按 `gasUsedForL1 × effectiveGasPrice` 计算 L1 组件，并兼容服务商直接返回 `l1Fee` 的回执扩展；Optimism/Base 使用 `l1Fee`。普通 L1 网络显示“执行费”，只有 rollup 网络才显示 L1/L2 拆分。
+- Arbitrum 优先按 `gasUsedForL1 × effectiveGasPrice` 计算 L1 组件；**Arbitrum 回执的 `gasUsed × effectiveGasPrice` 已包含 L1 组件**，因此总费用只计算一次，L2 拆分为 `总费用 - L1 组件`，严禁再把 L1 加到总额造成双计。Optimism/Base 的 `l1Fee` 则是加在 `gasUsed × effectiveGasPrice` 之上的独立费用。依据：[Arbitrum Gas and Fees](https://developer.arbitrum.io/how-arbitrum-works/deep-dives/gas-and-fees)、[Arbitrum receipt `gasUsedForL1`](https://developer.arbitrum.io/launch-arbitrum-chain/chain-config/costs/revenue-routing)。普通 L1 网络显示“执行费”，只有 rollup 网络才显示 L1/L2 拆分。
 - 已增加 uint256、calldata 长度、Hash、回调 nonce、手动补单发送地址/目标地址/value/input 匹配校验；不解析 ERC-20/function Deep Link 为原生转账，避免把 token 参数误当成收款地址或金额。
 - Gas USD 报价只使用 OKX 协调缓存返回的 5 分钟内新鲜报价；实际回执 Gas USD 存在资产估值字段，不混入“预估 Gas”字段。缺报价时 UI 要求用户填写，不写假 0。
 - 正式记账提交时，在同一个 Room 事务内将 Web3 草稿标记为 `accounted`，避免“账本已写入、草稿状态未更新”造成重复记账。普通链显示执行费，L2 费用拆分保留独立资产明细。
