@@ -732,6 +732,40 @@ class Web3ReceiptWorker(
     }
 }
 
+class Web3DraftTimeoutWorker(
+    appContext: Context,
+    params: WorkerParameters
+) : CoroutineWorker(appContext, params) {
+    override suspend fun doWork(): Result {
+        val draftId = inputData.getString(KEY_DRAFT_ID) ?: return Result.failure()
+        val app = applicationContext as? AirdropHunterApplication ?: return Result.failure()
+        val repository = app.appContainer.web3TransactionRepository
+        val draft = repository.findById(draftId) ?: return Result.success()
+        if (draft.status in setOf(Web3DraftStatus.PENDING_WALLET, Web3DraftStatus.WAITING_HASH)) {
+            repository.markWalletTimedOut(draftId)
+        }
+        return Result.success()
+    }
+
+    companion object {
+        const val KEY_DRAFT_ID = "web3_timeout_draft_id"
+    }
+}
+
+object Web3DraftTimeoutScheduler {
+    fun enqueue(context: Context, draftId: String) {
+        val request = OneTimeWorkRequestBuilder<Web3DraftTimeoutWorker>()
+            .setInputData(androidx.work.workDataOf(Web3DraftTimeoutWorker.KEY_DRAFT_ID to draftId))
+            .setInitialDelay(30, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "web3_wallet_timeout_$draftId",
+            ExistingWorkPolicy.KEEP,
+            request
+        )
+    }
+}
+
 object Web3ReceiptScheduler {
     fun enqueue(context: Context, draftId: String) {
         val request = OneTimeWorkRequestBuilder<Web3ReceiptWorker>()
