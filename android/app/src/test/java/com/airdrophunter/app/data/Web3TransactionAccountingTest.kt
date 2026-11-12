@@ -14,6 +14,7 @@ class Web3TransactionAccountingTest {
         assertEquals(BigInteger("255"), WalletTransactionLinkParser.parseQuantity("0xff"))
         assertEquals(BigInteger("255"), WalletTransactionLinkParser.parseQuantity("255"))
         assertEquals(BigInteger.ZERO, WalletTransactionLinkParser.parseQuantity("0x0"))
+        assertEquals(BigInteger("10000000000000000"), WalletTransactionLinkParser.parseQuantity("1e16"))
         assertNull(WalletTransactionLinkParser.parseQuantity("-1"))
         assertNull(WalletTransactionLinkParser.parseQuantity("0xgg"))
     }
