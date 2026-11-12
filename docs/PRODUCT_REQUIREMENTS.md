@@ -2927,4 +2927,6 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 回执入账前新增严格身份校验：RPC 回执必须携带格式正确的 32-byte transactionHash，且必须与该 Web3 草稿已保存的 TxHash 大小写无关地完全一致；缺失、格式错误或不匹配时拒绝更新草稿费用与交易状态。
 - 新增纯 Kotlin Web3ReceiptIdentityVerifier，并增加单元测试覆盖大小写一致、错误 Hash、缺失 Hash 和格式错误场景。
 - 该校验发生在解析 Gas、receipt status、L1/Operator Fee 及写入任何回执字段之前，避免错误回执污染本地账本候选。
+
+- 进一步收紧 Arbitrum L1 费用来源：只接受官方 receipt 扩展 gasUsedForL1，并按其子链 Gas 单位乘 effectiveGasPrice；该字段缺失时费用保持待核验，不再回退到含义不明确的非标准 l1Fee。同步调整单元测试。
 - 本轮仅完成源码和测试静态修改；未运行 Gradle 编译/单元测试、CI、APK 构建或真机验收。PR #135 继续保持 Draft/Open/Unmerged。
