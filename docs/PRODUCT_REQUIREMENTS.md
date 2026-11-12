@@ -2405,3 +2405,9 @@ Implementation status: requirement approved; existing coordinator already has a 
 **Required correction:** use status-aware campaign loading and treat stale/error fallback as a failed refresh attempt for WorkManager scheduling, while preserving the cached rows. Track each catalog warm-up outcome; if any configured warm-up failed, return `Result.retry()` (successful cache reads remain cheap due to TTL, so already-refreshed sources are not refetched). Cancellation must propagate. Do not change private ledger/project/task persistence or enable private cloud sync.
 
 **Status:** audit-confirmed background retry gap; recorded before implementation. Code and exact-head CI pending.
+
+
+**Implementation follow-up — code submitted, CI pending (2026-11-12):**
+- Code commit `dba5163dbed4c6bb9c663ebfa78908a1bbf01314` adds status-aware refresh methods for the public community catalog and community snapshots while preserving their existing list/map compatibility APIs.
+- `DynamicCatalogWarmupWorker` now evaluates stale/error/throttled outcomes for campaign, community-directory and community-snapshot refreshes. It returns `Result.retry()` if any warm-up failed, without discarding last-known-good cache payloads; already-fresh sources remain cheap on retry due to their TTLs.
+- Exact-head Android workflow **#43155017970** is running; backend tests are expected to be skipped for Android-only paths. Do not mark implementation verified until the run completes.
