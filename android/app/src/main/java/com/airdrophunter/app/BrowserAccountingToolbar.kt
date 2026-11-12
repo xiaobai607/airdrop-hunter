@@ -981,7 +981,7 @@ fun BrowserAccountingToolbar(
                                         symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
                                         usd_valuation = gasL2Usd,
                                         valuation_timestamp = gasSplitQuoteTimestamp,
-                                        valuation_source = "OKX"
+                                        valuation_source = "OKX".takeIf { gasL2Usd != null }
                                     )
                                 )
                                 if (gasL1Native.isNotBlank()) add(
@@ -990,7 +990,7 @@ fun BrowserAccountingToolbar(
                                         symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
                                         usd_valuation = gasL1Usd,
                                         valuation_timestamp = gasSplitQuoteTimestamp,
-                                        valuation_source = "OKX"
+                                        valuation_source = "OKX".takeIf { gasL1Usd != null }
                                     )
                                 )
                                 if (gasOperatorNative.isNotBlank()) add(
@@ -999,7 +999,7 @@ fun BrowserAccountingToolbar(
                                         symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
                                         usd_valuation = gasOperatorUsd,
                                         valuation_timestamp = gasSplitQuoteTimestamp,
-                                        valuation_source = "OKX"
+                                        valuation_source = "OKX".takeIf { gasOperatorUsd != null }
                                     )
                                 )
                                 if (rewardNative.isNotBlank()) add(
