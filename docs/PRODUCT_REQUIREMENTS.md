@@ -2694,3 +2694,6 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 同步修复此前 Android workflow #43163290443 在 `BrowserAccountingToolbar.kt:309-310` 的 restricted suspension 编译错误：拖动回调将偏移更新排入受控 Job，释放时等待最后一次更新后再执行吸边动画。
 - **代码提交：** Home 快捷入口删除 `99b51695ae70df1ee6847f88d43bffe002c2148c`；记账新增手动记录与 Dock 更新 `9c796f0cf4b806a46726399ddb1bff6b826e4930`、`b4932ed8c95f1571b58157603a3459e356bc3262`、`6b2ab8c06e4dcf05205293342970890b44e029d3`、`465eec341deaa96d1486239816338e6ac01b8bf7`。
 - **CI：** #43163290443 在旧代码头失败，失败点为 Dock drag 回调的 restricted suspension；上述修复后的最新代码头尚未取得新的 CI 结果，不标记通过。真机记账/升级迁移验收仍待执行。
+
+- 后续防误导修正：旧版本遗留的 `MOCK-` 演示草稿继续保留在本地存储以免擅自删除用户数据，但从正式“交易记录/记账”待处理列表和 Home 自动打开流程中排除；新建记账不再生成 MOCK 数据。
+- 最新记账实现补丁：`0e97412112a645d55df9fc586da144319cacfe52`。最新 PR 头待触发/取得 Android CI 结果；未通过 CI 前不视为构建验收完成。
