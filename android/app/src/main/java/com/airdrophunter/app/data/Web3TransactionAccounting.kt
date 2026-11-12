@@ -121,7 +121,7 @@ interface Web3TransactionDraftDao {
 data class ParsedWalletTransaction(
     val chainId: Long,
     val from: String?,
-    val to: String,
+    val to: String?,
     val valueWei: BigInteger,
     val data: String
 )
@@ -280,10 +280,12 @@ class Web3RpcClient {
 
     suspend fun estimateGas(tx: ParsedWalletTransaction): BigInteger {
         val request = JSONObject()
-            .put("to", tx.to)
             .put("value", "0x" + tx.valueWei.toString(16))
             .put("data", tx.data)
-            .apply { tx.from?.let { put("from", it) } }
+            .apply {
+                tx.to?.let { put("to", it) }
+                tx.from?.let { put("from", it) }
+            }
         val result = request(tx.chainId, "eth_estimateGas", JSONArray().put(request))
             .getString("result")
         return parseRpcQuantity(result) ?: error("Invalid eth_estimateGas result")
@@ -371,7 +373,7 @@ class Web3TransactionRepository(
             updatedAt = now
         )
         dao.insert(row)
-        if (to != null && data != null && value != null) {
+        if (data != null && value != null) {
             runCatching {
                 val parsed = ParsedWalletTransaction(
                     chainId, walletAddress, to, BigInteger(value), data
