@@ -570,6 +570,7 @@ class Web3TransactionRepository(
     suspend fun createPendingAccountingBill(draftId: String): PendingBillEntity? {
         val draft = dao.find(draftId, scopeProvider()) ?: return null
         if (draft.status !in setOf(Web3DraftStatus.CONFIRMED, Web3DraftStatus.CONFIRMED_FAILED)) return null
+        CacheStore.findPendingBill("WEB3-${draft.id}", draft.accountScope)?.let { return it }
         val totalWei = draft.totalFeeWei?.toBigIntegerOrNull() ?: return null
         val l1Wei = draft.l1Fee?.toBigIntegerOrNull() ?: BigInteger.ZERO
         val operatorWei = draft.operatorFeeWei?.toBigIntegerOrNull() ?: BigInteger.ZERO
@@ -618,6 +619,7 @@ class Web3TransactionRepository(
                 operatorUsd, quoteTimestamp, "OKX".takeIf { operatorUsd != null }
             )
         }
+        CacheStore.findPendingBill("WEB3-${draft.id}", draft.accountScope)?.let { return it }
         val network = when (draft.chainId) {
             1L -> "ethereum"
             10L -> "optimism"
