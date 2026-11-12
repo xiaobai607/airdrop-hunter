@@ -2764,3 +2764,14 @@ Implementation status: requirement approved; existing coordinator already has a 
 
 - 延迟钱包 SDK 的交互保护补丁：`0fae6da0777b06a0374efa9a847fe9d4cc31a792` 暴露 AppKit ready 状态并禁用未就绪的连接按钮；`118a63681cffb0556763728e7cf3eff6e1d9a90f` 修正 DApp 授权弹窗在 SDK 尚未就绪时误关闭/卡住的问题，等待 ready 后才允许用户确认连接。
 - 最新代码头（文档提交前）：`118a63681cffb0556763728e7cf3eff6e1d9a90f`。仍按用户要求暂不启动最终 APK 构建。
+
+
+### 2026-11-12 — 整批改动静态复核补充
+
+- **空投库入口核对更正：** 底部导航第二项确实使用 tab_community 文案资源，其当前显示文字为“空投库”；对应页面为 CommunitySquareScreen，展示社区官方项目目录、项目筛选与统计。因此此前仅看 MainActivity 的 destination 枚举就判断“没有空投库底部入口”是不完整的，现有底部入口存在且页面可达。首页删除的是重复的 airdrop_library 快捷卡片；另有“空投导航”（常用活动网站）卡片，二者不是同一个入口，不擅自删除。
+- **行情编辑与持久化复核：** 首页编辑弹窗只允许 BTC/ETH/SOL/BNB/TRX/XRP，至少选择一项；Room market_dashboard_preferences 表、DAO、数据库版本 22 与 21→22 migration 已对应，读取默认值为 BTC/ETH/SOL/BNB/TRX，保存顺序按固定币种顺序归一化。
+- **数据库升级边界：** 当前实体清单、数据库 version=22、MIGRATION_21_22 建表语句与 migration 注册列表已核对一致；仍需最终安装测试从旧数据库升级，静态检查不能替代真实迁移验收。
+- **Dock 拖动复核：** 外层 Box 包含胶囊背景和 LazyRow；拖动更新通过单个可取消 Job 串行执行 X/Y snap，并在释放时等待最后一个 Job 后吸边。该实现是为避开 pointerInput restricted suspension 的编译限制；当前不能仅凭静态代码断言真机手势没有竞争/卡顿，必须在最终 APK 实测整体拖动、内部横滑、边缘吸附和拖动后点击。
+- **记账流程复核：** Dock 的 new_accounting 动作调用 createManualAccountingEntry()，创建 MANUAL- 临时记录并标记“手动记账（非链上交易）”；取消/组件释放清理临时草稿。旧 MOCK- 数据被过滤出正式待确认列表。最终仍需验收确认后是否正确写入 user_interactions / pnl_records，并确认手动记录不进入链上核验与公共贡献。
+- **启动复核：** MainActivity 在 IO 调度启动后台任务、IO 读取 Token；Application.onCreate 只初始化 ApiClient，WalletConnect Core/AppKit 通过 WalletConnectInitializer.ensureInitialized() 延迟启动。冷启动耗时与 SDK 首次连接时序仍须设备验收。
+- **验证纪律：** 用户要求全部优化完成后统一构建；本次静态复核没有触发 APK 构建，也没有安装、发布或合并 PR。最终构建与设备验收继续保持待办，不以代码存在替代通过。
