@@ -47,6 +47,12 @@ object Web3DraftStatus {
 
     fun canAttachHash(status: String): Boolean =
         status in setOf(PENDING_WALLET, WAITING_HASH, TIMED_OUT_NEEDS_SYNC)
+
+    fun canCreateManualReviewBill(status: String): Boolean =
+        status in setOf(RECEIPT_NEEDS_SYNC, WAITING_OPERATOR_FEE, WAITING_L1_FEE)
+
+    fun canConfirmAccounting(status: String): Boolean =
+        status in setOf(CONFIRMED, CONFIRMED_FAILED) || canCreateManualReviewBill(status)
 }
 
 @Entity(
@@ -696,7 +702,7 @@ class Web3TransactionRepository(
 
     suspend fun createManualReviewBillFromDraft(draftId: String): PendingBillEntity? {
         val draft = dao.find(draftId, scopeProvider()) ?: return null
-        if (draft.status !in setOf(Web3DraftStatus.RECEIPT_NEEDS_SYNC, Web3DraftStatus.WAITING_OPERATOR_FEE, Web3DraftStatus.WAITING_L1_FEE) ||
+        if (!Web3DraftStatus.canCreateManualReviewBill(draft.status) ||
             draft.txHash.isNullOrBlank()
         ) return null
         val network = when (draft.chainId) {
