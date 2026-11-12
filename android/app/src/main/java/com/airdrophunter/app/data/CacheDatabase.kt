@@ -1085,6 +1085,14 @@ object CacheStore {
         val directoryDelisted = CommunityCatalogRepository.isExplicitlyDelisted(requestedOfficialId)
         db.withTransaction {
             val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
+            val web3DraftId = id.takeIf { it.startsWith("WEB3-") }?.removePrefix("WEB3-")
+            if (web3DraftId != null) {
+                val web3Draft = db.web3TransactionDraftDao().find(web3DraftId, scope)
+                    ?: return@withTransaction false
+                if (web3Draft.status !in setOf(Web3DraftStatus.CONFIRMED, Web3DraftStatus.CONFIRMED_FAILED)) {
+                    return@withTransaction false
+                }
+            }
             val canonicalOfficialId = requestedOfficialId
             val effectiveContributionOptIn = publicContributionOptIn && !directoryDelisted
             val effectiveNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
@@ -1199,6 +1207,14 @@ object CacheStore {
                         expectedRewardUsd = ledgerEntry.expected_reward_usd?.toDouble()
                     )
                 )
+            }
+            if (web3DraftId != null) {
+                check(
+                    db.web3TransactionDraftDao().setStatus(
+                        web3DraftId, scope, Web3DraftStatus.ACCOUNTED,
+                        null, System.currentTimeMillis()
+                    ) == 1
+                ) { "Web3 transaction draft could not be marked accounted" }
             }
             db.pendingBillDao().delete(id, scope)
             true
