@@ -339,6 +339,13 @@ object Web3ReceiptIdentityVerifier {
     }
 }
 
+object Web3WalletResponseIdentityVerifier {
+    fun matches(method: String, sessionTopic: String?, chainId: Long, txHash: String?): Boolean =
+        method.equals("eth_sendTransaction", ignoreCase = true) &&
+            !sessionTopic.isNullOrBlank() && sessionTopic.length <= 256 &&
+            chainId > 0 && Web3TransactionRepository.isValidTxHash(txHash.orEmpty())
+}
+
 object Web3ReceiptFeeParser {
     fun isOpStackDepositTransaction(typeRaw: String?): Boolean =
         Web3RpcClient.parseRpcQuantity(typeRaw) == BigInteger.valueOf(126L)
@@ -622,11 +629,12 @@ class Web3TransactionRepository(
      */
     suspend fun attachWalletConnectResponse(
         requestId: Long,
+        method: String,
         sessionTopic: String,
         chainId: Long,
         hash: String
     ): String? {
-        if (!isValidTxHash(hash) || sessionTopic.isBlank() || chainId <= 0) return null
+        if (!Web3WalletResponseIdentityVerifier.matches(method, sessionTopic, chainId, hash)) return null
         val scope = scopeProvider()
         val candidates = dao.findByWalletRequest(scope, requestId, sessionTopic)
             .filter { it.chainId == chainId }
