@@ -579,6 +579,34 @@ class Web3TransactionRepository(
         return bill
     }
 
+    suspend fun createManualReviewBillFromDraft(draftId: String): PendingBillEntity? {
+        val draft = dao.find(draftId, scopeProvider()) ?: return null
+        if (draft.status != Web3DraftStatus.RECEIPT_NEEDS_SYNC || draft.txHash.isNullOrBlank()) return null
+        val network = when (draft.chainId) {
+            1L -> "ethereum"
+            10L -> "optimism"
+            56L -> "bsc"
+            137L -> "polygon"
+            8453L -> "base"
+            42161L -> "arbitrum"
+            else -> "eip155:${draft.chainId}"
+        }
+        val bill = PendingBillEntity(
+            id = "WEB3-${draft.id}",
+            txHash = draft.txHash,
+            walletAddress = draft.walletAddress.orEmpty(),
+            gasCostUsd = 0.0,
+            interactionMethod = "Web3 费用手动核验",
+            timestamp = System.currentTimeMillis(),
+            chain = network,
+            accountScope = draft.accountScope,
+            network = network,
+            assetBreakdownJson = null
+        )
+        CacheStore.addPendingBill(bill)
+        return bill
+    }
+
     suspend fun attachManuallyVerifiedHash(draftId: String, hash: String): Boolean {
         if (!isValidTxHash(hash)) return false
         val draft = dao.find(draftId, scopeProvider()) ?: return false
