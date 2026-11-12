@@ -724,6 +724,10 @@ object CacheStore {
             db.execSQL("CREATE INDEX IF NOT EXISTS index_web3_transaction_drafts_accountScope_status ON web3_transaction_drafts(accountScope, status)")
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_web3_transaction_drafts_chainId_txHash ON web3_transaction_drafts(chainId, txHash)")
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_web3_transaction_drafts_walletConnectRequestId ON web3_transaction_drafts(walletConnectRequestId)")
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN nativeSymbol TEXT")
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN nativePriceUsd REAL")
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN nativePriceTimestamp INTEGER")
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN actualGasUsd REAL")
         }
     }
     @Volatile private var appContext: Context? = null
