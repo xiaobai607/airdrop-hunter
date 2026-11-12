@@ -481,14 +481,24 @@ private fun BrowserScreen(
                                             when {
                                                 DappProviderBridge.isSupportedExternalWalletMethod(request.method) -> {
                                                     val sessionTopic = activeWalletConnectTopic
-                                                    val account = connectedDappAccounts.firstOrNull()
                                                     val authorized = authorizedDappOrigins[origin] == currentDappAuthorizationStamp()
                                                     val connectedAddresses = connectedDappAccounts.map { it.address }.toSet()
                                                     val firstRequestParam = request.params.opt(0) as? String
                                                     val secondRequestParam = request.params.opt(1) as? String
                                                     val transactionFrom = request.params.optJSONObject(0)?.optString("from")
+                                                    val requestedAddress = DappProviderBridge.requestedAccountAddress(
+                                                        request.method, firstRequestParam, secondRequestParam, transactionFrom
+                                                    )
+                                                    val selectedChainReference = AppKit.getSelectedChain()?.chainReference
+                                                        ?.removePrefix("eip155:")
+                                                    val account = connectedDappAccounts.firstOrNull { candidate ->
+                                                        !requestedAddress.isNullOrBlank() &&
+                                                            candidate.address.equals(requestedAddress, ignoreCase = true) &&
+                                                            !selectedChainReference.isNullOrBlank() &&
+                                                            candidate.chainId.removePrefix("eip155:") == selectedChainReference
+                                                    }
                                                     when {
-                                                        !authorized || account == null ->
+                                                        !authorized || connectedDappAccounts.isEmpty() ->
                                                             DappProviderBridge.error(replyProxy, request.id, 4100, "请先在当前网站授权连接外部钱包")
                                                         sessionTopic.isNullOrBlank() ->
                                                             DappProviderBridge.error(replyProxy, request.id, 4200, "当前钱包连接方式暂不支持 DApp 签名转发，请使用 WalletConnect 外部钱包连接")
@@ -499,10 +509,8 @@ private fun BrowserScreen(
                                                             transactionFrom, connectedAddresses
                                                         ) ->
                                                             DappProviderBridge.error(replyProxy, request.id, 4100, "请求使用的钱包地址未在当前外部钱包会话中授权")
-                                                        AppKit.getSelectedChain()?.chainReference
-                                                            ?.removePrefix("eip155:")
-                                                            ?.let { it != account.chainId.removePrefix("eip155:") } != false ->
-                                                            DappProviderBridge.error(replyProxy, request.id, 4901, "外部钱包当前网络与授权账户网络不一致，请在外部钱包切换网络后重新连接")
+                                                        account == null ->
+                                                            DappProviderBridge.error(replyProxy, request.id, 4901, "请求账户未在当前外部钱包的活动网络中授权，请切换网络或重新连接")
                                                         else -> {
                                                             val chainReference = account.chainId.let {
                                                                 if (it.startsWith("eip155:")) it else "eip155:$it"
