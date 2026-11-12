@@ -147,9 +147,9 @@ class HomeViewModel(
                     isLoading = false,
                     isRefreshing = false,
                     hasError = retained.isEmpty(),
-                    marketError = if (retained.isEmpty()) message else homeMarketRefreshWarning(
-                        error.message, hasCachedRows = true
-                    ),
+                    marketError = homeMarketRefreshWarning(
+                        error.message, hasCachedRows = retained.isNotEmpty()
+                    ) ?: message,
                     marketCacheStatus = CacheDisplayStatus.ERROR
                 )
             }
