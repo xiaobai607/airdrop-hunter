@@ -56,12 +56,24 @@ class HomeViewModel(
             val marketRepository = MarketSearchRepository(repository)
             if (!manual) {
                 // Publish Room data before asking the shared coordinator to revalidate it.
-                val cachedCoins = runCatching { marketRepository.readCachedHotCoins() }.getOrDefault(emptyList())
+                val cachedCoins = try {
+                    marketRepository.readCachedHotCoins()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    emptyList()
+                }
                 if (cachedCoins.isNotEmpty()) {
                     val cachedTickers = cachedCoins.map { coin ->
                         OkxTicker("${coin.symbol}-USDT", coin.lastPrice, coin.change24hPercent)
                     }.filter { it.symbol in setOf("BTC", "ETH") }
-                    val metadata = CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
+                    val metadata = try {
+                        CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        null
+                    }
                     val status = CacheRefreshPolicy.displayStatus(metadata, System.currentTimeMillis())
                     val warning = if (status == CacheDisplayStatus.ERROR ||
                         (status == CacheDisplayStatus.STALE && metadata?.lastError != null)
