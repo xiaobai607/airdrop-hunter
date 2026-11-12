@@ -2826,3 +2826,14 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **未完成验证：** 未触发 APK/CI 构建、未安装设备；冷启动耗时、数据库升级、记账全生命周期、Dock 手势、Profile 底部可达性仍待整批构建后的运行验收。PR #135 继续保持 Draft/Open/Unmerged。
 
 **本轮审查结论：** 三个模块的源码实现与当前需求大体一致；发现的私人账本同步调用点属于保留的兼容代码，当前由 false 策略、no-op Scheduler 与请求拦截共同阻断，不构成实际上传路径。本轮没有发现需要立即改动代码的新缺陷，因此不为“有提交”而制造改动。
+
+
+### 2026-11-12 — 第二批大模块交叉审查（钱包刷新、空投目录与社区快照）
+
+- **钱包交易历史：** 缓存键按账户范围、钱包 ID、生态隔离，TTL 为 8 小时；用户在钱包详情页点击刷新时传入 `manual=true`，界面在被 30 秒节流时给出提示。启动后台 Worker 使用默认非强制刷新和独立 8 小时 cadence。当前源码调用点没有发现 UI 通过 `force=true` 绕过手动刷新节流；调度接口保留 force 参数，但当前 MainActivity 调用不传 force 标记。
+- **钱包余额/资产：** 缓存键按账户范围、钱包 ID、链隔离，Room 以 `UnifiedAssetEntity` 保存；TTL 为 8 小时。用户手动刷新传入 `manual=true`，后台 Worker 按钱包/链分别检查 8 小时 cadence；两者共享同一 CacheRefreshCoordinator，刷新失败保留旧缓存，不把余额记录混进私人账本 TTL。
+- **空投活动目录：** AirdropCampaignRepository 使用共享缓存协调器，筛选参数进入独立 cache key，手动刷新走 `manual=true`；列表缓存与活动 DTO 分离于个人账本。
+- **社区官方项目目录：** 使用公共缓存命名空间与 6 小时 TTL，按 `project_official_id` 合并；后端 GET 明确返回 inactive 项目并提供 `is_active=false`，因此下架 tombstone 不会因列表接口只返回 active 项目而丢失。客户端以该字段判断“社区已下架”，本地项目/账本仍可保留。
+- **社区公共快照：** 使用公共缓存键保存各统计窗口快照和 manifest 校验信息；快照独立验证后才落盘，失败时保留之前可用数据。与私人账本/项目任务的持久化记录分层。
+- **统一缓存引擎：** 默认 TTL 15 分钟、失败冷却 30 秒、最多 3 次有界重试、同 key 串行去重；钱包资产/历史与活动目录可覆盖各自 TTL。未发现本批审查范围内把个人账本或私人项目接入该 TTL 清理路径。
+- **本批结论：** 钱包历史/余额的手动节流、后台 cadence 和账户/钱包/链隔离与现有需求一致；社区下架状态有后端 tombstone 支持；本轮没有发现需要立即修改的代码缺陷。仍需通过最终整批 CI 和真机验证刷新提示、节流间隔、缓存恢复与下架显示，静态审查不等于运行验收。
