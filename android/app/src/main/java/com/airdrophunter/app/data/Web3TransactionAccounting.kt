@@ -114,7 +114,7 @@ interface Web3TransactionDraftDao {
     @Query("UPDATE web3_transaction_drafts SET status = :status, lastError = :error, updatedAt = :now WHERE id = :id AND accountScope = :scope")
     suspend fun setStatus(id: String, scope: String, status: String, error: String?, now: Long): Int
 
-    @Query("UPDATE web3_transaction_drafts SET status = :status, lastError = :error, updatedAt = :now WHERE id = :id AND accountScope = :scope AND status IN ('pending_wallet','waiting_hash')")
+    @Query("UPDATE web3_transaction_drafts SET status = :status, lastError = :error, updatedAt = :now WHERE id = :id AND accountScope = :scope AND status IN ('pending_wallet','waiting_hash','timed_out_needs_sync')")
     suspend fun setWalletStatus(id: String, scope: String, status: String, error: String?, now: Long): Int
 }
 
