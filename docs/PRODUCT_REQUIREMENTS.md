@@ -2482,3 +2482,20 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Exact-head workflow **#43156338310** failed at Kotlin compilation because the new catch branch referenced `error.message` without binding the caught exception. This was a source-code compile error; the previous passing CI does not cover this later commit.
 - Corrected in code commit `81529302595dc2909283826653f9679c88a58499` by binding the caught exception as `failure` and passing `failure.message` to the cooldown-message policy.
 - The exact-head Android build/unit-test workflow for this correction is pending. Do not mark the Airdrop Hub cooldown UI change verified until it passes.
+
+
+### 2026-11-12 — Home market dashboard must render Room cache before network refresh
+
+**Audit finding:** `HomeViewModel.load()` currently calls `MarketSearchRepository.loadHotCoins()` before publishing any local hot-coin rows to UI state. When the cache is stale/missing, the shared coordinator waits for provider refresh/retries before returning, so the Home market dashboard can show a loading state even when last-known-good Room rows exist. This violates the required cache-first, non-blocking page-entry behavior.
+
+**Required correction:**
+- Add a read-only cached-hot-coins path that reads Room without triggering network work.
+- On Home entry, publish cached BTC/ETH rows and their cache timestamp/status immediately; then perform stale revalidation in the background while retaining the visible rows.
+- If there is no cached data, show the initial loading state until the first fetch completes.
+- A failed refresh must keep the last-known-good rows and show a non-blocking warning; cancellation must propagate.
+- Manual refresh continues to use the existing shared 30-second throttle and must not bypass it with `force`.
+- Add policy/unit coverage for cached rows being visible before refresh and for preserving cached data on refresh failure where the existing test seams allow.
+
+**Scope guard:** do not change wallet/account scoping, personal ledger/project/task persistence, registration/account flows, private cloud sync, provider selection or cache TTL.
+
+**Status:** audit-confirmed cache-first UI gap; requirement recorded before implementation. Code and exact-head CI pending.
