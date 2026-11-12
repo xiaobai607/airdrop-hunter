@@ -26,9 +26,9 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
                 val network = entry.network?.takeIf { it.isNotBlank() }
                 val walletAddress = entry.walletAddress?.takeIf { it.isNotBlank() }
                 val txHash = entry.txHash?.takeIf { it.isNotBlank() }
-                if (network == null || walletAddress == null || txHash == null) {
+                if (network == null || (txHash != null && walletAddress == null)) {
                     CacheStore.markCommunitySyncTerminalFailure(
-                        entry.id, batch.accountScope, "缺少链上核验信息，未发送公共统计"
+                        entry.id, batch.accountScope, "缺少网络或链上核验钱包地址，未发送公共统计"
                     )
                     continue
                 }
@@ -38,7 +38,7 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
                         CommunityContributionRequest(
                             event_id = entry.id,
                             network = network,
-                            wallet_address = walletAddress,
+                            wallet_address = walletAddress.takeIf { txHash != null },
                             tx_hash = txHash,
                             public_contribution_opt_in = true,
                             gas_cost_usd = entry.gasCostUsd,
@@ -51,7 +51,7 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
                         batch.authorizationHeader
                     )
                     CacheStore.completeCommunitySync(
-                        entry.id, batch.accountScope, response.verification_tier ?: "transaction_linked"
+                        entry.id, batch.accountScope, response.verification_tier ?: if (txHash == null) "user_reported" else "transaction_linked"
                     )
                 } catch (cancelled: CancellationException) {
                     throw cancelled
