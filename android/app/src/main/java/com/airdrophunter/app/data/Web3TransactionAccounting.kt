@@ -216,6 +216,32 @@ object WalletTransactionLinkParser {
     }
 }
 
+data class Web3FeeBreakdown(
+    val l1FeeWei: BigInteger,
+    val l2FeeWei: BigInteger,
+    val totalFeeWei: BigInteger
+)
+
+object Web3ReceiptFeeCalculator {
+    fun calculate(
+        chainId: Long,
+        gasUsed: BigInteger,
+        effectiveGasPrice: BigInteger,
+        l1FeeWei: BigInteger?
+    ): Web3FeeBreakdown? {
+        val receiptGasFee = gasUsed.multiply(effectiveGasPrice)
+        return if (chainId == 42161L) {
+            // Arbitrum receipt gasUsed already includes the L1 component.
+            val l1 = l1FeeWei ?: return null
+            val l2 = receiptGasFee.subtract(l1).takeIf { it.signum() >= 0 } ?: return null
+            Web3FeeBreakdown(l1, l2, receiptGasFee)
+        } else {
+            val l1 = l1FeeWei ?: BigInteger.ZERO
+            Web3FeeBreakdown(l1, receiptGasFee, receiptGasFee.add(l1))
+        }
+    }
+}
+
 object Web3ReceiptFeeParser {
     /**
      * Arbitrum reports gasUsedForL1 in child-chain gas units, so its charged
@@ -676,8 +702,11 @@ class Web3TransactionRepository(
             return true
         }
 
-        val l2Fee = gasUsed.multiply(effectiveGasPrice)
-        val totalFee = l2Fee.add(l1Fee ?: BigInteger.ZERO)
+        val feeBreakdown = Web3ReceiptFeeCalculator.calculate(
+            draft.chainId, gasUsed, effectiveGasPrice, l1Fee
+        ) ?: return false
+        val l2Fee = feeBreakdown.l2FeeWei
+        val totalFee = feeBreakdown.totalFeeWei
         val nativeSymbol = nativeSymbolForChain(draft.chainId)
         val quote = runCatching { nativePriceProvider(nativeSymbol) }.getOrNull()
         val nativePriceUsd = quote?.lastPrice?.takeIf { it.isFinite() && it > 0.0 }
