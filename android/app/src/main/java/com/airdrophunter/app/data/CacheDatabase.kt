@@ -759,6 +759,11 @@ object CacheStore {
     fun observePendingBills(): Flow<List<PendingBillEntity>> = observeAccountScope().flatMapLatest { scope ->
         database?.pendingBillDao()?.observeAll(scope) ?: flowOf(emptyList())
     }
+
+    fun observeWeb3TransactionDrafts(): Flow<List<Web3TransactionDraftEntity>> =
+        observeAccountScope().flatMapLatest { scope ->
+            database?.web3TransactionDraftDao()?.observeAll(scope) ?: flowOf(emptyList())
+        }
     fun observePnlRecords(): Flow<List<PnlRecordEntity>> = observeAccountScope().flatMapLatest { scope ->
         database?.pnlRecordDao()?.observeAll(scope) ?: flowOf(emptyList())
     }
