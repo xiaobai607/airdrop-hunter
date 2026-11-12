@@ -2780,3 +2780,14 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **启动调度幂等补丁：** 静态复核发现原 startupSyncScheduled 是 Activity 实例字段，Activity 重建后会再次入队。现改为进程级 volatile 标记并在锁内原子判断，确保同一进程只调度一次。代码提交：30e6e40cea9cf59b0f4e468a973904c80a8e7bf9。该补丁尚未构建/测试。
 
 - **正式记账落库路径复核完成：** CacheStore.confirmPendingBill() 在同一 Room transaction 内写入本地 personal_ledger payload、pnl_records、user_projects、user_interactions，并删除本次 pending_bills 草稿；只有明确选择公共贡献且满足官方项目/链上哈希核验条件时才创建社区 outbox。手动记账标记为非链上交易，不会伪造已上链状态。该结论为静态代码核对，仍待最终运行时测试。
+
+
+### 2026-11-12 — 第二轮实现审查（以当前分支源码为准）
+
+- **浏览器工具栏入口：** 当前 `toolOptions` 唯一记账动作是 `new_accounting`，显示名“记账”；旧 SharedPreferences 的 `mock_bill` 在读取时迁移为 `new_accounting`。工具管理器列表也显示“记账”，不再暴露模拟记账动作。
+- **手动记账表单：** 空列表状态仍提供“新增记账”；新增动作生成 `MANUAL-` 草稿并打开表单。表单要求选择项目、填写 Gas USD 与实际收益 USD（允许明确填 0，不允许空值），可录入原生 Gas/收益资产明细；Gas 币种按链提供选择列表并允许自定义。确认按钮将数据提交给 Room `confirmPendingBill` 事务；取消/关闭/离开组件会清除 MANUAL 草稿。注意：当前 Gas 选择列表按链约束，收益币种仍为文本输入，这是现有实现范围，不应宣称两者都有下拉列表。
+- **旧 MOCK 数据：** `MOCK-` 样本保留在数据库以避免擅自删除历史本地数据，但 `realPending` 会从记账列表和首页自动打开流程中过滤掉。正式记账新建流程不再生成 MOCK。
+- **Dock 手势风险仍未完全关闭：** 当前拖动回调仍会对每个 pointer move 取消并重启一个协程，依次 snap 两个独立 Animatable。取消可能发生在 X/Y 两次更新之间，静态审查不能排除短暂偏移不一致；需要进一步改为单一二维偏移状态/单一动画对象，或用可安全收敛的更新机制后再标记代码修复完成。真机还需测试长按拖动、短按点击、LazyRow 横滑、吸边与边界。
+- **钱包 SDK 初始化状态更正：** 当前 `AirdropHunterApplication.onCreate()` 只初始化 `ApiClient`；`WalletConnectInitializer` 提供 `ensureInitialized()` 与 `ready` StateFlow，在首次钱包管理或浏览器 DApp 流程中延迟初始化。此前文档中“仍在 Application.onCreate 同步初始化”的描述已被后续提交覆盖，以上述当前源码为准。
+- **行情设置与迁移：** Room 数据库 version=22，实体列表包含 `MarketDashboardPreferenceEntity`，注册 21→22 migration 建表；首页编辑支持六币选择、至少保留一个、恢复默认并通过 `CacheStore.saveMarketDashboardSymbols` 保存。旧数据库真实升级仍须最终安装测试。
+- **本轮不触发 APK 构建：** 按用户明确指示，当前仅做源码审查和需求记录；未运行最终构建、未安装真机 APK、未发布、未合并 PR。下次代码修正优先处理 Dock 的双 Animatable 更新竞争，并检查 MainActivity 的启动任务幂等性与手动记账完整生命周期。
