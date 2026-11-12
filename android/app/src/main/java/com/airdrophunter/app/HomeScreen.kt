@@ -154,7 +154,7 @@ fun HomeScreen(
                         }
                     }
                     else -> Column {
-                        state.market.filter { it.symbol == "BTC" || it.symbol == "ETH" }.forEachIndexed { index, ticker ->
+                        state.market.forEachIndexed { index, ticker ->
                             MarketRow(ticker)
                             if (index != state.market.lastIndex) HorizontalDivider(color = AppColors.Border)
                         }
