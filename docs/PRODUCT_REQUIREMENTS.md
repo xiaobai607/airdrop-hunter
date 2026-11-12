@@ -2457,3 +2457,16 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **Code/CI status for this reliability slice: complete.** Real Android background scheduling, device-visible refresh states, live provider responses and battery/network behavior remain unverified.
 - PR #135 remains **Draft / Open / unmerged**. No production sync, deployment, registration/account-flow changes or private cloud sync were introduced.
 - Updated rounded project estimate: **code/CI implementation ~73%**; **overall release readiness ~45%**. These are scope-level estimates, not test coverage. Physical-device acceptance, live-data validation, remaining feature work and release/deployment gates are still outstanding.
+
+
+### 2026-11-12 — Airdrop Hub manual-refresh cooldown must remain visible
+
+**Audit finding:** the Airdrop Hub repository correctly throws a user-facing cooldown message when the shared coordinator throttles a manual refresh, but `AirdropHubViewModel` catches the exception and replaces it with the generic “数据源暂时不可用” warning. The cached project list remains visible, but the user cannot tell that the request was intentionally throttled rather than a provider failure.
+
+**Required correction:**
+- Preserve the existing Airdrop Hub cached project list during cooldown.
+- When the repository reports the 30-second manual-refresh cooldown, show the specific retry-after message instead of the generic provider error.
+- Keep genuine provider failures mapped to the existing non-technical retained-cache warning.
+- Add a small ViewModel/policy regression test. Do not change the coordinator cooldown or bypass it with force.
+
+**Status:** audit-confirmed UI messaging defect; requirement recorded before implementation. Code and exact-head CI pending.
