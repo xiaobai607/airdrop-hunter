@@ -2810,3 +2810,5 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **代码提交：** `b74f00cc798bef636de5d6852d5f329ebdae6b6d`（二维 Offset 实现），`73fdbdb176134be13067ab077aaf8e0b30b6dcce`（拖动激活同步化）。
 - **静态检查：** 已确认源码不再包含 `dragUpdateJob`、`dragOffsetX`、`dragOffsetY`；只保留单一二维动画对象和同步 Offset 拖动位置更新。
 - **验证边界：** 尚未运行编译/单元测试，尚未触发 APK 构建；`Offset.VectorConverter` API 与完整 Compose 编译需在用户授权的整批最终构建中验证。真机长按、短按、内部横滑、快速斜向拖动、边缘吸附、边界及退出重进复位仍待验收。PR #135 保持 Draft/Open/Unmerged。
+
+- **后续竞态收敛：** 拖动激活时不再额外异步调用 `stop()`，避免其与松手后的 `snapTo/animateTo` 发生调度竞态；拖动期间由同步 Offset 状态显示位置，松手时单一 Animatable 的 `snapTo(current)` 会接管并取消先前动画，再执行二维吸边。最终相关代码头：`3b9b5e12b751de5c8d4367c436a30801b914aad4`。尚未构建，编译及真机验证状态不变。
