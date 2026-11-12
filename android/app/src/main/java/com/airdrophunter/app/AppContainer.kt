@@ -25,6 +25,10 @@ import com.airdrophunter.app.data.AirdropsRepository
 import com.airdrophunter.app.data.AccountingRepository
 import com.airdrophunter.app.data.CacheStoreAccountingLocalDataSource
 import com.airdrophunter.app.data.RetrofitAirdropsRemoteDataSource
+import com.airdrophunter.app.data.Web3TransactionRepository
+import com.airdrophunter.app.data.Web3TransactionDraftDao
+import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.TokenStore
 
 /**
  * Lightweight process-level composition root. Feature dependencies are singletons
@@ -77,6 +81,16 @@ class AppContainer {
 
     val airdropsRepository: AirdropsRepository by lazy {
         AirdropsRepository(RetrofitAirdropsRemoteDataSource(apiService))
+    }
+
+    val web3TransactionRepository: Web3TransactionRepository by lazy {
+        val dao = requireNotNull(CacheStore.web3TransactionDraftDao()) {
+            "Room database is not initialized"
+        }
+        Web3TransactionRepository(
+            dao = dao,
+            scopeProvider = { CacheStore.accountScopeKey(TokenStore.readTokenBlocking()) }
+        )
     }
 
     val accountingRepository: AccountingRepository by lazy {
