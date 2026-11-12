@@ -82,7 +82,8 @@ private data class PendingDappExternalRequest(
     val replyProxy: JavaScriptReplyProxy,
     val sessionTopic: String,
     val chainId: String,
-    val walletConnectRequestId: Long? = null
+    val walletConnectRequestId: Long? = null,
+    val web3DraftId: String? = null
 )
 
 class BrowserActivity : ComponentActivity() {
@@ -158,6 +159,8 @@ private fun BrowserScreen(
     onExit: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val app = context.applicationContext as AirdropHunterApplication
+    val web3Repository = remember(app) { app.appContainer.web3TransactionRepository }
     val walletConnectReady by WalletConnectInitializer.ready.collectAsState()
     LaunchedEffect(Unit) {
         WalletConnectInitializer.ensureInitialized(context.applicationContext as android.app.Application)
@@ -234,10 +237,39 @@ private fun BrowserScreen(
                 )
             ) {
                 when (val result = response.result) {
-                    is Modal.Model.JsonRpcResponse.JsonRpcResult ->
+                    is Modal.Model.JsonRpcResponse.JsonRpcResult -> {
+                        if (pending.request.method.equals("eth_sendTransaction", ignoreCase = true)) {
+                            val txHash = result.result as? String
+                            val draftId = pending.web3DraftId
+                            val walletRequestId = pending.walletConnectRequestId
+                            val chainNumber = pending.chainId.removePrefix("eip155:").toLongOrNull()
+                            if (draftId != null && walletRequestId != null && chainNumber != null &&
+                                txHash != null && com.airdrophunter.app.data.Web3TransactionRepository.isValidTxHash(txHash)
+                            ) {
+                                dappRequestScope.launch {
+                                    val accepted = web3Repository.attachWalletConnectHash(
+                                        draftId, walletRequestId, chainNumber, txHash
+                                    )
+                                    if (accepted) {
+                                        com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(
+                                            context.applicationContext, draftId
+                                        )
+                                    } else {
+                                        Log.e("AirdropBrowser", "WalletConnect transaction hash did not match its durable draft")
+                                    }
+                                }
+                            } else if (draftId != null) {
+                                dappRequestScope.launch { web3Repository.markWalletTimedOut(draftId) }
+                            }
+                        }
                         DappProviderBridge.success(pending.replyProxy, pending.request.id, result.result)
-                    is Modal.Model.JsonRpcResponse.JsonRpcError ->
+                    }
+                    is Modal.Model.JsonRpcResponse.JsonRpcError -> {
+                        pending.web3DraftId?.let { draftId ->
+                            dappRequestScope.launch { web3Repository.markWalletRejected(draftId) }
+                        }
                         DappProviderBridge.error(pending.replyProxy, pending.request.id, result.code, result.message)
+                    }
                 }
                 pendingDappExternalRequest = null
             }
@@ -249,7 +281,10 @@ private fun BrowserScreen(
         kotlinx.coroutines.delay(120_000)
         val pending = pendingDappExternalRequest
         if (pending?.request?.id == requestId) {
-            DappProviderBridge.error(pending.replyProxy, requestId, 4001, "外部钱包请求超时或已取消")
+            pending.web3DraftId?.let { draftId ->
+                web3Repository.markWalletTimedOut(draftId)
+            }
+            DappProviderBridge.error(pending.replyProxy, requestId, 4001, "外部钱包请求超时或已取消；链上状态仍需同步核对")
             pendingDappExternalRequest = null
         }
     }
@@ -458,51 +493,94 @@ private fun BrowserScreen(
                                                                 chainId = chainReference
                                                             )
                                                             pendingDappExternalRequest = pending
-                                                            runCatching {
-                                                                AppKit.request(
-                                                                    request = ExternalWalletRequest(
-                                                                        method = request.method,
-                                                                        params = request.params.toString()
-                                                                    ),
-                                                                    onSuccess = { sentRequest ->
-                                                                        dappRequestScope.launch {
-                                                                            val current = pendingDappExternalRequest
-                                                                            if (current?.request?.id == request.id) {
-                                                                                val walletConnectRequest = sentRequest as? SentRequestResult.WalletConnect
-                                                                                if (walletConnectRequest == null ||
-                                                                                    walletConnectRequest.sessionTopic != current.sessionTopic
-                                                                                ) {
+                                                            dappRequestScope.launch {
+                                                                var draftId: String? = null
+                                                                if (request.method.equals("eth_sendTransaction", ignoreCase = true)) {
+                                                                    val transaction = request.params.optJSONObject(0)
+                                                                    val chainNumber = chainReference.removePrefix("eip155:").toLongOrNull()
+                                                                    if (transaction == null || chainNumber == null) {
+                                                                        DappProviderBridge.error(replyProxy, request.id, -32602, "交易参数或链 ID 无效")
+                                                                        pendingDappExternalRequest = null
+                                                                        return@launch
+                                                                    }
+                                                                    draftId = runCatching {
+                                                                        web3Repository.createDappDraft(
+                                                                            chainId = chainNumber,
+                                                                            walletAddress = account.address,
+                                                                            origin = origin,
+                                                                            transaction = transaction
+                                                                        ).id
+                                                                    }.getOrElse {
+                                                                        Log.e("AirdropBrowser", "Failed to persist Web3 transaction draft", it)
+                                                                        DappProviderBridge.error(replyProxy, request.id, -32000, "无法安全保存交易草稿，本次交易请求已阻止")
+                                                                        pendingDappExternalRequest = null
+                                                                        return@launch
+                                                                    }
+                                                                }
+                                                                val current = pendingDappExternalRequest
+                                                                if (current?.request?.id != request.id) {
+                                                                    draftId?.let { web3Repository.markWalletTimedOut(it) }
+                                                                    return@launch
+                                                                }
+                                                                pendingDappExternalRequest = current.copy(web3DraftId = draftId)
+                                                                runCatching {
+                                                                    AppKit.request(
+                                                                        request = ExternalWalletRequest(
+                                                                            method = request.method,
+                                                                            params = request.params.toString()
+                                                                        ),
+                                                                        onSuccess = { sentRequest ->
+                                                                            dappRequestScope.launch {
+                                                                                val currentPending = pendingDappExternalRequest
+                                                                                if (currentPending?.request?.id == request.id) {
+                                                                                    val walletConnectRequest = sentRequest as? SentRequestResult.WalletConnect
+                                                                                    if (walletConnectRequest == null ||
+                                                                                        walletConnectRequest.sessionTopic != currentPending.sessionTopic
+                                                                                    ) {
+                                                                                        currentPending.web3DraftId?.let { id ->
+                                                                                            web3Repository.markWalletTimedOut(id)
+                                                                                        }
+                                                                                        DappProviderBridge.error(
+                                                                                            replyProxy, request.id, 4200,
+                                                                                            "无法确认外部钱包请求编号，已安全取消本次请求"
+                                                                                        )
+                                                                                        pendingDappExternalRequest = null
+                                                                                    } else {
+                                                                                        currentPending.web3DraftId?.let { id ->
+                                                                                            web3Repository.bindWalletConnectRequest(id, walletConnectRequest.requestId)
+                                                                                        }
+                                                                                        pendingDappExternalRequest = currentPending.copy(
+                                                                                            walletConnectRequestId = walletConnectRequest.requestId
+                                                                                        )
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        onError = { error: Throwable ->
+                                                                            dappRequestScope.launch {
+                                                                                if (pendingDappExternalRequest?.request?.id == request.id) {
+                                                                                    pendingDappExternalRequest?.web3DraftId?.let { id ->
+                                                                                        web3Repository.markWalletRejected(id)
+                                                                                    }
                                                                                     DappProviderBridge.error(
-                                                                                        replyProxy, request.id, 4200,
-                                                                                        "无法确认外部钱包请求编号，已安全取消本次请求"
+                                                                                        replyProxy, request.id, 4001,
+                                                                                        error.localizedMessage ?: "外部钱包请求失败或被拒绝"
                                                                                     )
                                                                                     pendingDappExternalRequest = null
-                                                                                } else {
-                                                                                    pendingDappExternalRequest = current.copy(
-                                                                                        walletConnectRequestId = walletConnectRequest.requestId
-                                                                                    )
                                                                                 }
                                                                             }
                                                                         }
-                                                                    },
-                                                                    onError = { error: Throwable ->
-                                                                        dappRequestScope.launch {
-                                                                            if (pendingDappExternalRequest?.request?.id == request.id) {
-                                                                                DappProviderBridge.error(
-                                                                                    replyProxy, request.id, 4001,
-                                                                                    error.localizedMessage ?: "外部钱包请求失败或被拒绝"
-                                                                                )
-                                                                                pendingDappExternalRequest = null
-                                                                            }
-                                                                        }
+                                                                    )
+                                                                }.onFailure { error ->
+                                                                    pendingDappExternalRequest?.web3DraftId?.let { id ->
+                                                                        web3Repository.markWalletRejected(id)
                                                                     }
-                                                                )
-                                                            }.onFailure { error ->
-                                                                DappProviderBridge.error(
-                                                                    replyProxy, request.id, 4001,
-                                                                    error.localizedMessage ?: "无法打开外部钱包请求"
-                                                                )
-                                                                pendingDappExternalRequest = null
+                                                                    DappProviderBridge.error(
+                                                                        replyProxy, request.id, 4001,
+                                                                        error.localizedMessage ?: "无法打开外部钱包请求"
+                                                                    )
+                                                                    pendingDappExternalRequest = null
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -558,6 +636,42 @@ private fun BrowserScreen(
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 val target = request?.url ?: return true
+                                val scheme = target.scheme?.lowercase()
+                                if (scheme in setOf("metamask", "trust", "trustwallet", "wc")) {
+                                    if (request?.hasGesture() != true) {
+                                        Log.w("AirdropBrowser", "Blocked wallet deep link without a user gesture")
+                                        return true
+                                    }
+                                    if (scheme == "wc") {
+                                        Toast.makeText(context, "请使用页面内的“连接外部钱包”入口建立 WalletConnect 会话", Toast.LENGTH_LONG).show()
+                                        return true
+                                    }
+                                    val parsed = com.airdrophunter.app.data.WalletTransactionLinkParser.parse(target)
+                                    dappRequestScope.launch {
+                                        if (parsed != null) {
+                                            runCatching {
+                                                web3Repository.createExternalLinkDraft(
+                                                    parsed = parsed,
+                                                    origin = runCatching { DappProviderBridge.origin(Uri.parse(currentPageUrl)) }.getOrDefault("unknown"),
+                                                    walletAddress = selectedWallet?.address
+                                                )
+                                            }.onFailure {
+                                                Log.e("AirdropBrowser", "Could not persist wallet transaction draft", it)
+                                            }
+                                        }
+                                        val walletIntent = Intent(Intent.ACTION_VIEW, target)
+                                        if (walletIntent.resolveActivity(context.packageManager) == null) {
+                                            Toast.makeText(context, "未找到可处理此钱包链接的应用", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            runCatching {
+                                                context.startActivity(walletIntent)
+                                            }.onFailure {
+                                                Toast.makeText(context, "无法打开外部钱包", Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    }
+                                    return true
+                                }
                                 if (!target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null) return true
                                 val targetOrigin = runCatching { DappProviderBridge.origin(target) }.getOrNull() ?: return true
                                 if (targetOrigin != approvedOrigin) {
