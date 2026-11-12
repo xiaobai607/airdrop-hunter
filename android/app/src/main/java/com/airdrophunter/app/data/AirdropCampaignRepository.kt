@@ -1,7 +1,6 @@
 package com.airdrophunter.app.data
 
 import com.google.gson.Gson
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,7 +19,7 @@ class AirdropCampaignRepository(
                 gson.fromJson(raw, AirdropCampaignCacheEnvelope::class.java)
                     ?.takeIf { it.schema_version == 1 }
                     ?.campaigns
-                    ?.takeIf { rows -> rows.all { it.id.isNotBlank() && it.name.isNotBlank() } }
+                    ?.let { rows -> runCatching { validateCampaignRows(rows) }.getOrNull() }
             }.getOrNull()
         }
 
@@ -40,17 +39,7 @@ class AirdropCampaignRepository(
                         kyc = filters.kyc,
                         query = filters.query,
                         limit = 100
-                    ).also { rows ->
-                        require(rows.map { it.id }.distinct().size == rows.size) {
-                            "空投活动目录包含重复 ID"
-                        }
-                        require(rows.all { it.id.isNotBlank() && it.name.isNotBlank() }) {
-                            "空投活动目录数据不完整"
-                        }
-                        require(rows.all { it.tier == "featured" || it.tier == "ordinary" }) {
-                            "公开目录返回了未发布的观察或归档记录"
-                        }
-                    }
+                    ).let(::validateCampaignRows).let(::validateCampaignRows)
                 },
                 save = { rows ->
                     CacheStore.writePublic(
@@ -88,10 +77,24 @@ class AirdropCampaignRepository(
                         filters.cacheKey(),
                         gson.toJson(AirdropCampaignCacheEnvelope(campaigns = rows))
                     )
+                    require(readCached(filters) == rows) { "空投活动缓存写入校验失败" }
                 }
             )
             result.data ?: throw IllegalStateException(result.errorMessage ?: "空投活动暂不可用")
         }
+
+    private fun validateCampaignRows(rows: List<AirdropCampaignDto>): List<AirdropCampaignDto> {
+        require(rows.map { it.id }.distinct().size == rows.size) {
+            "空投活动目录包含重复 ID"
+        }
+        require(rows.all { it.id.isNotBlank() && it.name.isNotBlank() }) {
+            "空投活动目录数据不完整"
+        }
+        require(rows.all { it.tier == "featured" || it.tier == "ordinary" }) {
+            "公开目录返回了未发布的观察或归档记录"
+        }
+        return rows
+    }
 
     companion object {
         private const val CAMPAIGN_TTL_MILLIS = 6 * 60 * 60 * 1000L

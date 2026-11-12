@@ -143,6 +143,7 @@ object CommunitySnapshotRepository {
                     }
                     require(snapshotAvailable) { "Snapshot cache write could not be verified" }
                 }.onFailure { error ->
+                    if (error is CancellationException) throw error
                     allReferencedSnapshotsAvailable = false
                     Log.w(TAG, "Unable to refresh " + window + " snapshot; retaining cached copy", error)
                 }
