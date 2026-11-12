@@ -568,7 +568,11 @@ private fun BrowserScreen(
                                                                                         pendingDappExternalRequest = null
                                                                                     } else {
                                                                                         val draftBound = currentPending.web3DraftId?.let { id ->
-                                                                                            web3Repository.bindWalletConnectRequest(id, walletConnectRequest.requestId)
+                                                                                            web3Repository.bindWalletConnectRequest(
+                                                                                                id,
+                                                                                                walletConnectRequest.requestId,
+                                                                                                walletConnectRequest.sessionTopic
+                                                                                            )
                                                                                         } ?: true
                                                                                         if (!draftBound) {
                                                                                             currentPending.web3DraftId?.let { id ->
