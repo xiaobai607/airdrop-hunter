@@ -571,7 +571,9 @@ class Web3TransactionRepository(
         if (draft.status !in setOf(Web3DraftStatus.CONFIRMED, Web3DraftStatus.CONFIRMED_FAILED)) return null
         val totalWei = draft.totalFeeWei?.toBigIntegerOrNull() ?: return null
         val l1Wei = draft.l1Fee?.toBigIntegerOrNull() ?: BigInteger.ZERO
-        val l2Wei = totalWei.subtract(l1Wei).takeIf { it.signum() >= 0 } ?: return null
+        val operatorWei = draft.operatorFeeWei?.toBigIntegerOrNull() ?: BigInteger.ZERO
+        val l2Wei = totalWei.subtract(l1Wei).subtract(operatorWei)
+            .takeIf { it.signum() >= 0 } ?: return null
         val symbol = draft.nativeSymbol ?: nativeSymbolForChain(draft.chainId)
         if (symbol == "UNKNOWN") return null
         val quoteTimestamp = draft.nativePriceTimestamp?.let {
@@ -603,6 +605,16 @@ class Web3TransactionRepository(
             assets += LedgerAssetAmount(
                 "execution_fee", nativeAmount(totalWei), symbol, 18,
                 draft.actualGasUsd, quoteTimestamp, "OKX".takeIf { draft.actualGasUsd != null }
+            )
+        }
+        if (Web3RpcRegistry.requiresOperatorFee(draft.chainId)) {
+            val operatorUsd = draft.nativePriceUsd?.let {
+                java.math.BigDecimal(operatorWei).movePointLeft(18)
+                    .multiply(java.math.BigDecimal.valueOf(it)).toDouble()
+            }?.takeIf { it.isFinite() && it >= 0.0 }
+            assets += LedgerAssetAmount(
+                "operator_fee", nativeAmount(operatorWei), symbol, 18,
+                operatorUsd, quoteTimestamp, "OKX".takeIf { operatorUsd != null }
             )
         }
         val network = when (draft.chainId) {
