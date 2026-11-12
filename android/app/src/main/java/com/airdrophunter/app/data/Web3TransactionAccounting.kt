@@ -529,11 +529,11 @@ class Web3TransactionRepository(
         val l1Usd = draft.nativePriceUsd?.let {
             java.math.BigDecimal(l1Wei).movePointLeft(18)
                 .multiply(java.math.BigDecimal.valueOf(it)).toDouble()
-        }
+        }?.takeIf { it.isFinite() && it >= 0.0 }
         val l2Usd = draft.nativePriceUsd?.let {
             java.math.BigDecimal(l2Wei).movePointLeft(18)
                 .multiply(java.math.BigDecimal.valueOf(it)).toDouble()
-        }
+        }?.takeIf { it.isFinite() && it >= 0.0 }
         fun nativeAmount(wei: BigInteger): String =
             java.math.BigDecimal(wei).movePointLeft(18).stripTrailingZeros().toPlainString()
         val assets = listOf(
