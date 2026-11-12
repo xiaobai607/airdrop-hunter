@@ -403,7 +403,9 @@ class Web3TransactionRepository(
         )
         dao.insert(row)
         return try {
-            val estimate = rpc.estimateGas(parsed)
+            val estimate = rpc.estimateGas(
+                parsed.copy(from = parsed.from ?: walletAddress)
+            )
             val updated = row.copy(
                 estimatedGas = estimate.toString(),
                 status = Web3DraftStatus.PENDING_WALLET,
