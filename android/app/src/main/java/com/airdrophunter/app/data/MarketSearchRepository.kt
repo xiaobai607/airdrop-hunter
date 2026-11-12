@@ -103,6 +103,7 @@ class MarketSearchRepository(
             "eth-ethereum" to ("ETH" to "Ethereum"),
             "sol-solana" to ("SOL" to "Solana"),
             "bnb-binance-coin" to ("BNB" to "BNB"),
+            "trx-tron" to ("TRX" to "TRON"),
             "xrp-xrp" to ("XRP" to "XRP")
         ).map { (id, identity) ->
             MarketCoinEntity("coinpaprika:$id", "seed", identity.first, identity.second, null, null, null, null, null, null, null, now)
@@ -120,7 +121,7 @@ class MarketSearchRepository(
     )
 
     companion object {
-        private val SUPPORTED_MARKET_SYMBOLS = setOf("BTC", "ETH", "SOL", "BNB", "XRP")
+        private val SUPPORTED_MARKET_SYMBOLS = setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP")
         private const val MARKET_CACHE_KEY = "market-prices-supported"
         private const val COINPAPRIKA_SOURCE = "coinpaprika"
         private const val HOT_COIN_CACHE_KEY = "global-search-hot-coins"
