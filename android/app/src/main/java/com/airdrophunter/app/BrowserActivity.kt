@@ -511,6 +511,12 @@ private fun BrowserScreen(
                                                             DappProviderBridge.error(replyProxy, request.id, 4100, "请求使用的钱包地址未在当前外部钱包会话中授权")
                                                         account == null ->
                                                             DappProviderBridge.error(replyProxy, request.id, 4901, "请求账户未在当前外部钱包的活动网络中授权，请切换网络或重新连接")
+                                                        !DappProviderBridge.isTransactionChainCompatible(
+                                                            request.method,
+                                                            request.params.optJSONObject(0)?.optString("chainId"),
+                                                            account.chainId
+                                                        ) ->
+                                                            DappProviderBridge.error(replyProxy, request.id, 4901, "交易参数指定的网络与当前授权网络不一致，已阻止转发")
                                                         else -> {
                                                             val chainReference = account.chainId.let {
                                                                 if (it.startsWith("eip155:")) it else "eip155:$it"
