@@ -649,7 +649,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 }
                             }
                         } else {
-                            Text("该钱包网络暂不支持公共链上核验，仍可保存个人账本。",
+                            Text("该钱包网络暂不支持链上核验；符合条件的社区项目记录仍按用户自报参与统计，私人项目只保存在个人账本。",
                                 color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
                         if (!project.communityDelisted && project.communityOfficialId != null &&
