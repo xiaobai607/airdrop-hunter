@@ -26,7 +26,7 @@ class ManualProjectAccountingPolicyTest {
 
 
     @Test
-    fun communityDirectoryRecordsContributeByDefaultOnlyWhenVerifiable() {
+    fun communityDirectoryRecordsContributeByDefaultAndHashlessRowsRemainUserReported() {
         val hash = "0x" + "c".repeat(64)
         assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
             "linea", ManualRewardKind.USD, "ethereum", hash
@@ -40,8 +40,11 @@ class ManualProjectAccountingPolicyTest {
         assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
             "linea", ManualRewardKind.POINTS, "ethereum", hash
         ))
-        assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+        assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
             "linea", ManualRewardKind.USD, "ethereum", ""
+        ))
+        assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "linea", ManualRewardKind.USD, "ethereum", "0xinvalid"
         ))
         assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
             "linea", ManualRewardKind.USD, "tron", hash
