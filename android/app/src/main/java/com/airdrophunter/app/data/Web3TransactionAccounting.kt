@@ -652,9 +652,10 @@ class Web3TransactionRepository(
         val totalFee = l2Fee.add(l1Fee ?: BigInteger.ZERO)
         val nativeSymbol = nativeSymbolForChain(draft.chainId)
         val quote = runCatching { nativePriceProvider(nativeSymbol) }.getOrNull()
+        val nativePriceUsd = quote?.lastPrice?.takeIf { it.isFinite() && it > 0.0 }
+        val nativePriceTimestamp = quote?.timestamp?.takeIf { nativePriceUsd != null && it > 0L }
         val totalNative = java.math.BigDecimal(totalFee).movePointLeft(18)
-        val actualGasUsd = quote?.lastPrice
-            ?.takeIf { it.isFinite() && it > 0.0 }
+        val actualGasUsd = nativePriceUsd
             ?.let { totalNative.multiply(java.math.BigDecimal.valueOf(it)).toDouble() }
             ?.takeIf { it.isFinite() && it >= 0.0 }
         dao.update(draft.copy(
@@ -663,8 +664,8 @@ class Web3TransactionRepository(
             l1Fee = (l1Fee ?: BigInteger.ZERO).toString(),
             totalFeeWei = totalFee.toString(),
             nativeSymbol = nativeSymbol,
-            nativePriceUsd = quote?.lastPrice,
-            nativePriceTimestamp = quote?.timestamp,
+            nativePriceUsd = nativePriceUsd,
+            nativePriceTimestamp = nativePriceTimestamp,
             actualGasUsd = actualGasUsd,
             receiptStatus = receiptStatus,
             status = if (receiptStatus == 1) Web3DraftStatus.CONFIRMED
