@@ -656,10 +656,17 @@ fun BrowserAccountingToolbar(
                                                     }
                                                 }) { Text("继续记账") }
                                             }
-                                            Web3DraftStatus.WAITING_L1_FEE, Web3DraftStatus.RECEIPT_NEEDS_SYNC -> {
+                                            Web3DraftStatus.WAITING_L1_FEE -> {
                                                 TextButton(onClick = {
                                                     com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
                                                 }) { Text("重试核实") }
+                                            }
+                                            Web3DraftStatus.RECEIPT_NEEDS_SYNC -> {
+                                                if (com.airdrophunter.app.data.Web3RpcRegistry.endpoint(draft.chainId) != null) {
+                                                    TextButton(onClick = {
+                                                        com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
+                                                    }) { Text("重试核实") }
+                                                }
                                             }
                                             Web3DraftStatus.TIMED_OUT_NEEDS_SYNC -> {
                                                 TextButton(onClick = {
