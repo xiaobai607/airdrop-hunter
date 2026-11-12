@@ -273,6 +273,19 @@ def test_hashless_official_project_contribution_is_user_reported_and_idempotent(
         assert second_event.json()["total_gas_cost_usd"] == 1.75
         assert second_event.json()["total_estimated_reward_usd"] == 7.0
 
+        gas_only = {
+            **payload,
+            "event_id": str(uuid4()),
+            "gas_cost_usd": "0.25",
+            "actual_reward_usd": "0",
+            "estimated_reward_usd": None,
+        }
+        third_event = client.post("/api/community/projects/linea/contributions", json=gas_only)
+        assert third_event.status_code == 200
+        assert third_event.json()["total_gas_cost_usd"] == 2.0
+        assert third_event.json()["total_actual_reward_usd"] == 0.0
+        assert third_event.json()["total_estimated_reward_usd"] == 7.0
+
 
 def test_guest_can_contribute_to_public_stats_idempotently():
     with TestClient(app) as client:
