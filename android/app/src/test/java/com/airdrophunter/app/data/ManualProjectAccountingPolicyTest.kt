@@ -29,28 +29,28 @@ class ManualProjectAccountingPolicyTest {
     fun communityDirectoryRecordsContributeByDefaultAndHashlessRowsRemainUserReported() {
         val hash = "0x" + "c".repeat(64)
         assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
-            "linea", ManualRewardKind.USD, "ethereum", hash
+            "linea", "ethereum", hash
         ))
         assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
-            "scroll", ManualRewardKind.MANUAL_USD_VALUATION, "base", hash
+            "scroll", "base", hash
         ))
         assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
-            null, ManualRewardKind.USD, "ethereum", hash
+            null, "ethereum", hash
         ))
         assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
-            "linea", ManualRewardKind.POINTS, "ethereum", hash
+            "linea", "ethereum", hash
         ))
         assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
             "linea", ManualRewardKind.TOKEN, "ethereum", ""
         ))
         assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
-            "linea", ManualRewardKind.USD, "ethereum", ""
+            "linea", "ethereum", ""
         ))
         assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
-            "linea", ManualRewardKind.USD, "ethereum", "0xinvalid"
+            "linea", "ethereum", "0xinvalid"
         ))
         assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
-            "linea", ManualRewardKind.USD, "tron", hash
+            "linea", "tron", hash
         ))
     }
 
