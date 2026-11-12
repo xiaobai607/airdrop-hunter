@@ -51,7 +51,8 @@ data class WalletActivitySnapshot(
 class WalletActivityRepository(
     private val remote: WalletActivityRemoteDataSource,
     private val local: WalletActivityLocalDataSource? = null,
-    private val gson: Gson = Gson()
+    private val gson: Gson = Gson(),
+    private val cacheRefresh: CacheRefreshCoordinator = CacheRefreshCoordinator.shared
 ) {
     suspend fun readCached(
         wallet: WalletDto,
@@ -62,7 +63,6 @@ class WalletActivityRepository(
         return runCatching { gson.fromJson(raw, WalletActivitySnapshot::class.java) }.getOrNull()
     }
 
-    @Suppress("UNUSED_PARAMETER")
     suspend fun refresh(
         wallet: WalletDto,
         guest: Boolean,
@@ -70,15 +70,35 @@ class WalletActivityRepository(
         force: Boolean = false
     ): WalletActivitySnapshot {
         val token = accessToken?.takeIf { it.isNotBlank() }
-        val authorizationHeader = token?.let { "Bearer $it" }
-        val authMode = if (token == null) "anonymous" else "captured"
-        val fresh = load(wallet, authorizationHeader, authMode)
-            .copy(fetchedAtEpochMillis = System.currentTimeMillis())
-        local?.writeForSession(cacheKey(wallet), gson.toJson(fresh), guest, token)
-        return fresh
+        val scopedCacheKey = metadataCacheKey(wallet, token)
+        val result = cacheRefresh.load(
+            cacheKey = scopedCacheKey,
+            source = WALLET_ACTIVITY_SOURCE,
+            ttlMillis = WALLET_ACTIVITY_TTL_MILLIS,
+            force = force,
+            readCache = { readCached(wallet, guest, token) },
+            fetch = {
+                val authorizationHeader = token?.let { "Bearer $it" }
+                val authMode = if (token == null) "anonymous" else "captured"
+                load(wallet, authorizationHeader, authMode)
+                    .copy(fetchedAtEpochMillis = System.currentTimeMillis())
+            },
+            save = { snapshot ->
+                local?.writeForSession(cacheKey(wallet), gson.toJson(snapshot), guest, token)
+            }
+        )
+        return result.data ?: throw IllegalStateException(result.errorMessage ?: "交易记录暂不可用")
     }
 
     private fun cacheKey(wallet: WalletDto) = "wallet_activity:${wallet.id}"
+
+    private fun metadataCacheKey(wallet: WalletDto, accessToken: String?) =
+        "${CacheStore.accountScopeKey(accessToken)}:${wallet.id}:${wallet.ecosystem.lowercase()}"
+
+    companion object {
+        private const val WALLET_ACTIVITY_SOURCE = "private-wallet-activity"
+        private const val WALLET_ACTIVITY_TTL_MILLIS = 8 * 60 * 60 * 1000L
+    }
 
     suspend fun load(
         wallet: WalletDto,

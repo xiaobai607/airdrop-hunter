@@ -100,7 +100,7 @@ private fun WalletActivityPanel(
                 transactions = cached.transactions
                 networksUnavailable = cached.networksUnavailable
             }
-            val result = activityRepository.refresh(wallet, sessionIsGuest, sessionToken)
+            val result = activityRepository.refresh(wallet, sessionIsGuest, sessionToken, force = refreshNonce > 0)
             transactions = result.transactions
             networksUnavailable = result.networksUnavailable
         } catch (cancelled: CancellationException) {
