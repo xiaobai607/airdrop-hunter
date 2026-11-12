@@ -35,6 +35,7 @@ import com.airdrophunter.app.data.MarketSearchRepository
 import com.airdrophunter.app.data.normalizeSearchText
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -71,8 +72,41 @@ fun GlobalSearchScreen(
 
     LaunchedEffect(Unit) {
         ApiClient.initialize(context)
-        hotCoins = runCatching { repository.loadHotCoins() }.getOrDefault(emptyList())
-        hotCoinMetadata = CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
+        // Publish Room's last-known-good hot coins before waiting for coordinator refresh.
+        hotCoins = try {
+            withContext(Dispatchers.IO) { repository.readCachedHotCoins() }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            emptyList()
+        }
+        hotCoinMetadata = try {
+            withContext(Dispatchers.IO) {
+                CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+
+        try {
+            val refreshed = withContext(Dispatchers.IO) { repository.loadHotCoins() }
+            hotCoins = refreshed
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Keep the cached rows; metadata below exposes stale/error status.
+        }
+        hotCoinMetadata = try {
+            withContext(Dispatchers.IO) {
+                CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            hotCoinMetadata
+        }
     }
 
     LaunchedEffect(query, category) {
