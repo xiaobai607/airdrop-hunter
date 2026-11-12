@@ -479,7 +479,7 @@ class Web3TransactionRepository(
         chainId: Long,
         hash: String
     ): Boolean {
-        if (!isValidTxHash(hash)) return false
+        if (!isValidTxHash(hash) || callbackState.length != 48) return false
         val scope = scopeProvider()
         val draft = dao.find(draftId, scope) ?: return false
         if (!constantTimeEquals(draft.callbackState, callbackState)) return false
