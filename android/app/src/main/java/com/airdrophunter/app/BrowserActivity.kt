@@ -156,6 +156,9 @@ private fun BrowserScreen(
     onExit: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(Unit) {
+        WalletConnectInitializer.ensureInitialized(context.applicationContext as android.app.Application)
+    }
     var browser by remember { mutableStateOf<WebView?>(null) }
     val bridgeReplyProxies = remember { mutableMapOf<String, JavaScriptReplyProxy>() }
     var selectedWallet by remember(wallets, selectedWalletId) {

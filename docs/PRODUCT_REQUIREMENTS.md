@@ -2726,3 +2726,10 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 正式记账取消语义：用户取消表单或关闭确认弹窗时，会删除本次临时 MANUAL 草稿，避免取消后仍留空白记录；旧 MOCK 演示数据继续保留存储但排除在正式列表外。
 - 已审计：ProfileScreen 已有纵向滚动和底部 32dp 留白；首页“空投列表”已从快捷卡片白名单、默认布局及旧配置升级迁移清除；首页副标题已限制单行省略；SplashScreen 与 Token IO 异步已落地。WalletConnect/AppKit 仍在 Application.onCreate 同步初始化，尚未测量冷启动影响，暂不贸然改变 SDK 生命周期，列为待验证/待优化项。
 - 浏览器 Dock 的完整拖动行为仍需真机验证；当前代码已保留整个外层容器拖动、LazyRow 内部滑动与边缘吸附实现。所有以上改动当前均未做 APK 构建或真机验收。
+
+
+### 2026-11-12 — 首屏启动延迟初始化钱包 SDK
+
+- 将 WalletConnect Core/AppKit 初始化从 `Application.onCreate()` 移出，改为首次进入钱包管理或内置浏览器时通过幂等初始化器启动；Home 首屏不再同步承担 SDK 初始化成本。
+- 保留 SDK 初始化参数、回调、Delegate 和支持链集合；使用同步幂等保护避免两个入口并发重复初始化。浏览器打开时初始化，保证 DApp WalletConnect 功能可用；钱包管理页面进入时同样初始化，保证外部钱包连接功能可用。
+- 该项是启动路径减负，不等于已测得启动从 4–5 秒降至某个具体值；必须在最终 APK 上用冷启动测量验证。

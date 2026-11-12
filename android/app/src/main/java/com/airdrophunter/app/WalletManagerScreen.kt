@@ -175,6 +175,7 @@ fun WalletManagerScreen(
     }
 
     LaunchedEffect(isGuest, sessionScopeKey) {
+        WalletConnectInitializer.ensureInitialized(application)
         selectedWallet = null
         editingWallet = null
         pendingConnectedAccount = null

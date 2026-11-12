@@ -24,27 +24,42 @@ class AirdropHunterApplication : Application() {
         // UI reads the last successful cache immediately; the worker revalidates in the background.
         GlobalSyncScheduler.enqueueNow(this)
 
-        val metadata = Core.Model.AppMetaData(
-            name = "Airdrop Hunter",
-            description = "Connect to external wallets for dApp interactions",
-            url = "https://github.com/xiaobai607/airdrop-hunter",
-            icons = emptyList(),
-            redirect = "airdrophunter://request"
-        )
-        CoreClient.initialize(
-            application = this,
-            projectId = BuildConfig.REOWN_PROJECT_ID,
-            metaData = metadata
-        ) { error ->
-            Log.e("AirdropWallet", "WalletConnect core initialization failed", error.throwable)
-        }
-        AppKit.initialize(
-            init = Modal.Params.Init(core = CoreClient),
-            onSuccess = { AppKit.setDelegate(WalletConnectSessionDelegate) },
-            onError = { error ->
-                Log.e("AirdropWallet", "AppKit initialization failed", error.throwable)
+    }
+}
+
+object WalletConnectInitializer {
+    @Volatile private var initializationStarted = false
+
+    @Synchronized
+    fun ensureInitialized(application: Application) {
+        if (initializationStarted) return
+        initializationStarted = true
+        try {
+            val metadata = Core.Model.AppMetaData(
+                name = "Airdrop Hunter",
+                description = "Connect to external wallets for dApp interactions",
+                url = "https://github.com/xiaobai607/airdrop-hunter",
+                icons = emptyList(),
+                redirect = "airdrophunter://request"
+            )
+            CoreClient.initialize(
+                application = application,
+                projectId = BuildConfig.REOWN_PROJECT_ID,
+                metaData = metadata
+            ) { error ->
+                Log.e("AirdropWallet", "WalletConnect core initialization failed", error.throwable)
             }
-        )
-        AppKit.setChains(AppKitChainsPresets.ethChains.values.toList())
+            AppKit.initialize(
+                init = Modal.Params.Init(core = CoreClient),
+                onSuccess = { AppKit.setDelegate(WalletConnectSessionDelegate) },
+                onError = { error ->
+                    Log.e("AirdropWallet", "AppKit initialization failed", error.throwable)
+                }
+            )
+            AppKit.setChains(AppKitChainsPresets.ethChains.values.toList())
+        } catch (error: Exception) {
+            initializationStarted = false
+            Log.e("AirdropWallet", "WalletConnect initialization failed", error)
+        }
     }
 }
