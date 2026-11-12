@@ -56,6 +56,9 @@ object Web3DraftStatus {
 
     fun isReceiptWorkComplete(status: String): Boolean = status == ACCOUNTED
 
+    fun canUpdateReceiptStatus(status: String): Boolean =
+        status in setOf(WAITING_RECEIPT, WAITING_L1_FEE, WAITING_OPERATOR_FEE, RECEIPT_NEEDS_SYNC, TIMED_OUT_NEEDS_SYNC)
+
     fun shouldRefreshPendingAccountingBill(existingAssetBreakdownJson: String?): Boolean =
         existingAssetBreakdownJson.isNullOrBlank()
 }
