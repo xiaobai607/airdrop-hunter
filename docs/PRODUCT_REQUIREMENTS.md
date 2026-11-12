@@ -17,7 +17,7 @@
 ### Current repository checkpoint
 
 - Repository: `xiaobai607/airdrop-hunter`; active delivery branch: `feature/mobile-browser-home-dock-batch`.
-- PR #135 remains **Draft / Open / not merged**. Latest code head at this checkpoint: `cfa162e85126118e9120a8586f6cf66146f13bd4`; latest branch head also includes documentation-only commit `df3d49717e2aa4ff2b3c6e701f1117a9fe318ae9`.
+- PR #135 remains **Draft / Open / not merged**. Latest code head at this checkpoint: `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1`. This is the latest code revision; requirements-ledger commits are recorded in the continuation checkpoint below.
 - Historical exact-head backend push workflow #43022038023 passed on `c51a5e1256c7b29071cbb0b4f10062b4a81a04bd`: **244 passed, 3 warnings, 0 failed**. Android was correctly skipped because that batch changed backend files only. Current branch head and latest CI are recorded in the 2026-11-12 checkpoint below.
 - The previous backend fix in workflow #43004421135 also passed: 232 passed, 3 warnings, 0 failed. It introduced a guard so a Binance item rejected by the central filter cannot be fetched directly by guessing its detail ID.
 - Android source changes at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed Android unit tests, Debug APK assembly, and artifact upload in workflow #43002913809. Later commits changed only backend API/tests and documentation; Android source is unchanged.
@@ -113,18 +113,20 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 - Added a coordinator-level regression test proving a fresh cached payload suppresses an ordinary refresh without calling the provider. Removed the now-unused wallet-asset generic cache-key helper and its isolated policy test after the private-wallet scope correction. Commit `cfa162e85126118e9120a8586f6cf66146f13bd4`; exact-head CI #43145433344 passed Android compilation, all unit tests, Debug APK assembly and artifact upload. Backend tests were skipped because this commit changed Android code only.
 - Follow-up integration audit: the shared coordinator is currently used by Airdrop Hub (`FeatureRepositories.kt`), public campaign directory (`AirdropCampaignRepository.kt`), official community catalog (`CommunityCatalogRepository.kt`), public community snapshots (`CommunitySnapshotRepository.kt`), market search/hot coins (`MarketSearchRepository.kt`) and OKX market detail (`OkxMarketRepository.kt`). These are public/shared datasets. Wallet activity and wallet balances are now excluded. `CoinGeckoPriceRepository` has no current call site and remains intentionally unintegrated.
 - Cache-engine source review confirms: TTL is checked only when a cached payload exists; same source/key work is serialized through bounded mutex stripes; retryable errors are limited to IO and HTTP 408/425/429/5xx with three total attempts; last-known-good data is retained on failure; cancellation is rethrown and metadata reset to idle. The new fresh-cache regression test is included in the passing exact-head CI above.
-- Current branch tip after the documentation-only update is `df3d49717e2aa4ff2b3c6e701f1117a9fe318ae9`; code head remains `cfa162e85126118e9120a8586f6cf66146f13bd4`. PR #135 remains Draft/Open/unmerged.
-- Progress estimates remain unchanged pending CI and scope correction: code/CI implementation approximately 68%; overall release readiness approximately 41%.
+- Superseded by the latest 2026-11-12 continuation checkpoint below. PR #135 remains Draft/Open/unmerged.
 
 ### Latest continuation checkpoint — 2026-11-12
 
-- Current branch head: `a647f7b3af517fe90b004ad774e8053be2513e88`; PR #135 remains Draft/Open/unmerged.
-- Exact-head backend push workflow #43022038023 passed **244 tests, 3 warnings, 0 failures**. Android was skipped because no Android source files changed.
-- Added `backend/scripts/smoke_discovery_sources.py`: read-only live adapter runner for Binance, DexScreener and optionally configured CoinGecko/GitHub Raw. It reports each provider's parseable record count and up to three sample names. It never opens a database session, persists observations or publishes campaigns.
-- Added unit tests for partial provider failure and the all-empty case. The first CI attempt exposed a test import-path issue; that was corrected, and the exact-head 244-test run above passed.
-- Added `.github/workflows/airdrop-discovery-smoke.yml`, a manual workflow that requires no database secret and performs no writes. It currently exists only on this PR branch; GitHub requires a `workflow_dispatch` workflow to exist on the default branch before it can be manually launched. Since PR #135 remains Draft/Open and has not been merged, this live smoke workflow has **not** yet been run.
-- **Live provider verification remains pending.** No live source counts, production database writes, campaign publications, or new APK are claimed. Scheduled production sync remains disabled.
-- Next action: after the user authorizes making the smoke workflow available from the default branch, run it and inspect provider counts/errors. Only after source rights and zero-cost constraints are verified should database ingestion be enabled.
+- PR #135 remains **Draft / Open / unmerged**. Latest code head: `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1`.
+- Exact-head Android workflow **#43152173285** passed on `a7dc2647596f6a2f2c41cec900dfb0a49578560f`: Android build and unit tests passed; backend tests were skipped by change filtering.
+- Code commit `66b5e0b89b59cb7922824c7d60057361edb039b8` adds wallet-balance scheduled refresh and campaign-directory background warming/cache-first display; exact-head Android workflow #43151808498 passed.
+- Code commit `a7dc2647596f6a2f2c41cec900dfb0a49578560f` removes remaining manual-refresh cooldown bypasses and surfaces throttled results; exact-head Android workflow #43152173285 passed.
+- Requirements-first audit found that wallet workers could treat a stale last-known-good fallback as a successful refresh and advance the 8-hour cadence after a provider failure. The defect and acceptance criteria were added to this document before code changes.
+- Code commit `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1` preserves `stale` and `errorMessage` in wallet activity/balance snapshots and prevents either worker from marking cadence success for stale/error/throttled results. Added wallet-activity stale-fallback regression coverage and pure cadence-success policy tests.
+- Exact-head Android workflow **#43152987166** is currently **in progress** on `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1`; do not mark this batch complete until it finishes. Backend tests are skipped because this batch changes Android files only.
+- Live provider verification remains pending. No production database writes, campaign publications, production deployment or physical-device acceptance are claimed. Scheduled discovery sync remains disabled.
+- Progress estimate pending this batch's CI: **code/CI implementation ~72%**; **overall release readiness ~44%**. These are rounded project-level estimates, not test coverage.
+- Next actions after CI: if green, update the completion ledger and continue the all-caller/background-scope audit; if red, inspect the failing job and repair before another code batch.
 
 ### Delivery batch summary
 
