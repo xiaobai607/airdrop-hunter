@@ -107,6 +107,9 @@ interface Web3TransactionDraftDao {
 
     @Query("UPDATE web3_transaction_drafts SET status = :status, lastError = :error, updatedAt = :now WHERE id = :id AND accountScope = :scope")
     suspend fun setStatus(id: String, scope: String, status: String, error: String?, now: Long): Int
+
+    @Query("UPDATE web3_transaction_drafts SET status = :status, lastError = :error, updatedAt = :now WHERE id = :id AND accountScope = :scope AND status IN ('pending_wallet','waiting_hash')")
+    suspend fun setWalletStatus(id: String, scope: String, status: String, error: String?, now: Long): Int
 }
 
 data class ParsedWalletTransaction(
@@ -408,14 +411,14 @@ class Web3TransactionRepository(
     }
 
     suspend fun markWalletRejected(draftId: String) {
-        dao.setStatus(
+        dao.setWalletStatus(
             draftId, scopeProvider(), Web3DraftStatus.CANCELLED,
             "钱包明确拒绝或取消了请求", System.currentTimeMillis()
         )
     }
 
     suspend fun markWalletTimedOut(draftId: String) {
-        dao.setStatus(
+        dao.setWalletStatus(
             draftId, scopeProvider(), Web3DraftStatus.TIMED_OUT_NEEDS_SYNC,
             "钱包未返回交易 Hash；需要同步链上记录确认", System.currentTimeMillis()
         )
