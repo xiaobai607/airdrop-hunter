@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.draw.blur
@@ -34,10 +35,15 @@ import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
+    @Volatile private var startupReady = false
+    private val startupTokenState = mutableStateOf<String?>(null)
+
     override fun onStart() {
         super.onStart()
         // Recheck dynamic directories on every app foreground entry; cache TTLs suppress excess requests.
@@ -45,14 +51,23 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+        splashScreen.setKeepOnScreenCondition { !startupReady }
         super.onCreate(savedInstanceState)
+        lifecycleScope.launch {
+            val token = withContext(Dispatchers.IO) {
+                runCatching { TokenStore.readTokenBlocking() }.getOrNull()
+            }
+            startupTokenState.value = token
+            startupReady = true
+        }
         window.statusBarColor = android.graphics.Color.rgb(248, 249, 250)
         window.navigationBarColor = android.graphics.Color.rgb(248, 249, 250)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         setContent {
             AirdropHunterTheme {
-                val initialToken = remember { TokenStore.readTokenBlocking() }
+                val initialToken by remember { startupTokenState }
                 val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = initialToken)
                 // Keep a legacy local namespace stable without treating it as a login session.
                 val localScopeKey = remember(token) { CacheStore.accountScopeKey(token) }
