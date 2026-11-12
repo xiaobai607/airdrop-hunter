@@ -41,6 +41,9 @@ class ManualProjectAccountingPolicyTest {
             "linea", ManualRewardKind.POINTS, "ethereum", hash
         ))
         assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "linea", ManualRewardKind.TOKEN, "ethereum", ""
+        ))
+        assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
             "linea", ManualRewardKind.USD, "ethereum", ""
         ))
         assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
