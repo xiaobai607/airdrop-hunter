@@ -112,7 +112,7 @@ class Web3TransactionAccountingTest {
     fun verifiedReceiptCanEnrichAnExistingManualReviewBill() {
         assertTrue(Web3DraftStatus.shouldRefreshPendingAccountingBill(null))
         assertTrue(Web3DraftStatus.shouldRefreshPendingAccountingBill(""))
-        assertFalse(Web3DraftStatus.shouldRefreshPendingAccountingBill("[{\\"kind\\":\\"gas\\"}]"))
+        assertFalse(Web3DraftStatus.shouldRefreshPendingAccountingBill("[]"))
     }
 
     @Test
