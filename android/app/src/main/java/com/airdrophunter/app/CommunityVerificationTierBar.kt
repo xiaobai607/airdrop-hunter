@@ -91,8 +91,9 @@ fun communityContributionStatusLabel(status: String, tier: String?): String = wh
         "transaction_linked" -> "链上已确认"
         else -> "链上已核验"
     }
-    "rejected" -> "核验拒绝"
+    "rejected" -> "公共贡献核验拒绝"
     "not_eligible" -> "不符合公共贡献条件"
-    "pending_verification", "private" -> "等待链上核验"
-    else -> "等待链上核验"
+    "pending_verification" -> "等待提交公共统计"
+    "private" -> "私人记录"
+    else -> "等待提交公共统计"
 }
