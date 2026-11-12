@@ -123,17 +123,16 @@ object ManualProjectAccountingPolicy {
 
     fun isTransactionHashFormatValid(network: String, hash: String): Boolean = isSupportedHash(network, hash)
 
-    /** Official community projects contribute by default when the row has a USD-valued reward.
-     * A missing hash is user-reported; a supplied hash must be valid for a supported EVM network.
+    /** Official community-project rows contribute by default.
+     * Gas can be shared even when the reward has no USD valuation; a missing hash is user-reported.
+     * A supplied hash must be valid for a supported EVM network before it can enter verification.
      */
     fun isEligibleForDefaultCommunityContribution(
         projectOfficialId: String?,
-        rewardKind: ManualRewardKind,
         network: String,
         txHash: String
     ): Boolean =
         !projectOfficialId.isNullOrBlank() &&
-            rewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.TOKEN, ManualRewardKind.MANUAL_USD_VALUATION) &&
             (txHash.isBlank() || isSupportedHash(network, txHash))
 
     fun isTransactionVerificationNetworkSupported(network: String): Boolean =
