@@ -156,6 +156,24 @@ object WalletTransactionLinkParser {
     }.getOrNull()
 }
 
+object Web3ReceiptFeeParser {
+    /**
+     * Arbitrum reports gasUsedForL1 in child-chain gas units, so its charged
+     * parent-chain component is gasUsedForL1 * effectiveGasPrice.
+     * OP Stack chains expose the transaction-scoped l1Fee in wei.
+     */
+    fun l1FeeWei(
+        chainId: Long,
+        receipt: JSONObject,
+        effectiveGasPrice: BigInteger
+    ): BigInteger? = when (chainId) {
+        42161L -> Web3RpcClient.parseRpcQuantity(receipt.optString("gasUsedForL1"))
+            ?.multiply(effectiveGasPrice)
+        10L, 8453L -> Web3RpcClient.parseRpcQuantity(receipt.optString("l1Fee"))
+        else -> BigInteger.ZERO
+    }
+}
+
 object Web3RpcRegistry {
     private val endpoints = mapOf(
         1L to "https://ethereum-rpc.publicnode.com",
@@ -469,8 +487,9 @@ class Web3TransactionRepository(
             ?.takeIf { it == BigInteger.ZERO || it == BigInteger.ONE }
             ?.toInt() ?: return false
 
-        val l1Fee = receipt.optString("l1Fee").takeIf { it.isNotBlank() }
-            ?.let(Web3RpcClient::parseRpcQuantity)
+        val l1Fee = Web3ReceiptFeeParser.l1FeeWei(
+            draft.chainId, receipt, effectiveGasPrice
+        )
 
         if (Web3RpcRegistry.requiresL1Fee(draft.chainId) && l1Fee == null) {
             dao.update(draft.copy(
