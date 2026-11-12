@@ -98,8 +98,10 @@ fun BrowserAccountingToolbar(
     var gasValuationSource by remember { mutableStateOf<String?>(null) }
     var gasL1Native by remember { mutableStateOf("") }
     var gasL2Native by remember { mutableStateOf("") }
+    var gasOperatorNative by remember { mutableStateOf("") }
     var gasL1Usd by remember { mutableStateOf<Double?>(null) }
     var gasL2Usd by remember { mutableStateOf<Double?>(null) }
+    var gasOperatorUsd by remember { mutableStateOf<Double?>(null) }
     var gasSplitQuoteTimestamp by remember { mutableStateOf<String?>(null) }
     var gasExecutionLabel by remember { mutableStateOf("执行费") }
     var gasSplitSymbol by remember { mutableStateOf("") }
@@ -185,11 +187,14 @@ fun BrowserAccountingToolbar(
         gasValuationSource = gasAsset?.valuation_source
         val l1Asset = existingAssets.firstOrNull { it.kind == "l1_fee" }
         val l2Asset = existingAssets.firstOrNull { it.kind == "l2_fee" || it.kind == "execution_fee" }
+        val operatorAsset = existingAssets.firstOrNull { it.kind == "operator_fee" }
         gasExecutionLabel = if (l2Asset?.kind == "l2_fee") "L2 执行费" else "执行费"
         gasL1Native = l1Asset?.amount_native.orEmpty()
         gasL2Native = l2Asset?.amount_native.orEmpty()
+        gasOperatorNative = operatorAsset?.amount_native.orEmpty()
         gasL1Usd = l1Asset?.usd_valuation
         gasL2Usd = l2Asset?.usd_valuation
+        gasOperatorUsd = operatorAsset?.usd_valuation
         gasSplitQuoteTimestamp = l1Asset?.valuation_timestamp ?: l2Asset?.valuation_timestamp
         gasSplitSymbol = l1Asset?.symbol ?: l2Asset?.symbol ?: gasAsset?.symbol.orEmpty()
         rewardNative = rewardAsset?.amount_native.orEmpty()
@@ -802,7 +807,7 @@ fun BrowserAccountingToolbar(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    if (gasL1Native.isNotBlank() || gasL2Native.isNotBlank()) {
+                    if (gasL1Native.isNotBlank() || gasL2Native.isNotBlank() || gasOperatorNative.isNotBlank()) {
                         Surface(
                             color = Color(0xFFF7F8FA),
                             shape = RoundedCornerShape(12.dp),
@@ -816,6 +821,10 @@ fun BrowserAccountingToolbar(
                                 )
                                 if (gasL1Native.isNotBlank()) Text(
                                     "L1 数据费：$gasL1Native $gasSplitSymbol" + (gasL1Usd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
+                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                                )
+                                if (gasOperatorNative.isNotBlank()) Text(
+                                    "运营商费用：$gasOperatorNative $gasSplitSymbol" + (gasOperatorUsd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
                                     color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
                                 )
                             }
@@ -979,6 +988,15 @@ fun BrowserAccountingToolbar(
                                         kind = "l1_fee", amount_native = gasL1Native,
                                         symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
                                         usd_valuation = gasL1Usd,
+                                        valuation_timestamp = gasSplitQuoteTimestamp,
+                                        valuation_source = "OKX"
+                                    )
+                                )
+                                if (gasOperatorNative.isNotBlank()) add(
+                                    LedgerAssetAmount(
+                                        kind = "operator_fee", amount_native = gasOperatorNative,
+                                        symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
+                                        usd_valuation = gasOperatorUsd,
                                         valuation_timestamp = gasSplitQuoteTimestamp,
                                         valuation_source = "OKX"
                                     )
