@@ -372,6 +372,9 @@ interface LocalBackupDao {
  @Query("SELECT * FROM project_wallet_assignments WHERE accountScope=:scope") suspend fun projectWalletAssignments(scope:String):List<ProjectWalletAssignmentEntity>
  @Query("DELETE FROM project_wallet_assignments WHERE accountScope=:scope") suspend fun clearProjectWalletAssignments(scope:String)
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectWalletAssignments(rows:List<ProjectWalletAssignmentEntity>)
+ @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope=:scope") suspend fun web3Drafts(scope:String):List<Web3TransactionDraftEntity>
+ @Query("DELETE FROM web3_transaction_drafts WHERE accountScope=:scope") suspend fun clearWeb3Drafts(scope:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertWeb3Drafts(rows:List<Web3TransactionDraftEntity>)
 }
 
 @Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class, MarketDashboardPreferenceEntity::class], version = 22, exportSchema = false)
@@ -1461,7 +1464,8 @@ object CacheStore {
             projectRatings = dao.projectRatings(scope), userProjects = dao.userProjects(scope),
             userInteractions = dao.userInteractions(scope), communityOutbox = dao.communityOutbox(scope),
             communityFavorites = dao.communityFavorites(scope),
-            projectWalletAssignments = dao.projectWalletAssignments(scope)
+            projectWalletAssignments = dao.projectWalletAssignments(scope),
+            web3Drafts = dao.web3Drafts(scope)
         )
     }
 
@@ -1478,7 +1482,8 @@ object CacheStore {
             snapshot.userInteractions.all { it.accountScope == snapshot.sourceScope } &&
             snapshot.communityOutbox.all { it.accountScope == snapshot.sourceScope } &&
             snapshot.communityFavorites.all { it.accountScope == snapshot.sourceScope } &&
-            snapshot.projectWalletAssignments.all { it.accountScope == snapshot.sourceScope }) {
+            snapshot.projectWalletAssignments.all { it.accountScope == snapshot.sourceScope } &&
+            snapshot.web3Drafts.orEmpty().all { it.accountScope == snapshot.sourceScope }) {
             "备份文件包含不一致的账户数据"
         }
         val sourcePrefixes = backupCachePrefixes(snapshot.sourceScope)
@@ -1494,6 +1499,7 @@ object CacheStore {
             dao.clearProjectRatings(targetScope); dao.clearUserProjects(targetScope)
             dao.clearUserInteractions(targetScope); dao.clearCommunityOutbox(targetScope)
             dao.clearCommunityFavorites(targetScope); dao.clearProjectWalletAssignments(targetScope)
+            dao.clearWeb3Drafts(targetScope)
             targetPrefixes.forEach { dao.deleteCachedPayloadsByPrefix(it) }
             dao.insertPendingBills(snapshot.pendingBills.map { it.copy(accountScope = targetScope) })
             dao.insertPnlRecords(snapshot.pnlRecords.map { it.copy(accountScope = targetScope) })
@@ -1503,6 +1509,7 @@ object CacheStore {
             dao.insertCommunityOutbox(snapshot.communityOutbox.map { it.copy(accountScope = targetScope) })
             dao.insertCommunityFavorites(snapshot.communityFavorites.map { it.copy(accountScope = targetScope) })
             dao.insertProjectWalletAssignments(snapshot.projectWalletAssignments.map { it.copy(accountScope = targetScope) })
+            dao.insertWeb3Drafts(snapshot.web3Drafts.orEmpty().map { it.copy(accountScope = targetScope) })
             dao.insertCachedPayloads(remapped)
         }
     }
