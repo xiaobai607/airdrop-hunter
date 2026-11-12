@@ -696,7 +696,7 @@ private fun BrowserScreen(
                                             Toast.makeText(context, "未找到可处理此钱包链接的应用", Toast.LENGTH_LONG).show()
                                         } else {
                                             runCatching {
-                                                context.startActivity(walletIntent)
+                                                context.startActivity(Intent.createChooser(walletIntent, "选择外部钱包"))
                                             }.onFailure {
                                                 draftId?.let { id -> web3Repository.markWalletTimedOut(id) }
                                                 Toast.makeText(context, "无法打开外部钱包；交易草稿已保留待核对", Toast.LENGTH_LONG).show()
