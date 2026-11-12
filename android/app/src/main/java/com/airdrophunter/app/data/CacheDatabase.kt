@@ -377,6 +377,7 @@ interface LocalBackupDao {
 @Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class, MarketDashboardPreferenceEntity::class], version = 22, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun marketDashboardPreferenceDao(): MarketDashboardPreferenceDao
+    abstract fun web3TransactionDraftDao(): Web3TransactionDraftDao
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
     abstract fun pnlRecordDao(): PnlRecordDao
@@ -689,15 +690,50 @@ object CacheStore {
             """.trimIndent())
         }
     }
+    private val MIGRATION_22_23 = object : Migration(22, 23) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS web3_transaction_drafts (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    accountScope TEXT NOT NULL,
+                    origin TEXT NOT NULL,
+                    chainId INTEGER NOT NULL,
+                    walletAddress TEXT,
+                    toAddress TEXT,
+                    valueWei TEXT,
+                    dataHex TEXT,
+                    callbackState TEXT NOT NULL,
+                    walletConnectRequestId INTEGER,
+                    txHash TEXT,
+                    status TEXT NOT NULL,
+                    estimatedGas TEXT,
+                    gasUsed TEXT,
+                    effectiveGasPrice TEXT,
+                    l1Fee TEXT,
+                    totalFeeWei TEXT,
+                    receiptStatus INTEGER,
+                    lastError TEXT,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_web3_transaction_drafts_accountScope_createdAt ON web3_transaction_drafts(accountScope, createdAt)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_web3_transaction_drafts_accountScope_status ON web3_transaction_drafts(accountScope, status)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_web3_transaction_drafts_chainId_txHash ON web3_transaction_drafts(chainId, txHash)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_web3_transaction_drafts_walletConnectRequestId ON web3_transaction_drafts(walletConnectRequestId)")
+        }
+    }
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23).build()
         }
     }
+    fun web3TransactionDraftDao(): Web3TransactionDraftDao? = database?.web3TransactionDraftDao()
+
     fun schedulePrivateLedgerSync() {
         appContext?.let { PersonalLedgerSyncScheduler.enqueue(it) }
     }
