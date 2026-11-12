@@ -941,7 +941,7 @@ fun BrowserAccountingToolbar(
                                         kind = "l1_fee", amount_native = gasL1Native,
                                         symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
                                         usd_valuation = gasL1Usd,
-                                        valuation_timestamp = gasValuationTimestamp,
+                                        valuation_timestamp = gasSplitQuoteTimestamp,
                                         valuation_source = "OKX"
                                     )
                                 )
