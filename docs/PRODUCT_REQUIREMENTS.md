@@ -2902,5 +2902,6 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 正式记账提交时，在同一个 Room 事务内将 Web3 草稿标记为 `accounted`，避免“账本已写入、草稿状态未更新”造成重复记账。普通链显示执行费，L2 费用拆分保留独立资产明细。
 - 加密备份导入进一步校验 Web3 草稿 nonce、链 ID、地址、Hash、uint256 数值、calldata、状态和 USD 数值范围。
 - 自动回执长期无法核实或当前链未配置 RPC 时，提供显式“手动记账”兜底，保留 TxHash 并警告用户先核对区块浏览器，再填写实际 Gas/收益；手动确认同样在 Room 事务内关闭草稿。
+- 后端社区贡献链上核验同步采用相同链费规则：Arbitrum 不重复加 L1；Optimism/Base 需取得 L1 fee 和历史区块 `getOperatorFee(gasUsed)` 才能标记金额核验，否则降为 transaction-linked，不把不完整费用当成精确金额。新增后端单元测试覆盖 Arbitrum 和 OP Stack。
 - 本轮仍未执行 Gradle 编译/单元测试、CI 或 APK 构建；需在完整模块审计完成后统一验证。
 
