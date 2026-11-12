@@ -83,6 +83,9 @@ interface Web3TransactionDraftDao {
     @Update
     suspend fun update(row: Web3TransactionDraftEntity)
 
+    @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope ORDER BY createdAt DESC")
+    fun observeAll(scope: String): kotlinx.coroutines.flow.Flow<List<Web3TransactionDraftEntity>>
+
     @Query("SELECT * FROM web3_transaction_drafts WHERE id = :id AND accountScope = :scope LIMIT 1")
     suspend fun find(id: String, scope: String): Web3TransactionDraftEntity?
 
