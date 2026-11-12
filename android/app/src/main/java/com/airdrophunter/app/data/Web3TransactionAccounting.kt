@@ -164,12 +164,13 @@ object Web3ReceiptFeeParser {
      */
     fun l1FeeWei(
         chainId: Long,
-        receipt: JSONObject,
+        l1FeeRaw: String?,
+        gasUsedForL1Raw: String?,
         effectiveGasPrice: BigInteger
     ): BigInteger? = when (chainId) {
-        42161L -> Web3RpcClient.parseRpcQuantity(receipt.optString("gasUsedForL1"))
+        42161L -> Web3RpcClient.parseRpcQuantity(gasUsedForL1Raw)
             ?.multiply(effectiveGasPrice)
-        10L, 8453L -> Web3RpcClient.parseRpcQuantity(receipt.optString("l1Fee"))
+        10L, 8453L -> Web3RpcClient.parseRpcQuantity(l1FeeRaw)
         else -> BigInteger.ZERO
     }
 }
@@ -488,7 +489,10 @@ class Web3TransactionRepository(
             ?.toInt() ?: return false
 
         val l1Fee = Web3ReceiptFeeParser.l1FeeWei(
-            draft.chainId, receipt, effectiveGasPrice
+            draft.chainId,
+            receipt.optString("l1Fee").takeIf { it.isNotBlank() },
+            receipt.optString("gasUsedForL1").takeIf { it.isNotBlank() },
+            effectiveGasPrice
         )
 
         if (Web3RpcRegistry.requiresL1Fee(draft.chainId) && l1Fee == null) {
