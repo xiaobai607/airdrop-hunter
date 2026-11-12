@@ -2812,3 +2812,17 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **验证边界：** 尚未运行编译/单元测试，尚未触发 APK 构建；`Offset.VectorConverter` API 与完整 Compose 编译需在用户授权的整批最终构建中验证。真机长按、短按、内部横滑、快速斜向拖动、边缘吸附、边界及退出重进复位仍待验收。PR #135 保持 Draft/Open/Unmerged。
 
 - **后续竞态收敛：** 拖动激活时不再额外异步调用 `stop()`，避免其与松手后的 `snapTo/animateTo` 发生调度竞态；拖动期间由同步 Offset 状态显示位置，松手时单一 Animatable 的 `snapTo(current)` 会接管并取消先前动画，再执行二维吸边。最终相关代码头：`3b9b5e12b751de5c8d4367c436a30801b914aad4`。尚未构建，编译及真机验证状态不变。
+
+
+### 2026-11-12 — 三个大模块交叉审查记录（本轮未构建）
+
+**审查范围：启动与首页、浏览器 Dock 与正式记账、个人中心与本地数据边界。**
+
+- **启动与首页：** MainActivity 在 Splash 后通过 IO 读取遗留 Token 命名空间；Home 首屏不等待 WebView，WebView 仍由 BrowserActivity 按需创建；后台任务在 IO 调度并以进程级锁限制重复启动。行情币种设置从 Room 读取，允许 BTC/ETH/SOL/BNB/TRX/XRP，至少保留一项；Home 使用所选币种过滤缓存/刷新数据。首页卡片副标题两种布局均限制单行省略；重复“空投列表”已从旧布局迁移中清理，底部导航资源明确显示“空投库”。
+- **浏览器 Dock：** 工具选项当前唯一记账入口为 `new_accounting`，可见名“记账”；旧 `mock_bill` 偏好迁移到新 ID。外层 Dock 在 Initial pointer pass 监听长按，拖动中同步更新单一 Offset，释放后二维动画吸附；短按不会进入拖动，LazyRow 保留内部横滑。源码静态检查未发现旧的双轴 Animatable / per-move Job 机制。Compose 编译与真机手势仍未验收。
+- **正式记账：** 新增记录以 `MANUAL-` 标记并明确显示“手动记账（非链上交易）”；项目选择使用项目选择器，Gas 币种按链提供预设列表并允许自定义；Gas USD 和实际收益 USD 必须填写，实际为零需明确输入 0。确认走 Room 本地事务；取消、关闭和组件释放会清除本次 MANUAL 草稿。旧 `MOCK-` 样本仍保留在本地数据库但不进入正式待确认列表。当前收益币种字段仍为文本输入，不把它误报为下拉选择器。
+- **个人中心与数据边界：** Profile 主页面及设置/安全/通知子页面均具备纵向滚动；底部导航为 Scaffold 管理，Profile 内容另留 32dp 底部空间。当前发布策略常量 `PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED=false`；私人账本 Worker 在执行前立即返回，Scheduler 的 enqueue/ensurePeriodic 是 no-op，ApiClient 拦截器移除 Authorization，个人账本不会经此路径上传。旧代码仍保留兼容调用点/未来同步实现，但在当前策略下不执行。个人账本与项目交互仍保存在 Room / 本地 payload；统一 TTL 协调器用于行情、搜索及钱包缓存，不把私人账本当作短期缓存清理。
+- **数据库：** Room 数据库版本 22，21→22 migration 新增 `market_dashboard_preferences` 表且已注册。静态实体/SQL/注册关系一致；尚未在真实 v21 安装数据库上做升级运行测试。
+- **未完成验证：** 未触发 APK/CI 构建、未安装设备；冷启动耗时、数据库升级、记账全生命周期、Dock 手势、Profile 底部可达性仍待整批构建后的运行验收。PR #135 继续保持 Draft/Open/Unmerged。
+
+**本轮审查结论：** 三个模块的源码实现与当前需求大体一致；发现的私人账本同步调用点属于保留的兼容代码，当前由 false 策略、no-op Scheduler 与请求拦截共同阻断，不构成实际上传路径。本轮没有发现需要立即改动代码的新缺陷，因此不为“有提交”而制造改动。
