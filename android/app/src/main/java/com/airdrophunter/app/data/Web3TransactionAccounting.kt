@@ -536,11 +536,16 @@ class Web3TransactionRepository(
         }?.takeIf { it.isFinite() && it >= 0.0 }
         fun nativeAmount(wei: BigInteger): String =
             java.math.BigDecimal(wei).movePointLeft(18).stripTrailingZeros().toPlainString()
-        val assets = listOf(
+        val assets = mutableListOf(
             LedgerAssetAmount("gas", nativeAmount(totalWei), symbol, 18, draft.actualGasUsd, quoteTimestamp, "OKX".takeIf { draft.actualGasUsd != null }),
-            LedgerAssetAmount("l2_fee", nativeAmount(l2Wei), symbol, 18, l2Usd, quoteTimestamp, "OKX".takeIf { l2Usd != null }),
-            LedgerAssetAmount("l1_fee", nativeAmount(l1Wei), symbol, 18, l1Usd, quoteTimestamp, "OKX".takeIf { l1Usd != null })
+            LedgerAssetAmount("l2_fee", nativeAmount(l2Wei), symbol, 18, l2Usd, quoteTimestamp, "OKX".takeIf { l2Usd != null })
         )
+        if (Web3RpcRegistry.requiresL1Fee(draft.chainId)) {
+            assets += LedgerAssetAmount(
+                "l1_fee", nativeAmount(l1Wei), symbol, 18,
+                l1Usd, quoteTimestamp, "OKX".takeIf { l1Usd != null }
+            )
+        }
         val network = when (draft.chainId) {
             1L -> "ethereum"
             10L -> "optimism"
