@@ -36,6 +36,7 @@ import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -55,8 +56,12 @@ class MainActivity : ComponentActivity() {
         splashScreen.setKeepOnScreenCondition { !startupReady }
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
-            val token = withContext(Dispatchers.IO) {
-                runCatching { TokenStore.readTokenBlocking() }.getOrNull()
+            val token = try {
+                withContext(Dispatchers.IO) { TokenStore.readTokenBlocking() }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
             }
             startupTokenState.value = token
             startupReady = true
