@@ -2272,3 +2272,28 @@ Project and campaign identity classification is a responsibility of the unified 
 - Corrected the declarations: the Binance error-label helper is synchronous, while `_fetch_binance_observations` remains async. Fix commit: 2c978d5d6934ec63a288b4ede45822367a2f7a71.
 - A fresh Android/backend workflow was automatically queued for that commit when last checked; completion and tests are still pending. The live provider smoke has not yet been rerun against the corrected branch code.
 - Keep production sync disabled and PR #135 Draft/Open/unmerged. Do not claim live-source success until a smoke run checks the corrected branch and reports parseable records.
+
+### 2026-11-12 — user correction: unified refresh orchestration includes private data domains
+
+**This latest correction supersedes the earlier “public/shared data only” restriction for refresh orchestration.** The previous wallet scope audit correctly identified that private wallet payloads must not use public cache keys or shared payload storage, but it incorrectly treated that storage-isolation requirement as a reason to remove wallet data from unified refresh coordination. Removing coordination must not make refresh dependent on opening a screen.
+
+**Approved architecture and requirements:**
+- One shared refresh/synchronization orchestration layer manages scheduling, single-flight work, bounded retries, cancellation, refresh state and observability across public and private data domains. “Unified” means unified lifecycle/orchestration, **not** one shared payload namespace or one universal TTL.
+- Continue using the shared coordinator for market search, OKX market data, public airdrop campaign directory, community catalog and public community snapshots.
+- Re-integrate wallet transaction history and wallet balances with the shared orchestration layer. Their payloads and refresh metadata must both remain isolated by the existing account/session scope plus wallet and chain/ecosystem identity. Never use public cache keys, cross-account metadata, or shared wallet payloads. Preserve existing local data; do not clear, re-key or migrate it as a side effect.
+- Personal ledger, private projects and tasks remain durable user records, not expiring cache payloads. They must not be deleted, overwritten or marked stale by TTL. Their eligible background synchronization may use the shared scheduler/orchestration facilities while preserving their existing local-first writes, conflict rules, privacy rules and pending-sync queue semantics.
+- Refresh must not depend on the user opening a destination. Background work must refresh eligible data on its configured cadence; screen entry must show available local data immediately and may trigger a non-blocking refresh without waiting for it to finish.
+- A background refresh must not block navigation or other app use. Failed requests retain last-known-good data and expose a visible refresh/error state where the UI supports it.
+- Explicit user refresh must have a clear result: refreshed, already current, throttled, or failed. A caller must not silently report success when the coordinator returns `throttled`.
+- Keep the current-release account boundary unchanged: registration/login, account switching, guest-to-login migration and private cloud restore remain disabled/out of scope. Do not redesign identity or synchronization ownership as part of this correction.
+
+**Acceptance criteria:**
+1. Wallet transaction payload reads/writes and refresh metadata use the same account/session + wallet + chain scope; tests prove two account scopes cannot read, suppress, throttle or overwrite each other's refresh state.
+2. Wallet balances have the same isolation guarantees and retain cached-first display while background refresh runs.
+3. Wallet transaction and balance refreshes can run on their configured background schedule without the corresponding screen being opened; the actual scheduler/cadence and worker result handling are verified.
+4. Entering a screen renders cached data without waiting for network completion; refresh completion updates the screen state without blocking other destinations.
+5. Ledger/project/task local writes and pending-sync records survive cache expiry, process restart, offline use and refresh failure unchanged; only their existing approved sync path may process pending work.
+6. Manual refresh UI distinguishes a throttled result from a successful fetch; source-specific TTL and refresh cadence are documented and tested.
+7. Exact-head CI passes; device acceptance is recorded separately from code/CI.
+
+**Implementation status at this requirements update:** approved design; implementation and full call-chain/background-scheduler audit pending. No account architecture, registration, guest migration or cloud restore work is authorized by this change.
