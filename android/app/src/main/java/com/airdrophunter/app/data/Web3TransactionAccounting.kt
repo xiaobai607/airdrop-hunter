@@ -860,6 +860,25 @@ class Web3ReceiptWorker(
         val app = applicationContext as? AirdropHunterApplication ?: return Result.failure()
         val repository = app.appContainer.web3TransactionRepository
         val draft = repository.findById(draftId) ?: return Result.success()
+
+        // Receipt confirmation and ledger-candidate creation are separate durable
+        // steps. If the receipt was already saved but bill insertion failed, retry
+        // only materialization; never re-poll or downgrade a confirmed receipt.
+        if (draft.status == Web3DraftStatus.CONFIRMED ||
+            draft.status == Web3DraftStatus.CONFIRMED_FAILED
+        ) {
+            return try {
+                checkNotNull(repository.createPendingAccountingBill(draftId)) {
+                    "Confirmed Web3 draft could not be materialized"
+                }
+                Result.success()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()
+            }
+        }
+
         if (draft.txHash.isNullOrBlank()) return Result.success()
         if (Web3RpcRegistry.endpoint(draft.chainId) == null) {
             repository.markReceiptNeedsManualSync(draftId)
@@ -878,9 +897,11 @@ class Web3ReceiptWorker(
             val saved = repository.saveReceipt(draft, receipt)
             if (saved) {
                 // Materialize the ledger candidate in the worker, not only when the
-                // browser UI is visible. The deterministic WEB3-* ID makes this safe
-                // to repeat when the toolbar later observes the same confirmed draft.
-                repository.createPendingAccountingBill(draftId)
+                // browser UI is visible. If this fails, the next attempt enters the
+                // confirmed-draft branch above and retries only this durable step.
+                checkNotNull(repository.createPendingAccountingBill(draftId)) {
+                    "Confirmed Web3 draft could not be materialized"
+                }
                 Result.success()
             } else if (runAttemptCount < MAX_ATTEMPTS) {
                 Result.retry()
