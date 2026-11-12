@@ -10,6 +10,7 @@ class CommunityVerificationTierTest {
         assertEquals("等待链上核验", communityContributionStatusLabel("pending_verification", null))
         assertEquals("链上精确核验", communityContributionStatusLabel("verified", "amount_verified"))
         assertEquals("链上已确认", communityContributionStatusLabel("verified", "transaction_linked"))
+        assertEquals("用户自报已计入公共统计", communityContributionStatusLabel("verified", "user_reported"))
         assertEquals("核验拒绝", communityContributionStatusLabel("rejected", null))
         assertEquals("不符合公共贡献条件", communityContributionStatusLabel("not_eligible", null))
     }
