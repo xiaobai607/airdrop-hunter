@@ -970,9 +970,6 @@ fun BrowserAccountingToolbar(
                                 }.getOrDefault(false)
                                 saving = false
                                 if (ok) {
-                                    if (bill.id.startsWith("WEB3-")) {
-                                        web3Repository.markAccounted(bill.id.removePrefix("WEB3-"))
-                                    }
                                     showConfirm = false
                                     activeBill = null
                                     Toast.makeText(context,
