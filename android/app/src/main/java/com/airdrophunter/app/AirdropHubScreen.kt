@@ -28,6 +28,7 @@ import com.airdrophunter.app.data.AirdropHubDto
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.ui.theme.AppColors
 import java.text.DateFormat
+import java.time.Instant
 import java.util.Date
 
 @Composable
@@ -122,6 +123,15 @@ fun AirdropHubScreen(
                                 Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
                                     Text("Binance", Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                         color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                            item.published_at?.let { publishedAt ->
+                                val formattedDate = runCatching {
+                                    DateFormat.getDateTimeInstance().format(Date(Instant.parse(publishedAt).toEpochMilli()))
+                                }.getOrNull()
+                                if (formattedDate != null) {
+                                    Text("公告时间：$formattedDate",
+                                        color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                             Text("点击查看公告完整内容",
