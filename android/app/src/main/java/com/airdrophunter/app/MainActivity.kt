@@ -43,13 +43,17 @@ import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     @Volatile private var startupReady = false
-    private var startupSyncScheduled = false
     private val startupTokenState = mutableStateOf<String?>(null)
 
     override fun onStart() {
         super.onStart()
-        if (startupSyncScheduled) return
-        startupSyncScheduled = true
+        val shouldSchedule = synchronized(startupSyncLock) {
+            if (startupSyncScheduled) false else {
+                startupSyncScheduled = true
+                true
+            }
+        }
+        if (!shouldSchedule) return
         // Schedule background work once per process, off the UI thread; Home renders Room cache first.
         lifecycleScope.launch(Dispatchers.IO) {
             GlobalSyncScheduler.ensurePeriodic(applicationContext)
@@ -106,6 +110,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+private val startupSyncLock = Any()
+@Volatile private var startupSyncScheduled = false
+
 private data class Destination(val label: Int, val icon: ImageVector)
 
 private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY }
