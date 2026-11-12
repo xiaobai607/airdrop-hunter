@@ -2628,3 +2628,16 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 每个实现批次先更新本文件的实现状态，再改代码；提交后记录 commit、精确 SHA 的 CI 结果和未完成的真机验收。
 - 不引入 Flutter 依赖，不改注册/登录/账号体系，不启用私人云同步，不改变个人账本/项目/离线新增/待同步数据的持久化语义。
 - **状态：需求已登记；代码审计与分批实施待开始。**
+
+
+### 首轮代码审计（2026-11-12）
+
+- **启动：** `MainActivity.onCreate()` 在 Compose 首次组合时通过 `remember { TokenStore.readTokenBlocking() }` 同步读取 DataStore/解密 token；这是首屏主线程阻塞风险。Application 启动时还同步初始化 WalletConnect Core/AppKit 并安排后台任务。WebView 并非主页面启动时创建，而是在用户打开独立 `BrowserActivity` 时创建，因此不应为了本项把 WebView 提前初始化；继续保持按需创建。启动 Splash 主题/API 当前未配置。
+- **Dock：** `BrowserAccountingToolbar` 已把长按拖动手势放在最外层 Box，背景胶囊和 LazyRow 同属该容器，松手已有左右吸边动画；但每次 pointer move 都启动新的协程分别 snap X/Y，存在更新竞争风险。应在 pointerInput 手势协程内顺序更新两个 Animatable，并保留现有不持久化位置行为。
+- **快捷入口：** 当前默认卡片含 `airdrop_library`，副标题确实是“记录 Gas 消耗与实际收益”；首页卡片文本尚需明确宽度/行数约束。当前 MainActivity 底部导航实际是“主页、社区、项目、我的”，**并不存在“空投库”底部导航项**。因此暂不能直接删除首页空投入口，否则会让空投库失去唯一入口；需由产品决策确定新增第五个底部项，或将某个现有项替换/改名。
+- **记账项目：** 归属项目已是项目选择按钮 + 项目选择列表，且支持本地新建，不是纯文本输入；保留现状并验证即可。Gas 币种仍是自由文本输入，应改为选择器。
+- **“模拟账单”：** 代码中存在明确生成 `MOCK-` hash 和模拟 Gas 样本的演示数据。不能把这些数据改名为“链上交易”而误导用户；建议展示“本地演示记录/演示数据”，真正链上待确认记录才使用“待确认交易”。原始数据与识别状态不改。
+- **我的页面：** ProfileScreen 主内容使用普通 Column，未见 verticalScroll，长内容确实可能被裁切；需要滚动容器和正确 bottom content padding。
+- **记账取消留白：** 首页点击记账当前切换到 `AppOverlay.ACCOUNTING` 全屏二级目的地。下一步需定位该目的地的具体表单/弹窗状态，改为首页直接弹层；不能只改标题或简单隐藏导航而留下空白占位。
+
+**首轮状态：** 已确认的实现缺口和已有实现已分开记录；开始实施 Splash/首屏阻塞、Dock 更新竞争、Profile 滚动与快捷入口文案。空投入口迁移待用户确认底部导航目标。记账弹层待进一步定位实现文件。
