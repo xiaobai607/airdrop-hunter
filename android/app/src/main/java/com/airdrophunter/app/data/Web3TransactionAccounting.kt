@@ -301,9 +301,10 @@ object Web3ReceiptFeeParser {
         gasUsedForL1Raw: String?,
         effectiveGasPrice: BigInteger
     ): BigInteger? = when (chainId) {
+        // Arbitrum's documented receipt extension is gasUsedForL1 (in child-chain
+        // gas units). Do not guess from a provider-specific, ambiguously named l1Fee.
         42161L -> Web3RpcClient.parseRpcQuantity(gasUsedForL1Raw)
             ?.multiply(effectiveGasPrice)
-            ?: Web3RpcClient.parseRpcQuantity(l1FeeRaw)
         10L, 8453L -> Web3RpcClient.parseRpcQuantity(l1FeeRaw)
         else -> BigInteger.ZERO
     }
