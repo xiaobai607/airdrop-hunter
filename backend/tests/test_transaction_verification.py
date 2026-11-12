@@ -97,12 +97,16 @@ class _FakeEtherscanClient:
 
     async def get(self, url, params):
         action = params["action"]
-        result = self.responses[action]
+        if action == "eth_call" and str(params.get("to", "")).lower() == "0x420000000000000000000000000000000000000f":
+            result = self.responses.get("eth_call_operator", "0x" + "0" * 64)
+        else:
+            result = self.responses[action]
         request = httpx.Request("GET", url)
         return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": result}, request=request)
 
 
-def _verification_responses(include_l1_fee=False, status="0x1", latest_block="0x30", tx_hash=None):
+def _verification_responses(include_l1_fee=False, status="0x1", latest_block="0x30", tx_hash=None,
+                            operator_fee_wei=0, gas_used_for_l1=None, l1_fee_wei=0):
     wallet = "0x1234567890abcdef1234567890abcdef12345678"
     block_timestamp = 1794258505
     receipt = {
@@ -113,7 +117,9 @@ def _verification_responses(include_l1_fee=False, status="0x1", latest_block="0x
         "effectiveGasPrice": "0x3b9aca00",
     }
     if include_l1_fee:
-        receipt["l1Fee"] = "0x0"
+        receipt["l1Fee"] = hex(l1_fee_wei)
+    if gas_used_for_l1 is not None:
+        receipt["gasUsedForL1"] = hex(gas_used_for_l1)
     return {
         "eth_getTransactionByHash": {
             "from": wallet, "blockNumber": "0x10",
@@ -123,6 +129,7 @@ def _verification_responses(include_l1_fee=False, status="0x1", latest_block="0x
         "eth_blockNumber": latest_block,
         "eth_getBlockByNumber": {"timestamp": hex(block_timestamp)},
         "eth_call": _chainlink_result(3000, block_timestamp - 5),
+        "eth_call_operator": "0x" + f"{operator_fee_wei:064x}",
     }
 
 
@@ -149,6 +156,60 @@ def test_evm_receipt_uses_historical_chainlink_price_and_backend_fee(monkeypatch
     assert result.metadata["execution_status"] == "success"
     assert "tx_hash" not in result.metadata
     assert "wallet_address" not in result.metadata
+
+
+def test_arbitrum_gas_used_total_is_not_added_to_l1_component_twice(monkeypatch):
+    import app.services.transaction_verification as verification
+
+    monkeypatch.setenv("ETHERSCAN_API_KEY", "server-only-key")
+    monkeypatch.setenv("COMMUNITY_TX_FINGERPRINT_SECRET", "k" * 40)
+    monkeypatch.setattr(
+        verification.httpx,
+        "AsyncClient",
+        lambda **kwargs: _FakeEtherscanClient(
+            _verification_responses(gas_used_for_l1=1000)
+        ),
+    )
+    result = asyncio.run(verification.verify_evm_contribution(
+        "arbitrum",
+        "0x1234567890abcdef1234567890abcdef12345678",
+        "0x" + "a" * 64,
+        Decimal("0.063"),
+    ))
+    assert result.tier == "amount_verified"
+    assert result.gas_cost_usd == Decimal("0.063000")
+    assert result.metadata["total_fee_wei"] == str(21000 * 10**9)
+    assert result.metadata["l1_fee_wei"] == str(1000 * 10**9)
+    assert result.metadata["l2_fee_wei"] == str(20000 * 10**9)
+
+
+def test_op_stack_adds_l1_and_operator_fees_to_execution_fee(monkeypatch):
+    import app.services.transaction_verification as verification
+
+    monkeypatch.setenv("ETHERSCAN_API_KEY", "server-only-key")
+    monkeypatch.setenv("COMMUNITY_TX_FINGERPRINT_SECRET", "k" * 40)
+    monkeypatch.setattr(
+        verification.httpx,
+        "AsyncClient",
+        lambda **kwargs: _FakeEtherscanClient(
+            _verification_responses(
+                include_l1_fee=True,
+                l1_fee_wei=1_000_000_000_000,
+                operator_fee_wei=500_000_000_000,
+            )
+        ),
+    )
+    result = asyncio.run(verification.verify_evm_contribution(
+        "base",
+        "0x1234567890abcdef1234567890abcdef12345678",
+        "0x" + "b" * 64,
+        Decimal("0.0675"),
+    ))
+    assert result.tier == "amount_verified"
+    assert result.gas_cost_usd == Decimal("0.067500000000")
+    assert result.metadata["total_fee_wei"] == str(22_500_000_000_000)
+    assert result.metadata["l1_fee_wei"] == str(1_000_000_000_000)
+    assert result.metadata["operator_fee_wei"] == str(500_000_000_000)
 
 
 def test_evm_fee_mismatch_is_rejected_without_changing_private_data(monkeypatch):
