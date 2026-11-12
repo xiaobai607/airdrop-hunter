@@ -2709,3 +2709,11 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 验收：工具栏可见文字不再出现“模拟账单”；点击记账直接创建/打开真实手动记账表单，不生成 MOCK 数据；取消不保存，确认后可在正式交易记录/个人账本中查看。
 
 **执行状态：** 需求已先写入文档；需对工具栏实际渲染入口与 APK 构建版本进行代码核对，CI 待验证。
+
+
+### 本次浏览器 Dock 记账入口修正记录（2026-11-12）
+
+- 已核对当前分支 `BrowserAccountingToolbar.kt`：工具 ID 已为 `new_accounting`，点击动作调用正式手动记账创建流程；旧 `mock_bill` 用户偏好会迁移为 `new_accounting`，工具管理器不再配置模拟账单动作。
+- 根据用户新截图，将 Dock 工具可见名称由“新增记账”进一步统一为“记账”，并移除已废弃的 `initialCreateMockBill` 参数及其调用，避免代码层保留模拟账单入口语义。
+- 修正提交：`c4917e7d3ef719f5679bf786488b028d188f5375`。
+- 截图仍显示“模拟账单”说明设备上运行的 APK 尚未包含上述最新代码（或安装的不是当前分支构建）；最新 PR 头为该提交，GitHub 当前未返回对应 workflow run / commit status，因此**CI 尚未验证**。需要构建并安装最新 Debug APK 后才能完成界面验收。
