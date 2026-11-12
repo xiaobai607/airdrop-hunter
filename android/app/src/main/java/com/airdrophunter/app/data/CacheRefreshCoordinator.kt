@@ -124,7 +124,7 @@ class CacheRefreshCoordinator(
         if (!force && !manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, initialNow)) {
             return CacheRefreshResult(initialCached, stale = true, errorMessage = metadata?.lastError)
         }
-        if (manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, initialNow)) {
+        if (!force && manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, initialNow)) {
             return CacheRefreshResult(initialCached, stale = !initialFresh, throttled = true)
         }
 
@@ -138,7 +138,7 @@ class CacheRefreshCoordinator(
             if (!force && !manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, lockedNow)) {
                 return@withLock CacheRefreshResult(cached, stale = true, errorMessage = metadata?.lastError)
             }
-            if (manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, lockedNow)) {
+            if (!force && manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, lockedNow)) {
                 return@withLock CacheRefreshResult(cached, stale = !fresh, throttled = true)
             }
 
