@@ -310,7 +310,6 @@ fun BrowserAccountingToolbar(
                             // coroutine or independently cancellable X/Y update is created.
                             dockDragPosition = dockOffset.value
                             dockIsDragging = true
-                            scope.launch { dockOffset.stop() }
                             var lastPosition = down.position
                             var dragActive = true
                             while (dragActive) {
