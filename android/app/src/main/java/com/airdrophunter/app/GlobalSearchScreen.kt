@@ -130,16 +130,24 @@ fun GlobalSearchScreen(
         isSearching = true
         delay(300)
         if (category == SearchCategory.COIN) {
-            runCatching { withContext(Dispatchers.IO) { repository.searchRemoteCoins(value) } }
-                .onSuccess { coinResults = it }
-                .onFailure { if (coinResults.isEmpty()) searchError = "暂时无法获取远程币种目录，本地结果仍可使用" }
+            try {
+                coinResults = withContext(Dispatchers.IO) { repository.searchRemoteCoins(value) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (coinResults.isEmpty()) searchError = "暂时无法获取远程币种目录，本地结果仍可使用"
+            }
             coinCacheMetadata = withContext(Dispatchers.IO) {
                 CacheStore.readCacheMetadata("market-prices-supported", "coinpaprika")
             }
         } else {
-            runCatching { withContext(Dispatchers.IO) { repository.searchRemoteDapps(value) } }
-                .onSuccess { dappResults = it }
-                .onFailure { if (dappResults.isEmpty()) searchError = "暂时无法获取 DApp 目录，本地结果仍可使用" }
+            try {
+                dappResults = withContext(Dispatchers.IO) { repository.searchRemoteDapps(value) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (dappResults.isEmpty()) searchError = "暂时无法获取 DApp 目录，本地结果仍可使用"
+            }
             dappCacheMetadata = withContext(Dispatchers.IO) {
                 CacheStore.readCacheMetadata("global-search-dapp-catalog", "community-catalog")
             }
