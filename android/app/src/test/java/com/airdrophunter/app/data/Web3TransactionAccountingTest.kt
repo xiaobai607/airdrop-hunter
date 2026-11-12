@@ -109,6 +109,18 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun unresolvedL1FeeCanBeManuallyReviewedAndConfirmed() {
+        assertTrue(Web3DraftStatus.canCreateManualReviewBill(Web3DraftStatus.WAITING_L1_FEE))
+        assertTrue(Web3DraftStatus.canConfirmAccounting(Web3DraftStatus.WAITING_L1_FEE))
+        assertTrue(Web3DraftStatus.canCreateManualReviewBill(Web3DraftStatus.WAITING_OPERATOR_FEE))
+        assertTrue(Web3DraftStatus.canCreateManualReviewBill(Web3DraftStatus.RECEIPT_NEEDS_SYNC))
+        assertFalse(Web3DraftStatus.canCreateManualReviewBill(Web3DraftStatus.WAITING_RECEIPT))
+        assertFalse(Web3DraftStatus.canConfirmAccounting(Web3DraftStatus.WAITING_RECEIPT))
+        assertTrue(Web3DraftStatus.canConfirmAccounting(Web3DraftStatus.CONFIRMED))
+        assertTrue(Web3DraftStatus.canConfirmAccounting(Web3DraftStatus.CONFIRMED_FAILED))
+    }
+
+    @Test
     fun walletHashCanOnlyAttachToRecoverableDraftStates() {
         assertTrue(Web3DraftStatus.canAttachHash(Web3DraftStatus.PENDING_WALLET))
         assertTrue(Web3DraftStatus.canAttachHash(Web3DraftStatus.WAITING_HASH))
