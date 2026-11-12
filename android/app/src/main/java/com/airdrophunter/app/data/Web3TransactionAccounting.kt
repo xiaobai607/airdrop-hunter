@@ -696,7 +696,7 @@ class Web3TransactionRepository(
 
     suspend fun createManualReviewBillFromDraft(draftId: String): PendingBillEntity? {
         val draft = dao.find(draftId, scopeProvider()) ?: return null
-        if (draft.status !in setOf(Web3DraftStatus.RECEIPT_NEEDS_SYNC, Web3DraftStatus.WAITING_OPERATOR_FEE) ||
+        if (draft.status !in setOf(Web3DraftStatus.RECEIPT_NEEDS_SYNC, Web3DraftStatus.WAITING_OPERATOR_FEE, Web3DraftStatus.WAITING_L1_FEE) ||
             draft.txHash.isNullOrBlank()
         ) return null
         val network = when (draft.chainId) {
