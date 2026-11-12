@@ -141,13 +141,30 @@ fun aggregateLedgerAssetPeriodTotals(
     }.sortedWith(compareBy<LedgerAssetPeriodTotal> { it.network }.thenBy { it.symbol }.thenBy { it.decimals ?: -1 })
 }
 
-fun formatLedgerAssetBreakdown(json: String?, kind: String? = null): String =
-    LedgerAssetBreakdownCodec.decode(json)
-        .filter { kind == null || it.kind == kind }
-        .joinToString(" · ") { asset ->
-            val usd = asset.usd_valuation?.let { "（USD估值 $%.2f）".format(java.util.Locale.US, it) }.orEmpty()
-            "${asset.amount_native} ${asset.symbol}$usd"
+fun formatLedgerAssetBreakdown(json: String?, kind: String? = null): String {
+    val assets = LedgerAssetBreakdownCodec.decode(json)
+    val hasGasTotal = assets.any { it.kind.equals("gas", ignoreCase = true) }
+    return assets
+        // "execution_fee" is the same execution total as "gas" on non-rollup chains.
+        // Keep the canonical total visible once; L2/L1/Operator rows remain as its breakdown.
+        .filter { asset ->
+            (kind == null || asset.kind.equals(kind, ignoreCase = true)) &&
+                !(kind == null && hasGasTotal && asset.kind.equals("execution_fee", ignoreCase = true))
         }
+        .joinToString(" · ") { asset ->
+            val label = when (asset.kind.lowercase(java.util.Locale.US)) {
+                "gas" -> "Gas 总计"
+                "execution_fee" -> "执行费"
+                "l2_fee" -> "L2 执行费"
+                "l1_fee" -> "L1 数据费"
+                "operator_fee" -> "Operator Fee"
+                "reward" -> "收益"
+                else -> asset.kind
+            }
+            val usd = asset.usd_valuation?.let { "（USD估值 $%.2f）".format(java.util.Locale.US, it) }.orEmpty()
+            "$label：${asset.amount_native} ${asset.symbol}$usd"
+        }
+}
 
 fun formatCommunityTokenBreakdown(assets: List<CommunityTokenAggregateDto>): String =
     assets.joinToString(" · ") { asset ->
