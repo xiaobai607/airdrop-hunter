@@ -2540,3 +2540,15 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Keep background refresh independent of manual cooldown; no changes to TTL, provider selection, cache payloads or unrelated features.
 - Acceptance: a second manual tap inside 30 seconds makes no extra request, keeps existing rows visible, and shows the cooldown message; a tap after cooldown can fetch again; network failure retains old rows and shows the normal failure warning.
 - **Status:** requirement recorded; implementation and CI pending.
+
+
+## 2026-11-12 global search hot-coins cache-first correction
+
+**Audit finding and approved correction (before code changes):**
+- The Global Search landing state currently calls `loadHotCoins()` before assigning the hot-coin list. The shared coordinator may await network refresh/retries, so users can see an empty hot-coins section despite Room already containing last-known-good rows.
+- On entry, read and publish Room hot-coin rows and their cache metadata first, then run the ordinary coordinator refresh. Keep cached rows visible while refresh is pending; replace them only after a successful fresh result. On failure, preserve the cached rows and show the coordinator's stale/error metadata.
+- Propagate `CancellationException`; do not wrap this lifecycle refresh in `runCatching` that turns cancellation into an empty list.
+- Keep the existing shared cache key/source, TTL, retry/cooldown rules and public-data scope. No new provider, forced refresh, private-data cache, registration or sync behavior.
+- Acceptance: cached hot coins render before any network wait; refresh success replaces them; failure retains them and displays stale/error status; an empty cache shows an honest empty/loading state; lifecycle cancellation propagates.
+
+**Status:** requirement recorded; implementation and CI pending.
