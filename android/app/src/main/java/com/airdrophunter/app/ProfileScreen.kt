@@ -96,7 +96,8 @@ fun ProfileScreen(
 
     Column(
         modifier.fillMaxSize().background(AppColors.Background)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Row(
