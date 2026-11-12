@@ -3,6 +3,7 @@ package com.airdrophunter.app.data
 import android.util.Log
 import com.airdrophunter.app.BuildConfig
 import com.google.gson.Gson
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -34,7 +35,28 @@ object CommunitySnapshotRepository {
     }
 
     suspend fun refreshSnapshots(): Map<String, CommunitySnapshotDto> = withContext(Dispatchers.IO) {
-        val cached = windows.mapNotNull { window -> readSnapshot(window)?.let { window to it } }.toMap()
+        val base = BuildConfig.COMMUNITY_SNAPSHOT_BASE_URL.trimEnd('/')
+        if (base.isBlank()) return@withContext readCachedSnapshots()
+
+        val result = CacheRefreshCoordinator.shared.load(
+            cacheKey = "community-snapshot:all",
+            source = "community-snapshots",
+            ttlMillis = SNAPSHOT_CACHE_TTL_MILLIS,
+            readCache = { readCachedSnapshots().takeIf { it.isNotEmpty() } },
+            fetch = { refreshSnapshotsFromNetwork(readCachedSnapshots()) },
+            // The network method persists each independently verified snapshot and
+            // commits manifest validators only after the complete set is available.
+            save = { }
+        )
+        result.data.orEmpty()
+    }
+
+    private suspend fun readCachedSnapshots(): Map<String, CommunitySnapshotDto> =
+        windows.mapNotNull { window -> readSnapshot(window)?.let { window to it } }.toMap()
+
+    private suspend fun refreshSnapshotsFromNetwork(
+        cached: Map<String, CommunitySnapshotDto>
+    ): Map<String, CommunitySnapshotDto> = withContext(Dispatchers.IO) {
         val base = BuildConfig.COMMUNITY_SNAPSHOT_BASE_URL.trimEnd('/')
         if (base.isBlank()) return@withContext cached
 
@@ -70,7 +92,7 @@ object CommunitySnapshotRepository {
             }
             if (manifestNotModified || manifestRaw == null) return@withContext cached
             val manifest = gson.fromJson(manifestRaw, CommunitySnapshotManifestDto::class.java)
-            if (manifest == null || manifest.schema_version != 1) return@withContext cached
+            if (manifest == null || manifest.schema_version != 1) throw IllegalStateException("Invalid snapshot manifest")
 
             // Save validators only after every object referenced by this manifest is
             // already cached or has been fetched and verified. Otherwise the next run
@@ -127,13 +149,19 @@ object CommunitySnapshotRepository {
                 if (!snapshotAvailable) allReferencedSnapshotsAvailable = false
             }
 
-            if (allReferencedSnapshotsAvailable) {
-                CacheStore.writePublic("snapshot:manifest:etag", manifestEtag.orEmpty())
-                CacheStore.writePublic("snapshot:manifest:last-modified", manifestLastModified.orEmpty())
+            if (!allReferencedSnapshotsAvailable) {
+                throw IllegalStateException("Snapshot manifest is incomplete; cached snapshots retained")
             }
+            CacheStore.writePublic("snapshot:manifest:etag", manifestEtag.orEmpty())
+            CacheStore.writePublic("snapshot:manifest:last-modified", manifestLastModified.orEmpty())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Exception) {
             Log.w(TAG, "Static snapshot revalidation failed; retaining Room cache", error)
+            throw error
         }
-        windows.mapNotNull { window -> readSnapshot(window)?.let { window to it } }.toMap()
+        readCachedSnapshots()
     }
+
+    private const val SNAPSHOT_CACHE_TTL_MILLIS = 15 * 60 * 1000L
 }
