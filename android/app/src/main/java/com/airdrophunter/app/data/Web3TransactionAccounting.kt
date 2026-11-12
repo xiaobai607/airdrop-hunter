@@ -71,6 +71,7 @@ data class Web3TransactionDraftEntity(
     val gasUsed: String?,
     val effectiveGasPrice: String?,
     val l1Fee: String?,
+    val operatorFeeWei: String? = null,
     val totalFeeWei: String?,
     val receiptStatus: Int?,
     val lastError: String?,
@@ -219,6 +220,7 @@ object WalletTransactionLinkParser {
 data class Web3FeeBreakdown(
     val l1FeeWei: BigInteger,
     val l2FeeWei: BigInteger,
+    val operatorFeeWei: BigInteger,
     val totalFeeWei: BigInteger
 )
 
@@ -227,17 +229,21 @@ object Web3ReceiptFeeCalculator {
         chainId: Long,
         gasUsed: BigInteger,
         effectiveGasPrice: BigInteger,
-        l1FeeWei: BigInteger?
+        l1FeeWei: BigInteger?,
+        operatorFeeWei: BigInteger?
     ): Web3FeeBreakdown? {
         val receiptGasFee = gasUsed.multiply(effectiveGasPrice)
         return if (chainId == 42161L) {
             // Arbitrum receipt gasUsed already includes the L1 component.
             val l1 = l1FeeWei ?: return null
             val l2 = receiptGasFee.subtract(l1).takeIf { it.signum() >= 0 } ?: return null
-            Web3FeeBreakdown(l1, l2, receiptGasFee)
+            Web3FeeBreakdown(l1, l2, BigInteger.ZERO, receiptGasFee)
         } else {
             val l1 = l1FeeWei ?: BigInteger.ZERO
-            Web3FeeBreakdown(l1, receiptGasFee, receiptGasFee.add(l1))
+            val operator = if (Web3RpcRegistry.requiresOperatorFee(chainId)) {
+                operatorFeeWei ?: return null
+            } else BigInteger.ZERO
+            Web3FeeBreakdown(l1, receiptGasFee, operator, receiptGasFee.add(l1).add(operator))
         }
     }
 }
