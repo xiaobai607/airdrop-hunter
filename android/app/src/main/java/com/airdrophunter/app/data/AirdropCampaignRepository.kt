@@ -39,7 +39,7 @@ class AirdropCampaignRepository(
                         kyc = filters.kyc,
                         query = filters.query,
                         limit = 100
-                    ).let(::validateCampaignRows).let(::validateCampaignRows)
+                    ).let(::validateCampaignRows)
                 },
                 save = { rows ->
                     CacheStore.writePublic(
@@ -70,7 +70,7 @@ class AirdropCampaignRepository(
                         kyc = filters.kyc,
                         query = filters.query,
                         limit = 100
-                    )
+                    ).let(::validateCampaignRows)
                 },
                 save = { rows ->
                     CacheStore.writePublic(
