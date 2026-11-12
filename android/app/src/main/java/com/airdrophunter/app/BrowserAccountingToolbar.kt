@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -92,10 +93,10 @@ fun BrowserAccountingToolbar(
     var rewardSymbol by remember { mutableStateOf("") }
     var rewardDecimals by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
-    var creatingMockBill by remember { mutableStateOf(false) }
+    var dragUpdateJob by remember { mutableStateOf<Job?>(null) }
     var showToolManager by remember { mutableStateOf(false) }
     val toolOptions = listOf(
-        "mock_bill" to "本地演示记录",
+        "new_accounting" to "新增记账",
         "copy_address" to "复制地址",
         "pending_bills" to "待确认记录",
         "refresh_page" to "刷新网页",
@@ -175,28 +176,22 @@ fun BrowserAccountingToolbar(
         }
     }
 
-    fun createMockBill() {
-        if (creatingMockBill) return
-        creatingMockBill = true
+    fun createManualAccountingEntry() {
         scope.launch {
             try {
-                val mockGasSamples = listOf(0.12, 0.28, 0.45, 0.63, 0.91)
-                val mockHash = "MOCK-" + UUID.randomUUID().toString().replace("-", "").uppercase(Locale.US)
                 val bill = PendingBillEntity(
                     id = UUID.randomUUID().toString(),
-                    txHash = mockHash,
-                    walletAddress = walletAddress.ifBlank { "MOCK-WALLET-LOCAL" },
-                    gasCostUsd = mockGasSamples[pending.size % mockGasSamples.size],
-                    interactionMethod = "本地演示交互",
+                    txHash = "MANUAL-" + UUID.randomUUID().toString().replace("-", "").uppercase(Locale.US),
+                    walletAddress = walletAddress,
+                    gasCostUsd = 0.0,
+                    interactionMethod = "手动记账（非链上交易）",
                     timestamp = System.currentTimeMillis(),
                     chain = chainName.ifBlank { "unknown" }
                 )
                 accountingRepository.addPendingBill(bill)
                 openBill(bill)
             } catch (_: Exception) {
-                Toast.makeText(context, "本地演示记录创建失败，请重试", Toast.LENGTH_SHORT).show()
-            } finally {
-                creatingMockBill = false
+                Toast.makeText(context, "创建记账记录失败，请重试", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -313,7 +308,7 @@ fun BrowserAccountingToolbar(
                                     lastPosition = change.position
                                 }
                             }
-                            animateDockToEdge()
+                            scope.launch {\n                                dragUpdateJob?.join()\n                                animateDockToEdge()\n                            }
                         }
                     }
                 }
@@ -343,7 +338,7 @@ fun BrowserAccountingToolbar(
                             else -> Icons.Filled.OpenInNew
                         }
                         val iconBackground = when (id) {
-                            "mock_bill" -> Color(0xFFFF8A00)
+                            "new_accounting" -> Color(0xFF0F766E)
                             "copy_address" -> Color(0xFF2563EB)
                             "pending_bills" -> Color(0xFF7C3AED)
                             "refresh_page" -> Color(0xFF0891B2)
@@ -351,7 +346,7 @@ fun BrowserAccountingToolbar(
                             else -> Color(0xFFEA580C)
                         }
                         val action: () -> Unit = when (id) {
-                            "mock_bill" -> { { createMockBill() } }
+                            "new_accounting" -> { { createManualAccountingEntry() } }
                             "copy_address" -> { { onCopyAddress() } }
                             "pending_bills" -> { { showBillList = true } }
                             "refresh_page" -> { { onRefreshPage() } }
@@ -360,7 +355,7 @@ fun BrowserAccountingToolbar(
                         }
                         Surface(
                             onClick = action,
-                            enabled = !(id == "mock_bill" && creatingMockBill),
+                            enabled = true,
                             modifier = Modifier.size(width = 68.dp, height = 78.dp),
                             shape = RoundedCornerShape(18.dp),
                             color = Color.Transparent
@@ -499,8 +494,8 @@ fun BrowserAccountingToolbar(
                 Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("待确认账单", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text("选择账单继续记账，红色 X 可删除草稿", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                            Text("交易记录", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text("选择待确认记录继续填写，或新增一笔记账", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
                         IconButton(onClick = { if (showDock) showBillList = false else onCloseAccounting() }) {
                             Icon(Icons.Default.Close, contentDescription = "关闭", tint = AppColors.TextSecondary)
@@ -508,7 +503,7 @@ fun BrowserAccountingToolbar(
                     }
                     if (pending.isEmpty()) {
                         Box(Modifier.fillMaxWidth().padding(vertical = 22.dp), contentAlignment = Alignment.Center) {
-                            Text("暂无待确认账单", color = AppColors.TextHelper)
+                            Text("暂无待确认记录", color = AppColors.TextHelper)
                         }
                     } else {
                         LazyColumn(
@@ -530,7 +525,7 @@ fun BrowserAccountingToolbar(
                                             verticalArrangement = Arrangement.spacedBy(3.dp)
                                         ) {
                                             Text(String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd), color = Color(0xFF9A5A16), fontWeight = FontWeight.Bold)
-                                            Text((if (bill.txHash.startsWith("MOCK-")) "本地演示记录 · " else "待确认交易 · ") + bill.interactionMethod, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                            Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账 · " else "待确认交易 · ") + bill.interactionMethod, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                                             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                                         }
                                         IconButton(onClick = { deleteDraft(bill) }) {
@@ -586,7 +581,7 @@ fun BrowserAccountingToolbar(
                             Icon(Icons.Default.Close, contentDescription = "关闭确认弹窗", tint = AppColors.TextSecondary)
                         }
                     }
-                    Text((if (bill.txHash.startsWith("MOCK-")) "本地演示记录：" else "待确认交易：") + "\${bill.txHash.take(16)}…", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账（非链上交易）" else "待确认交易：") + if (bill.txHash.startsWith("MANUAL-")) "" else "\${bill.txHash.take(16)}…", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     OutlinedTextField(
                         value = gas,
                         onValueChange = { gas = it; gasValuationTimestamp = Instant.now().toString(); gasValuationSource = "user_input" },
