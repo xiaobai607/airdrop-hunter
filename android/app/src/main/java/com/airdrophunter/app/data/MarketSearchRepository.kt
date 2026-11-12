@@ -83,8 +83,8 @@ class MarketSearchRepository(
         val hotCoinResult = try { loadHotCoins(); true }
         catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
         catch (_: Exception) { false }
-        if (!priceResult && !hotCoinResult) {
-            throw IllegalStateException("行情目录预加载失败")
+        if (!priceResult || !hotCoinResult) {
+            throw IllegalStateException("部分行情目录预加载失败")
         }
     }
 

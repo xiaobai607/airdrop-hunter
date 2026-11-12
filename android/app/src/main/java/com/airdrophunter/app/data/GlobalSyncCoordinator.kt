@@ -49,13 +49,20 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
             if (!shouldMarkSyncCadenceSuccess(result.stale, result.errorMessage, result.throttled) || result.data == null) {
                 hadFailure = true
             } else succeeded++
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            hadFailure = true
+            // Snapshot failure must not prevent independent market warm-up.
+        }
+        try {
+            // A partial price/hot-coin failure throws; already-fresh sources are cheap on retry.
             MarketSearchRepository(OkxMarketRepository()).warmUpMarketCaches()
             succeeded++
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
             hadFailure = true
-            // Community directory cache remains usable if a market provider is unavailable.
         }
         try {
             // Warm the published campaign directory through its Room cache and shared coordinator.
@@ -88,7 +95,8 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            // Keep cached public announcements usable; the next foreground entry retries.
+            // Keep cached public announcements usable, but let WorkManager retry the failed refresh.
+            hadFailure = true
         }
         return if (hadFailure || succeeded == 0) Result.retry() else Result.success()
     }

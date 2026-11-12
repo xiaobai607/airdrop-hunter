@@ -64,8 +64,8 @@ object CommunitySnapshotRepository {
 
         try {
             val baseUri = URI(base)
-            if (!baseUri.scheme.equals("https", true) || baseUri.host.isNullOrBlank() || baseUri.userInfo != null) {
-                return@withContext cached
+            require(baseUri.scheme.equals("https", true) && !baseUri.host.isNullOrBlank() && baseUri.userInfo == null) {
+                "Community snapshot base URL must be a valid HTTPS URL"
             }
             val manifestRequestBuilder = Request.Builder()
                 .url("$base/manifest.json")
@@ -92,9 +92,13 @@ object CommunitySnapshotRepository {
                     response.body?.string() ?: throw IllegalStateException("Empty snapshot manifest")
                 }
             }
-            if (manifestNotModified || manifestRaw == null) return@withContext cached
+            if (manifestNotModified || manifestRaw == null) {
+                require(cached.isNotEmpty()) { "Snapshot manifest returned 304 but no cached snapshots are available" }
+                return@withContext cached
+            }
             val manifest = gson.fromJson(manifestRaw, CommunitySnapshotManifestDto::class.java)
             if (manifest == null || manifest.schema_version != 1) throw IllegalStateException("Invalid snapshot manifest")
+            require(manifest.snapshots.isNotEmpty()) { "Snapshot manifest contains no snapshot references" }
 
             // Save validators only after every object referenced by this manifest is
             // already cached or has been fetched and verified. Otherwise the next run
