@@ -3,6 +3,7 @@ package com.airdrophunter.app
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.ApiService
 import com.airdrophunter.app.data.CacheStoreProjectsLocalDataSource
+import com.airdrophunter.app.data.CacheRefreshCoordinator
 import com.airdrophunter.app.data.OkxMarketRepository
 import com.airdrophunter.app.data.ProjectsRepository
 import com.airdrophunter.app.data.ProjectWalletAssignmentRepository
@@ -31,6 +32,7 @@ import com.airdrophunter.app.data.RetrofitAirdropsRemoteDataSource
  */
 class AppContainer {
     val apiService: ApiService by lazy { ApiClient.service }
+    val cacheRefreshEngine: CacheRefreshCoordinator by lazy { CacheRefreshCoordinator.shared }
 
     val projectsRepository: ProjectsRepository by lazy {
         ProjectsRepository(
@@ -67,7 +69,10 @@ class AppContainer {
     }
 
     val airdropHubRepository: AirdropHubRepository by lazy {
-        AirdropHubRepository(RetrofitAirdropHubRemoteDataSource(apiService))
+        AirdropHubRepository(
+            remote = RetrofitAirdropHubRemoteDataSource(apiService),
+            cacheRefresh = cacheRefreshEngine
+        )
     }
 
     val airdropsRepository: AirdropsRepository by lazy {

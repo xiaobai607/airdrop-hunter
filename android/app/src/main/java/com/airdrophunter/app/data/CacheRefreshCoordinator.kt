@@ -91,7 +91,7 @@ data class CacheRefreshResult<T>(
     val throttled: Boolean = false
 )
 
-/** Persistent stale-while-revalidate coordinator for market/search and per-wallet asset caches. */
+/** Shared cache refresh engine for app data sources: TTL, deduplication, retries and stale-data retention. */
 class CacheRefreshCoordinator(
     private val clock: () -> Long = System::currentTimeMillis,
     private val wait: suspend (Long) -> Unit = { delay(it) },
@@ -105,6 +105,7 @@ class CacheRefreshCoordinator(
         source: String,
         ttlMillis: Long = CacheRefreshPolicy.DEFAULT_TTL_MILLIS,
         manual: Boolean = false,
+        force: Boolean = false,
         readCache: suspend () -> T?,
         fetch: suspend () -> T,
         save: suspend (T) -> Unit
@@ -113,8 +114,8 @@ class CacheRefreshCoordinator(
         var metadata = CacheStore.readCacheMetadata(cacheKey, source)
         val initialNow = clock()
         val initialFresh = CacheRefreshPolicy.isFresh(metadata, initialNow)
-        if (!manual && initialCached != null && initialFresh) return CacheRefreshResult(initialCached, false)
-        if (!manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, initialNow)) {
+        if (!force && !manual && initialCached != null && initialFresh) return CacheRefreshResult(initialCached, false)
+        if (!force && !manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, initialNow)) {
             return CacheRefreshResult(initialCached, stale = true, errorMessage = metadata?.lastError)
         }
         if (manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, initialNow)) {
@@ -127,8 +128,8 @@ class CacheRefreshCoordinator(
             metadata = CacheStore.readCacheMetadata(cacheKey, source)
             val lockedNow = clock()
             val fresh = CacheRefreshPolicy.isFresh(metadata, lockedNow)
-            if (!manual && cached != null && fresh) return@withLock CacheRefreshResult(cached, false)
-            if (!manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, lockedNow)) {
+            if (!force && !manual && cached != null && fresh) return@withLock CacheRefreshResult(cached, false)
+            if (!force && !manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, lockedNow)) {
                 return@withLock CacheRefreshResult(cached, stale = true, errorMessage = metadata?.lastError)
             }
             if (manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, lockedNow)) {
