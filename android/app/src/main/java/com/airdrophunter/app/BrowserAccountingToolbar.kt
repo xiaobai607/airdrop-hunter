@@ -791,6 +791,13 @@ fun BrowserAccountingToolbar(
                         }
                     }
                     Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账（非链上交易）" else "待确认交易：") + if (bill.txHash.startsWith("MANUAL-")) "" else bill.txHash.take(8) + "..." + bill.txHash.takeLast(6), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    if (bill.id.startsWith("WEB3-") && bill.interactionMethod.contains("手动核验")) {
+                        Text(
+                            "自动回执核验未完成。请先在区块浏览器确认交易状态，再填写真实 Gas 和收益；不要把预估费用当成实际费用。",
+                            color = Color(0xFF9A5A16),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                     if (gasL1Native.isNotBlank() || gasL2Native.isNotBlank()) {
                         Surface(
                             color = Color(0xFFF7F8FA),
