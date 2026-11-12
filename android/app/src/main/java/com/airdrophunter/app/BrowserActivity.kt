@@ -249,22 +249,34 @@ private fun BrowserScreen(
                             if (draftId != null && walletRequestId != null && chainNumber != null &&
                                 txHash != null && com.airdrophunter.app.data.Web3TransactionRepository.isValidTxHash(txHash)
                             ) {
-                                dappRequestScope.launch {
-                                    val accepted = web3Repository.attachWalletConnectHash(
+                                // Persist the wallet's broadcast hash before acknowledging success
+                                // to the DApp. If Android kills this process, the Room draft must
+                                // already contain the only reliable recovery handle.
+                                val accepted = runCatching {
+                                    web3Repository.attachWalletConnectHash(
                                         draftId, walletRequestId, chainNumber, txHash
                                     )
-                                    if (accepted) {
-                                        com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(
-                                            context.applicationContext, draftId
-                                        )
-                                    } else {
-                                        Log.e("AirdropBrowser", "WalletConnect transaction hash did not match its durable draft")
-                                    }
+                                }.onFailure {
+                                    Log.e("AirdropBrowser", "Could not persist WalletConnect transaction hash", it)
+                                }.getOrDefault(false)
+                                if (accepted) {
+                                    com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(
+                                        context.applicationContext, draftId
+                                    )
+                                } else {
+                                    // The wallet has already returned a successful broadcast result.
+                                    // Never turn that into a false DApp rejection; keep the draft
+                                    // recoverable and let the user reconcile the hash manually.
+                                    runCatching { web3Repository.markWalletTimedOut(draftId) }
+                                    Log.e("AirdropBrowser", "WalletConnect hash was not attached; draft requires manual chain sync")
                                 }
                             } else if (draftId != null) {
-                                dappRequestScope.launch { web3Repository.markWalletTimedOut(draftId) }
+                                runCatching { web3Repository.markWalletTimedOut(draftId) }
+                                Log.e("AirdropBrowser", "WalletConnect returned an invalid or incomplete transaction hash")
                             }
                         }
+                        // A wallet success means the wallet accepted/broadcast the request;
+                        // receipt confirmation and ledger accounting remain separate steps.
                         DappProviderBridge.success(pending.replyProxy, pending.request.id, result.result)
                     }
                     is Modal.Model.JsonRpcResponse.JsonRpcError -> {
