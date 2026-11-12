@@ -33,7 +33,13 @@ class AirdropHunterApplication : Application() {
                 override fun onStart(owner: LifecycleOwner) {
                     processLifecycleScope.launch {
                         runCatching {
-                            appContainer.web3TransactionRepository.markOldWalletRequestsForSync()
+                            val repository = appContainer.web3TransactionRepository
+                            repository.markOldWalletRequestsForSync()
+                            repository.pendingReceiptDraftIds().forEach { draftId ->
+                                com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(
+                                    applicationContext, draftId
+                                )
+                            }
                         }.onFailure {
                             Log.w("AirdropWallet", "Wallet-return reconciliation failed", it)
                         }
