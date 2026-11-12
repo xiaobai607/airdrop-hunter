@@ -3,8 +3,8 @@ package com.airdrophunter.app.data
 data class CommunityContributionRequest(
     val event_id: String,
     val network: String,
-    val wallet_address: String,
-    val tx_hash: String,
+    val wallet_address: String? = null,
+    val tx_hash: String? = null,
     val public_contribution_opt_in: Boolean,
     val gas_cost_usd: Double,
     val actual_reward_usd: Double,
