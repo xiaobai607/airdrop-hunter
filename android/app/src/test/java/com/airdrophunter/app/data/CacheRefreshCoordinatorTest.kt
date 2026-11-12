@@ -1,7 +1,11 @@
 package com.airdrophunter.app.data
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -12,36 +16,52 @@ import java.io.IOException
 class CacheRefreshCoordinatorTest {
     @Test
     fun sameKeyConcurrentRefreshesReuseTheFirstSuccessfulResult() = runBlocking {
-        var now = 10_000L
-        var fetches = 0
         val metadata = mutableMapOf<String, CacheMetadataEntity>()
         var cached: String? = null
+        var fetches = 0
+        val fetchStarted = CompletableDeferred<Unit>()
+        val releaseFetch = CompletableDeferred<Unit>()
         val engine = CacheRefreshCoordinator(
-            clock = { now },
+            clock = { 10_000L },
             wait = {},
             jitter = { 1.0 },
             readMetadata = { key, source -> metadata["$source:$key"] },
             writeMetadata = { metadata["${it.source}:${it.cacheKey}"] = it }
         )
 
-        val first = engine.load(
-            cacheKey = "public-list", source = "directory", ttlMillis = 60_000L,
-            readCache = { cached },
-            fetch = { fetches++; "verified-list" },
-            save = { cached = it }
-        )
-        now += 1_000L
-        val second = engine.load(
-            cacheKey = "public-list", source = "directory", ttlMillis = 60_000L,
-            readCache = { cached },
-            fetch = { fetches++; "unexpected-second-fetch" },
-            save = { cached = it }
-        )
+        // Hold the first network request open while the second caller reaches the
+        // same source/key. This proves real overlap rather than sequential reuse.
+        val first = async {
+            engine.load(
+                cacheKey = "public-list", source = "directory", ttlMillis = 60_000L,
+                readCache = { cached },
+                fetch = {
+                    fetches++
+                    fetchStarted.complete(Unit)
+                    releaseFetch.await()
+                    "verified-list"
+                },
+                save = { cached = it }
+            )
+        }
+        fetchStarted.await()
+        val second = async(start = CoroutineStart.UNDISPATCHED) {
+            engine.load(
+                cacheKey = "public-list", source = "directory", ttlMillis = 60_000L,
+                readCache = { cached },
+                fetch = { fetches++; "unexpected-second-fetch" },
+                save = { cached = it }
+            )
+        }
+        yield()
+        releaseFetch.complete(Unit)
 
-        assertEquals("verified-list", first.data)
-        assertEquals("verified-list", second.data)
+        val firstResult = first.await()
+        val secondResult = second.await()
+        assertEquals("verified-list", firstResult.data)
+        assertEquals("verified-list", secondResult.data)
         assertEquals(1, fetches)
-        assertFalse(second.stale)
+        assertFalse(secondResult.stale)
     }
 
     @Test
