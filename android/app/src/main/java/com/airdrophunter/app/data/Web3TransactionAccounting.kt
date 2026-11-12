@@ -202,6 +202,7 @@ object Web3ReceiptFeeParser {
     ): BigInteger? = when (chainId) {
         42161L -> Web3RpcClient.parseRpcQuantity(gasUsedForL1Raw)
             ?.multiply(effectiveGasPrice)
+            ?: Web3RpcClient.parseRpcQuantity(l1FeeRaw)
         10L, 8453L -> Web3RpcClient.parseRpcQuantity(l1FeeRaw)
         else -> BigInteger.ZERO
     }
