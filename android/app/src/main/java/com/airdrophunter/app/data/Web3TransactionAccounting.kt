@@ -129,6 +129,8 @@ data class ParsedWalletTransaction(
 object WalletTransactionLinkParser {
     private val addressPattern = Regex("^0x[a-fA-F0-9]{40}$")
     private val dataPattern = Regex("^0x([a-fA-F0-9]{2})*$")
+    private val maxUint256 = BigInteger.ONE.shiftLeft(256).subtract(BigInteger.ONE)
+    private const val MAX_CALLDATA_LENGTH = 262_146
 
     fun parse(uri: Uri): ParsedWalletTransaction? {
         val scheme = uri.scheme?.lowercase() ?: return null
@@ -178,7 +180,7 @@ object WalletTransactionLinkParser {
         val value = parseQuantity(queryParameter(uri, "value") ?: "0x0")
             ?: return null
         val data = queryParameter(uri, "data") ?: "0x"
-        if (!dataPattern.matches(data)) return null
+        if (data.length > MAX_CALLDATA_LENGTH || !dataPattern.matches(data)) return null
 
         val from = queryParameter(uri, "from")
             ?.takeIf(addressPattern::matches)
@@ -198,14 +200,17 @@ object WalletTransactionLinkParser {
         return null
     }
 
-    fun parseQuantity(raw: String): BigInteger? = runCatching {
-        when {
-            raw.startsWith("0x", true) ->
-                BigInteger(raw.substring(2).ifBlank { "0" }, 16)
-            raw.matches(Regex("^[0-9]+$")) -> BigInteger(raw)
-            else -> java.math.BigDecimal(raw).toBigIntegerExact()
-        }.takeIf { it.signum() >= 0 }
-    }.getOrNull()
+    fun parseQuantity(raw: String): BigInteger? {
+        if (raw.length > 100) return null
+        return runCatching {
+            when {
+                raw.startsWith("0x", true) ->
+                    BigInteger(raw.substring(2).ifBlank { "0" }, 16)
+                raw.matches(Regex("^[0-9]+$")) -> BigInteger(raw)
+                else -> java.math.BigDecimal(raw).toBigIntegerExact()
+            }.takeIf { it.signum() >= 0 && it <= maxUint256 }
+        }.getOrNull()
+    }
 }
 
 object Web3ReceiptFeeParser {
@@ -344,8 +349,9 @@ class Web3TransactionRepository(
         val rawData = transaction.optString("data")
             .ifBlank { transaction.optString("input") }
             .ifBlank { "0x" }
-        require(rawData.matches(Regex("^0x([a-fA-F0-9]{2})*$"))) {
-            "交易 data 参数无效"
+        require(rawData.length <= MAX_CALLDATA_LENGTH &&
+            rawData.matches(Regex("^0x([a-fA-F0-9]{2})*$"))) {
+            "交易 data 参数无效或超过安全长度"
         }
         val data = rawData
         val now = System.currentTimeMillis()
