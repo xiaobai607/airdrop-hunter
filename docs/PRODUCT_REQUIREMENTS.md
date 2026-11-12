@@ -123,9 +123,9 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 - Code commit `a7dc2647596f6a2f2c41cec900dfb0a49578560f` removes remaining manual-refresh cooldown bypasses and surfaces throttled results; exact-head Android workflow #43152173285 passed.
 - Requirements-first audit found that wallet workers could treat a stale last-known-good fallback as a successful refresh and advance the 8-hour cadence after a provider failure. The defect and acceptance criteria were added to this document before code changes.
 - Code commit `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1` preserves `stale` and `errorMessage` in wallet activity/balance snapshots and prevents either worker from marking cadence success for stale/error/throttled results. Added wallet-activity stale-fallback regression coverage and pure cadence-success policy tests.
-- Exact-head Android workflow **#43152987166** is currently **in progress** on `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1`; do not mark this batch complete until it finishes. Backend tests are skipped because this batch changes Android files only.
+- Exact-head Android workflow **#43152987166** completed successfully on `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1`: Android build, unit tests, Debug APK assembly and artifact upload passed. Backend tests were skipped because this batch changes Android files only.
 - Live provider verification remains pending. No production database writes, campaign publications, production deployment or physical-device acceptance are claimed. Scheduled discovery sync remains disabled.
-- Progress estimate pending this batch's CI: **code/CI implementation ~72%**; **overall release readiness ~44%**. These are rounded project-level estimates, not test coverage.
+- Updated estimate after the passing exact-head batch: **code/CI implementation ~73%**; **overall release readiness ~45%**. These are rounded project-level estimates, not test coverage.
 - Next actions after CI: if green, update the completion ledger and continue the all-caller/background-scope audit; if red, inspect the failing job and repair before another code batch.
 
 ### Delivery batch summary
@@ -2366,3 +2366,12 @@ Implementation status: requirement approved; existing coordinator already has a 
 - This is background refresh reliability, not private cloud sync or a change to registration/account behavior.
 
 **Status:** audit-confirmed defect; requirement recorded before implementation. Implementation and exact-head CI pending.
+
+
+### 2026-11-12 — wallet background stale-fallback retry fix verified
+
+- Exact-head Android workflow **#43152987166** passed on `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1`: Android compilation, unit tests, Debug APK assembly and artifact upload succeeded. Backend tests were skipped by the workflow's Android-only change filter.
+- Wallet activity and balance repositories now preserve coordinator stale/error/throttle status in their returned snapshots. Both background workers use a shared cadence-success policy and do not advance their 8-hour success timestamp when a stale fallback, error or throttle is returned.
+- Added regression tests for wallet-activity provider failure with a retained cached snapshot and for the cadence-success decision. These tests passed in the exact-head workflow.
+- **Status:** implementation and exact-head Android CI complete. Physical-device verification, live wallet provider correctness and background scheduling under real Android battery/network constraints remain pending.
+- PR #135 remains **Draft / Open / unmerged**. No production sync, deployment or account-flow change was made.
