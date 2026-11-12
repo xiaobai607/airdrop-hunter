@@ -293,6 +293,9 @@ object Web3ReceiptIdentityVerifier {
 }
 
 object Web3ReceiptFeeParser {
+    fun isOpStackDepositTransaction(typeRaw: String?): Boolean =
+        Web3RpcClient.parseRpcQuantity(typeRaw) == BigInteger.valueOf(126L)
+
     /**
      * Arbitrum reports gasUsedForL1 in child-chain gas units, so its charged
      * parent-chain component is gasUsedForL1 * effectiveGasPrice.
@@ -803,7 +806,13 @@ class Web3TransactionRepository(
             return true
         }
 
-        val operatorFee = runCatching {
+        val isOpStackDeposit = Web3ReceiptFeeParser.isOpStackDepositTransaction(
+            receipt.optString("type").takeIf { it.isNotBlank() }
+        )
+        val operatorFee = if (isOpStackDeposit) {
+            // OP Stack deposit transactions are explicitly exempt from Operator Fee.
+            BigInteger.ZERO
+        } else runCatching {
             rpc.getOperatorFee(
                 draft.chainId,
                 gasUsed,
