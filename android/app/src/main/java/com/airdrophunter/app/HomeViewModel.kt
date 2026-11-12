@@ -72,7 +72,7 @@ class HomeViewModel(
                 if (cachedCoins.isNotEmpty()) {
                     val cachedTickers = cachedCoins.map { coin ->
                         OkxTicker("${coin.symbol}-USDT", coin.lastPrice, coin.change24hPercent)
-                    }.filter { it.symbol in setOf("BTC", "ETH") }
+                    }.filter { it.symbol in setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP") }
                     val metadata = try {
                         CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
                     } catch (cancelled: CancellationException) {
