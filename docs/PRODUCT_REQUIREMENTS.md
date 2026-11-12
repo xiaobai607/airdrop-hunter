@@ -2552,3 +2552,13 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Acceptance: cached hot coins render before any network wait; refresh success replaces them; failure retains them and displays stale/error status; an empty cache shows an honest empty/loading state; lifecycle cancellation propagates.
 
 **Status:** requirement recorded; implementation and CI pending.
+
+
+## 2026-11-12 global search query cancellation
+
+- Audit finding: the coin and DApp remote-search branches wrap suspending `withContext(Dispatchers.IO)` calls in `runCatching`. Because `runCatching` catches `CancellationException`, a query/category change can cancel the old search yet allow its catch/continuation to update the new screen state with stale results.
+- Replace those wrappers with explicit cancellation propagation and ordinary exception handling. Do not let a cancelled old query write results or error state after a newer query has started.
+- Keep the existing 300 ms debounce, local-first search, shared cache coordinator and provider behavior unchanged.
+- Acceptance: changing query/category cancels the previous remote lookup; only the active query may update results/errors; ordinary provider failures still preserve local results and show the existing fallback message.
+
+**Status:** requirement recorded; implementation and CI pending.
