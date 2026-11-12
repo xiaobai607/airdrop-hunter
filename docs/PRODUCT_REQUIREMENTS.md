@@ -2476,3 +2476,9 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Code commit `4f94d343fbe70165afc48784a5cbaed85d80c174` changes the Airdrop Hub cooldown text to “刚刚刷新过，请30秒后再试” and preserves that exact message through the ViewModel. Genuine provider failures still use the generic warning that cached data was retained.
 - Added three unit tests for cooldown-message preservation, provider-failure fallback and missing-error fallback.
 - Exact-head Android CI is pending; physical-device confirmation of the displayed message remains separate.
+
+
+**CI correction note — 2026-11-12:**
+- Exact-head workflow **#43156338310** failed at Kotlin compilation because the new catch branch referenced `error.message` without binding the caught exception. This was a source-code compile error; the previous passing CI does not cover this later commit.
+- Corrected in code commit `81529302595dc2909283826653f9679c88a58499` by binding the caught exception as `failure` and passing `failure.message` to the cooldown-message policy.
+- The exact-head Android build/unit-test workflow for this correction is pending. Do not mark the Airdrop Hub cooldown UI change verified until it passes.
