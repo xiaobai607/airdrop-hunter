@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 
 class AirdropHunterApplication : Application() {
     val appContainer: AppContainer by lazy { AppContainer() }
+    private val processLifecycleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -30,7 +31,7 @@ class AirdropHunterApplication : Application() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
                 override fun onStart(owner: LifecycleOwner) {
-                    CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                    processLifecycleScope.launch {
                         runCatching {
                             appContainer.web3TransactionRepository.markOldWalletRequestsForSync()
                         }.onFailure {
