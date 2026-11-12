@@ -664,10 +664,21 @@ fun BrowserAccountingToolbar(
                                                 }) { Text("重试核实") }
                                             }
                                             Web3DraftStatus.RECEIPT_NEEDS_SYNC -> {
-                                                if (com.airdrophunter.app.data.Web3RpcRegistry.endpoint(draft.chainId) != null) {
+                                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                    if (com.airdrophunter.app.data.Web3RpcRegistry.endpoint(draft.chainId) != null) {
+                                                        TextButton(onClick = {
+                                                            com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
+                                                        }) { Text("重试核实") }
+                                                    }
                                                     TextButton(onClick = {
-                                                        com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
-                                                    }) { Text("重试核实") }
+                                                        scope.launch {
+                                                            val bill = runCatching {
+                                                                web3Repository.createManualReviewBillFromDraft(draft.id)
+                                                            }.getOrNull()
+                                                            if (bill != null) openBill(bill)
+                                                            else Toast.makeText(context, "当前交易暂不能转入手动记账", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    }) { Text("手动记账") }
                                                 }
                                             }
                                             Web3DraftStatus.TIMED_OUT_NEEDS_SYNC -> {
