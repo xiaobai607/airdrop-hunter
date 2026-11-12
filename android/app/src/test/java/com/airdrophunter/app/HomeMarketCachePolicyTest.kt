@@ -29,4 +29,18 @@ class HomeMarketCachePolicyTest {
         val refreshed = listOf(OkxTicker("BTC-USDT", 66000.0, 1.8))
         assertEquals(refreshed, resolveHomeMarketRows(cached, refreshed))
     }
+
+    @Test fun manualCooldownUsesExplicitThirtySecondWarning() {
+        assertEquals(
+            "刚刚刷新过，请30秒后再试",
+            homeMarketRefreshWarning("刚刚刷新过，请稍后再试", hasCachedRows = true)
+        )
+    }
+
+    @Test fun providerFailureKeepsGenericStaleWarning() {
+        assertEquals(
+            "行情暂时不可用，正在显示上次缓存",
+            homeMarketRefreshWarning("HTTP 503", hasCachedRows = true)
+        )
+    }
 }
