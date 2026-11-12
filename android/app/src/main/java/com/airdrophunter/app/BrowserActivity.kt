@@ -323,7 +323,10 @@ private fun BrowserScreen(
             if (!completingUserApprovedConnection) {
                 DappOriginPermissionStore.revokeAll()
                 pendingDappExternalRequest?.let { pending ->
-                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4100, "外部钱包会话已变化，请重新连接")
+                    pending.web3DraftId?.let { draftId ->
+                        dappRequestScope.launch { web3Repository.markWalletTimedOut(draftId) }
+                    }
+                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4100, "外部钱包会话已变化；交易草稿保留并等待同步核对")
                     pendingDappExternalRequest = null
                 }
                 val accountsChanged = JSONObject()
@@ -713,7 +716,10 @@ private fun BrowserScreen(
                                             DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "The page navigated before wallet access was approved")
                                         }
                                         pendingDappExternalRequest?.let { pending ->
-                                            DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "网页已跳转，外部钱包请求已取消")
+                                            pending.web3DraftId?.let { draftId ->
+                                                dappRequestScope.launch { web3Repository.markWalletTimedOut(draftId) }
+                                            }
+                                            DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "网页已跳转；交易草稿保留并等待链上同步核对")
                                         }
                                         pendingDappConnection = null
                                         pendingDappExternalRequest = null
