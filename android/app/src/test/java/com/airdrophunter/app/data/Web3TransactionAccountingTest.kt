@@ -131,9 +131,8 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
-    fun arbitrumCanUseDirectL1FeeWhenGasUsedForL1IsUnavailable() {
-        assertEquals(
-            BigInteger("900"),
+    fun arbitrumDoesNotGuessFromNonStandardL1FeeWhenCanonicalFieldIsMissing() {
+        assertNull(
             Web3ReceiptFeeParser.l1FeeWei(
                 42161L, "0x384", null, BigInteger("200")
             )
