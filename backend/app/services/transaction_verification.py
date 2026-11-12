@@ -206,19 +206,16 @@ async def verify_evm_contribution(
         operator_fee: int | None = 0
         if config.get("operator_fee"):
             operator_calldata = "0x275aedd2" + f"{gas_used:064x}"
-            try:
-                operator_result = await _etherscan_rpc(
-                    client, config["chain_id"], api_key, "eth_call",
-                    to="0x420000000000000000000000000000000000000F",
-                    data=operator_calldata,
-                    tag=hex(receipt_block),
-                )
-                if not isinstance(operator_result, str) or not re.fullmatch(r"0x[0-9a-fA-F]{64}", operator_result):
-                    operator_fee = None
-                else:
-                    operator_fee = _hex_int(operator_result, "OP Stack 运营商费用")
-            except VerificationPending:
+            operator_result = await _etherscan_rpc(
+                client, config["chain_id"], api_key, "eth_call",
+                to="0x420000000000000000000000000000000000000F",
+                data=operator_calldata,
+                tag=hex(receipt_block),
+            )
+            if not isinstance(operator_result, str) or not re.fullmatch(r"0x[0-9a-fA-F]{64}", operator_result):
                 operator_fee = None
+            else:
+                operator_fee = _hex_int(operator_result, "OP Stack 运营商费用")
 
         fee_components_complete = (
             (not bool(config.get("l2")) or l1_fee is not None)
