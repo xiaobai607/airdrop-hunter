@@ -2447,3 +2447,13 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Exact-head Android workflow **#43155017970** completed successfully on code commit `dba5163dbed4c6bb9c663ebfa78908a1bbf01314`: Android compilation, unit tests, Debug APK assembly and artifact upload passed. Backend tests were skipped by Android-only path filtering.
 - This verifies the initial status-aware worker retry implementation only. The later partial-provider-failure and independent-error-boundary corrections are in a separate code batch and still await exact-head CI.
 - PR #135 remains **Draft / Open / unmerged**. No physical-device acceptance, live provider validation, production sync or deployment is claimed.
+
+
+### Verification update — partial dynamic warm-up failure handling (2026-11-12)
+
+- Exact-head Android workflow **#43155885856** completed successfully on code commit `e1bf8a00dbd9322ba0aa2cd1ea539ee3d866b349`: Android compilation, unit tests, Debug APK assembly and artifact upload passed. Backend tests were skipped because the changes were Android-only.
+- The passing run includes the four market warm-up outcome tests and compiles the worker/snapshot validation changes.
+- The earlier dynamic worker retry commit `dba5163dbed4c6bb9c663ebfa78908a1bbf01314` also passed exact-head CI #43155017970.
+- **Code/CI status for this reliability slice: complete.** Real Android background scheduling, device-visible refresh states, live provider responses and battery/network behavior remain unverified.
+- PR #135 remains **Draft / Open / unmerged**. No production sync, deployment, registration/account-flow changes or private cloud sync were introduced.
+- Updated rounded project estimate: **code/CI implementation ~73%**; **overall release readiness ~45%**. These are scope-level estimates, not test coverage. Physical-device acceptance, live-data validation, remaining feature work and release/deployment gates are still outstanding.
