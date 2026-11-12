@@ -131,14 +131,37 @@ object WalletTransactionLinkParser {
 
     fun parse(uri: Uri): ParsedWalletTransaction? {
         val scheme = uri.scheme?.lowercase() ?: return null
-        if (scheme !in setOf("metamask", "trust", "trustwallet")) return null
+        if (scheme !in setOf("metamask", "trust", "trustwallet", "ethereum")) return null
+
+        var pathRecipient: String? = null
+        var pathChainId: String? = null
+        when (scheme) {
+            "ethereum" -> {
+                // EIP-681 native transfer: ethereum:<address>@<chainId>?value=<wei>
+                val authority = uri.toString().substringAfter(":", "")
+                    .substringBefore("?").substringBefore("#").trimStart('/')
+                val addressAndChain = authority.substringBefore("/")
+                pathRecipient = addressAndChain.substringBefore("@").takeIf { it.contains("0x") }
+                pathChainId = addressAndChain.substringAfter("@", "").takeIf { it.isNotBlank() }
+            }
+            "metamask" -> {
+                // MetaMask mobile send route: metamask://send/<recipient>@<chainId>?value=<wei>
+                val route = (listOf(uri.host.orEmpty()) + uri.pathSegments).filter { it.isNotBlank() }
+                val sendTarget = route.dropWhile { it != "send" }.drop(1).firstOrNull()
+                if (sendTarget != null) {
+                    pathRecipient = sendTarget.substringBefore("@")
+                    pathChainId = sendTarget.substringAfter("@", "").takeIf { it.isNotBlank() }
+                }
+            }
+        }
 
         val to = uri.getQueryParameter("to")
             ?: uri.getQueryParameter("address")
+            ?: pathRecipient
             ?: return null
         if (!addressPattern.matches(to)) return null
 
-        val rawChain = uri.getQueryParameter("chainId") ?: return null
+        val rawChain = uri.getQueryParameter("chainId") ?: pathChainId ?: return null
         val chainId = parseQuantity(rawChain)?.takeIf {
             it.signum() > 0 && it.bitLength() <= 63
         }?.toLong() ?: return null
@@ -158,8 +181,8 @@ object WalletTransactionLinkParser {
         when {
             raw.startsWith("0x", true) ->
                 BigInteger(raw.substring(2).ifBlank { "0" }, 16)
-            raw.all(Char::isDigit) -> BigInteger(raw)
-            else -> return null
+            raw.matches(Regex("^[0-9]+$")) -> BigInteger(raw)
+            else -> java.math.BigDecimal(raw).toBigIntegerExact()
         }.takeIf { it.signum() >= 0 }
     }.getOrNull()
 }
