@@ -668,7 +668,17 @@ private fun BrowserScreen(
                                         return true
                                     }
                                     if (scheme == "wc") {
-                                        Toast.makeText(context, "请使用页面内的“连接外部钱包”入口建立 WalletConnect 会话", Toast.LENGTH_LONG).show()
+                                        if (!walletConnectReady) {
+                                            Toast.makeText(context, "钱包连接服务尚未就绪，请稍后重试", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            runCatching {
+                                                AppKit.handleDeepLink(target.toString()) { error ->
+                                                    Log.e("AirdropWallet", "WalletConnect deep link failed", error.throwable)
+                                                }
+                                            }.onFailure {
+                                                Toast.makeText(context, "无法处理 WalletConnect 链接", Toast.LENGTH_LONG).show()
+                                            }
+                                        }
                                         return true
                                     }
                                     val parsed = com.airdrophunter.app.data.WalletTransactionLinkParser.parse(target)
