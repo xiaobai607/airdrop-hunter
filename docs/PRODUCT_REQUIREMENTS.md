@@ -2954,6 +2954,8 @@ Implementation status: requirement approved; existing coordinator already has a 
 
 
 ### 2026-11-13 — 外部钱包返回与进程冷启动恢复审计（源码修正，未构建）
+- **进一步的进程死亡恢复要求：** WalletConnect 的 request response 关联不能只依赖 BrowserScreen 内存中的 JavaScript reply proxy。应将 requestId、session topic、chainId 与草稿持久关联，并在 AppKit 恢复后由进程级观察器独立接收成功响应、核对唯一草稿并补存 TxHash/调度 receipt。页面代理因进程死亡而丢失时，不尝试伪造或补发网页响应；优先保证本地交易账务恢复。若关联不唯一或字段不匹配，拒绝自动绑定，保留手动 TxHash 核验。
+
 
 - WalletConnect 的 `eth_sendTransaction` 成功响应现在先等待本地 Room 草稿完成 Hash 绑定，再向 DApp 回传钱包成功结果；成功绑定后立即入队 receipt Worker。若本地绑定失败，不把已经由钱包确认成功的广播伪报为 DApp 失败，而是将仍可恢复的草稿置为待同步核对并保留手动 TxHash 补核路径。
 - `WalletConnectRedirectActivity` 现在校验回调 URI 必须为 `airdrophunter://request`，拒绝通过显式 Intent 注入的其他 URI；并在处理回调前确保 AppKit 已初始化，覆盖 Android 在外部钱包停留期间杀进程、随后由 redirect Activity 冷启动的场景。初始化等待设有 15 秒上限，失败时记录错误并退出，不假装回调已处理。
