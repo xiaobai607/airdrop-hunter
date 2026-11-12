@@ -684,7 +684,7 @@ private fun BrowserScreen(
                                     val parsed = com.airdrophunter.app.data.WalletTransactionLinkParser.parse(target)
                                     dappRequestScope.launch {
                                         var draftId: String? = null
-                                        if (parsed != null) {
+                                        if (parsed != null && com.airdrophunter.app.data.Web3RpcRegistry.endpoint(parsed.chainId) != null) {
                                             draftId = runCatching {
                                                 web3Repository.createExternalLinkDraft(
                                                     parsed = parsed,
@@ -694,6 +694,8 @@ private fun BrowserScreen(
                                             }.onFailure {
                                                 Log.e("AirdropBrowser", "Could not persist wallet transaction draft", it)
                                             }.getOrNull()
+                                        } else if (parsed != null) {
+                                            Toast.makeText(context, "该网络暂未接入安全 RPC 自动核验，钱包仍可打开；请使用手动记账", Toast.LENGTH_LONG).show()
                                         }
                                         draftId?.let {
                                             com.airdrophunter.app.data.Web3DraftTimeoutScheduler.enqueue(
