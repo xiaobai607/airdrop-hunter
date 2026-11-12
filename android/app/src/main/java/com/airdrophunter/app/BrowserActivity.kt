@@ -17,6 +17,9 @@ import android.webkit.WebChromeClient
 import android.webkit.PermissionRequest
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.webkit.WebViewCompat
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebViewFeature
@@ -87,6 +90,21 @@ private data class PendingDappExternalRequest(
 )
 
 class BrowserActivity : ComponentActivity() {
+    override fun onStart() {
+        super.onStart()
+        // A wallet may have completed or rejected an operation without a callback.
+        // After returning (including process recreation), stale drafts become sync-needed,
+        // never falsely marked as cancelled.
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                (application as AirdropHunterApplication)
+                    .appContainer.web3TransactionRepository
+                    .markOldWalletRequestsForSync()
+            }.onFailure {
+                Log.w(TAG, "Unable to reconcile stale Web3 wallet drafts", it)
+            }
+        }
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ApiClient.initialize(applicationContext)
