@@ -48,6 +48,7 @@ import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.core.VectorConverter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -307,11 +308,9 @@ fun BrowserAccountingToolbar(
                         if (longPressReached) {
                             // Pointer events update one Offset synchronously; no per-move
                             // coroutine or independently cancellable X/Y update is created.
-                            scope.launch {
-                                dockOffset.stop()
-                                dockDragPosition = dockOffset.value
-                                dockIsDragging = true
-                            }
+                            dockDragPosition = dockOffset.value
+                            dockIsDragging = true
+                            scope.launch { dockOffset.stop() }
                             var lastPosition = down.position
                             var dragActive = true
                             while (dragActive) {
