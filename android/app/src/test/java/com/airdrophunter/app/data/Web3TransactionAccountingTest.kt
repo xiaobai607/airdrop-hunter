@@ -109,6 +109,17 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun walletHashCanOnlyAttachToRecoverableDraftStates() {
+        assertTrue(Web3DraftStatus.canAttachHash(Web3DraftStatus.PENDING_WALLET))
+        assertTrue(Web3DraftStatus.canAttachHash(Web3DraftStatus.WAITING_HASH))
+        assertTrue(Web3DraftStatus.canAttachHash(Web3DraftStatus.TIMED_OUT_NEEDS_SYNC))
+        assertFalse(Web3DraftStatus.canAttachHash(Web3DraftStatus.CANCELLED))
+        assertFalse(Web3DraftStatus.canAttachHash(Web3DraftStatus.WALLET_UNAVAILABLE))
+        assertFalse(Web3DraftStatus.canAttachHash(Web3DraftStatus.WAITING_RECEIPT))
+        assertFalse(Web3DraftStatus.canAttachHash(Web3DraftStatus.ACCOUNTED))
+    }
+
+    @Test
     fun receiptIdentityMustMatchSavedTransactionHash() {
         val hash = "0x" + "a".repeat(64)
         assertTrue(Web3ReceiptIdentityVerifier.matches(hash, hash.uppercase()))
