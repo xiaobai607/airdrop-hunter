@@ -49,6 +49,7 @@ class AirdropHunterApplication : Application() {
                     val draftId = runCatching {
                         appContainer.web3TransactionRepository.attachWalletConnectResponse(
                             requestId = rpcResult.id,
+                            method = response.method,
                             sessionTopic = response.topic,
                             chainId = chainId,
                             hash = txHash
