@@ -79,7 +79,7 @@ object ManualProjectAccountingPolicy {
             require(wallet.walletAddress.isNotBlank() && wallet.walletAddress.length <= 160) { "钱包地址无效" }
             require(wallet.network.isNotBlank() && wallet.network.length <= 40) { "网络标识无效" }
             require(wallet.gasCostUsd.isValidAmount()) { "Gas 金额必须是有限的非负数" }
-            if (wallet.publicContributionOptIn) {
+            if (wallet.publicContributionOptIn && wallet.txHash.isNotBlank()) {
                 require(isSupportedHash(wallet.network, wallet.txHash)) {
                     "该钱包的 Tx Hash 格式无效，或当前网络暂不支持匿名贡献核验"
                 }
