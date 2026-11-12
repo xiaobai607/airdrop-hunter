@@ -35,6 +35,12 @@ internal fun resolveHomeMarketRows(
     refreshedRows: List<OkxTicker>?
 ): List<OkxTicker> = refreshedRows ?: cachedRows
 
+internal fun homeMarketRefreshWarning(errorMessage: String?, hasCachedRows: Boolean): String? = when {
+    errorMessage?.startsWith("刚刚刷新过") == true -> "刚刚刷新过，请30秒后再试"
+    hasCachedRows -> "行情暂时不可用，正在显示上次缓存"
+    else -> errorMessage
+}
+
 class HomeViewModel(
     private val repository: OkxMarketRepository
 ) : ViewModel() {
@@ -141,7 +147,9 @@ class HomeViewModel(
                     isLoading = false,
                     isRefreshing = false,
                     hasError = retained.isEmpty(),
-                    marketError = if (retained.isEmpty()) message else "行情暂时不可用，正在显示上次缓存",
+                    marketError = if (retained.isEmpty()) message else homeMarketRefreshWarning(
+                        error.message, hasCachedRows = true
+                    ),
                     marketCacheStatus = CacheDisplayStatus.ERROR
                 )
             }
