@@ -39,6 +39,16 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun arbitrumCanUseDirectL1FeeWhenGasUsedForL1IsUnavailable() {
+        assertEquals(
+            BigInteger("900"),
+            Web3ReceiptFeeParser.l1FeeWei(
+                42161L, "0x384", null, BigInteger("200")
+            )
+        )
+    }
+
+    @Test
     fun optimismAndBaseUseReceiptL1FeeWei() {
         assertEquals(
             BigInteger("500"),
