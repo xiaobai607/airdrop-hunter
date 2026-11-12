@@ -169,12 +169,14 @@ fun BrowserAccountingToolbar(
 
     fun openBill(bill: PendingBillEntity) {
         activeBill = bill
-        gas = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 }?.let { String.format(Locale.US, "%.2f", it) }.orEmpty()
         reward = ""
         rewardUsdEdited = false
         val existingAssets = LedgerAssetBreakdownCodec.decode(bill.assetBreakdownJson)
         val gasAsset = existingAssets.firstOrNull { it.kind == "gas" }
         val rewardAsset = existingAssets.firstOrNull { it.kind == "reward" }
+        val initialGasUsd = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 }
+            ?: gasAsset?.usd_valuation?.takeIf { it.isFinite() && it >= 0.0 }
+        gas = initialGasUsd?.let { String.format(Locale.US, "%.2f", it) }.orEmpty()
         gasNative = gasAsset?.amount_native.orEmpty()
         gasSymbol = gasAsset?.symbol.orEmpty()
         gasDecimals = gasAsset?.decimals?.toString().orEmpty()
@@ -697,8 +699,12 @@ fun BrowserAccountingToolbar(
                                             verticalArrangement = Arrangement.spacedBy(3.dp)
                                         ) {
                                             Text(
-                                                if (bill.id.startsWith("WEB3-") && bill.gasCostUsd == 0.0) "真实 Gas 已获取 · USD 待填写"
-                                                else String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd),
+                                                if (bill.id.startsWith("WEB3-") && bill.gasCostUsd == 0.0) {
+                                                    val quote = LedgerAssetBreakdownCodec.decode(bill.assetBreakdownJson)
+                                                        .firstOrNull { it.kind == "gas" }?.usd_valuation
+                                                    quote?.let { String.format(Locale.US, "真实 Gas $%.2f", it) }
+                                                        ?: "真实 Gas 已获取 · USD 待填写"
+                                                } else String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd),
                                                 color = Color(0xFF9A5A16),
                                                 fontWeight = FontWeight.Bold
                                             )
