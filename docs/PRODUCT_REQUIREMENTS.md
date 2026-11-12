@@ -2968,3 +2968,11 @@ Implementation status: requirement approved; existing coordinator already has a 
 - AppKit 初始化完成后启动 Application 级 response observer，独立于 BrowserActivity 的 Compose 生命周期监听 WalletConnect 响应；仅处理 `eth_sendTransaction`，要求有效 Hash、非空 session topic、有效 chainId，并在数据库中找到唯一 requestId/topic/chain 匹配草稿后才绑定 Hash、入队 receipt。重复响应幂等；已 ACCOUNTED 草稿不会被重复入队；匹配不唯一或缺字段时拒绝自动绑定。
 - BrowserActivity 原有 DApp 回调仍负责当前页面的 JSON-RPC 响应；进程级观察器只负责恢复本地账务，不尝试在进程死亡后伪造或补发已失效的 JavaScript reply proxy。
 - 新增纯 Kotlin 响应身份校验单元测试。源码静态检查确认 BrowserActivity 已持久化 topic、Application observer 已接线、schema 24 migration 已注册、恢复测试已加入；尚未执行 Gradle 编译或测试，Room Migration 与 Reown 回调时序仍待最终构建/设备验收。
+
+
+### 2026-11-13 — 回执 Worker 终态与迟到钱包回调状态竞争（源码修正，未构建）
+
+- 修复 Worker 在用户已完成正式记账后仍可能继续轮询回执、并因 `createPendingAccountingBill()` 正确拒绝重复建单而反复重试的问题：`ACCOUNTED` 草稿现在是 receipt Worker 终态；若 Worker 运行期间用户完成记账，Worker 会重新读取状态并正常结束，不会重建账单。
+- 回执状态更新改为条件 SQL，只允许 `waiting_receipt / waiting_l1_fee / waiting_operator_fee / receipt_needs_sync / timed_out_needs_sync` 状态参与更新。迟到 Worker 不得把 `CONFIRMED / CONFIRMED_FAILED / ACCOUNTED` 或取消状态覆盖回待同步/等待回执。
+- 修复 30 秒超时 Worker 与 WalletConnect `onSuccess` 竞态：钱包请求编号/Session Topic 绑定 SQL 现在只接受 `pending_wallet / waiting_hash / timed_out_needs_sync`；若超时先发生，绑定请求元数据时保留 `timed_out_needs_sync`，不会错误回退到 `waiting_hash`。后续迟到 Hash 仍可按已校验的 request/topic/chain 绑定。
+- 新增纯 Kotlin 状态策略测试，覆盖 ACCOUNTED 终态和回执状态可更新边界。源码静态检查可确认这些条件已写入；未运行 Gradle/单元测试/CI/APK，Room SQL 与 WorkManager 并发行为仍须最终构建和设备验收。
