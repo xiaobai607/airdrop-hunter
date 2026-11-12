@@ -2499,3 +2499,11 @@ Implementation status: requirement approved; existing coordinator already has a 
 **Scope guard:** do not change wallet/account scoping, personal ledger/project/task persistence, registration/account flows, private cloud sync, provider selection or cache TTL.
 
 **Status:** audit-confirmed cache-first UI gap; requirement recorded before implementation. Code and exact-head CI pending.
+
+
+**Implementation follow-up — code submitted, exact-head CI pending (2026-11-12):**
+- Code commit `1dc66b2c4473708b6ab81d0d89ae98ce9f6d0e75` adds `MarketSearchRepository.readCachedHotCoins()`, a Room-only read path that does not trigger provider requests.
+- `HomeViewModel` now publishes cached BTC/ETH rows and their metadata into UI state before invoking coordinator revalidation. Cached rows remain visible during refresh and on provider failure; an empty cache retains the initial loading state. Cancellation is rethrown rather than rendered as a provider failure.
+- Added four policy tests for cached-vs-empty initial loading, retaining cached rows after failed refresh, and replacing rows after successful refresh.
+- The preceding cooldown-message build exposed an unbound catch variable; corrected in commit `81529302595dc2909283826653f9679c88a58499`. Its exact-head CI #43158102664 was still running at this checkpoint.
+- Cache-first Home dashboard code is queued in exact-head Android workflow **#43158350021**. Neither workflow is marked passed yet; physical-device rendering and live provider behavior remain pending.
