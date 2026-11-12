@@ -170,6 +170,39 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun opStackDepositHasNoL1DataFeeEvenWhenReceiptOmitsL1FeeField() {
+        assertEquals(
+            BigInteger.ZERO,
+            Web3ReceiptFeeParser.l1FeeWei(
+                chainId = 10L,
+                l1FeeRaw = null,
+                gasUsedForL1Raw = null,
+                effectiveGasPrice = BigInteger.ZERO,
+                transactionTypeRaw = "0x7e"
+            )
+        )
+        assertEquals(
+            BigInteger.ZERO,
+            Web3ReceiptFeeParser.l1FeeWei(
+                chainId = 8453L,
+                l1FeeRaw = null,
+                gasUsedForL1Raw = null,
+                effectiveGasPrice = BigInteger.ZERO,
+                transactionTypeRaw = "0x7E"
+            )
+        )
+        assertNull(
+            Web3ReceiptFeeParser.l1FeeWei(
+                chainId = 10L,
+                l1FeeRaw = null,
+                gasUsedForL1Raw = null,
+                effectiveGasPrice = BigInteger.ZERO,
+                transactionTypeRaw = "0x2"
+            )
+        )
+    }
+
+    @Test
     fun optimismAndBaseUseReceiptL1FeeWei() {
         assertEquals(
             BigInteger("500"),
