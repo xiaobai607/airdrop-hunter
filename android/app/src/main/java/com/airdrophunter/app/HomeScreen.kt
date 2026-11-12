@@ -92,11 +92,22 @@ fun HomeScreen(
         }
     }
     val scope = rememberCoroutineScope()
+    val defaultMarketSymbols = remember { listOf("BTC", "ETH", "SOL", "BNB", "TRX") }
+    var marketSymbols by remember { mutableStateOf(defaultMarketSymbols) }
+    var marketSymbolDraft by remember { mutableStateOf(defaultMarketSymbols.toSet()) }
+    var showMarketEditor by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
     var showNavOverlay by remember { mutableStateOf(false) }
     var navContentVisible by remember { mutableStateOf(false) }
     fun closeNavOverlay() { scope.launch { navContentVisible = false; delay(180); showNavOverlay = false } }
     var sites by remember { mutableStateOf(AirdropSiteStore.defaults) }
+
+    LaunchedEffect(Unit) {
+        marketSymbols = runCatching { CacheStore.readMarketDashboardSymbols() }
+            .getOrDefault(defaultMarketSymbols)
+            .filter { it in setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP") }
+            .ifEmpty { defaultMarketSymbols }
+    }
 
     LaunchedEffect(isGuest, sessionScopeKey) {
         // Entering Home always queues a non-blocking refresh check for public airdrop data.
@@ -125,7 +136,10 @@ fun HomeScreen(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("行情看板", color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.weight(1f))
+                TextButton(onClick = {
+                    marketSymbolDraft = marketSymbols.toSet()
+                    showMarketEditor = true
+                }) { Text("编辑", color = AppColors.Primary) }
                 Text(if (state.isRefreshing) "更新中" else "刷新",
                     modifier = Modifier.clickable { homeViewModel.refresh(isGuest) }.padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
                     color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
@@ -154,9 +168,12 @@ fun HomeScreen(
                         }
                     }
                     else -> Column {
-                        state.market.forEachIndexed { index, ticker ->
+                        val visibleMarket = state.market.filter { ticker ->
+                            ticker.symbol.substringBefore("-").uppercase(Locale.US) in marketSymbols
+                        }
+                        visibleMarket.forEachIndexed { index, ticker ->
                             MarketRow(ticker)
-                            if (index != state.market.lastIndex) HorizontalDivider(color = AppColors.Border)
+                            if (index != visibleMarket.lastIndex) HorizontalDivider(color = AppColors.Border)
                         }
                     }
                 }
@@ -178,6 +195,47 @@ fun HomeScreen(
                 style = MaterialTheme.typography.labelSmall
             )
         }
+        if (showMarketEditor) {
+            AlertDialog(
+                onDismissRequest = { showMarketEditor = false },
+                containerColor = AppColors.Surface,
+                title = { Text("自定义行情看板", color = AppColors.TextPrimary) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("选择要在首页显示的币种，至少保留一个。", color = AppColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall)
+                        listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").forEach { symbol ->
+                            Row(Modifier.fillMaxWidth().clickable {
+                                marketSymbolDraft = if (symbol in marketSymbolDraft) marketSymbolDraft - symbol
+                                    else marketSymbolDraft + symbol
+                            }.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = symbol in marketSymbolDraft, onCheckedChange = { checked ->
+                                    marketSymbolDraft = if (checked) marketSymbolDraft + symbol else marketSymbolDraft - symbol
+                                })
+                                Text(symbol, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(enabled = marketSymbolDraft.isNotEmpty(), onClick = {
+                        val saved = listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").filter { it in marketSymbolDraft }
+                        marketSymbols = saved
+                        showMarketEditor = false
+                        scope.launch { runCatching { CacheStore.saveMarketDashboardSymbols(saved) } }
+                    }) { Text("保存") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        marketSymbolDraft = defaultMarketSymbols.toSet()
+                        marketSymbols = defaultMarketSymbols
+                        showMarketEditor = false
+                        scope.launch { runCatching { CacheStore.saveMarketDashboardSymbols(defaultMarketSymbols) } }
+                    }) { Text("恢复默认") }
+                }
+            )
+        }
+
         // Search belongs directly below the market dashboard, before all shortcuts.
         Row(
             Modifier.fillMaxWidth()
@@ -211,7 +269,6 @@ fun HomeScreen(
                 "wallet_management" -> onOpenWallet()
                 "tron_energy" -> onOpenTronEnergy()
                 "accounting" -> onOpenAccounting()
-                "airdrop_library" -> onOpenAirdropCampaigns()
                 "project_library" -> onOpenProjects()
             }
         }
@@ -249,7 +306,6 @@ fun HomeScreen(
                         "wallet_management" -> Icons.Default.AccountBalanceWallet
                         "tron_energy" -> Icons.Default.Shield
                         "accounting" -> Icons.Default.ReceiptLong
-                        "airdrop_library" -> Icons.Default.NotificationsNone
                         "project_library" -> Icons.Default.Search
                         else -> Icons.Default.Search
                     }

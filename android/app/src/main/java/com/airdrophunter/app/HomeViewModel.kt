@@ -116,7 +116,7 @@ class HomeViewModel(
                 val cachedCoins = marketRepository.loadHotCoins(manual = manual)
                 val tickers = cachedCoins.map { coin ->
                     OkxTicker("${coin.symbol}-USDT", coin.lastPrice, coin.change24hPercent)
-                }.filter { it.symbol in setOf("BTC", "ETH") }
+                }.filter { it.symbol in setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP") }
                 val cacheMetadata = CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
                 val cacheStatus = CacheRefreshPolicy.displayStatus(cacheMetadata, System.currentTimeMillis())
                 val cacheWarning = if (cacheStatus == CacheDisplayStatus.ERROR ||

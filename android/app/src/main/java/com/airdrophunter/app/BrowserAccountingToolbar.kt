@@ -200,6 +200,11 @@ fun BrowserAccountingToolbar(
     }
 
     
+    fun discardManualDraft(bill: PendingBillEntity) {
+        if (!bill.txHash.startsWith("MANUAL-")) return
+        scope.launch { runCatching { accountingRepository.deletePendingBill(bill.id) } }
+    }
+
     fun deleteDraft(bill: PendingBillEntity) {
         scope.launch {
             val ok = runCatching { accountingRepository.deletePendingBill(bill.id) }.isSuccess
@@ -564,6 +569,7 @@ fun BrowserAccountingToolbar(
         Dialog(
             onDismissRequest = {
                 if (!saving) {
+                    activeBill?.let(::discardManualDraft)
                     showConfirm = false
                     activeBill = null
                     if (!showDock) onCloseAccounting()
@@ -782,7 +788,7 @@ fun BrowserAccountingToolbar(
                         }
                         Text(if (saving) "入账中…" else "确认入账")
                     }
-                    TextButton(onClick = { if (!saving) { showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() } }, enabled = !saving,
+                    TextButton(onClick = { if (!saving) { activeBill?.let(::discardManualDraft); showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() } }, enabled = !saving,
                         modifier = Modifier.align(Alignment.End)) { Text("取消") }
                 }
             }

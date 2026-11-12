@@ -18,6 +18,13 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.time.Instant
 
+@Entity(tableName = "market_dashboard_preferences")
+data class MarketDashboardPreferenceEntity(
+    @PrimaryKey val id: Int = 1,
+    val symbolsCsv: String,
+    val updatedAt: Long
+)
+
 @Entity(tableName = "cached_payloads")
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
 
@@ -140,6 +147,14 @@ data class ProjectRatingEntity(
     val timestamp: Long,
     @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest"
 )
+
+@Dao
+interface MarketDashboardPreferenceDao {
+    @Query("SELECT * FROM market_dashboard_preferences WHERE id = 1 LIMIT 1")
+    suspend fun get(): MarketDashboardPreferenceEntity?
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(preference: MarketDashboardPreferenceEntity)
+}
 
 @Dao
 interface CacheDao {
@@ -358,8 +373,9 @@ interface LocalBackupDao {
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectWalletAssignments(rows:List<ProjectWalletAssignmentEntity>)
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class], version = 21, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class], version = 22, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
+    abstract fun marketDashboardPreferenceDao(): MarketDashboardPreferenceDao
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
     abstract fun pnlRecordDao(): PnlRecordDao
@@ -661,13 +677,24 @@ object CacheStore {
             db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN expectedRewardUsd REAL")
         }
     }
+    private val MIGRATION_21_22 = object : Migration(21, 22) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS market_dashboard_preferences (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    symbolsCsv TEXT NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+            """.trimIndent())
+        }
+    }
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22).build()
         }
     }
     fun schedulePrivateLedgerSync() {
@@ -1446,6 +1473,23 @@ object CacheStore {
         if (scope == "guest") listOf("guest:", "signed-out:")
         else listOf("$scope:", "${scope.removePrefix("user:")}:")
 
+
+    suspend fun readMarketDashboardSymbols(): List<String> = withContext(Dispatchers.IO) {
+        val saved = database?.marketDashboardPreferenceDao()?.get()?.symbolsCsv
+            ?.split(",")?.map { it.trim().uppercase(Locale.US) }
+            ?.filter { it in setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP") }
+            .orEmpty()
+        saved.ifEmpty { listOf("BTC", "ETH", "SOL", "BNB", "TRX") }
+    }
+    suspend fun saveMarketDashboardSymbols(symbols: List<String>) = withContext(Dispatchers.IO) {
+        val allowed = listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP")
+        val selected = symbols.map { it.uppercase(Locale.US) }.toSet()
+        val normalized = allowed.filter { it in selected }
+        require(normalized.isNotEmpty()) { "至少选择一个行情币种" }
+        database?.marketDashboardPreferenceDao()?.save(
+            MarketDashboardPreferenceEntity(1, normalized.joinToString(","), System.currentTimeMillis())
+        )
+    }
 
     suspend fun readMarketCoins(): List<MarketCoinEntity> = withContext(Dispatchers.IO) {
         database?.marketCoinDao()?.getAll().orEmpty()

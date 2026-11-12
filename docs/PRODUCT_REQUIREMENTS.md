@@ -2717,3 +2717,12 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 根据用户新截图，将 Dock 工具可见名称由“新增记账”进一步统一为“记账”，并移除已废弃的 `initialCreateMockBill` 参数及其调用，避免代码层保留模拟账单入口语义。
 - 修正提交：`c4917e7d3ef719f5679bf786488b028d188f5375`。
 - 截图仍显示“模拟账单”说明设备上运行的 APK 尚未包含上述最新代码（或安装的不是当前分支构建）；最新 PR 头为该提交，GitHub 当前未返回对应 workflow run / commit status，因此**CI 尚未验证**。需要构建并安装最新 Debug APK 后才能完成界面验收。
+
+
+### 2026-11-12 — 本轮优化继续推进（暂不构建 APK）
+
+- 用户明确要求：整份首页/工具栏优化清单全部完成后再统一构建 APP；本轮开发期间不主动构建 APK，不用中间构建冒充交付。
+- 行情看板：新增 Room 持久化币种选择设置（数据库 21→22 迁移），首页提供“编辑”入口，支持 BTC/ETH/SOL/BNB/TRX/XRP 多选，至少保留一个，默认 BTC/ETH/SOL/BNB/TRX；首页只渲染用户选中的币种。HomeViewModel 新鲜数据映射过滤也统一支持这六种币，修复缓存显示六币但刷新后退回 BTC/ETH 的不一致。
+- 正式记账取消语义：用户取消表单或关闭确认弹窗时，会删除本次临时 MANUAL 草稿，避免取消后仍留空白记录；旧 MOCK 演示数据继续保留存储但排除在正式列表外。
+- 已审计：ProfileScreen 已有纵向滚动和底部 32dp 留白；首页“空投列表”已从快捷卡片白名单、默认布局及旧配置升级迁移清除；首页副标题已限制单行省略；SplashScreen 与 Token IO 异步已落地。WalletConnect/AppKit 仍在 Application.onCreate 同步初始化，尚未测量冷启动影响，暂不贸然改变 SDK 生命周期，列为待验证/待优化项。
+- 浏览器 Dock 的完整拖动行为仍需真机验证；当前代码已保留整个外层容器拖动、LazyRow 内部滑动与边缘吸附实现。所有以上改动当前均未做 APK 构建或真机验收。
