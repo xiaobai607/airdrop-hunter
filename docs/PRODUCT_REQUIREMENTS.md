@@ -2440,3 +2440,10 @@ Implementation status: requirement approved; existing coordinator already has a 
 - A configured invalid/non-HTTPS snapshot base URL now fails instead of returning a successful cached result; a 304 response without cached snapshots and an empty manifest are also rejected. An intentionally blank base URL remains a supported disabled/no-op configuration.
 - Community directory, snapshot, campaign, market and Airdrop Hub attempts now have independent failure boundaries. WorkManager retains exponential backoff (30-second initial delay) and unique-work KEEP behavior.
 - Exact-head Android CI is pending. Device/background scheduling and real provider validation remain separate acceptance items.
+
+
+### Verification update — dynamic catalog retry implementation (2026-11-12)
+
+- Exact-head Android workflow **#43155017970** completed successfully on code commit `dba5163dbed4c6bb9c663ebfa78908a1bbf01314`: Android compilation, unit tests, Debug APK assembly and artifact upload passed. Backend tests were skipped by Android-only path filtering.
+- This verifies the initial status-aware worker retry implementation only. The later partial-provider-failure and independent-error-boundary corrections are in a separate code batch and still await exact-head CI.
+- PR #135 remains **Draft / Open / unmerged**. No physical-device acceptance, live provider validation, production sync or deployment is claimed.
