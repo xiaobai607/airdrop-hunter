@@ -744,3 +744,20 @@ def test_dexscreener_top_ten_selection_excludes_pools_older_than_seven_days():
     ]
     selected = select_dexscreener_top_candidates(rows)
     assert [row["name"] for row in selected] == ["Fresh pool"]
+
+
+def test_binance_announcement_normalizer_preserves_official_release_date():
+    from datetime import datetime, timezone
+    from app.services.airdrop_discovery_filter import evaluate_discovery_observation
+
+    rows = _normalize_binance_announcements({"data": {"catalogs": [{"articles": [
+        {"title": "Official Airdrop Announcement", "code": "date-test-001", "releaseDate": 1794484800000},
+        {"title": "Announcement without date", "code": "date-test-002"},
+        {"title": "Malformed date", "code": "date-test-003", "releaseDate": "not-a-date"},
+    ]}]}}, catalog_id=128)
+
+    assert rows[0]["published_at"] == datetime(2026, 11, 12, 4, 0, tzinfo=timezone.utc)
+    assert rows[1]["published_at"] is None
+    assert rows[2]["published_at"] is None
+    decision = evaluate_discovery_observation(rows[0])
+    assert decision["metadata"]["published_at"] == "2026-11-12T04:00:00+00:00"
