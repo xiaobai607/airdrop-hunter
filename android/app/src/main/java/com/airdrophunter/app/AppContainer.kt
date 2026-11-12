@@ -91,7 +91,14 @@ class AppContainer {
             dao = dao,
             scopeProvider = { CacheStore.accountScopeKey(TokenStore.readTokenBlocking()) },
             nativePriceProvider = { symbol ->
-                runCatching { okxMarketRepository.loadSpotTickerDetail(symbol).data }.getOrNull()
+                runCatching {
+                    val quote = okxMarketRepository.loadSpotTickerDetail(symbol)
+                    quote.data?.takeIf {
+                        !quote.stale &&
+                            it.timestamp > 0L &&
+                            kotlin.math.abs(System.currentTimeMillis() - it.timestamp) <= 5 * 60 * 1000L
+                    }
+                }.getOrNull()
             }
         )
     }
