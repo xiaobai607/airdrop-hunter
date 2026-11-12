@@ -314,14 +314,21 @@ object Web3ReceiptFeeParser {
         chainId: Long,
         l1FeeRaw: String?,
         gasUsedForL1Raw: String?,
-        effectiveGasPrice: BigInteger
-    ): BigInteger? = when (chainId) {
-        // Arbitrum's documented receipt extension is gasUsedForL1 (in child-chain
-        // gas units). Do not guess from a provider-specific, ambiguously named l1Fee.
-        42161L -> Web3RpcClient.parseRpcQuantity(gasUsedForL1Raw)
-            ?.multiply(effectiveGasPrice)
-        10L, 8453L -> Web3RpcClient.parseRpcQuantity(l1FeeRaw)
-        else -> BigInteger.ZERO
+        effectiveGasPrice: BigInteger,
+        transactionTypeRaw: String? = null
+    ): BigInteger? {
+        if (chainId in setOf(10L, 8453L) && isOpStackDepositTransaction(transactionTypeRaw)) {
+            // Deposits are derived from L1 and are exempt from the L2 L1-data fee.
+            return BigInteger.ZERO
+        }
+        return when (chainId) {
+            // Arbitrum's documented receipt extension is gasUsedForL1 (in child-chain
+            // gas units). Do not guess from a provider-specific, ambiguously named l1Fee.
+            42161L -> Web3RpcClient.parseRpcQuantity(gasUsedForL1Raw)
+                ?.multiply(effectiveGasPrice)
+            10L, 8453L -> Web3RpcClient.parseRpcQuantity(l1FeeRaw)
+            else -> BigInteger.ZERO
+        }
     }
 }
 
@@ -804,7 +811,8 @@ class Web3TransactionRepository(
             draft.chainId,
             receipt.optString("l1Fee").takeIf { it.isNotBlank() },
             receipt.optString("gasUsedForL1").takeIf { it.isNotBlank() },
-            effectiveGasPrice
+            effectiveGasPrice,
+            receipt.optString("type").takeIf { it.isNotBlank() }
         )
 
         if (Web3RpcRegistry.requiresL1Fee(draft.chainId) && l1Fee == null) {
