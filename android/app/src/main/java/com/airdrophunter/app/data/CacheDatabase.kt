@@ -1057,6 +1057,11 @@ object CacheStore {
         db.projectRatingDao().insert(ProjectRatingEntity(java.util.UUID.randomUUID().toString(), projectOfficialId, walletAddress, score, System.currentTimeMillis(), scope))
         true
     }
+    suspend fun findPendingBill(id: String, accountScope: String = currentAccountScope()): PendingBillEntity? =
+        withContext(Dispatchers.IO) {
+            database?.pendingBillDao()?.findById(id, accountScope)
+        }
+
     suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) {
         database?.pendingBillDao()?.insert(bill.copy(accountScope = currentAccountScope()))
     }
