@@ -38,6 +38,16 @@ class DappProviderBridgeTest {
     }
 
     @Test
+    fun transactionPayloadCannotOverrideTheAuthorizedActiveChain() {
+        assertTrue(DappProviderBridge.isTransactionChainCompatible("eth_sendTransaction", "0x1", "eip155:1"))
+        assertTrue(DappProviderBridge.isTransactionChainCompatible("eth_signTransaction", "137", "eip155:137"))
+        assertEquals(false, DappProviderBridge.isTransactionChainCompatible("eth_sendTransaction", "0x89", "eip155:1"))
+        assertEquals(false, DappProviderBridge.isTransactionChainCompatible("eth_sendTransaction", "not-a-chain", "eip155:1"))
+        assertTrue(DappProviderBridge.isTransactionChainCompatible("personal_sign", "0x89", "eip155:1"))
+        assertTrue(DappProviderBridge.isTransactionChainCompatible("eth_sendTransaction", null, "eip155:1"))
+    }
+
+    @Test
     fun requestedAccountIsExtractedFromEachSupportedSigningShape() {
         val first = "0x0123456789012345678901234567890123456789"
         val second = "0x9999999999999999999999999999999999999999"
