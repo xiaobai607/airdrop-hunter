@@ -68,7 +68,8 @@ class WalletActivityRepository(
         wallet: WalletDto,
         guest: Boolean,
         accessToken: String? = TokenStore.readTokenBlocking(),
-        manual: Boolean = false
+        manual: Boolean = false,
+        force: Boolean = false
     ): WalletActivitySnapshot {
         val token = accessToken?.takeIf { it.isNotBlank() }
         val scopedCacheKey = metadataCacheKey(wallet, token)
@@ -77,6 +78,7 @@ class WalletActivityRepository(
             source = WALLET_ACTIVITY_SOURCE,
             ttlMillis = WALLET_ACTIVITY_TTL_MILLIS,
             manual = manual,
+            force = force,
             readCache = { readCached(wallet, guest, token) },
             fetch = {
                 val authorizationHeader = token?.let { "Bearer $it" }
