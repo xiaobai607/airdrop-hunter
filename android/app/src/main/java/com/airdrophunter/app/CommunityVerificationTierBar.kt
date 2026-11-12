@@ -86,6 +86,7 @@ fun CommunityVerificationTierBar(
 
 fun communityContributionStatusLabel(status: String, tier: String?): String = when (status) {
     "verified" -> when (tier) {
+        "user_reported" -> "用户自报已计入公共统计"
         "amount_verified" -> "链上精确核验"
         "transaction_linked" -> "链上已确认"
         else -> "链上已核验"
