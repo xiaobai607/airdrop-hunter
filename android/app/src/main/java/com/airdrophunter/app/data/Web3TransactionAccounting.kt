@@ -104,6 +104,42 @@ interface Web3TransactionDraftDao {
     @Update
     suspend fun update(row: Web3TransactionDraftEntity)
 
+    @Query("""
+        UPDATE web3_transaction_drafts SET
+            gasUsed = :gasUsed,
+            effectiveGasPrice = :effectiveGasPrice,
+            l1Fee = :l1Fee,
+            operatorFeeWei = :operatorFeeWei,
+            totalFeeWei = :totalFeeWei,
+            nativeSymbol = :nativeSymbol,
+            nativePriceUsd = :nativePriceUsd,
+            nativePriceTimestamp = :nativePriceTimestamp,
+            actualGasUsd = :actualGasUsd,
+            receiptStatus = :receiptStatus,
+            status = :status,
+            lastError = :lastError,
+            updatedAt = :updatedAt
+        WHERE id = :id AND accountScope = :scope
+          AND status IN ('waiting_receipt','waiting_l1_fee','waiting_operator_fee','receipt_needs_sync','timed_out_needs_sync')
+    """)
+    suspend fun updateReceiptIfPending(
+        id: String,
+        scope: String,
+        gasUsed: String?,
+        effectiveGasPrice: String?,
+        l1Fee: String?,
+        operatorFeeWei: String?,
+        totalFeeWei: String?,
+        nativeSymbol: String?,
+        nativePriceUsd: Double?,
+        nativePriceTimestamp: Long?,
+        actualGasUsd: Double?,
+        receiptStatus: Int?,
+        status: String,
+        lastError: String?,
+        updatedAt: Long
+    ): Int
+
     @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope ORDER BY createdAt DESC")
     fun observeAll(scope: String): kotlinx.coroutines.flow.Flow<List<Web3TransactionDraftEntity>>
 
@@ -790,6 +826,20 @@ class Web3TransactionRepository(
         draft: Web3TransactionDraftEntity,
         receipt: JSONObject
     ): Boolean {
+        suspend fun persistReceipt(updated: Web3TransactionDraftEntity): Boolean {
+            val rows = dao.updateReceiptIfPending(
+                updated.id, updated.accountScope, updated.gasUsed, updated.effectiveGasPrice,
+                updated.l1Fee, updated.operatorFeeWei, updated.totalFeeWei, updated.nativeSymbol,
+                updated.nativePriceUsd, updated.nativePriceTimestamp, updated.actualGasUsd,
+                updated.receiptStatus, updated.status, updated.lastError, updated.updatedAt
+            )
+            if (rows == 1) return true
+            // A concurrent user confirmation or another worker may already have finalized it.
+            return dao.find(updated.id, updated.accountScope)?.status in setOf(
+                Web3DraftStatus.CONFIRMED, Web3DraftStatus.CONFIRMED_FAILED, Web3DraftStatus.ACCOUNTED
+            )
+        }
+
         // RPC data is not trusted until the receipt is bound to this exact saved TxHash.
         // Never let a malformed or unrelated receipt update the draft's fee/status fields.
         if (!Web3ReceiptIdentityVerifier.matches(
@@ -816,14 +866,14 @@ class Web3TransactionRepository(
         )
 
         if (Web3RpcRegistry.requiresL1Fee(draft.chainId) && l1Fee == null) {
-            dao.update(draft.copy(
+            if (!persistReceipt(draft.copy(
                 gasUsed = gasUsed.toString(),
                 effectiveGasPrice = effectiveGasPrice.toString(),
                 receiptStatus = receiptStatus,
                 status = Web3DraftStatus.WAITING_L1_FEE,
                 lastError = "已取得交易回执，但 RPC 未提供该 L2 的 L1 费用字段；总费用暂不确认",
                 updatedAt = System.currentTimeMillis()
-            ))
+            ))) return false
             return true
         }
 
@@ -841,7 +891,7 @@ class Web3TransactionRepository(
             )
         }.getOrNull()
         if (Web3RpcRegistry.requiresOperatorFee(draft.chainId) && operatorFee == null) {
-            dao.update(draft.copy(
+            if (!persistReceipt(draft.copy(
                 gasUsed = gasUsed.toString(),
                 effectiveGasPrice = effectiveGasPrice.toString(),
                 l1Fee = (l1Fee ?: BigInteger.ZERO).toString(),
@@ -849,7 +899,7 @@ class Web3TransactionRepository(
                 status = Web3DraftStatus.WAITING_OPERATOR_FEE,
                 lastError = "OP Stack 运营商费用无法从交易所在区块核实",
                 updatedAt = System.currentTimeMillis()
-            ))
+            ))) return false
             return true
         }
         val feeBreakdown = Web3ReceiptFeeCalculator.calculate(
@@ -865,7 +915,7 @@ class Web3TransactionRepository(
         val actualGasUsd = nativePriceUsd
             ?.let { totalNative.multiply(java.math.BigDecimal.valueOf(it)).toDouble() }
             ?.takeIf { it.isFinite() && it >= 0.0 }
-        dao.update(draft.copy(
+        if (!persistReceipt(draft.copy(
             gasUsed = gasUsed.toString(),
             effectiveGasPrice = effectiveGasPrice.toString(),
             l1Fee = (l1Fee ?: BigInteger.ZERO).toString(),
@@ -880,7 +930,7 @@ class Web3TransactionRepository(
                 else Web3DraftStatus.CONFIRMED_FAILED,
             lastError = if (actualGasUsd == null) "真实 Gas 已确认；当前缺少可用币价，USD 估值待补" else null,
             updatedAt = System.currentTimeMillis()
-        ))
+        ))) return false
         return true
     }
 
