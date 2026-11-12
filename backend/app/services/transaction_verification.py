@@ -22,7 +22,7 @@ TX_HASH = re.compile(r"^0x[a-fA-F0-9]{64}$")
 EVM_ADDRESS = re.compile(r"^0x[a-fA-F0-9]{40}$")
 
 # Only networks with a known Chainlink native/USD feed are eligible for exact
-# amount verification. L2s remain Tier 2 unless the provider exposes the full L1 fee.
+# amount verification. Rollups require every network-specific fee component.
 EVM_NETWORKS: dict[str, dict[str, Any]] = {
     "ethereum": {"chain_id": 1, "symbol": "ETH", "feed": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419", "confirmations": 12},
     "bsc": {"chain_id": 56, "symbol": "BNB", "feed": "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE", "confirmations": 15},
