@@ -349,4 +349,13 @@ class Web3TransactionAccountingTest {
             )
         )
     }
+
+    @Test
+    fun accountedDraftIsTerminalForReceiptWorker() {
+        assertTrue(Web3DraftStatus.isReceiptWorkComplete(Web3DraftStatus.ACCOUNTED))
+        assertFalse(Web3DraftStatus.isReceiptWorkComplete(Web3DraftStatus.CONFIRMED))
+        assertFalse(Web3DraftStatus.isReceiptWorkComplete(Web3DraftStatus.CONFIRMED_FAILED))
+        assertFalse(Web3DraftStatus.isReceiptWorkComplete(Web3DraftStatus.WAITING_RECEIPT))
+        assertFalse(Web3DraftStatus.isReceiptWorkComplete(Web3DraftStatus.RECEIPT_NEEDS_SYNC))
+    }
 }
