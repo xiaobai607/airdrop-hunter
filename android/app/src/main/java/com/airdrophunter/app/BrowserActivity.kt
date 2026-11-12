@@ -526,11 +526,6 @@ private fun BrowserScreen(
                                                                         return@launch
                                                                     }
                                                                 }
-                                                                draftId?.let {
-                                                                    com.airdrophunter.app.data.Web3DraftTimeoutScheduler.enqueue(
-                                                                        context.applicationContext, it
-                                                                    )
-                                                                }
                                                                 val current = pendingDappExternalRequest
                                                                 if (current?.request?.id != request.id) {
                                                                     draftId?.let { web3Repository.markWalletTimedOut(it) }
@@ -560,12 +555,28 @@ private fun BrowserScreen(
                                                                                         )
                                                                                         pendingDappExternalRequest = null
                                                                                     } else {
-                                                                                        currentPending.web3DraftId?.let { id ->
+                                                                                        val draftBound = currentPending.web3DraftId?.let { id ->
                                                                                             web3Repository.bindWalletConnectRequest(id, walletConnectRequest.requestId)
+                                                                                        } ?: true
+                                                                                        if (!draftBound) {
+                                                                                            currentPending.web3DraftId?.let { id ->
+                                                                                                web3Repository.markWalletTimedOut(id)
+                                                                                            }
+                                                                                            DappProviderBridge.error(
+                                                                                                replyProxy, request.id, 4200,
+                                                                                                "交易草稿与钱包请求关联失败；请通过链上同步核对"
+                                                                                            )
+                                                                                            pendingDappExternalRequest = null
+                                                                                        } else {
+                                                                                            currentPending.web3DraftId?.let { id ->
+                                                                                                com.airdrophunter.app.data.Web3DraftTimeoutScheduler.enqueue(
+                                                                                                    context.applicationContext, id
+                                                                                                )
+                                                                                            }
+                                                                                            pendingDappExternalRequest = currentPending.copy(
+                                                                                                walletConnectRequestId = walletConnectRequest.requestId
+                                                                                            )
                                                                                         }
-                                                                                        pendingDappExternalRequest = currentPending.copy(
-                                                                                            walletConnectRequestId = walletConnectRequest.requestId
-                                                                                        )
                                                                                     }
                                                                                 }
                                                                             }
