@@ -73,6 +73,8 @@ fun BrowserAccountingToolbar(
     val application = context.applicationContext as AirdropHunterApplication
     val accountingRepository = remember(application) { application.appContainer.accountingRepository }
     val pending by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
+    // Legacy MOCK fixtures stay stored for compatibility but never enter the real ledger flow.
+    val realPending = remember(pending) { pending.filterNot { it.txHash.startsWith("MOCK-") } }
 
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var activeBill by remember { mutableStateOf<PendingBillEntity?>(null) }
@@ -171,10 +173,10 @@ fun BrowserAccountingToolbar(
         showConfirm = true
     }
 
-    LaunchedEffect(initialShowBillList, pending) {
-        if (initialShowBillList && pending.isNotEmpty() && activeBill == null && !showConfirm) {
-            // Home's accounting shortcut opens the latest pending record directly.
-            openBill(pending.first())
+    LaunchedEffect(initialShowBillList, realPending) {
+        if (initialShowBillList && realPending.isNotEmpty() && activeBill == null && !showConfirm) {
+            // Home's accounting shortcut opens the latest real pending record directly.
+            openBill(realPending.first())
         }
     }
 
@@ -506,7 +508,7 @@ fun BrowserAccountingToolbar(
                             Icon(Icons.Default.Close, contentDescription = "关闭", tint = AppColors.TextSecondary)
                         }
                     }
-                    if (pending.isEmpty()) {
+                    if (realPending.isEmpty()) {
                         Box(Modifier.fillMaxWidth().padding(vertical = 22.dp), contentAlignment = Alignment.Center) {
                             Text("暂无待确认记录", color = AppColors.TextHelper)
                         }
@@ -515,7 +517,7 @@ fun BrowserAccountingToolbar(
                             modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(pending, key = { it.id }) { bill ->
+                            items(realPending, key = { it.id }) { bill ->
                                 Surface(
                                     color = Color(0xFFFFFAF4),
                                     shape = RoundedCornerShape(14.dp),
