@@ -135,7 +135,7 @@ class AirdropHubRepository(
             save = { cache.write(key, it) }
         )
 
-        if (result.throttled) throw IllegalStateException("刚刚刷新过，请稍后再试")
+        if (result.throttled) throw IllegalStateException("刚刚刷新过，请30秒后再试")
         val envelope = result.data
         if (envelope == null || result.errorMessage != null) {
             val retained = cache.read(key) ?: previous ?: AirdropHubCacheEnvelope()

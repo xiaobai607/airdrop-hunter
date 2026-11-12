@@ -20,6 +20,10 @@ data class AirdropHubUiState(
     val sourceError: String? = null
 )
 
+internal fun airdropHubRefreshWarning(errorMessage: String?): String =
+    errorMessage?.takeIf { it.contains("刚刚刷新过") }
+        ?: "数据源暂时不可用，已保留上次数据。"
+
 class AirdropHubViewModel(
     private val repository: AirdropHubRepository
 ) : ViewModel() {
@@ -83,7 +87,7 @@ class AirdropHubViewModel(
                 _uiState.value = _uiState.value.copy(
                     isRefreshing = false,
                     error = if (_uiState.value.projects.isEmpty()) "服务器繁忙，请稍后重试。" else null,
-                    sourceError = "数据源暂时不可用，已保留上次数据。"
+                    sourceError = airdropHubRefreshWarning(error.message)
                 )
             }
         }
