@@ -27,9 +27,29 @@ class LedgerAssetBreakdownCodecTest {
         val decoded = LedgerAssetBreakdownCodec.decode(encoded)
 
         assertEquals(assets, decoded)
-        assertEquals("0.125 ETH（USD估值 $250.00） · 1.5 BNB（USD估值 $900.00）",
+        assertEquals("Gas 总计：0.125 ETH（USD估值 $250.00） · Gas 总计：1.5 BNB（USD估值 $900.00）",
             formatLedgerAssetBreakdown(encoded, "gas"))
         assertTrue(LedgerAssetBreakdownCodec.decode(null).isEmpty())
+    }
+
+    @Test
+    fun formatterLabelsFeeComponentsAndDoesNotRepeatExecutionTotal() {
+        val encoded = LedgerAssetBreakdownCodec.encode(listOf(
+            LedgerAssetAmount("gas", "0.003", "ETH", 18, 9.0),
+            LedgerAssetAmount("execution_fee", "0.003", "ETH", 18, 9.0)
+        ))
+        assertEquals("Gas 总计：0.003 ETH（USD估值 $9.00）", formatLedgerAssetBreakdown(encoded))
+
+        val rollup = LedgerAssetBreakdownCodec.encode(listOf(
+            LedgerAssetAmount("gas", "0.006", "ETH", 18, 18.0),
+            LedgerAssetAmount("l2_fee", "0.003", "ETH", 18, 9.0),
+            LedgerAssetAmount("l1_fee", "0.002", "ETH", 18, 6.0),
+            LedgerAssetAmount("operator_fee", "0.001", "ETH", 18, 3.0)
+        ))
+        assertEquals(
+            "Gas 总计：0.006 ETH（USD估值 $18.00） · L2 执行费：0.003 ETH（USD估值 $9.00） · L1 数据费：0.002 ETH（USD估值 $6.00） · Operator Fee：0.001 ETH（USD估值 $3.00）",
+            formatLedgerAssetBreakdown(rollup)
+        )
     }
 
     @Test
