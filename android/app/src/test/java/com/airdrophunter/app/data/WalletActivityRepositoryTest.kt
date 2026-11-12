@@ -99,24 +99,24 @@ class WalletActivityRepositoryTest {
     }
 
     @Test
-    fun refreshReusesFreshSessionScopedSnapshotAndForceRefreshBypassesTtl() = runBlocking {
+    fun walletActivityRefreshUsesSessionScopedStorageWithoutGenericCacheTtl() = runBlocking {
         val local = FakeLocal()
         val remote = FakeRemote()
-        val metadata = mutableMapOf<Pair<String, String>, CacheMetadataEntity>()
-        val cacheRefresh = CacheRefreshCoordinator(
-            readMetadata = { key, source -> metadata[key to source] },
-            writeMetadata = { row -> metadata[row.cacheKey to row.source] = row }
-        )
-        val repository = WalletActivityRepository(remote, local, cacheRefresh = cacheRefresh)
+        val repository = WalletActivityRepository(remote, local)
         val wallet = wallet("T" + "2".repeat(33), WalletEcosystem.TRON)
 
         val first = repository.refresh(wallet, guest = true, accessToken = null)
-        val cached = repository.refresh(wallet, guest = true, accessToken = null)
-        assertEquals(first.networksChecked, cached.networksChecked)
-        assertEquals(1, remote.chainCalls.size)
+        val cached = repository.readCached(wallet, guest = true, accessToken = null)
+        assertEquals(first.networksChecked, cached?.networksChecked)
+        assertTrue(local.sessionRows.containsKey("guest:wallet_activity:wallet-1"))
+
+        // Explicit refreshes fetch the wallet snapshot directly; this private data
+        // does not use the shared public-data TTL coordinator.
+        repository.refresh(wallet, guest = true, accessToken = null)
+        assertEquals(2, remote.chainCalls.size)
 
         repository.refresh(wallet, guest = true, accessToken = null, force = true)
-        assertEquals(2, remote.chainCalls.size)
+        assertEquals(3, remote.chainCalls.size)
     }
 
     private fun wallet(address: String, ecosystem: String) = WalletDto(

@@ -1,7 +1,6 @@
 package com.airdrophunter.app.data
 
 import com.google.gson.Gson
-import java.security.MessageDigest
 
 interface WalletActivityLocalDataSource {
     suspend fun read(key: String, guest: Boolean): String?
@@ -52,8 +51,7 @@ data class WalletActivitySnapshot(
 class WalletActivityRepository(
     private val remote: WalletActivityRemoteDataSource,
     private val local: WalletActivityLocalDataSource? = null,
-    private val gson: Gson = Gson(),
-    private val cacheRefresh: CacheRefreshCoordinator = CacheRefreshCoordinator.shared
+    private val gson: Gson = Gson()
 ) {
     suspend fun readCached(
         wallet: WalletDto,
@@ -64,6 +62,7 @@ class WalletActivityRepository(
         return runCatching { gson.fromJson(raw, WalletActivitySnapshot::class.java) }.getOrNull()
     }
 
+    @Suppress("UNUSED_PARAMETER")
     suspend fun refresh(
         wallet: WalletDto,
         guest: Boolean,
@@ -71,56 +70,15 @@ class WalletActivityRepository(
         force: Boolean = false
     ): WalletActivitySnapshot {
         val token = accessToken?.takeIf { it.isNotBlank() }
-        val localKey = cacheKey(wallet)
-        val result = cacheRefresh.load(
-            cacheKey = engineCacheKey(wallet, guest, token),
-            source = "wallet-activity",
-            ttlMillis = WALLET_ACTIVITY_TTL_MILLIS,
-            force = force,
-            readCache = { readCachedSnapshot(localKey, guest, token) },
-            fetch = {
-                val authorizationHeader = token?.let { "Bearer $it" }
-                val authMode = if (token == null) "anonymous" else "captured"
-                load(wallet, authorizationHeader, authMode)
-                    .copy(fetchedAtEpochMillis = System.currentTimeMillis())
-            },
-            save = { snapshot ->
-                local?.writeForSession(localKey, gson.toJson(snapshot), guest, token)
-            }
-        )
-        if (result.errorMessage != null) {
-            throw IllegalStateException(result.errorMessage)
-        }
-        return result.data ?: throw IllegalStateException("钱包交易记录暂不可用")
-    }
-
-    private suspend fun readCachedSnapshot(
-        key: String,
-        guest: Boolean,
-        token: String?
-    ): WalletActivitySnapshot? {
-        val raw = local?.readForSession(key, guest, token) ?: return null
-        return runCatching { gson.fromJson(raw, WalletActivitySnapshot::class.java) }.getOrNull()
+        val authorizationHeader = token?.let { "Bearer $it" }
+        val authMode = if (token == null) "anonymous" else "captured"
+        val fresh = load(wallet, authorizationHeader, authMode)
+            .copy(fetchedAtEpochMillis = System.currentTimeMillis())
+        local?.writeForSession(cacheKey(wallet), gson.toJson(fresh), guest, token)
+        return fresh
     }
 
     private fun cacheKey(wallet: WalletDto) = "wallet_activity:${wallet.id}"
-
-    // Cache metadata is global, so scope it with a one-way token fingerprint.
-    // The access token itself is never written to cache metadata or cache keys.
-    private fun engineCacheKey(wallet: WalletDto, guest: Boolean, token: String?): String {
-        val scope = if (guest) "guest" else token?.let(::tokenFingerprint) ?: "missing-session"
-        return "wallet-activity:$scope:${wallet.id}:${wallet.ecosystem}"
-    }
-
-    private fun tokenFingerprint(token: String): String =
-        MessageDigest.getInstance("SHA-256")
-            .digest(token.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-            .take(24)
-
-    companion object {
-        private const val WALLET_ACTIVITY_TTL_MILLIS = 8 * 60 * 60 * 1000L
-    }
 
     suspend fun load(
         wallet: WalletDto,
