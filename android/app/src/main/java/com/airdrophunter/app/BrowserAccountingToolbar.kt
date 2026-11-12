@@ -335,7 +335,7 @@ fun BrowserAccountingToolbar(
                     items(selectedToolIds, key = { it }) { id ->
                         val option = toolOptions.firstOrNull { it.first == id } ?: return@items
                         val icon = when (id) {
-                            "mock_bill" -> Icons.Filled.Bolt
+                            "new_accounting" -> Icons.Filled.ReceiptLong
                             "copy_address" -> Icons.Filled.ContentCopy
                             "pending_bills" -> Icons.Filled.ReceiptLong
                             "refresh_page" -> Icons.Filled.Refresh
