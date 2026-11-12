@@ -602,7 +602,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     }
                     Text(
                         if (project.communityDelisted) "该项目已被社区目录明确标记为下架。仍可正常记账、编辑和查看历史；本次及后续新记录只保存在本机，不再贡献公共统计。"
-                        else "社区目录项目默认参与脱敏统计；选择支持的 EVM 网络并填写每个钱包自己的 Tx Hash，链上核验通过后才计入公共汇总。私人项目只进入个人账本。",
+                        else "社区目录项目默认参与脱敏统计；未填写 Tx Hash 的记录按用户自报计入，填写后必须通过链上核验。私人项目只进入个人账本。",
                         color = if (project.communityDelisted) Color(0xFFB42318) else AppColors.TextHelper,
                         style = MaterialTheme.typography.bodySmall)
                     selectedWallets.forEach { wallet ->
@@ -654,7 +654,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         }
                         if (!project.communityDelisted && project.communityOfficialId != null &&
                             ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)) {
-                            Text("社区目录项目默认参与脱敏统计；填写该钱包的 Tx Hash 后，系统会先核验交易，再决定是否计入公共汇总。",
+                            Text("未填写 Tx Hash 时按用户自报计入公共汇总；填写后系统会先核验交易，再决定是否计入。",
                                 color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
                         }
                         if (!project.communityDelisted && project.communityOfficialId != null &&
