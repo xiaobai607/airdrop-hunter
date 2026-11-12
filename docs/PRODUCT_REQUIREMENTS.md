@@ -2735,3 +2735,27 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 该项是启动路径减负，不等于已测得启动从 4–5 秒降至某个具体值；必须在最终 APK 上用冷启动测量验证。
 
 - 后续首屏减负：将 WorkManager 周期任务注册与启动时 warm-up 入队从 `Application.onCreate()` 移到 `MainActivity.onStart()` 的 IO 协程，避免 Application 初始化阶段同步调度后台任务；首页仍先读本地 Room 缓存，再由后台任务更新。WebView 继续只在进入 BrowserActivity 时创建。
+
+### 本轮整批实现状态（2026-11-12；按用户要求暂缓 APK 构建）
+
+**本轮代码已覆盖的功能项：**
+- 启动：Splash + Token IO 异步；WalletConnect Core/AppKit 延迟到首次进入浏览器或钱包管理时初始化；周期任务和启动 warm-up 调度移至 MainActivity 的 IO 协程，并限制为每进程一次。真实冷启动耗时仍待最终 APK 真机测量。
+- 行情看板：Room 21→22 新增独立偏好表，支持 BTC/ETH/SOL/BNB/TRX/XRP 编辑多选、至少一项校验、默认 BTC/ETH/SOL/BNB/TRX；HomeViewModel 缓存与新鲜数据映射均支持六币，首页按用户选择显示。
+- Dock：外层胶囊整体拖动、内部 LazyRow 横滑、拖动后边缘吸附；X/Y 偏移更新使用受控 Job 串行执行。真机手势冲突与吸附边界待验收。
+- 记账：Home 与浏览器 Dock 均统一为正式“记账”；不再生成 MOCK；旧 MOCK 数据留存但从正式列表排除。手动 MANUAL 草稿取消、弹窗关闭及页面释放时清理，确认后通过现有 Room 事务写入个人账本。
+- Gas 币种选择器与已有项目选择/本地新建入口保留；交易记录文案统一；首页副标题单行省略；首页快捷卡片不再包含空投列表，升级时清理旧保存配置；Profile 页面纵向滚动并保留底部空间。
+
+**本轮相关提交：**
+- 6d9453ec47c8296660ceb68dc6d53b5eb56943fa：行情看板 Room 设置与记账取消清理初版。
+- 44ca504413226b471b82a448d794df7f4fb5ce37：注册 Room 偏好实体与数据库迁移。
+- 275cac6e0313fa439b42b536215f1f71ce48f9b0：所有手动草稿关闭路径清理。
+- 349b3c955436f28c6b21b0817cab6e83168b7648：延迟 WalletConnect 初始化。
+- 1dc9a386982c346c59cb8ec98798ef429fc5bff3、71bd60fd87171b6750e13ddd4bd1f4408fd66799：后台任务移出 Application 启动并限制每进程只调度一次。
+- 75eebd0d738988edd3a3e3536e6f6663e22c8ced、d11c4daff4cb61371895616413c4a933096acad3、44aac7876210bbc0bf16db3d3c88dccbec5409e0：行情空态/布局、快捷文案省略和代码整理。
+
+**验证边界：**
+- 按用户明确要求，本轮没有手动启动 APK 构建、没有发布或安装 APK。
+- 由于尚未统一构建，以上代码改动尚未取得最终 exact-head CI 结果；不能标记为“构建通过”。
+- 真机冷启动计时、Dock 长按/横滑/吸边、记账新增/取消/确认、Room 21→22 升级迁移、Profile 底部设置可达性均待统一 APK 安装后验收。
+- 当前本轮需求的代码实现已基本齐备；最终完成度必须等统一构建、单元测试和设备验收后再定，不以提交数量或代码存在代替验收。
+- 最新代码头：44aac7876210bbc0bf16db3d3c88dccbec5409e0。PR #135 仍为 Draft/Open/Unmerged。
