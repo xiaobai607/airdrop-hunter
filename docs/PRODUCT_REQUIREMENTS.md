@@ -2470,3 +2470,9 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Add a small ViewModel/policy regression test. Do not change the coordinator cooldown or bypass it with force.
 
 **Status:** audit-confirmed UI messaging defect; requirement recorded before implementation. Code and exact-head CI pending.
+
+
+**Implementation follow-up — code submitted, exact-head CI pending (2026-11-12):**
+- Code commit `4f94d343fbe70165afc48784a5cbaed85d80c174` changes the Airdrop Hub cooldown text to “刚刚刷新过，请30秒后再试” and preserves that exact message through the ViewModel. Genuine provider failures still use the generic warning that cached data was retained.
+- Added three unit tests for cooldown-message preservation, provider-failure fallback and missing-error fallback.
+- Exact-head Android CI is pending; physical-device confirmation of the displayed message remains separate.
