@@ -2517,3 +2517,16 @@ Implementation status: requirement approved; existing coordinator already has a 
 **Cancellation-safety implementation follow-up — 2026-11-12:**
 - Code commit `464406e64ebfbbcaeee4e4097af94ffc0d2f7e8a` replaces the cache-read `runCatching` with explicit cancellation propagation and safe handling of ordinary Room/metadata read failures.
 - The first cache-first code commit `1dc66b2c4473708b6ab81d0d89ae98ce9f6d0e75` is awaiting exact-head CI; this cancellation correction is a newer code head and must receive its own exact-head verification.
+
+
+## 2026-11-12 cache-first screen audit — wallet history
+
+**Audit finding and approved correction (before code changes):**
+- Wallet transaction history already reads the account/session-scoped Room snapshot before calling the refresh coordinator, and its background worker uses an 8-hour cadence. Preserve that architecture and the existing account/wallet/ecosystem metadata isolation.
+- The screen currently clears its displayed transaction list at the start of every refresh effect, including a user-triggered refresh. This can temporarily hide last-known-good rows and show a full-page loading state while Room is reread, contrary to the cache-first requirement.
+- Do not clear visible transactions or network-coverage information when a manual refresh begins. Keep the existing rows visible while the coordinator refreshes in the background; show loading affordance separately. Replace the rows only when a successful fresh result arrives. If refresh fails or is throttled, retain rows and show the warning/transient cooldown message.
+- Initial entry may show a loading state only when there is no already-loaded snapshot; read the scoped Room snapshot before remote refresh. A wallet/account identity change must not leak the previous scope's rows.
+- Keep the 30-second manual-refresh throttle, `manual=true`, no ordinary `force=true`, the existing local payload namespace, and the 8-hour worker cadence. Do not change registration, login, account migration, private cloud sync, ledger, project/task, or pending-sync behavior.
+- Acceptance: cached rows remain visible throughout a manual refresh; successful refresh replaces them; failed/throttled refresh preserves them; empty cache shows initial loading; account/wallet scope changes never display another scope's rows; cancellation propagates.
+
+**Status:** requirement recorded; implementation and exact-head CI pending. Physical-device acceptance remains separate.
