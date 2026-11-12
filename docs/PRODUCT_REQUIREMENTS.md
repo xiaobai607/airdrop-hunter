@@ -2530,3 +2530,13 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Acceptance: cached rows remain visible throughout a manual refresh; successful refresh replaces them; failed/throttled refresh preserves them; empty cache shows initial loading; account/wallet scope changes never display another scope's rows; cancellation propagates.
 
 **Status:** requirement recorded; implementation and exact-head CI pending. Physical-device acceptance remains separate.
+
+
+## 2026-11-12 manual refresh feedback — Home market dashboard
+
+- The manual-refresh cooldown applies to all user-facing refresh controls using the shared coordinator, not only wallet history and balances. Ordinary manual refresh must never bypass the 30-second cooldown with `force=true`.
+- Audit finding: Home's manual hot-coin refresh throws the coordinator's throttle message, but `HomeViewModel` converts it to a generic stale-cache warning and the Home screen does not surface the specific cooldown feedback.
+- Correction: preserve last-known-good BTC/ETH rows, expose the explicit “刚刚刷新过，请30秒后再试” message and show a brief transient Toast when the Home manual refresh is throttled. Do not show a success state or issue another provider request during cooldown.
+- Keep background refresh independent of manual cooldown; no changes to TTL, provider selection, cache payloads or unrelated features.
+- Acceptance: a second manual tap inside 30 seconds makes no extra request, keeps existing rows visible, and shows the cooldown message; a tap after cooldown can fetch again; network failure retains old rows and shows the normal failure warning.
+- **Status:** requirement recorded; implementation and CI pending.
