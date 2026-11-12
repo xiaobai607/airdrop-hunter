@@ -2857,3 +2857,11 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 奖励没有 USD 估值时，outbox 仍提交 Gas 与项目参与数据，奖励保持未确认/0 USD；未估值奖励 token 明细从公共请求中剔除，完整奖励数量与类型仍保留在本地账本。
 - 修复了无哈希贡献的幂等查重：只有存在交易指纹时才参与全局交易指纹匹配；无哈希记录只按 event_id 幂等，避免所有 NULL fingerprint 被错误视为同一笔交易。
 - Android 单元测试和 backend 测试已补充相应场景，但按用户要求暂不触发 CI/APK 构建；最终整批验证时统一运行。
+
+
+### 2026-11-12 — DApp 外部钱包响应关联加固
+
+- 复核 Reown AppKit 1.3.x 的请求 API 后确认：`AppKit.request(onSuccess)` 返回的 `SentRequestResult.WalletConnect` 含 WalletConnect `requestId` 和 `sessionTopic`；钱包响应 `SessionRequestResponse.result.id` 是对应 JSON-RPC request ID。
+- 已将该 requestId 保存到当前待处理 DApp 请求；只有响应同时匹配 requestId、session topic、RPC method 和 chain ID 才会回传网页。页面跳转后旧响应即使晚到，也不能被新页面相同 method 的请求误领。
+- 增加单元测试覆盖正确匹配、旧 requestId、错误 topic、错误 method、错误 chain 及缺少 requestId 的拒绝情况。
+- 此修复只加固既有 WalletConnect 请求，不改变 DApp 授权范围、支持的方法列表或 UI。仍需最终 Android 编译和真机 WalletConnect 测试验证 SDK 依赖版本及回调时序。
