@@ -2304,3 +2304,16 @@ Project and campaign identity classification is a responsibility of the unified 
 - Wallet balance audit: `WalletAssetDetailDialog` constructs its repository locally and currently reads the scoped Room payload, then directly fetches only when the dialog is opened or manually refreshed. No wallet-balance background worker is currently present in the inspected sync dispatcher. This is a real gap against the approved “refresh without opening the screen” requirement and remains pending implementation.
 - Campaign-directory audit: the repository uses the shared coordinator with a 6-hour TTL, but the current global dynamic-catalog worker does not call it. `AirdropCampaignsViewModel` also does not publish `readCached()` to UI state before awaiting `load()`. Background campaign warming and immediate cached rendering therefore remain pending.
 - Current-release personal ledger sync remains explicitly disabled; personal ledger records remain durable local data. This cache correction does not authorize private cloud sync, registration, account switching, guest migration or changes to pending queues.
+
+### 2026-11-12 — wallet manual-refresh rate limit and user feedback
+
+User correction: tapping refresh repeatedly must **not** cause one real provider request per tap. Wallet transaction history and wallet balances use a shared manual-refresh cooldown. Within the cooldown, keep showing the latest cached snapshot, do not start another network request, and show a brief in-app transient message (toast/snackbar/“弹幕提示”) that refresh is temporarily unavailable and when the user can try again.
+
+- Reuse the coordinator's existing `MANUAL_REFRESH_THROTTLE_MILLIS` policy (currently 30 seconds) rather than inventing a separate per-screen interval.
+- Wallet screen manual refresh must call the coordinator with `manual=true` and must not pass `force=true`; force is reserved for explicit internal/test paths that are allowed to bypass cooldown, not ordinary repeated user taps.
+- Both transaction-history and balance UI must surface `throttled` as a visible transient message, not a silent no-op or a false “refreshed” success. Keep cached data visible and do not show a blocking spinner when throttled.
+- Apply the same cooldown per isolated wallet/account/network metadata key, so refreshing one wallet does not throttle another wallet or another account's private data.
+- Background refresh continues to follow its own cadence and failure cooldown; this manual limit must not stop scheduled refreshes.
+- Acceptance: first eligible manual tap causes at most one fetch; repeated taps within 30 seconds cause zero additional fetches and show the transient message; after cooldown, a new tap can fetch; account/wallet/network scopes remain independent; UI retains the previous snapshot throughout.
+
+Implementation status: requirement approved; existing coordinator already has a 30-second manual throttle, but wallet transaction UI currently bypasses it with `force=true`. Balance repository/UI must also be verified to return and display the throttle state.
