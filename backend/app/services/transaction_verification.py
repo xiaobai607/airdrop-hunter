@@ -50,7 +50,7 @@ class VerificationRejected(Exception):
 class VerificationResult:
     tier: str
     gas_cost_usd: Decimal
-    tx_fingerprint: str
+    tx_fingerprint: str | None
     metadata: dict[str, Any]
 
 
