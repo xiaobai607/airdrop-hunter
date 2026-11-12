@@ -38,6 +38,7 @@ object Web3DraftStatus {
     const val CONFIRMED = "confirmed"
     const val CONFIRMED_FAILED = "confirmed_failed"
     const val WAITING_L1_FEE = "waiting_l1_fee"
+    const val RECEIPT_NEEDS_SYNC = "receipt_needs_sync"
     const val TIMED_OUT_NEEDS_SYNC = "timed_out_needs_sync"
     const val CANCELLED = "cancelled"
     const val WALLET_UNAVAILABLE = "wallet_unavailable"
@@ -93,7 +94,7 @@ interface Web3TransactionDraftDao {
     @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND walletConnectRequestId = :requestId LIMIT 1")
     suspend fun findByWalletRequest(scope: String, requestId: Long): Web3TransactionDraftEntity?
 
-    @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('waiting_receipt','waiting_l1_fee','timed_out_needs_sync') AND txHash IS NOT NULL")
+    @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('waiting_receipt','waiting_l1_fee','receipt_needs_sync','timed_out_needs_sync') AND txHash IS NOT NULL")
     suspend fun receiptCandidates(scope: String): List<Web3TransactionDraftEntity>
 
     @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('pending_wallet','waiting_hash') AND updatedAt <= :cutoff")
@@ -535,8 +536,8 @@ class Web3TransactionRepository(
 
     suspend fun markReceiptNeedsManualSync(draftId: String) {
         dao.setStatus(
-            draftId, scopeProvider(), Web3DraftStatus.WAITING_L1_FEE,
-            "回执或 L1 费用自动核验达到重试上限，请手动同步", System.currentTimeMillis()
+            draftId, scopeProvider(), Web3DraftStatus.RECEIPT_NEEDS_SYNC,
+            "链上回执自动核验达到重试上限，请重新同步", System.currentTimeMillis()
         )
     }
 
