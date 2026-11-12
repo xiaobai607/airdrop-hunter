@@ -284,7 +284,10 @@ private fun BrowserScreen(
                     }
                     is Modal.Model.JsonRpcResponse.JsonRpcError -> {
                         pending.web3DraftId?.let { draftId ->
-                            dappRequestScope.launch { web3Repository.markWalletRejected(draftId) }
+                            dappRequestScope.launch {
+                                if (result.code == 4001) web3Repository.markWalletRejected(draftId)
+                                else web3Repository.markWalletTimedOut(draftId)
+                            }
                         }
                         DappProviderBridge.error(pending.replyProxy, pending.request.id, result.code, result.message)
                     }
@@ -581,7 +584,7 @@ private fun BrowserScreen(
                                                                             dappRequestScope.launch {
                                                                                 if (pendingDappExternalRequest?.request?.id == request.id) {
                                                                                     pendingDappExternalRequest?.web3DraftId?.let { id ->
-                                                                                        web3Repository.markWalletRejected(id)
+                                                                                        web3Repository.markWalletTimedOut(id)
                                                                                     }
                                                                                     DappProviderBridge.error(
                                                                                         replyProxy, request.id, 4001,
@@ -594,7 +597,7 @@ private fun BrowserScreen(
                                                                     )
                                                                 }.onFailure { error ->
                                                                     pendingDappExternalRequest?.web3DraftId?.let { id ->
-                                                                        web3Repository.markWalletRejected(id)
+                                                                        web3Repository.markWalletTimedOut(id)
                                                                     }
                                                                     DappProviderBridge.error(
                                                                         replyProxy, request.id, 4001,
