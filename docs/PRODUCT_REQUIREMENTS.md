@@ -2411,3 +2411,24 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Code commit `dba5163dbed4c6bb9c663ebfa78908a1bbf01314` adds status-aware refresh methods for the public community catalog and community snapshots while preserving their existing list/map compatibility APIs.
 - `DynamicCatalogWarmupWorker` now evaluates stale/error/throttled outcomes for campaign, community-directory and community-snapshot refreshes. It returns `Result.retry()` if any warm-up failed, without discarding last-known-good cache payloads; already-fresh sources remain cheap on retry due to their TTLs.
 - Exact-head Android workflow **#43155017970** is running; backend tests are expected to be skipped for Android-only paths. Do not mark implementation verified until the run completes.
+
+
+
+### 2026-11-12 — dynamic warm-up must report partial provider failures independently
+
+**Follow-up audit finding after the first retry implementation:**
+- `MarketSearchRepository.warmUpMarketCaches()` catches price and hot-coin failures separately but throws only when **both** fail. A partial failure is therefore silently counted as a successful warm-up, so WorkManager will not retry the failed market source.
+- `DynamicCatalogWarmupWorker` currently runs community-snapshot refresh and market warm-up inside the same `try` block. If snapshot refresh throws, market warm-up is skipped, despite the comment claiming it continues independently.
+- The Airdrop Hub refresh catch currently retains cached data but does not set the worker's aggregate failure flag. A failed hub refresh can therefore end in `Result.success()` and wait for a later dispatcher cycle rather than using WorkManager retry.
+- A configured but invalid community snapshot base URL (for example, a non-HTTPS URL) currently returns cached rows as a normal success. That can conceal a configuration/provider failure from the worker. An intentionally blank base URL remains a supported disabled configuration and should be treated as a no-op, not an error.
+- The dynamic warm-up queue uses WorkManager exponential backoff with a 30-second initial delay and unique-work KEEP semantics. Verify that a retry remains queued and that unrelated worker queues are not blocked.
+
+**Required correction (reliability work within the existing public-data refresh scope):**
+1. Preserve per-source outcomes for market prices and OKX hot coins. Any configured source that fails must be represented as a failed outcome so WorkManager retries; successful sources remain cheap on retry because their own cache TTL is already fresh.
+2. Run community snapshots, market prices/hot coins, community directory, campaigns and Airdrop Hub in isolated error boundaries. One source failure must not skip another source's attempt.
+3. Mark Airdrop Hub failure in the aggregate WorkManager result while retaining the existing last-known-good behavior.
+4. Distinguish intentionally disabled snapshot configuration (blank base URL) from invalid configured URLs and incomplete/invalid manifests. The latter must return an error/stale result, not a successful empty/cached result.
+5. Keep exponential backoff and unique source queues; add regression tests for partial market failure, isolated source execution, and invalid snapshot configuration/manifest status where test seams permit.
+6. Do not change personal ledger/project/task persistence, wallet account scopes, registration/account flows, or enable private cloud sync.
+
+**Status:** audit-confirmed gaps; requirements recorded before implementation. Code and exact-head CI pending.
