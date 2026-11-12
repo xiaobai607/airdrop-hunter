@@ -136,4 +136,94 @@ class CacheRefreshCoordinatorTest {
         assertEquals("ready", metadata["provider-b:same-key"]?.refreshStatus)
         assertEquals(2, metadata.size)
     }
+
+    @Test
+    fun manualRefreshThrottleBlocksManualButForceRefreshBypassesIt() = runBlocking {
+        val now = 10_000L
+        val metadata = mutableMapOf("directory:items" to CacheMetadataEntity(
+            cacheKey = "items", source = "directory", fetchedAt = 9_000L,
+            expiresAt = 20_000L, ttlMillis = 11_000L, refreshStatus = "ready",
+            lastError = null, lastManualRefreshAt = 9_500L
+        ))
+        var cached: String? = "cached"
+        var fetches = 0
+        val engine = CacheRefreshCoordinator(
+            clock = { now }, wait = {}, jitter = { 1.0 },
+            readMetadata = { key, source -> metadata["$source:$key"] },
+            writeMetadata = { metadata["${it.source}:${it.cacheKey}"] = it }
+        )
+
+        val throttled = engine.load(
+            cacheKey = "items", source = "directory", manual = true,
+            readCache = { cached }, fetch = { fetches++; "manual" }, save = { cached = it }
+        )
+        assertTrue(throttled.throttled)
+        assertEquals("cached", throttled.data)
+        assertEquals(0, fetches)
+
+        val forced = engine.load(
+            cacheKey = "items", source = "directory", manual = true, force = true,
+            readCache = { cached }, fetch = { fetches++; "forced" }, save = { cached = it }
+        )
+        assertEquals("forced", forced.data)
+        assertEquals(1, fetches)
+    }
+
+    @Test
+    fun failureCooldownSuppressesBackgroundRefreshButForceRefreshBypassesIt() = runBlocking {
+        val now = 10_000L
+        val metadata = mutableMapOf("directory:items" to CacheMetadataEntity(
+            cacheKey = "items", source = "directory", fetchedAt = 5_000L,
+            expiresAt = 20_000L, ttlMillis = 1_000L, refreshStatus = "stale",
+            lastError = "temporary outage", lastManualRefreshAt = null
+        ))
+        var cached: String? = "last-good"
+        var fetches = 0
+        val engine = CacheRefreshCoordinator(
+            clock = { now }, wait = {}, jitter = { 1.0 },
+            readMetadata = { key, source -> metadata["$source:$key"] },
+            writeMetadata = { metadata["${it.source}:${it.cacheKey}"] = it }
+        )
+
+        val background = engine.load(
+            cacheKey = "items", source = "directory",
+            readCache = { cached }, fetch = { fetches++; "background" }, save = { cached = it }
+        )
+        assertEquals("last-good", background.data)
+        assertTrue(background.stale)
+        assertEquals(0, fetches)
+
+        val forced = engine.load(
+            cacheKey = "items", source = "directory", force = true,
+            readCache = { cached }, fetch = { fetches++; "forced" }, save = { cached = it }
+        )
+        assertEquals("forced", forced.data)
+        assertEquals(1, fetches)
+    }
+
+    @Test
+    fun nonRetryableFailureDoesNotRepeatAndRetryAfterIsCapped() = runBlocking {
+        val metadata = mutableMapOf<String, CacheMetadataEntity>()
+        var fetches = 0
+        val engine = CacheRefreshCoordinator(
+            clock = { 50_000L }, wait = {}, jitter = { 1.0 },
+            readMetadata = { key, source -> metadata["$source:$key"] },
+            writeMetadata = { metadata["${it.source}:${it.cacheKey}"] = it }
+        )
+
+        val result = engine.load(
+            cacheKey = "items", source = "directory",
+            readCache = { null },
+            fetch = { fetches++; throw ProviderHttpException(400, null, "bad request") },
+            save = {}
+        )
+        assertNull(result.data)
+        assertEquals(1, fetches)
+        assertFalse(CacheRefreshPolicy.isRetryable(ProviderHttpException(400, null, "bad request")))
+        assertTrue(CacheRefreshPolicy.isRetryable(ProviderHttpException(429, "120", "rate limited")))
+        assertEquals(8_000L, CacheRefreshPolicy.retryAfterMillis(
+            ProviderHttpException(429, "120", "rate limited"), 50_000L
+        ))
+    }
+
 }
