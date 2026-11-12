@@ -134,7 +134,7 @@ class Web3TransactionAccountingTest {
         assertNull(
             Web3ReceiptFeeCalculator.calculate(
                 42161L, BigInteger("100"), BigInteger("10"),
-                BigInteger("2000")
+                BigInteger("2000"), BigInteger.ZERO
             )
         )
     }
