@@ -2800,3 +2800,13 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 必须保留：长按才拖动、短按仍触发工具、LazyRow 内部横向滑动、垂直拖动不强制改变横向位置、水平移动后左右边缘吸附、垂直安全边界约束、位置不写入持久化存储。
 - 验收边界：源码确认不存在双 Animatable/每帧可取消更新 Job；最终统一 APK 真机测试长按、短按、内部横滑、快速斜向拖动、左右吸附、垂直边界和退出重进复位。此修正未授权提前构建 APK。
 - **状态：修正方案已登记，待实施；CI/真机验收待整批构建后执行。**
+
+
+### 2026-11-12 — Dock 二维拖动更新修正已写入源码（未构建）
+
+- `BrowserAccountingToolbar.kt` 已将两个独立 Float Animatable 改为单一 `Animatable<Offset, AnimationVector2D>`；拖动期间以一个 `Offset` 状态同步更新 X/Y，pointer move 不再创建/取消更新 Job，也不再存在两轴分别 snap 的中间取消窗口。
+- 松手时先将单一动画对象定位到拖动结束的完整 Offset，再执行一次二维 tween 吸边；垂直位置继续限制在安全范围内。长按才进入拖动，内部 LazyRow 仍保留自身横向滚动，Dock 位置仍不写入持久化设置。
+- 拖动激活状态改为同步切换，避免等待启动协程期间首个移动事件丢失。
+- **代码提交：** `b74f00cc798bef636de5d6852d5f329ebdae6b6d`（二维 Offset 实现），`73fdbdb176134be13067ab077aaf8e0b30b6dcce`（拖动激活同步化）。
+- **静态检查：** 已确认源码不再包含 `dragUpdateJob`、`dragOffsetX`、`dragOffsetY`；只保留单一二维动画对象和同步 Offset 拖动位置更新。
+- **验证边界：** 尚未运行编译/单元测试，尚未触发 APK 构建；`Offset.VectorConverter` API 与完整 Compose 编译需在用户授权的整批最终构建中验证。真机长按、短按、内部横滑、快速斜向拖动、边缘吸附、边界及退出重进复位仍待验收。PR #135 保持 Draft/Open/Unmerged。
