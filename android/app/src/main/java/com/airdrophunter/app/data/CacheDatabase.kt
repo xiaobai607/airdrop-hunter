@@ -1265,9 +1265,9 @@ object CacheStore {
                     rewardUsdValuation = rewardUsd, rewardQuoteSource = reward.quoteSource,
                     rewardQuoteTimestamp = reward.quoteTimestamp, usdProfitComplete = complete,
                     publicContributionOptIn = contributionOptIn,
-                    publicContributionStatus = if (contributionOptIn && complete && officialId != null) "pending_verification" else if (contributionOptIn) "not_eligible" else "private"
+                    publicContributionStatus = if (contributionOptIn && officialId != null) "pending_verification" else if (contributionOptIn) "not_eligible" else "private"
                 ))
-                if (contributionOptIn && complete) {
+                if (contributionOptIn) {
                     db.communitySyncOutboxDao().insert(
                         CommunitySyncOutboxEntity(
                             id = id,
@@ -1291,7 +1291,7 @@ object CacheStore {
             true
         }
         if (saved && scope.startsWith("user:")) schedulePrivateLedgerSync()
-        if (saved && batch.entries.any { it.publicContributionOptIn && it.actualRewardUsd != null }) {
+        if (saved && batch.entries.any { it.publicContributionOptIn }) {
             appContext?.let { CommunityContributionSyncScheduler.enqueue(it) }
         }
         saved
