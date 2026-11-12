@@ -109,6 +109,17 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun receiptIdentityMustMatchSavedTransactionHash() {
+        val hash = "0x" + "a".repeat(64)
+        assertTrue(Web3ReceiptIdentityVerifier.matches(hash, hash.uppercase()))
+        assertFalse(Web3ReceiptIdentityVerifier.matches(hash, "0x" + "b".repeat(64)))
+        assertFalse(Web3ReceiptIdentityVerifier.matches(hash, null))
+        assertFalse(Web3ReceiptIdentityVerifier.matches(null, hash))
+        assertFalse(Web3ReceiptIdentityVerifier.matches("0x1234", hash))
+        assertFalse(Web3ReceiptIdentityVerifier.matches(hash, "0x1234"))
+    }
+
+    @Test
     fun arbitrumL1FeeUsesGasUsedForL1InChildGasUnits() {
         val fee = Web3ReceiptFeeParser.l1FeeWei(
             chainId = 42161L,
