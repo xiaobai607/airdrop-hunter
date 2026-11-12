@@ -172,6 +172,15 @@ fun BrowserAccountingToolbar(
         showConfirm = true
     }
 
+    DisposableEffect(activeBill?.id) {
+        val openedBill = activeBill
+        onDispose {
+            if (openedBill?.txHash?.startsWith("MANUAL-") == true) {
+                scope.launch { runCatching { accountingRepository.deletePendingBill(openedBill.id) } }
+            }
+        }
+    }
+
     LaunchedEffect(initialShowBillList, realPending) {
         if (initialShowBillList && realPending.isNotEmpty() && activeBill == null && !showConfirm) {
             // Home's accounting shortcut opens the latest real pending record directly.
@@ -593,7 +602,7 @@ fun BrowserAccountingToolbar(
                             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         IconButton(
                             enabled = !saving,
-                            onClick = { showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() }
+                            onClick = { activeBill?.let(::discardManualDraft); showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() }
                         ) {
                             Icon(Icons.Default.Close, contentDescription = "关闭确认弹窗", tint = AppColors.TextSecondary)
                         }
