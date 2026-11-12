@@ -1048,7 +1048,8 @@ object CacheStore {
                     else -> "unknown"
                 }
             if (publicContributionOptIn && canonicalOfficialId == null) return@withTransaction false
-            if (effectiveContributionOptIn && !ManualProjectAccountingPolicy.isTransactionHashFormatValid(effectiveNetwork, bill.txHash)) {
+            if (effectiveContributionOptIn && bill.txHash.isNotBlank() &&
+                !ManualProjectAccountingPolicy.isTransactionHashFormatValid(effectiveNetwork, bill.txHash)) {
                 return@withTransaction false
             }
             val effectiveAssetBreakdown = assetBreakdownJson ?: bill.assetBreakdownJson
@@ -1143,8 +1144,8 @@ object CacheStore {
                         createdAt = recordedAt,
                         assetBreakdownJson = effectiveAssetBreakdown,
                         network = effectiveNetwork,
-                        walletAddress = bill.walletAddress,
-                        txHash = bill.txHash,
+                        walletAddress = bill.walletAddress.takeIf { bill.txHash.isNotBlank() },
+                        txHash = bill.txHash.takeIf { it.isNotBlank() },
                         occurredAt = recordedAt,
                         actualRewardConfirmed = true,
                         expectedRewardUsd = ledgerEntry.expected_reward_usd?.toDouble()
@@ -1277,8 +1278,8 @@ object CacheStore {
                             createdAt = recordedAt,
                             assetBreakdownJson = assetJson,
                             network = entry.network,
-                            walletAddress = entry.walletAddress,
-                            txHash = entry.txHash,
+                            walletAddress = entry.walletAddress.takeIf { entry.txHash.isNotBlank() },
+                            txHash = entry.txHash.takeIf { it.isNotBlank() },
                             occurredAt = recordedAt,
                             actualRewardConfirmed = complete,
                             expectedRewardUsd = null
