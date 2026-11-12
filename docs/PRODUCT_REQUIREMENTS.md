@@ -105,6 +105,13 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 - [ ] Verify privacy, zero-cost operation, source permissions, data integrity, backup/restore and rollback.
 - [ ] Keep PR #135 Draft/Open until the user explicitly authorizes merge. Do not declare the project finished before all required gates pass.
 
+### 2026-11-12 — cache-engine force-throttle regression and wallet-data scope audit
+
+- Exact-head CI #43144096009 for `d82ac14579cb3538fb990508448f0cf3ce8ddbbb` failed: Android compilation and Debug APK assembly succeeded, but 1 of 169 unit tests failed. The failing test was `manualRefreshThrottleBlocksManualButForceRefreshBypassesIt`.
+- Root cause confirmed in `CacheRefreshCoordinator.load()`: both the pre-lock and in-lock manual-throttle guards omitted the `!force` condition. Corrected both guards in commit `f9cdb10dbd0503806ba58e99661afc0bad4ac572`. Exact-head CI #43144624372 was queued when this note was written; do not count the fix as validated until that run completes successfully.
+- A source comparison against the parent of the wallet-cache integration confirms the generic coordinator was added specifically in commit `bdd69b17`. The current wallet activity payload still uses session-scoped local read/write, but its metadata and refresh lifecycle were incorrectly routed through the public/shared TTL engine. Per the public-only cache boundary above, the next code correction is to remove that coordinator integration while preserving the pre-existing session-scoped wallet transaction storage and worker call compatibility. No wallet data, account behavior or pending-sync state may be modified.
+- Progress estimates remain unchanged pending CI and scope correction: code/CI implementation approximately 68%; overall release readiness approximately 41%.
+
 ### Latest continuation checkpoint — 2026-11-12
 
 - Current branch head: `a647f7b3af517fe90b004ad774e8053be2513e88`; PR #135 remains Draft/Open/unmerged.
@@ -150,7 +157,7 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 
 **Implementation recorded at branch head `a647f7b3af517fe90b004ad774e8053be2513e88`:**
 - Shared `CacheRefreshCoordinator` supports forced refresh; Airdrop Hub and Community Snapshot repositories use the shared coordinator while retaining their source-specific persistence/validation behavior.
-- Wallet activity repository has an existing coordinator integration with metadata keys isolated by session fingerprint and wallet/ecosystem; this integration must be reviewed against the public-only cache boundary before any further private-data cache work. Do not treat this note as approval to build account switching or guest migration.
+- Scope-audit finding (2026-11-12): `WalletActivityRepository.refresh()` currently routes per-wallet transaction snapshots through the generic `CacheRefreshCoordinator` (`source = wallet-activity`, 8-hour TTL). Although payload reads/writes remain session-scoped, wallet transaction history is private wallet data and is outside the approved public/shared reference-data scope. This integration is a scope violation, not an approved exception. The next corrective step is to remove only the generic coordinator dependency from wallet activity and restore its prior direct refresh + existing `readForSession`/`writeForSession` persistence path. Preserve the existing session-scoped payload keys and all wallet data; do not clear, re-key, migrate or delete anything. Keep `force` call compatibility if the worker currently supplies it, but do not use the public cache engine for this private data. This correction does not authorize account switching, guest-to-login migration or changes to pending-sync queues.
 - Airdrop campaign refresh validates records and verifies manual-refresh cache write/readback before accepting the replacement payload; invalid or incomplete refreshes must not overwrite last-known-good data.
 - Community snapshot refresh preserves HTTPS CDN host validation, ETag/Last-Modified behavior and snapshot-version checks; cancellation is propagated.
 - Added coordinator lifecycle tests for same-key reuse, last-known-good retention after failure, cancellation metadata recovery/propagation, and source+key metadata isolation.
