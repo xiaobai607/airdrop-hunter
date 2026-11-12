@@ -471,6 +471,13 @@ class Web3TransactionRepository(
         )
     }
 
+    suspend fun markWalletUnavailable(draftId: String) {
+        dao.setWalletStatus(
+            draftId, scopeProvider(), Web3DraftStatus.WALLET_UNAVAILABLE,
+            "设备上没有可处理该钱包链接的应用", System.currentTimeMillis()
+        )
+    }
+
     suspend fun markWalletTimedOut(draftId: String) {
         dao.setWalletStatus(
             draftId, scopeProvider(), Web3DraftStatus.TIMED_OUT_NEEDS_SYNC,
