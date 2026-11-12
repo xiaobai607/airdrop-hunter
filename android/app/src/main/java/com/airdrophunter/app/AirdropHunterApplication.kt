@@ -17,10 +17,57 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
 
 class AirdropHunterApplication : Application() {
     val appContainer: AppContainer by lazy { AppContainer() }
     private val processLifecycleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile private var walletResponseReconciliationStarted = false
+
+    /**
+     * Keeps transaction-hash recovery alive independently of BrowserActivity.
+     * This is started only after the user enters the browser or returns through
+     * the wallet redirect, so normal app startup does not initialize AppKit.
+     */
+    @Synchronized
+    fun startWalletResponseReconciliation() {
+        if (walletResponseReconciliationStarted) return
+        walletResponseReconciliationStarted = true
+        processLifecycleScope.launch {
+            try {
+                WalletConnectInitializer.ready.first { it }
+                WalletConnectSessionDelegate.requestResponses.collect { response ->
+                    if (!response.method.equals("eth_sendTransaction", ignoreCase = true)) {
+                        return@collect
+                    }
+                    val rpcResult = response.result as? Modal.Model.JsonRpcResponse.JsonRpcResult
+                        ?: return@collect
+                    val txHash = rpcResult.result as? String ?: return@collect
+                    val chainId = response.chainId.removePrefix("eip155:").toLongOrNull()
+                        ?: return@collect
+                    val draftId = runCatching {
+                        appContainer.web3TransactionRepository.attachWalletConnectResponse(
+                            requestId = rpcResult.id,
+                            sessionTopic = response.topic,
+                            chainId = chainId,
+                            hash = txHash
+                        )
+                    }.onFailure {
+                        Log.w("AirdropWallet", "Could not reconcile WalletConnect response to a durable draft", it)
+                    }.getOrNull()
+                    if (draftId != null) {
+                        com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(
+                            applicationContext, draftId
+                        )
+                    }
+                }
+            } catch (error: Exception) {
+                walletResponseReconciliationStarted = false
+                Log.e("AirdropWallet", "WalletConnect response reconciliation stopped", error)
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
