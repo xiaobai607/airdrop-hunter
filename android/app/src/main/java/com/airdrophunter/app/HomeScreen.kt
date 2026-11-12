@@ -538,7 +538,6 @@ private object HomeDashboardLayoutStore {
         "wallet_management" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "tron_energy" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "accounting" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
-        "airdrop_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "project_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104)
     )
 
@@ -550,15 +549,13 @@ private object HomeDashboardLayoutStore {
         HomeDashboardCard("accounting"),
         HomeDashboardCard("wallet_management"),
         HomeDashboardCard("tron_energy"),
-        HomeDashboardCard("airdrop_library")
     )
-    private val supported = listOf("airdrop_navigation", "accounting", "wallet_management", "tron_energy", "airdrop_library", "project_library")
+    private val supported = listOf("airdrop_navigation", "accounting", "wallet_management", "tron_energy", "project_library")
     fun title(id: String) = when (id) {
         "airdrop_navigation" -> "空投导航"
         "accounting" -> "记账"
         "wallet_management" -> "钱包管理"
         "tron_energy" -> "⚡ TRON 能量租赁"
-        "airdrop_library" -> "空投列表"
         "project_library" -> "库管理"
         else -> "快捷入口"
     }
@@ -567,7 +564,6 @@ private object HomeDashboardLayoutStore {
         "accounting" -> "记录Gas与收益"
         "wallet_management" -> "管理已保存地址"
         "tron_energy" -> "租赁前核对转出地址"
-        "airdrop_library" -> "浏览已核验的公开空投活动"
         "project_library" -> "管理个人项目与任务"
         else -> ""
     }
@@ -579,11 +575,10 @@ private object HomeDashboardLayoutStore {
         val parsed = runCatching { Gson().fromJson<List<HomeDashboardCard>>(raw, type) }.getOrNull() ?: return defaults
         val valid = parsed.filter { it.id in supported }.distinctBy { it.id }
             .map { HomeDashboardCard(it.id) }.toMutableList()
-        // Migrate saved layouts: Binance official activities now live inside the airdrop library.
-        if (preferences.getInt("layout_version", 0) < 3) {
-            valid.removeAll { it.id == "binance_official" }
-            if (valid.none { it.id == "airdrop_library" }) valid.add(HomeDashboardCard("airdrop_library"))
-            preferences.edit().putInt("layout_version", 3).apply()
+        // v4 removes the duplicate Home shortcut; the bottom navigation Airdrop Library is the sole entry.
+        if (preferences.getInt("layout_version", 0) < 4) {
+            valid.removeAll { it.id == "binance_official" || it.id == "airdrop_library" }
+            preferences.edit().putInt("layout_version", 4).apply()
         }
         // Keep the accounting shortcut visible for users upgrading from older layouts.
         if (valid.none { it.id == "accounting" }) valid.add(minOf(1, valid.size), HomeDashboardCard("accounting"))
@@ -592,6 +587,6 @@ private object HomeDashboardLayoutStore {
     fun save(context: android.content.Context, cards: List<HomeDashboardCard>) {
         val valid = cards.filter { it.id in supported }.distinctBy { it.id }
         context.getSharedPreferences("home_dashboard_layout", android.content.Context.MODE_PRIVATE)
-            .edit().putString("cards", Gson().toJson(valid)).putInt("layout_version", 3).apply()
+            .edit().putString("cards", Gson().toJson(valid)).putInt("layout_version", 4).apply()
     }
 }
