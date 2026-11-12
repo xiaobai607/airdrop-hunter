@@ -2733,3 +2733,5 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 将 WalletConnect Core/AppKit 初始化从 `Application.onCreate()` 移出，改为首次进入钱包管理或内置浏览器时通过幂等初始化器启动；Home 首屏不再同步承担 SDK 初始化成本。
 - 保留 SDK 初始化参数、回调、Delegate 和支持链集合；使用同步幂等保护避免两个入口并发重复初始化。浏览器打开时初始化，保证 DApp WalletConnect 功能可用；钱包管理页面进入时同样初始化，保证外部钱包连接功能可用。
 - 该项是启动路径减负，不等于已测得启动从 4–5 秒降至某个具体值；必须在最终 APK 上用冷启动测量验证。
+
+- 后续首屏减负：将 WorkManager 周期任务注册与启动时 warm-up 入队从 `Application.onCreate()` 移到 `MainActivity.onStart()` 的 IO 协程，避免 Application 初始化阶段同步调度后台任务；首页仍先读本地 Room 缓存，再由后台任务更新。WebView 继续只在进入 BrowserActivity 时创建。

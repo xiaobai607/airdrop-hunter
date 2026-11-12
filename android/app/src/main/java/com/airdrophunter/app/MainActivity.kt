@@ -47,8 +47,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Recheck dynamic directories on every app foreground entry; cache TTLs suppress excess requests.
-        GlobalSyncScheduler.enqueueDynamicCatalogWarmup(applicationContext)
+        // Schedule background work off the UI thread; Home renders local Room cache first.
+        lifecycleScope.launch(Dispatchers.IO) {
+            GlobalSyncScheduler.ensurePeriodic(applicationContext)
+            GlobalSyncScheduler.enqueueNow(applicationContext)
+            GlobalSyncScheduler.enqueueDynamicCatalogWarmup(applicationContext)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
