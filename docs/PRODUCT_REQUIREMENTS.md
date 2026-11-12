@@ -2938,4 +2938,5 @@ Implementation status: requirement approved; existing coordinator already has a 
 - `WAITING_L1_FEE` 现在与 `WAITING_OPERATOR_FEE`、`RECEIPT_NEEDS_SYNC` 一样可进入人工费用核验/记账；界面同时提供“重试核实”和“手动记账”。
 - 手动确认资格集中在 `Web3DraftStatus`，Room 账本确认入口复用同一规则；自动回执仍未完整核实时不会伪装为自动确认，用户需要手动填写并确认实际 Gas 后才入账。
 - 费用明细展示明确区分 Gas 总计、L2 执行费、L1 数据费和 Operator Fee；普通链 `execution_fee` 与 Gas 总计是同一笔执行费，不再在明细展示中重复出现，避免用户误以为需要相加。补充格式化和状态资格单元测试。
+- 如果用户先创建手动核验草稿，之后后台重试又成功拿到完整链上回执，系统会用已核实的币种/Gas 明细补齐原待处理账单，而不是因相同账单 ID 直接返回空明细草稿；已有完整明细时仍保持幂等，不覆盖用户已确认的数据。
 - 本轮只完成源码、测试和需求记录更新；未运行 Gradle 编译/单元测试、CI、APK 构建或真机验收。PR #135 继续保持 Draft/Open/Unmerged。
