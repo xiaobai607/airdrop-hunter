@@ -656,10 +656,6 @@ class Web3TransactionRepository(
         }
     }
 
-    suspend fun scheduleReceipt(draftId: String) {
-        // Work scheduling is intentionally performed by the caller with an application Context.
-    }
-
     companion object {
         fun nativeSymbolForChain(chainId: Long): String = when (chainId) {
             56L -> "BNB"
