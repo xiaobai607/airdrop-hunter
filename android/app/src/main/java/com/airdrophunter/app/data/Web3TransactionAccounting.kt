@@ -102,6 +102,9 @@ interface Web3TransactionDraftDao {
     @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('waiting_receipt','waiting_l1_fee','receipt_needs_sync','timed_out_needs_sync') AND txHash IS NOT NULL")
     suspend fun receiptCandidates(scope: String): List<Web3TransactionDraftEntity>
 
+    @Query("SELECT id FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('waiting_receipt','waiting_l1_fee') AND txHash IS NOT NULL")
+    suspend fun pendingReceiptDraftIds(scope: String): List<String>
+
     @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('pending_wallet','waiting_hash') AND updatedAt <= :cutoff")
     suspend fun staleWalletRequests(scope: String, cutoff: Long): List<Web3TransactionDraftEntity>
 
@@ -672,6 +675,9 @@ class Web3TransactionRepository(
             "链上回执自动核验达到重试上限，请重新同步", System.currentTimeMillis()
         )
     }
+
+    suspend fun pendingReceiptDraftIds(): List<String> =
+        dao.pendingReceiptDraftIds(scopeProvider())
 
     suspend fun markOldWalletRequestsForSync() {
         val cutoff = System.currentTimeMillis() - 30_000L
