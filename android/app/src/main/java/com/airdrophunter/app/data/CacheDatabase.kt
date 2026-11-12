@@ -1490,6 +1490,7 @@ object CacheStore {
         database?.marketDashboardPreferenceDao()?.save(
             MarketDashboardPreferenceEntity(1, normalized.joinToString(","), System.currentTimeMillis())
         )
+        Unit
     }
 
     suspend fun readMarketCoins(): List<MarketCoinEntity> = withContext(Dispatchers.IO) {

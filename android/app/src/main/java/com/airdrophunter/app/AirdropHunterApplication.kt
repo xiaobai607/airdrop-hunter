@@ -3,7 +3,6 @@ package com.airdrophunter.app
 import android.app.Application
 import android.util.Log
 import com.airdrophunter.app.data.ApiClient
-import com.airdrophunter.app.data.GlobalSyncScheduler
 import com.reown.android.Core
 import com.reown.android.CoreClient
 import com.reown.appkit.client.AppKit
