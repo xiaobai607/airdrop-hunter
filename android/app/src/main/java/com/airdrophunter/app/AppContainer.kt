@@ -89,7 +89,10 @@ class AppContainer {
         }
         Web3TransactionRepository(
             dao = dao,
-            scopeProvider = { CacheStore.accountScopeKey(TokenStore.readTokenBlocking()) }
+            scopeProvider = { CacheStore.accountScopeKey(TokenStore.readTokenBlocking()) },
+            nativePriceProvider = { symbol ->
+                runCatching { okxMarketRepository.fetchSpotTickerDetail(symbol) }.getOrNull()
+            }
         )
     }
 
