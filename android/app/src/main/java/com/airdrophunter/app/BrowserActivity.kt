@@ -716,7 +716,9 @@ private fun BrowserScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(
+                    enabled = connectedDappAccounts.isNotEmpty() || walletConnectReady,
+                    onClick = {
                     val addresses = connectedDappAccounts.map { it.address }.distinct()
                     if (addresses.isNotEmpty()) {
                         DappOriginPermissionStore.grant(pending.origin, currentDappAuthorizationStamp())
@@ -726,7 +728,7 @@ private fun BrowserScreen(
                         waitingDappWalletApproval = true
                         if (walletConnectReady) walletNavController.openAppKit()
                     }
-                }) { Text("确认并连接", color = AppColors.Primary) }
+                }) { Text(if (connectedDappAccounts.isEmpty() && !walletConnectReady) "钱包连接服务初始化中…" else "确认并连接", color = AppColors.Primary) }
             },
             dismissButton = {
                 TextButton(onClick = {
