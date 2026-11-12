@@ -640,7 +640,11 @@ class Web3TransactionRepository(
             .filter { it.chainId == chainId }
         if (candidates.size != 1) return null
         val draft = candidates.single()
-        if (draft.txHash != null) return draft.id.takeIf { draft.txHash.equals(hash, true) }
+        if (draft.txHash != null) {
+            return draft.id.takeIf {
+                draft.txHash.equals(hash, true) && draft.status != Web3DraftStatus.ACCOUNTED
+            }
+        }
         if (!Web3DraftStatus.canAttachHash(draft.status)) return null
         return draft.id.takeIf {
             dao.attachHash(it, scope, hash.lowercase(), System.currentTimeMillis()) == 1
