@@ -699,8 +699,15 @@ class Web3ReceiptWorker(
                     Result.success()
                 }
             }
-            repository.saveReceipt(draft, receipt)
-            Result.success()
+            val saved = repository.saveReceipt(draft, receipt)
+            if (saved) {
+                Result.success()
+            } else if (runAttemptCount < MAX_ATTEMPTS) {
+                Result.retry()
+            } else {
+                repository.markReceiptNeedsManualSync(draftId)
+                Result.success()
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
