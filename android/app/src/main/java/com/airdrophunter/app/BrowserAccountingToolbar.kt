@@ -78,6 +78,21 @@ fun BrowserAccountingToolbar(
     val visibleWeb3Drafts = remember(web3Drafts) {
         web3Drafts.filter { it.status !in setOf(Web3DraftStatus.CANCELLED, Web3DraftStatus.ACCOUNTED) }
     }
+
+    // Once a receipt is authoritative, materialize its stable WEB3-* pending bill
+    // automatically. The repository checks the deterministic ID before insertion,
+    // so recomposition/re-observation does not create another ledger candidate.
+    LaunchedEffect(web3Drafts) {
+        web3Drafts.asSequence()
+            .filter {
+                it.status == Web3DraftStatus.CONFIRMED ||
+                    it.status == Web3DraftStatus.CONFIRMED_FAILED
+            }
+            .forEach { draft ->
+                runCatching { web3Repository.createPendingAccountingBill(draft.id) }
+            }
+    }
+
     // Legacy MOCK fixtures stay stored for compatibility but never enter the real ledger flow.
     val realPending = remember(pending) { pending.filterNot { it.txHash.startsWith("MOCK-") } }
 
