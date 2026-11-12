@@ -9,6 +9,7 @@ import com.airdrophunter.app.data.MarketSearchRepository
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CacheRefreshPolicy
 import com.airdrophunter.app.data.CacheDisplayStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +26,14 @@ data class HomeUiState(
     val lastSuccessfulUpdateAt: Long? = null,
     val marketCacheStatus: CacheDisplayStatus = CacheDisplayStatus.UNKNOWN
 )
+
+internal fun homeMarketShouldShowInitialLoading(cachedRows: List<OkxTicker>): Boolean =
+    cachedRows.isEmpty()
+
+internal fun resolveHomeMarketRows(
+    cachedRows: List<OkxTicker>,
+    refreshedRows: List<OkxTicker>?
+): List<OkxTicker> = refreshedRows ?: cachedRows
 
 class HomeViewModel(
     private val repository: OkxMarketRepository
@@ -44,43 +53,83 @@ class HomeViewModel(
         if (_uiState.value.isRefreshing) return
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = _uiState.value.market.isEmpty(),
-                isRefreshing = true,
-                hasError = false,
-                marketError = null
-            )
+            val marketRepository = MarketSearchRepository(repository)
+            if (!manual) {
+                // Publish Room data before asking the shared coordinator to revalidate it.
+                val cachedCoins = runCatching { marketRepository.readCachedHotCoins() }.getOrDefault(emptyList())
+                if (cachedCoins.isNotEmpty()) {
+                    val cachedTickers = cachedCoins.map { coin ->
+                        OkxTicker("${coin.symbol}-USDT", coin.lastPrice, coin.change24hPercent)
+                    }.filter { it.symbol in setOf("BTC", "ETH") }
+                    val metadata = CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
+                    val status = CacheRefreshPolicy.displayStatus(metadata, System.currentTimeMillis())
+                    val warning = if (status == CacheDisplayStatus.ERROR ||
+                        (status == CacheDisplayStatus.STALE && metadata?.lastError != null)
+                    ) "行情暂时不可用，正在显示上次缓存" else null
+                    _uiState.value = _uiState.value.copy(
+                        market = resolveHomeMarketRows(_uiState.value.market, cachedTickers),
+                        isLoading = homeMarketShouldShowInitialLoading(cachedTickers),
+                        isRefreshing = true,
+                        hasError = false,
+                        marketError = warning,
+                        lastSuccessfulUpdateAt = metadata?.fetchedAt
+                            ?: cachedCoins.maxOfOrNull { it.fetchedAt }
+                            ?: _uiState.value.lastSuccessfulUpdateAt,
+                        marketCacheStatus = status
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = true,
+                        isRefreshing = true,
+                        hasError = false,
+                        marketError = null
+                    )
+                }
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = _uiState.value.market.isEmpty(),
+                    isRefreshing = true,
+                    hasError = false,
+                    marketError = null
+                )
+            }
 
             try {
-                val cachedTickers = MarketSearchRepository(repository).loadHotCoins(manual = manual)
-                val tickers = cachedTickers.map { coin ->
+                val cachedCoins = marketRepository.loadHotCoins(manual = manual)
+                val tickers = cachedCoins.map { coin ->
                     OkxTicker("${coin.symbol}-USDT", coin.lastPrice, coin.change24hPercent)
-                }
+                }.filter { it.symbol in setOf("BTC", "ETH") }
                 val cacheMetadata = CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
                 val cacheStatus = CacheRefreshPolicy.displayStatus(cacheMetadata, System.currentTimeMillis())
                 val cacheWarning = if (cacheStatus == CacheDisplayStatus.ERROR ||
                     (cacheStatus == CacheDisplayStatus.STALE && cacheMetadata?.lastError != null)
                 ) "行情暂时不可用，正在显示上次缓存" else null
                 _uiState.value = _uiState.value.copy(
-                    market = tickers.filter { it.symbol in setOf("BTC", "ETH") },
+                    market = resolveHomeMarketRows(_uiState.value.market, tickers),
                     isLoading = false,
                     isRefreshing = false,
                     hasError = false,
                     marketError = cacheWarning,
-                    lastSuccessfulUpdateAt = cacheMetadata?.fetchedAt ?: cachedTickers.maxOfOrNull { it.fetchedAt } ?: System.currentTimeMillis(),
+                    lastSuccessfulUpdateAt = cacheMetadata?.fetchedAt
+                        ?: cachedCoins.maxOfOrNull { it.fetchedAt }
+                        ?: System.currentTimeMillis(),
                     marketCacheStatus = cacheStatus
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
                 val message = when (error) {
                     is UnknownHostException -> "网络连接失败，请检查网络或 VPN 后重试。"
                     is SocketTimeoutException -> "行情请求超时，请稍后点击重试。"
                     else -> error.message ?: "行情服务暂时不可用，请稍后重试。"
                 }
+                val retained = _uiState.value.market
                 _uiState.value = _uiState.value.copy(
+                    market = retained,
                     isLoading = false,
                     isRefreshing = false,
-                    hasError = true,
-                    marketError = message,
+                    hasError = retained.isEmpty(),
+                    marketError = if (retained.isEmpty()) message else "行情暂时不可用，正在显示上次缓存",
                     marketCacheStatus = CacheDisplayStatus.ERROR
                 )
             }

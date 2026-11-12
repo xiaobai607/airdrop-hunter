@@ -44,6 +44,10 @@ class MarketSearchRepository(
         return rows.map { it.toDomain() }.filter { it.matchesSearch(query) }
     }
 
+    /** Read Room hot-coin rows without triggering a network refresh. */
+    suspend fun readCachedHotCoins(): List<HotCoin> =
+        CacheStore.readHotCoins(HOT_COIN_CACHE_KEY).map { it.toDomain() }
+
     suspend fun loadHotCoins(manual: Boolean = false): List<HotCoin> {
         val result = cacheRefresh.load(
             cacheKey = HOT_COIN_CACHE_KEY,
