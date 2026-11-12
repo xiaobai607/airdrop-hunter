@@ -168,8 +168,13 @@ interface Web3TransactionDraftDao {
     @Query("UPDATE web3_transaction_drafts SET txHash = :hash, status = 'waiting_receipt', lastError = NULL, updatedAt = :now WHERE id = :id AND accountScope = :scope AND txHash IS NULL AND status IN ('pending_wallet','waiting_hash','timed_out_needs_sync')")
     suspend fun attachHash(id: String, scope: String, hash: String, now: Long): Int
 
-    @Query("UPDATE web3_transaction_drafts SET status = :status, lastError = :error, updatedAt = :now WHERE id = :id AND accountScope = :scope")
-    suspend fun setStatus(id: String, scope: String, status: String, error: String?, now: Long): Int
+    @Query("""
+        UPDATE web3_transaction_drafts
+        SET status = :status, lastError = :error, updatedAt = :now
+        WHERE id = :id AND accountScope = :scope
+          AND status IN ('waiting_receipt','waiting_l1_fee','waiting_operator_fee','receipt_needs_sync','timed_out_needs_sync')
+    """)
+    suspend fun setReceiptStatusIfPending(id: String, scope: String, status: String, error: String?, now: Long): Int
 
     @Query("UPDATE web3_transaction_drafts SET status = :status, lastError = :error, updatedAt = :now WHERE id = :id AND accountScope = :scope AND status IN ('pending_wallet','waiting_hash','timed_out_needs_sync')")
     suspend fun setWalletStatus(id: String, scope: String, status: String, error: String?, now: Long): Int
@@ -975,14 +980,14 @@ class Web3TransactionRepository(
     }
 
     suspend fun markReceiptPending(draft: Web3TransactionDraftEntity, message: String?) {
-        dao.setStatus(
+        dao.setReceiptStatusIfPending(
             draft.id, draft.accountScope, Web3DraftStatus.WAITING_RECEIPT,
             message?.take(180), System.currentTimeMillis()
         )
     }
 
     suspend fun markReceiptNeedsManualSync(draftId: String) {
-        dao.setStatus(
+        dao.setReceiptStatusIfPending(
             draftId, scopeProvider(), Web3DraftStatus.RECEIPT_NEEDS_SYNC,
             if (Web3RpcRegistry.endpoint(findById(draftId)?.chainId ?: -1L) == null)
                 "当前链尚未配置受信任 RPC，需手动记账"
