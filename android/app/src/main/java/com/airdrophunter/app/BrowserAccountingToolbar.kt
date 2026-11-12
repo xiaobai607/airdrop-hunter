@@ -47,7 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Job
+import androidx.compose.ui.geometry.Offset
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -94,7 +94,8 @@ fun BrowserAccountingToolbar(
     var rewardSymbol by remember { mutableStateOf("") }
     var rewardDecimals by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
-    var dragUpdateJob by remember { mutableStateOf<Job?>(null) }
+    var dockDragPosition by remember { mutableStateOf(Offset.Zero) }
+    var dockIsDragging by remember { mutableStateOf(false) }
     var showToolManager by remember { mutableStateOf(false) }
     val toolOptions = listOf(
         "new_accounting" to "记账",
@@ -111,8 +112,10 @@ fun BrowserAccountingToolbar(
             ?.filter { id -> toolOptions.any { it.first == id } }
             ?.distinct()?.takeIf { it.isNotEmpty() } ?: toolOptions.map { it.first })
     }
-    val dragOffsetX = remember { androidx.compose.animation.core.Animatable(0f) }
-    val dragOffsetY = remember { androidx.compose.animation.core.Animatable(0f) }
+    // One two-dimensional animation value keeps horizontal and vertical position atomic.
+    val dockOffset = remember {
+        androidx.compose.animation.core.Animatable(Offset.Zero, Offset.VectorConverter)
+    }
     LaunchedEffect(selectedToolIds) {
         preferences.edit().putString("selected_tools", selectedToolIds.joinToString(",")).apply()
     }
@@ -241,16 +244,18 @@ fun BrowserAccountingToolbar(
         val leftSnap = -maxHorizontalDrag
         val rightSnap = maxHorizontalDrag
 
-        fun animateDockToEdge() {
+        fun settleDockAfterDrag() {
+            val current = dockDragPosition
             val targetX = when {
                 maxHorizontalDrag <= 0f -> 0f
-                dragOffsetX.value < 0f -> leftSnap
+                current.x < 0f -> leftSnap
                 else -> rightSnap
             }
-            val targetY = dragOffsetY.value.coerceIn(-maxVerticalDrag, 0f)
+            val target = Offset(targetX, current.y.coerceIn(-maxVerticalDrag, 0f))
             scope.launch {
-                launch { dragOffsetX.animateTo(targetX, androidx.compose.animation.core.tween(260)) }
-                launch { dragOffsetY.animateTo(targetY, androidx.compose.animation.core.tween(260)) }
+                dockOffset.snapTo(current)
+                dockIsDragging = false
+                dockOffset.animateTo(target, androidx.compose.animation.core.tween(260))
             }
         }
 
@@ -269,7 +274,8 @@ fun BrowserAccountingToolbar(
                     spotColor = Color.Black.copy(alpha = 0.24f)
                 )
                 .offset {
-                    IntOffset(dragOffsetX.value.roundToInt(), dragOffsetY.value.roundToInt())
+                    val position = if (dockIsDragging) dockDragPosition else dockOffset.value
+                    IntOffset(position.x.roundToInt(), position.y.roundToInt())
                 }
                 .pointerInput(maxWidth, maxHeight) {
                     awaitEachGesture {
@@ -299,6 +305,13 @@ fun BrowserAccountingToolbar(
                         } == null
 
                         if (longPressReached) {
+                            // Pointer events update one Offset synchronously; no per-move
+                            // coroutine or independently cancellable X/Y update is created.
+                            scope.launch {
+                                dockOffset.stop()
+                                dockDragPosition = dockOffset.value
+                                dockIsDragging = true
+                            }
                             var lastPosition = down.position
                             var dragActive = true
                             while (dragActive) {
@@ -308,27 +321,17 @@ fun BrowserAccountingToolbar(
                                     dragActive = false
                                 } else {
                                     val delta = change.position - lastPosition
-                                    if (delta != androidx.compose.ui.geometry.Offset.Zero) {
-                                        // This pointerInput block is already a coroutine:
-                                        // update both outer offsets together, not the LazyRow items.
-                                        val nextX = (dragOffsetX.value + delta.x)
-                                            .coerceIn(-maxHorizontalDrag, maxHorizontalDrag)
-                                        val nextY = (dragOffsetY.value + delta.y)
-                                            .coerceIn(-maxVerticalDrag, 0f)
-                                        dragUpdateJob?.cancel()
-                                        dragUpdateJob = scope.launch {
-                                            dragOffsetX.snapTo(nextX)
-                                            dragOffsetY.snapTo(nextY)
-                                        }
+                                    if (delta != Offset.Zero) {
+                                        dockDragPosition = Offset(
+                                            (dockDragPosition.x + delta.x).coerceIn(-maxHorizontalDrag, maxHorizontalDrag),
+                                            (dockDragPosition.y + delta.y).coerceIn(-maxVerticalDrag, 0f)
+                                        )
                                         change.consume()
                                     }
                                     lastPosition = change.position
                                 }
                             }
-                            scope.launch {
-                                dragUpdateJob?.join()
-                                animateDockToEdge()
-                            }
+                            settleDockAfterDrag()
                         }
                     }
                 }
