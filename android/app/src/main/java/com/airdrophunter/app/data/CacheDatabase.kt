@@ -1230,7 +1230,7 @@ object CacheStore {
                     "reward_quote_timestamp" to (reward.quoteTimestamp?.toString() ?: ""),
                     "usd_profit_complete" to complete.toString(),
                     "public_contribution_opt_in" to contributionOptIn.toString(),
-                    "public_contribution_status" to if (contributionOptIn && complete && officialId != null) "pending_verification" else if (contributionOptIn) "not_eligible" else "private",
+                    "public_contribution_status" to if (contributionOptIn && officialId != null) "pending_verification" else if (contributionOptIn) "not_eligible" else "private",
                     "project_official_id" to (officialId ?: ""),
                     "asset_breakdown" to (assetJson ?: "")
                 )
