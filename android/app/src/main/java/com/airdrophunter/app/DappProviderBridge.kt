@@ -254,7 +254,7 @@ internal object DappProviderBridge {
             responseRequestId == expectedRequestId &&
             responseTopic == expectedTopic &&
             responseMethod.equals(expectedMethod, ignoreCase = true) &&
-            (responseChainId.isNullOrBlank() || responseChainId == expectedChainId)
+            !responseChainId.isNullOrBlank() && responseChainId == expectedChainId
 
     fun isTrustedMainFrame(sourceOrigin: Uri, pageUrl: String?): Boolean {
         if (pageUrl.isNullOrBlank()) return false
