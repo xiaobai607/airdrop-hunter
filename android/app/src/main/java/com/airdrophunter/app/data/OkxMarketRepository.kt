@@ -55,7 +55,7 @@ class OkxMarketRepository(
 
     suspend fun fetchSpotTickerDetail(symbol: String): OkxTickerDetail = withContext(Dispatchers.IO) {
         val safeSymbol = symbol.uppercase()
-        require(safeSymbol in setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP")) { "暂不支持该币种行情" }
+        require(safeSymbol in setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP", "POL")) { "暂不支持该币种行情" }
         val instrumentId = "$safeSymbol-USDT"
         val connection = (URL("https://www.okx.com/api/v5/market/ticker?instId=$instrumentId")
             .openConnection() as HttpURLConnection).apply {
