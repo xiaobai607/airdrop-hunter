@@ -2879,3 +2879,16 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **验收：** 覆盖 scheme 拦截、无钱包 App、无效参数、预估失败、用户拒绝、钱包返回 Hash、无 Hash 回调、冷启动恢复、重复回调、receipt Pending/Confirmed/Failed、L2 L1 fee、价格缺失、进程杀死后补单、重复同步及用户覆盖字段。最终 APK 统一构建，不提前触发 CI/APK。
 - **状态：** 需求已登记；代码、CI 和真机验收均待实施。PR #135 保持 Draft/Open/Unmerged。
 
+### 2026-11-12 — Web3 半自动记账第一轮代码落地（未构建）
+
+- Room schema 已扩展到版本 23，新增独立 `web3_transaction_drafts` 表、DAO 和 22→23 Migration；草稿不复用 `MANUAL-` 手动记账记录。
+- WebView 钱包 Scheme 拦截增加用户手势校验；支持拦截 `metamask:`、`trust:`、`trustwallet:`、`ethereum:`、`wc:`。MetaMask send/EIP-681 原生转账可解析目标地址、链 ID 和 value；无法可靠解析的 Trust 路由仍只安全拦截/转交，不伪造交易草稿。WalletConnect pairing 不通过通用 ACTION_VIEW 任意启动。
+- 现有 Reown `eth_sendTransaction` 现在先持久化交易草稿、尝试 `eth_estimateGas`，再发起钱包请求；用确切 WalletConnect request ID、session/topic、chain 和草稿 ID 关联返回 Hash。格式错误的交易参数或草稿无法落库时阻止本次签名请求。
+- 新增 `eth_getTransactionReceipt` 唯一 WorkManager 任务；交易失败回执仍保留真实费用。Optimism/Base 使用 receipt `l1Fee`；Arbitrum 使用 receipt `gasUsedForL1 × effectiveGasPrice` 计算 L1 数据费（Arbitrum 的该字段以子链 Gas 单位表示）。缺少必需 L1 费用数据时不把总费用标记为已确认。
+- Gas 原生币总额、L1/L2 拆分和报价时间戳写入草稿；只有 OKX 缓存协调器返回的新鲜且不超过 5 分钟的报价才生成 USD 估值。没有新鲜报价时保留真实原生币花费，USD 留空，不伪造 0 美元。
+- 新增 30 秒唯一 WorkManager 超时任务，并通过 `ProcessLifecycleOwner` 在 App 回到前台时补充扫描。超时状态是“待同步核对”，不会仅因没有回调就标记拒绝；明确的 EIP-1193 4001 用户拒绝才标记取消。
+- “同步链上记录”入口当前采用用户粘贴 TxHash 的安全补单路径：调用该草稿链对应 RPC 的 `eth_getTransactionByHash`，校验发送地址、目标地址、value、input/data 后才绑定 Hash 并轮询回执。**当前不是自动扫描钱包完整历史交易列表**；标准 Ethereum JSON-RPC 没有通用地址交易历史枚举接口，后续如增加区块浏览器索引器，必须按链接入并保留候选冲突人工确认。
+- 已确认/失败交易进入现有 BrowserAccountingToolbar 真实记账流程，预填 Gas 原生币、L1/L2 拆分、可用 USD 报价和短 Hash；项目、Gas USD 和实际收益由用户确认后写入既有本地账本。成功入账后 Web3 草稿转为 `accounted`，避免重复创建同一笔账单。
+- 加密本地备份/恢复已包含 Web3 草稿；补充了草稿备份 round-trip、Hash 格式、wei 数量和 L1 费用解析单元测试。
+- **仍待完成：** Kotlin/Room/KAPT 编译与单元测试尚未运行；需要核对 Reown 1.3.3 精确依赖 API、Room 23 Migration 实际升级、WorkManager 进程恢复、MetaMask/Trust 真机行为、拒绝/超时/补单、Arbitrum/OP 回执样本和记账去重。当前未运行 CI、未构建 APK、未做真机验收；PR #135 仍 Draft/Open/Unmerged。
+
