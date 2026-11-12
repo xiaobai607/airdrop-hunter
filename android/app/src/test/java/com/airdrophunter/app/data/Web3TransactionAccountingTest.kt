@@ -140,6 +140,18 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun ethereumUsesOnlyExecutionFeeWithoutRollupComponents() {
+        val fees = Web3ReceiptFeeCalculator.calculate(
+            1L, BigInteger("21000"), BigInteger("100"),
+            null, null
+        )!!
+        assertEquals(BigInteger("2100000"), fees.totalFeeWei)
+        assertEquals(BigInteger.ZERO, fees.l1FeeWei)
+        assertEquals(BigInteger.ZERO, fees.operatorFeeWei)
+        assertEquals(BigInteger("2100000"), fees.l2FeeWei)
+    }
+
+    @Test
     fun ethereumDoesNotInventSeparateL1Fee() {
         assertEquals(
             BigInteger.ZERO,
