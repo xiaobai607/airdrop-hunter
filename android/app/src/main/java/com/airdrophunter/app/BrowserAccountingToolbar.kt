@@ -623,6 +623,7 @@ fun BrowserAccountingToolbar(
                                     Web3DraftStatus.CONFIRMED -> "回执已确认"
                                     Web3DraftStatus.CONFIRMED_FAILED -> "链上执行失败 · Gas 已产生"
                                     Web3DraftStatus.WAITING_L1_FEE -> "L1 费用待核实"
+                                    Web3DraftStatus.WAITING_OPERATOR_FEE -> "运营商费用待核实"
                                     Web3DraftStatus.RECEIPT_NEEDS_SYNC -> "链上回执待补核"
                                     Web3DraftStatus.TIMED_OUT_NEEDS_SYNC -> "钱包未回传 · 待同步"
                                     Web3DraftStatus.WAITING_RECEIPT -> "等待链上回执"
@@ -663,7 +664,7 @@ fun BrowserAccountingToolbar(
                                                     }
                                                 }) { Text("继续记账") }
                                             }
-                                            Web3DraftStatus.WAITING_L1_FEE -> {
+                                            Web3DraftStatus.WAITING_L1_FEE, Web3DraftStatus.WAITING_OPERATOR_FEE -> {
                                                 TextButton(onClick = {
                                                     com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
                                                 }) { Text("重试核实") }
