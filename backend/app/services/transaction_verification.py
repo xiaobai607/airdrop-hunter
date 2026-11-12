@@ -27,9 +27,9 @@ EVM_NETWORKS: dict[str, dict[str, Any]] = {
     "ethereum": {"chain_id": 1, "symbol": "ETH", "feed": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419", "confirmations": 12},
     "bsc": {"chain_id": 56, "symbol": "BNB", "feed": "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE", "confirmations": 15},
     "polygon": {"chain_id": 137, "symbol": "POL", "feed": "0xAB594600376Ec9fD91F8e885dADF0CE036862dE0", "confirmations": 128},
-    "arbitrum": {"chain_id": 42161, "symbol": "ETH", "feed": "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612", "confirmations": 20, "l2": True},
-    "optimism": {"chain_id": 10, "symbol": "ETH", "feed": "0x13e3Ee699D1909E989722E753853AE30b17e08c5", "confirmations": 20, "l2": True},
-    "base": {"chain_id": 8453, "symbol": "ETH", "feed": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70", "confirmations": 20, "l2": True},
+    "arbitrum": {"chain_id": 42161, "symbol": "ETH", "feed": "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612", "confirmations": 20, "l2": True, "arbitrum_receipt": True},
+    "optimism": {"chain_id": 10, "symbol": "ETH", "feed": "0x13e3Ee699D1909E989722E753853AE30b17e08c5", "confirmations": 20, "l2": True, "operator_fee": True},
+    "base": {"chain_id": 8453, "symbol": "ETH", "feed": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70", "confirmations": 20, "l2": True, "operator_fee": True},
     "avalanche": {"chain_id": 43114, "symbol": "AVAX", "feed": "0x0A77230d17318075983913bC2145DB16C7366156", "confirmations": 12},
 }
 NETWORK_ALIASES = {
@@ -193,10 +193,47 @@ async def verify_evm_contribution(
             raise VerificationPending("交易费用字段不完整")
 
         l1_fee_raw = receipt.get("l1Fee")
-        l1_fee = _hex_int(l1_fee_raw, "L1 数据费用") if l1_fee_raw is not None else None
-        fee_components_complete = not bool(config.get("l2")) or l1_fee is not None
+        l1_fee: int | None
+        if config.get("arbitrum_receipt"):
+            gas_used_for_l1_raw = receipt.get("gasUsedForL1")
+            if gas_used_for_l1_raw is not None:
+                l1_fee = _hex_int(gas_used_for_l1_raw, "Arbitrum L1 Gas") * effective_gas_price
+            else:
+                l1_fee = _hex_int(l1_fee_raw, "L1 数据费用") if l1_fee_raw is not None else None
+        else:
+            l1_fee = _hex_int(l1_fee_raw, "L1 数据费用") if l1_fee_raw is not None else None
+
+        operator_fee: int | None = 0
+        if config.get("operator_fee"):
+            operator_calldata = "0x275aedd2" + f"{gas_used:064x}"
+            try:
+                operator_result = await _etherscan_rpc(
+                    client, config["chain_id"], api_key, "eth_call",
+                    to="0x420000000000000000000000000000000000000F",
+                    data=operator_calldata,
+                    tag=hex(receipt_block),
+                )
+                if not isinstance(operator_result, str) or not re.fullmatch(r"0x[0-9a-fA-F]{64}", operator_result):
+                    operator_fee = None
+                else:
+                    operator_fee = _hex_int(operator_result, "OP Stack 运营商费用")
+            except VerificationPending:
+                operator_fee = None
+
+        fee_components_complete = (
+            (not bool(config.get("l2")) or l1_fee is not None)
+            and (not bool(config.get("operator_fee")) or operator_fee is not None)
+        )
         base_fee_wei = gas_used * effective_gas_price
-        total_fee_wei = base_fee_wei + (l1_fee or 0)
+        if config.get("arbitrum_receipt"):
+            # Arbitrum receipt gasUsed already includes its L1 component.
+            total_fee_wei = base_fee_wei
+            l2_fee_wei = base_fee_wei - (l1_fee or 0)
+            if l2_fee_wei < 0:
+                raise VerificationPending("Arbitrum L1 Gas 大于回执总 Gas，等待重新核验")
+        else:
+            l2_fee_wei = base_fee_wei
+            total_fee_wei = base_fee_wei + (l1_fee or 0) + (operator_fee or 0)
 
         common_metadata = {
             "network": normalized,
@@ -208,17 +245,21 @@ async def verify_evm_contribution(
             "native_symbol": config["symbol"],
             "gas_used": str(gas_used),
             "effective_gas_price_wei": str(effective_gas_price),
+            "l1_fee_wei": str(l1_fee) if l1_fee is not None else None,
+            "operator_fee_wei": str(operator_fee) if operator_fee is not None else None,
+            "l2_fee_wei": str(l2_fee_wei),
+            "total_fee_wei": str(total_fee_wei),
             "fee_components_complete": fee_components_complete,
             "provider": "etherscan_v2",
         }
-        # Optimistic rollups may charge an additional L1 data fee. If the explorer
-        # does not expose it, only transaction linkage is verified (Tier 2).
+        # A rollup is only amount-verified when every fee component is available.
         if not fee_components_complete:
+            missing = "operator_fee_not_exposed" if operator_fee is None else "l1_fee_not_exposed"
             return VerificationResult(
                 tier="transaction_linked",
                 gas_cost_usd=expected,
                 tx_fingerprint=fingerprint,
-                metadata={**common_metadata, "verification_note": "l1_fee_not_exposed"},
+                metadata={**common_metadata, "verification_note": missing},
             )
 
         price_result = await _etherscan_rpc(
@@ -249,6 +290,9 @@ async def verify_evm_contribution(
             metadata={
                 **common_metadata,
                 "total_fee_wei": str(total_fee_wei),
+                "l1_fee_wei": str(l1_fee or 0),
+                "operator_fee_wei": str(operator_fee or 0),
+                "l2_fee_wei": str(l2_fee_wei),
                 "native_fee": format(native_fee, "f"),
                 "native_price_usd": format(native_price_usd, "f"),
                 "price_source": f"chainlink:{normalized}",
