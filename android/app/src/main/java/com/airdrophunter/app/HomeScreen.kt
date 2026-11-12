@@ -393,7 +393,7 @@ fun HomeScreen(
                                 }
                                 Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
