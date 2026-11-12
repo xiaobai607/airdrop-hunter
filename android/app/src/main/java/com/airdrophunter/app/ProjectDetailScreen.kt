@@ -699,7 +699,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     reward = if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET) reward else null,
                                     publicContributionOptIn = !project.communityDelisted && ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
                                         project.communityOfficialId,
-                                        accountingRewardKind,
                                         accountingWalletNetworks[wallet.id].orEmpty().ifBlank { wallet.chain.trim().lowercase() },
                                         accountingTxHashes[wallet.id].orEmpty()
                                     )
