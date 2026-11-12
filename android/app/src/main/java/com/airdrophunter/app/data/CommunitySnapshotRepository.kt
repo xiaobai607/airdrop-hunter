@@ -34,9 +34,11 @@ object CommunitySnapshotRepository {
             ?.takeIf { it.schema_version == 1 && it.window == window }
     }
 
-    suspend fun refreshSnapshots(): Map<String, CommunitySnapshotDto> = withContext(Dispatchers.IO) {
+    suspend fun refreshSnapshots(): Map<String, CommunitySnapshotDto> = refreshSnapshotsWithStatus().data.orEmpty()
+
+    suspend fun refreshSnapshotsWithStatus(): CacheRefreshResult<Map<String, CommunitySnapshotDto>> = withContext(Dispatchers.IO) {
         val base = BuildConfig.COMMUNITY_SNAPSHOT_BASE_URL.trimEnd('/')
-        if (base.isBlank()) return@withContext readCachedSnapshots()
+        if (base.isBlank()) return@withContext CacheRefreshResult(readCachedSnapshots(), stale = false)
 
         val result = CacheRefreshCoordinator.shared.load(
             cacheKey = "community-snapshot:all",
@@ -48,7 +50,7 @@ object CommunitySnapshotRepository {
             // commits manifest validators only after the complete set is available.
             save = { }
         )
-        result.data.orEmpty()
+        result
     }
 
     private suspend fun readCachedSnapshots(): Map<String, CommunitySnapshotDto> =

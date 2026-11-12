@@ -32,29 +32,41 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
     override suspend fun doWork(): Result {
         ApiClient.initialize(applicationContext)
         var succeeded = 0
+        var hadFailure = false
         try {
-            CommunityCatalogRepository.refreshCatalog()
-            succeeded++
+            val result = CommunityCatalogRepository.refreshCatalogWithStatus()
+            if (!shouldMarkSyncCadenceSuccess(result.stale, result.errorMessage, result.throttled) || result.data == null) {
+                hadFailure = true
+            } else succeeded++
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
+            hadFailure = true
             // Market warm-up continues independently if the community API is unavailable.
         }
         try {
+            val result = CommunitySnapshotRepository.refreshSnapshotsWithStatus()
+            if (!shouldMarkSyncCadenceSuccess(result.stale, result.errorMessage, result.throttled) || result.data == null) {
+                hadFailure = true
+            } else succeeded++
             MarketSearchRepository(OkxMarketRepository()).warmUpMarketCaches()
             succeeded++
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
+            hadFailure = true
             // Community directory cache remains usable if a market provider is unavailable.
         }
         try {
             // Warm the published campaign directory through its Room cache and shared coordinator.
-            AirdropCampaignRepository(ApiClient.service).load()
-            succeeded++
+            val result = AirdropCampaignRepository(ApiClient.service).loadWithStatus()
+            if (!shouldMarkSyncCadenceSuccess(result.stale, result.errorMessage, throttled = false)) {
+                hadFailure = true
+            } else succeeded++
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
+            hadFailure = true
             // Keep last-known-good campaign rows available if the public API is down.
         }
         try {
@@ -78,7 +90,7 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
         } catch (_: Exception) {
             // Keep cached public announcements usable; the next foreground entry retries.
         }
-        return if (succeeded > 0) Result.success() else Result.retry()
+        return if (hadFailure || succeeded == 0) Result.retry() else Result.success()
     }
 }
 

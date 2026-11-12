@@ -34,7 +34,10 @@ object CommunityCatalogRepository {
         isCommunityProjectDelisted(projectOfficialId, readCatalog().orEmpty())
     }
 
-    suspend fun refreshCatalog(): List<CommunityProjectCatalogDto> = withContext(Dispatchers.IO) {
+    suspend fun refreshCatalog(): List<CommunityProjectCatalogDto> = refreshCatalogWithStatus().data
+        ?: throw IllegalStateException("社区目录暂不可用")
+
+    suspend fun refreshCatalogWithStatus(): CacheRefreshResult<List<CommunityProjectCatalogDto>> = withContext(Dispatchers.IO) {
         val result = CacheRefreshCoordinator.shared.load(
             cacheKey = CACHE_KEY,
             source = "official-community-directory",
@@ -55,7 +58,7 @@ object CommunityCatalogRepository {
                 require(readCatalog() == merged) { "社区目录缓存写入校验失败" }
             }
         )
-        result.data ?: throw IllegalStateException(result.errorMessage ?: "社区目录暂不可用")
+        result
     }
 
     private const val DIRECTORY_TTL_MILLIS = 6 * 60 * 60 * 1000L
