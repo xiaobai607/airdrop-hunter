@@ -2759,3 +2759,5 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 真机冷启动计时、Dock 长按/横滑/吸边、记账新增/取消/确认、Room 21→22 升级迁移、Profile 底部设置可达性均待统一 APK 安装后验收。
 - 当前本轮需求的代码实现已基本齐备；最终完成度必须等统一构建、单元测试和设备验收后再定，不以提交数量或代码存在代替验收。
 - 最新代码头：44aac7876210bbc0bf16db3d3c88dccbec5409e0。PR #135 仍为 Draft/Open/Unmerged。
+
+- 延迟初始化安全性补充：WalletConnect 初始化器公开 ready 状态；钱包管理和 DApp 连接入口在 AppKit 完成初始化前禁用并显示初始化提示，避免把启动优化变成过早调用未就绪 SDK。

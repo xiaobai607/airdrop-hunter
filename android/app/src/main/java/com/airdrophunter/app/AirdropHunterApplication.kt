@@ -8,6 +8,8 @@ import com.reown.android.CoreClient
 import com.reown.appkit.client.AppKit
 import com.reown.appkit.client.Modal
 import com.reown.appkit.presets.AppKitChainsPresets
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class AirdropHunterApplication : Application() {
     val appContainer: AppContainer by lazy { AppContainer() }
@@ -24,6 +26,8 @@ class AirdropHunterApplication : Application() {
 
 object WalletConnectInitializer {
     @Volatile private var initializationStarted = false
+    private val _ready = MutableStateFlow(false)
+    val ready = _ready.asStateFlow()
 
     @Synchronized
     fun ensureInitialized(application: Application) {
@@ -46,8 +50,12 @@ object WalletConnectInitializer {
             }
             AppKit.initialize(
                 init = Modal.Params.Init(core = CoreClient),
-                onSuccess = { AppKit.setDelegate(WalletConnectSessionDelegate) },
+                onSuccess = {
+                    AppKit.setDelegate(WalletConnectSessionDelegate)
+                    _ready.value = true
+                },
                 onError = { error ->
+                    initializationStarted = false
                     Log.e("AirdropWallet", "AppKit initialization failed", error.throwable)
                 }
             )

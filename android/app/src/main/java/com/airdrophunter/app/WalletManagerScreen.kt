@@ -142,6 +142,7 @@ fun WalletManagerScreen(
     val application = context.applicationContext as AirdropHunterApplication
     val walletViewModel: WalletManagerViewModel = vm ?: viewModel(factory = WalletManagerViewModelFactory(application.appContainer.walletRepository))
     val state by walletViewModel.state.collectAsStateWithLifecycle()
+    val walletConnectReady by WalletConnectInitializer.ready.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
     var address by remember { mutableStateOf("") }
     var selectedEcosystem by remember { mutableStateOf(WalletEcosystem.EVM) }
@@ -446,13 +447,14 @@ fun WalletManagerScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedButton(
+                        enabled = walletConnectReady,
                         onClick = {
                             showAddDialog = false
                             walletNavController.openAppKit()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("连接外部钱包（WalletConnect）")
+                        Text(if (walletConnectReady) "连接外部钱包（WalletConnect）" else "钱包连接服务初始化中…")
                     }
                     Text("选择地址所属链", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

@@ -156,6 +156,7 @@ private fun BrowserScreen(
     onExit: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val walletConnectReady by WalletConnectInitializer.ready.collectAsState()
     LaunchedEffect(Unit) {
         WalletConnectInitializer.ensureInitialized(context.applicationContext as android.app.Application)
     }
@@ -314,7 +315,9 @@ private fun BrowserScreen(
                     title = { Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1) },
                     navigationIcon = { IconButton(onClick = onExit) { Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary) } },
                     actions = {
-                        TextButton(onClick = { walletNavController.openAppKit() }) { Text("连接外部钱包", color = AppColors.Primary) }
+                        TextButton(enabled = walletConnectReady, onClick = { walletNavController.openAppKit() }) {
+                            Text(if (walletConnectReady) "连接外部钱包" else "钱包连接服务初始化中…", color = AppColors.Primary)
+                        }
                         if (selectedWallet != null) TextButton(onClick = { showWalletPicker = true }) {
                             Text("钱包 · ${selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }}", color = AppColors.Primary, maxLines = 1)
                         }
@@ -721,7 +724,7 @@ private fun BrowserScreen(
                         pendingDappConnection = null
                     } else {
                         waitingDappWalletApproval = true
-                        walletNavController.openAppKit()
+                        if (walletConnectReady) walletNavController.openAppKit()
                     }
                 }) { Text("确认并连接", color = AppColors.Primary) }
             },
