@@ -41,7 +41,12 @@ class WalletActivitySyncWorker(
         var hadFailure = false
         for (wallet in wallets) {
             try {
-                app.appContainer.walletActivityRepository.refresh(wallet, guest, accessToken)
+                app.appContainer.walletActivityRepository.refresh(
+                    wallet,
+                    guest,
+                    accessToken,
+                    force = inputData.getBoolean(GlobalSyncScheduler.FORCE_KEY, false)
+                )
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

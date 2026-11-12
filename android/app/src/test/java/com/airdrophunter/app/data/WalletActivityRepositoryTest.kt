@@ -98,6 +98,22 @@ class WalletActivityRepositoryTest {
         assertEquals(0, remote.evmCalls)
     }
 
+    @Test
+    fun refreshReusesFreshSessionScopedSnapshotAndForceRefreshBypassesTtl() = runBlocking {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val repository = WalletActivityRepository(remote, local)
+        val wallet = wallet("T" + "2".repeat(33), WalletEcosystem.TRON)
+
+        val first = repository.refresh(wallet, guest = true, accessToken = null)
+        val cached = repository.refresh(wallet, guest = true, accessToken = null)
+        assertEquals(first.networksChecked, cached.networksChecked)
+        assertEquals(1, remote.chainCalls.size)
+
+        repository.refresh(wallet, guest = true, accessToken = null, force = true)
+        assertEquals(2, remote.chainCalls.size)
+    }
+
     private fun wallet(address: String, ecosystem: String) = WalletDto(
         id = "wallet-1",
         wallet_name = "Test",
