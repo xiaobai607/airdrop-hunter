@@ -728,6 +728,7 @@ object CacheStore {
             db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN nativePriceUsd REAL")
             db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN nativePriceTimestamp INTEGER")
             db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN actualGasUsd REAL")
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN operatorFeeWei TEXT")
         }
     }
     @Volatile private var appContext: Context? = null
