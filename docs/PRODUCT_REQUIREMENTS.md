@@ -2650,3 +2650,24 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 表单取消/系统返回/保存成功后关闭整个 Home 记账弹层，不遗留空白页面。浏览器 Dock 原有调用不受影响。
 - 该修正不自动新增链上交易，不伪造 tx hash，不改变用户手动确认实际 Gas/收益的既有规则。
 - **状态：方案已记录，代码待实施。**
+
+
+### 首轮实现记录（2026-11-12，CI 待验证）
+
+**已提交到当前分支：**
+- System Splash：新增 AndroidX Core SplashScreen 依赖、启动主题和 Manifest 启动主题；启动 token 的 DataStore 读取从 Compose 首次组合移至 `Dispatchers.IO`，Splash 等待读取完成，避免主线程 `runBlocking`。
+- 启动审计确认 WebView 只在用户打开 `BrowserActivity` 时创建，未在 Home 首屏预初始化；保留按需加载。Application 中 WalletConnect SDK 初始化仍是潜在耗时点，需后续拆分评估并用真机启动测量，当前不宣称已消除全部 4–5 秒启动耗时。
+- Dock：最外层容器本来已持有拖动手势和吸边动画；已把 X/Y 的 `Animatable.snapTo` 改为在同一个 pointerInput 手势协程中顺序执行，消除每个 pointer move 启动独立协程造成的更新竞争。保留长按、内部 LazyRow 横滑和不持久化位置。
+- 首页快捷入口文案已改为“记录Gas与收益”，副标题添加单行省略。
+- Profile 主 Column 已改为可滚动并增加底部内容空间，避免“设置”被裁切；真机不同导航模式仍待验收。
+- Gas 币种输入已改为按当前链优先提供原生 Gas 资产选择，并保留自定义币种；归属项目选择原本就已有本地项目列表/新建入口，本轮保留。
+- Home 记账入口已从全屏二级导航改为 Material3 ModalBottomSheet；不再在打开时自动创建 MOCK 草稿。若有待确认记录则直接打开首条表单；没有记录则显示空列表；取消/关闭/保存成功会关闭整个弹层，不留空白页。
+- “模拟账单”在工具入口/历史条目中改为“本地演示记录”，真正非 MOCK 记录使用“待确认交易”；保留 MOCK 数据身份，不把演示记录伪装成真实链上交易。
+- OKX/Home 支持列表增加 TRX，首页现显示当前 OKX 支持的 BTC、ETH、SOL、BNB、TRX、XRP；这只是默认热门币展示扩展，**自定义编辑入口和 Room 持久化选择尚未实现**。
+- 需求 8 暂缓：当前实际底部导航只有“主页、社区、项目、我的”，没有“空投库”Tab。未删除首页“空投列表”入口，以免造成空投库无入口。等待用户决定新增第五个 Tab，或替换/改造现有 Tab。
+
+**当前代码头：** `7aab7706c6ea2603c9ed2109cec6d143c5e73fbb`。
+
+**CI：** Android workflow **#43163290443** 正在执行；Android 编译/单元测试尚未完成，backend tests 因 Android-only 变更按路径规则跳过。未标记通过。PR #135 继续保持 Draft/Open/Unmerged。
+
+**仍待实施：** 行情看板编辑入口 + Room 持久化选择；空投入口底部导航决策；剩余文案全局检索；启动时 WalletConnect 初始化延迟化评估；真机冷启动/拖动/弹层/滚动验收。记账交互、启动优化和新增币种的 CI 通过前不得标记为完成。
