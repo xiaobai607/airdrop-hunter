@@ -2,7 +2,7 @@
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
-## 0.0 Current master checklist — authoritative status and remaining work (2026-11-11)
+## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
 
@@ -18,7 +18,7 @@
 
 - Repository: `xiaobai607/airdrop-hunter`; active delivery branch: `feature/mobile-browser-home-dock-batch`.
 - PR #135 remains **Draft / Open / not merged**. Latest branch code head at this checkpoint: `c51a5e1256c7b29071cbb0b4f10062b4a81a04bd`.
-- Exact-head backend push workflow #43022038023 passed on `c51a5e1256c7b29071cbb0b4f10062b4a81a04bd`: **244 passed, 3 warnings, 0 failed**. Android was correctly skipped because this batch changed backend files only.
+- Historical exact-head backend push workflow #43022038023 passed on `c51a5e1256c7b29071cbb0b4f10062b4a81a04bd`: **244 passed, 3 warnings, 0 failed**. Android was correctly skipped because that batch changed backend files only. Current branch head and latest CI are recorded in the 2026-11-12 checkpoint below.
 - The previous backend fix in workflow #43004421135 also passed: 232 passed, 3 warnings, 0 failed. It introduced a guard so a Binance item rejected by the central filter cannot be fetched directly by guessing its detail ID.
 - Android source changes at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed Android unit tests, Debug APK assembly, and artifact upload in workflow #43002913809. Later commits changed only backend API/tests and documentation; Android source is unchanged.
 - Airdrop Hub has a Room-backed public cache: show cached rows first, refresh the four-source pipeline in the background after 8 hours, retain last-known-good rows after failures, and apply a 5-minute retry cooldown. Manual refresh remains available; physical-device behavior still needs verification.
@@ -105,9 +105,9 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 - [ ] Verify privacy, zero-cost operation, source permissions, data integrity, backup/restore and rollback.
 - [ ] Keep PR #135 Draft/Open until the user explicitly authorizes merge. Do not declare the project finished before all required gates pass.
 
-### Latest continuation checkpoint — 2026-11-11
+### Latest continuation checkpoint — 2026-11-12
 
-- Current branch head: `c51a5e1256c7b29071cbb0b4f10062b4a81a04bd`; PR #135 remains Draft/Open/unmerged.
+- Current branch head: `a647f7b3af517fe90b004ad774e8053be2513e88`; PR #135 remains Draft/Open/unmerged.
 - Exact-head backend push workflow #43022038023 passed **244 tests, 3 warnings, 0 failures**. Android was skipped because no Android source files changed.
 - Added `backend/scripts/smoke_discovery_sources.py`: read-only live adapter runner for Binance, DexScreener and optionally configured CoinGecko/GitHub Raw. It reports each provider's parseable record count and up to three sample names. It never opens a database session, persists observations or publishes campaigns.
 - Added unit tests for partial provider failure and the all-empty case. The first CI attempt exposed a test import-path issue; that was corrected, and the exact-head 244-test run above passed.
@@ -129,6 +129,44 @@ Current evidence: campaign models, migrations, scoring/persistence foundations, 
 **Progress reporting rule:** do not use one unqualified percentage as a release-completion claim. Report code/CI progress separately from real-data, physical-device, production and final-release acceptance. A completed PR or successful CI is not a finished product.
 
 ---
+
+
+### 2026-11-12 — requirements-first workflow and unified cache engine checkpoint
+
+**Requirements-first rule (user reaffirmed 2026-11-12):**
+- This file is the source of truth. Every newly requested feature or changed behavior must be recorded here first, with scope, priority, dependencies, acceptance criteria and status, before implementation begins.
+- After the requirements entry is updated, compare the actual branch code against it, implement only the next approved slice, run the relevant tests, and update this ledger with the exact commit and CI result.
+- Never silently turn an implementation assumption into a product requirement. If a request conflicts with an existing decision, record the conflict and follow the user's latest explicit correction.
+- Current release registration is disabled. Do not add registration/login, account switching, guest-to-login migration, or private cloud restore flows. Do not reopen account architecture as part of cache work.
+- Do not alter, clear, re-key, or migrate offline-created personal records or pending-sync queues as a side effect of cache changes. Personal ledger and personal project/task records are durable user data, not ordinary expiring cache entries.
+
+**Unified cache engine — scope and requirements:**
+- Use one shared cache refresh coordinator for approved cache-backed data sources; keep per-source TTL, cache key, validation, and persistence semantics explicit.
+- Required behavior: cache-first/stale-while-revalidate where the existing screen contract requires it; per-source TTL; single-flight refresh for the same source/key; force refresh for an explicit manual refresh; bounded retry/error cooldown; preserve last-known-good payload on failure; expose stale/error/refresh metadata; propagate coroutine cancellation rather than treating it as a provider error.
+- Cache metadata is not the payload store. Existing Room/cache payload persistence and source-specific validators must remain authoritative.
+- Current scope is public/shared reference data only. Do not expand the generic TTL engine into personal ledger, private project/task records, private wallet data, offline additions, or pending-sync queues. Existing wallet-activity cache integration is flagged for a scope audit before further extension; preserve its existing session-scoped storage and do not change user data semantics in this workstream.
+- Do not add an unused repository to the active path solely to claim cache coverage. CoinGeckoPriceRepository remains out of scope until a real call site exists.
+
+**Implementation recorded at branch head `a647f7b3af517fe90b004ad774e8053be2513e88`:**
+- Shared `CacheRefreshCoordinator` supports forced refresh; Airdrop Hub and Community Snapshot repositories use the shared coordinator while retaining their source-specific persistence/validation behavior.
+- Wallet activity repository has an existing coordinator integration with metadata keys isolated by session fingerprint and wallet/ecosystem; this integration must be reviewed against the public-only cache boundary before any further private-data cache work. Do not treat this note as approval to build account switching or guest migration.
+- Airdrop campaign refresh validates records and verifies manual-refresh cache write/readback before accepting the replacement payload; invalid or incomplete refreshes must not overwrite last-known-good data.
+- Community snapshot refresh preserves HTTPS CDN host validation, ETag/Last-Modified behavior and snapshot-version checks; cancellation is propagated.
+- Added coordinator lifecycle tests for same-key reuse, last-known-good retention after failure, cancellation metadata recovery/propagation, and source+key metadata isolation.
+- Exact-head Actions run #43142917658 for `a647f7b3af517fe90b004ad774e8053be2513e88` passed: Android build, unit tests and Debug APK artifact upload succeeded. Backend tests were skipped because this was an Android-only change. This is automated validation, not device acceptance.
+- Previous exact-head Android validations: #43142399397 passed for `e39c2c22a4174d1f04b765dff44a3811257cd026`; #43140663969 passed for `d5732d1d299d8ca0ce58829ce8695a2994893abc`.
+
+**Current cache-engine status:**
+- Shared engine foundation and selected integrations: implemented in code and CI.
+- Full concurrency semantics, force/manual-refresh throttling, retry/backoff edge cases and complete source-by-source audit: partial; additional tests/review required.
+- Physical-device checks for cache-first rendering, background responsiveness, refresh interaction, offline/network interruption and last-known-good behavior: pending.
+- Public data provider live verification remains a separate gate; CI does not prove Binance/CoinGecko/GitHub/DexScreener live availability or campaign publication.
+
+**Progress reporting — 2026-11-12 (estimate, not a release claim):**
+- Code/CI implementation coverage: approximately **68%** across the currently approved scope; this reflects existing core modules plus partial discovery, UI, cache and detail-page implementation.
+- End-to-end release readiness: approximately **41%** using the six delivery areas A–F in the master checklist, with the weakest areas (live discovery, device acceptance, production/recovery and final release gate) weighted explicitly rather than counting source files or commits.
+- Live-data, physical-device, production/recovery acceptance: still substantially behind code/CI. Do not collapse these into one “finished” percentage. Recalculate these figures whenever a delivery area changes, and state the evidence and outstanding gates.
+- PR #135 must remain Draft/Open/unmerged unless the user explicitly authorizes otherwise.
 
 ## 0.2 Latest user-confirmed data-discovery strategy — four-source, zero-budget standard (2026-11-11)
 
