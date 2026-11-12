@@ -27,6 +27,17 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun mapsSupportedChainIdsToNativeGasAssets() {
+        assertEquals("ETH", Web3TransactionRepository.nativeSymbolForChain(1L))
+        assertEquals("ETH", Web3TransactionRepository.nativeSymbolForChain(10L))
+        assertEquals("ETH", Web3TransactionRepository.nativeSymbolForChain(42161L))
+        assertEquals("ETH", Web3TransactionRepository.nativeSymbolForChain(8453L))
+        assertEquals("BNB", Web3TransactionRepository.nativeSymbolForChain(56L))
+        assertEquals("POL", Web3TransactionRepository.nativeSymbolForChain(137L))
+        assertEquals("UNKNOWN", Web3TransactionRepository.nativeSymbolForChain(999999L))
+    }
+
+    @Test
     fun validatesTransactionHashes() {
         val valid = "0x" + "a".repeat(64)
         assertTrue(Web3TransactionRepository.isValidTxHash(valid))
