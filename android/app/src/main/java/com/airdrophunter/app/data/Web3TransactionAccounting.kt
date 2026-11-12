@@ -279,6 +279,16 @@ object Web3ReceiptFeeCalculator {
     }
 }
 
+/** Rejects a receipt that does not belong to the exact transaction draft being reconciled. */
+object Web3ReceiptIdentityVerifier {
+    fun matches(expectedHash: String?, receiptHash: String?): Boolean {
+        val hashPattern = Regex("^0x[a-fA-F0-9]{64}$")
+        if (expectedHash.isNullOrBlank() || receiptHash.isNullOrBlank()) return false
+        if (!hashPattern.matches(expectedHash) || !hashPattern.matches(receiptHash)) return false
+        return expectedHash.equals(receiptHash, ignoreCase = true)
+    }
+}
+
 object Web3ReceiptFeeParser {
     /**
      * Arbitrum reports gasUsedForL1 in child-chain gas units, so its charged
@@ -753,6 +763,14 @@ class Web3TransactionRepository(
         draft: Web3TransactionDraftEntity,
         receipt: JSONObject
     ): Boolean {
+        // RPC data is not trusted until the receipt is bound to this exact saved TxHash.
+        // Never let a malformed or unrelated receipt update the draft's fee/status fields.
+        if (!Web3ReceiptIdentityVerifier.matches(
+                draft.txHash,
+                receipt.optString("transactionHash").takeIf { it.isNotBlank() }
+            )
+        ) return false
+
         val gasUsed = Web3RpcClient.parseRpcQuantity(receipt.optString("gasUsed")) ?: return false
         val effectiveGasPrice = Web3RpcClient.parseRpcQuantity(
             receipt.optString("effectiveGasPrice").takeIf { it.isNotBlank() }
