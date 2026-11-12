@@ -2932,3 +2932,10 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 钱包 Hash 绑定增加状态门禁：仅 pending_wallet、waiting_hash、timed_out_needs_sync 可首次绑定；已取消、钱包不可用、已进入回执/记账阶段的草稿拒绝新 Hash。Room UPDATE 同步增加状态条件，防止并发迟到回调绕过 Repository 检查；已有同一 Hash 的重复回调仍保持幂等。新增状态门禁单元测试。
 - OP Stack Operator Fee 增加 deposit 交易豁免：receipt type 为 0x7e 时 Operator Fee 按协议规则记为 0，不调用普通交易的 getOperatorFee(gasUsed)；补充对应单元测试。
 - 本轮仅完成源码和测试静态修改；未运行 Gradle 编译/单元测试、CI、APK 构建或真机验收。PR #135 继续保持 Draft/Open/Unmerged。
+
+### 2026-11-13 — Web3 L1 费用人工兜底与明细防误读（未构建）
+
+- `WAITING_L1_FEE` 现在与 `WAITING_OPERATOR_FEE`、`RECEIPT_NEEDS_SYNC` 一样可进入人工费用核验/记账；界面同时提供“重试核实”和“手动记账”。
+- 手动确认资格集中在 `Web3DraftStatus`，Room 账本确认入口复用同一规则；自动回执仍未完整核实时不会伪装为自动确认，用户需要手动填写并确认实际 Gas 后才入账。
+- 费用明细展示明确区分 Gas 总计、L2 执行费、L1 数据费和 Operator Fee；普通链 `execution_fee` 与 Gas 总计是同一笔执行费，不再在明细展示中重复出现，避免用户误以为需要相加。补充格式化和状态资格单元测试。
+- 本轮只完成源码、测试和需求记录更新；未运行 Gradle 编译/单元测试、CI、APK 构建或真机验收。PR #135 继续保持 Draft/Open/Unmerged。
