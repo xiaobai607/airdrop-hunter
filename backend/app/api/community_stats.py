@@ -233,13 +233,11 @@ async def add_community_contribution(
 
     inserted_id = (await db.execute(contribution)).scalar_one_or_none()
     if inserted_id is None:
+        duplicate_conditions = [CommunityContribution.id == payload.event_id]
+        if verification.tx_fingerprint is not None:
+            duplicate_conditions.append(CommunityContribution.tx_fingerprint == verification.tx_fingerprint)
         existing = await db.scalar(
-            select(CommunityContribution).where(
-                or_(
-                    CommunityContribution.id == payload.event_id,
-                    CommunityContribution.tx_fingerprint == verification.tx_fingerprint,
-                )
-            )
+            select(CommunityContribution).where(or_(*duplicate_conditions))
         )
         same_contribution = (
             existing is not None
