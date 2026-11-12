@@ -46,7 +46,10 @@ class CommunityContributionSyncWorker(appContext: Context, params: WorkerParamet
                             estimated_reward_usd = entry.expectedRewardUsd,
                             actual_reward_confirmed = entry.actualRewardConfirmed,
                             contributor_id = anonymousContributorId,
-                            asset_breakdown = LedgerAssetBreakdownCodec.decode(entry.assetBreakdownJson)
+                            asset_breakdown = LedgerAssetBreakdownCodec.decode(entry.assetBreakdownJson).filter { asset ->
+                                !asset.kind.equals("reward", ignoreCase = true) ||
+                                    asset.usd_valuation?.let { it.isFinite() && it >= 0.0 } == true
+                            }
                         ),
                         batch.authorizationHeader
                     )
