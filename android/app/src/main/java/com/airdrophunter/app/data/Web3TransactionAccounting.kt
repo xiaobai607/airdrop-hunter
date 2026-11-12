@@ -309,13 +309,21 @@ class Web3TransactionRepository(
     ): Web3TransactionDraftEntity {
         require(chainId > 0)
         require(walletAddress.matches(Regex("^0x[a-fA-F0-9]{40}$")))
-        val to = transaction.optString("to").takeIf {
-            it.matches(Regex("^0x[a-fA-F0-9]{40}$"))
+        val rawTo = transaction.optString("to").takeUnless { it.isBlank() || it == "null" }
+        require(rawTo == null || rawTo.matches(Regex("^0x[a-fA-F0-9]{40}$"))) {
+            "交易目标地址格式无效"
         }
-        val value = transaction.optString("value").takeIf { it.isNotBlank() }
-            ?.let(WalletTransactionLinkParser::parseQuantity)?.toString() ?: "0"
-        val data = transaction.optString("data", "0x")
-            .takeIf { it.matches(Regex("^0x([a-fA-F0-9]{2})*$")) } ?: "0x"
+        val to = rawTo
+        val rawValue = transaction.optString("value").ifBlank { "0" }
+        val value = WalletTransactionLinkParser.parseQuantity(rawValue)?.toString()
+            ?: throw IllegalArgumentException("交易 value 参数无效")
+        val rawData = transaction.optString("data")
+            .ifBlank { transaction.optString("input") }
+            .ifBlank { "0x" }
+        require(rawData.matches(Regex("^0x([a-fA-F0-9]{2})*$"))) {
+            "交易 data 参数无效"
+        }
+        val data = rawData
         val now = System.currentTimeMillis()
         val row = Web3TransactionDraftEntity(
             id = UUID.randomUUID().toString(),
