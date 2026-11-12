@@ -1090,7 +1090,7 @@ object CacheStore {
             if (web3DraftId != null) {
                 val web3Draft = db.web3TransactionDraftDao().find(web3DraftId, scope)
                     ?: return@withTransaction false
-                if (web3Draft.status !in setOf(Web3DraftStatus.CONFIRMED, Web3DraftStatus.CONFIRMED_FAILED, Web3DraftStatus.RECEIPT_NEEDS_SYNC)) {
+                if (web3Draft.status !in setOf(Web3DraftStatus.CONFIRMED, Web3DraftStatus.CONFIRMED_FAILED, Web3DraftStatus.RECEIPT_NEEDS_SYNC, Web3DraftStatus.WAITING_OPERATOR_FEE)) {
                     return@withTransaction false
                 }
             }
