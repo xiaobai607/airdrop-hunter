@@ -167,6 +167,7 @@ private fun BrowserScreen(
     val walletConnectReady by WalletConnectInitializer.ready.collectAsState()
     LaunchedEffect(Unit) {
         WalletConnectInitializer.ensureInitialized(context.applicationContext as android.app.Application)
+        app.startWalletResponseReconciliation()
     }
     var browser by remember { mutableStateOf<WebView?>(null) }
     val bridgeReplyProxies = remember { mutableMapOf<String, JavaScriptReplyProxy>() }
