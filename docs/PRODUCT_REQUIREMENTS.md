@@ -2775,3 +2775,6 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **记账流程复核：** Dock 的 new_accounting 动作调用 createManualAccountingEntry()，创建 MANUAL- 临时记录并标记“手动记账（非链上交易）”；取消/组件释放清理临时草稿。旧 MOCK- 数据被过滤出正式待确认列表。最终仍需验收确认后是否正确写入 user_interactions / pnl_records，并确认手动记录不进入链上核验与公共贡献。
 - **启动复核：** MainActivity 在 IO 调度启动后台任务、IO 读取 Token；Application.onCreate 只初始化 ApiClient，WalletConnect Core/AppKit 通过 WalletConnectInitializer.ensureInitialized() 延迟启动。冷启动耗时与 SDK 首次连接时序仍须设备验收。
 - **验证纪律：** 用户要求全部优化完成后统一构建；本次静态复核没有触发 APK 构建，也没有安装、发布或合并 PR。最终构建与设备验收继续保持待办，不以代码存在替代通过。
+
+
+- **启动调度幂等补丁：** 静态复核发现原 startupSyncScheduled 是 Activity 实例字段，Activity 重建后会再次入队。现改为进程级 volatile 标记并在锁内原子判断，确保同一进程只调度一次。代码提交：30e6e40cea9cf59b0f4e468a973904c80a8e7bf9。该补丁尚未构建/测试。
