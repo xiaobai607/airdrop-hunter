@@ -64,7 +64,8 @@ fun BrowserAccountingToolbar(
     modifier: Modifier = Modifier,
     initialShowBillList: Boolean = false,
     initialCreateMockBill: Boolean = false,
-    showDock: Boolean = true
+    showDock: Boolean = true,
+    onCloseAccounting: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -485,7 +486,7 @@ fun BrowserAccountingToolbar(
 
     if (showBillList) {
         Dialog(
-            onDismissRequest = { showBillList = false },
+            onDismissRequest = { if (showDock) showBillList = false else onCloseAccounting() },
             properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = true)
         ) {
             Surface(
@@ -501,7 +502,7 @@ fun BrowserAccountingToolbar(
                             Text("待确认账单", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                             Text("选择账单继续记账，红色 X 可删除草稿", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
-                        IconButton(onClick = { showBillList = false }) {
+                        IconButton(onClick = { if (showDock) showBillList = false else onCloseAccounting() }) {
                             Icon(Icons.Default.Close, contentDescription = "关闭", tint = AppColors.TextSecondary)
                         }
                     }
@@ -540,7 +541,7 @@ fun BrowserAccountingToolbar(
                             }
                         }
                     }
-                    Button(onClick = { showBillList = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+                    Button(onClick = { if (showDock) showBillList = false else onCloseAccounting() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
                         Text("完成")
                     }
                 }
@@ -559,6 +560,7 @@ fun BrowserAccountingToolbar(
                 if (!saving) {
                     showConfirm = false
                     activeBill = null
+                    if (!showDock) onCloseAccounting()
                 }
             },
             properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = true)
@@ -579,7 +581,7 @@ fun BrowserAccountingToolbar(
                             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         IconButton(
                             enabled = !saving,
-                            onClick = { showConfirm = false; activeBill = null }
+                            onClick = { showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() }
                         ) {
                             Icon(Icons.Default.Close, contentDescription = "关闭确认弹窗", tint = AppColors.TextSecondary)
                         }
@@ -758,6 +760,7 @@ fun BrowserAccountingToolbar(
                                     Toast.makeText(context,
                                         if (autoContribute) "已确认入账；社区脱敏统计等待链上核验" else "已确认入账",
                                         Toast.LENGTH_SHORT).show()
+                                    if (!showDock) onCloseAccounting()
                                 } else {
                                     Toast.makeText(context, "入账失败，请重试", Toast.LENGTH_SHORT).show()
                                 }
@@ -773,7 +776,7 @@ fun BrowserAccountingToolbar(
                         }
                         Text(if (saving) "入账中…" else "确认入账")
                     }
-                    TextButton(onClick = { if (!saving) { showConfirm = false; activeBill = null } }, enabled = !saving,
+                    TextButton(onClick = { if (!saving) { showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() } }, enabled = !saving,
                         modifier = Modifier.align(Alignment.End)) { Text("取消") }
                 }
             }
