@@ -1037,6 +1037,15 @@ class Web3ReceiptWorker(
         val app = applicationContext as? AirdropHunterApplication ?: return Result.failure()
         val repository = app.appContainer.web3TransactionRepository
         val draft = repository.findById(draftId) ?: return Result.success()
+        if (draft.status == Web3DraftStatus.ACCOUNTED) return Result.success()
+
+        suspend fun materializeOrAlreadyAccounted(): Boolean {
+            val bill = repository.createPendingAccountingBill(draftId)
+            if (bill != null) return true
+            // The user may confirm the ledger candidate while this Worker is running.
+            // The repository then correctly refuses to create a second candidate.
+            return repository.findById(draftId)?.status == Web3DraftStatus.ACCOUNTED
+        }
 
         // Receipt confirmation and ledger-candidate creation are separate durable
         // steps. If the receipt was already saved but bill insertion failed, retry
@@ -1045,7 +1054,7 @@ class Web3ReceiptWorker(
             draft.status == Web3DraftStatus.CONFIRMED_FAILED
         ) {
             return try {
-                checkNotNull(repository.createPendingAccountingBill(draftId)) {
+                check(materializeOrAlreadyAccounted()) {
                     "Confirmed Web3 draft could not be materialized"
                 }
                 Result.success()
@@ -1076,7 +1085,7 @@ class Web3ReceiptWorker(
                 // Materialize the ledger candidate in the worker, not only when the
                 // browser UI is visible. If this fails, the next attempt enters the
                 // confirmed-draft branch above and retries only this durable step.
-                checkNotNull(repository.createPendingAccountingBill(draftId)) {
+                check(materializeOrAlreadyAccounted()) {
                     "Confirmed Web3 draft could not be materialized"
                 }
                 Result.success()
