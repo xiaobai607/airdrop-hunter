@@ -620,7 +620,12 @@ fun BrowserAccountingToolbar(
                                             Modifier.weight(1f).clickable { openBill(bill) }.padding(vertical = 3.dp),
                                             verticalArrangement = Arrangement.spacedBy(3.dp)
                                         ) {
-                                            Text(String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd), color = Color(0xFF9A5A16), fontWeight = FontWeight.Bold)
+                                            Text(
+                                                if (bill.id.startsWith("WEB3-") && bill.gasCostUsd == 0.0) "真实 Gas 已获取 · USD 待填写"
+                                                else String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd),
+                                                color = Color(0xFF9A5A16),
+                                                fontWeight = FontWeight.Bold
+                                            )
                                             Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账 · " else "待确认交易 · ") + bill.interactionMethod, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                                             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                                         }
