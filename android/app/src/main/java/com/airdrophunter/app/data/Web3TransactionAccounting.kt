@@ -748,10 +748,15 @@ class Web3TransactionRepository(
             )
         }.getOrNull()
         if (Web3RpcRegistry.requiresOperatorFee(draft.chainId) && operatorFee == null) {
-            dao.setStatus(
-                draft.id, draft.accountScope, Web3DraftStatus.WAITING_OPERATOR_FEE,
-                "OP Stack 运营商费用无法从交易所在区块核实", System.currentTimeMillis()
-            )
+            dao.update(draft.copy(
+                gasUsed = gasUsed.toString(),
+                effectiveGasPrice = effectiveGasPrice.toString(),
+                l1Fee = (l1Fee ?: BigInteger.ZERO).toString(),
+                receiptStatus = receiptStatus,
+                status = Web3DraftStatus.WAITING_OPERATOR_FEE,
+                lastError = "OP Stack 运营商费用无法从交易所在区块核实",
+                updatedAt = System.currentTimeMillis()
+            ))
             return true
         }
         val feeBreakdown = Web3ReceiptFeeCalculator.calculate(
