@@ -2888,7 +2888,7 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Gas 原生币总额、L1/L2 拆分和报价时间戳写入草稿；只有 OKX 缓存协调器返回的新鲜且不超过 5 分钟的报价才生成 USD 估值。没有新鲜报价时保留真实原生币花费，USD 留空，不伪造 0 美元。
 - 新增 30 秒唯一 WorkManager 超时任务，并通过 `ProcessLifecycleOwner` 在 App 回到前台时补充扫描。超时状态是“待同步核对”，不会仅因没有回调就标记拒绝；明确的 EIP-1193 4001 用户拒绝才标记取消。
 - “同步链上记录”入口当前采用用户粘贴 TxHash 的安全补单路径：调用该草稿链对应 RPC 的 `eth_getTransactionByHash`，校验发送地址、目标地址、value、input/data 后才绑定 Hash 并轮询回执。**当前不是自动扫描钱包完整历史交易列表**；标准 Ethereum JSON-RPC 没有通用地址交易历史枚举接口，后续如增加区块浏览器索引器，必须按链接入并保留候选冲突人工确认。
-- 已确认/失败交易进入现有 BrowserAccountingToolbar 真实记账流程，预填 Gas 原生币、L1/L2 拆分、可用 USD 报价和短 Hash；项目、Gas USD 和实际收益由用户确认后写入既有本地账本。成功入账后 Web3 草稿转为 `accounted`，避免重复创建同一笔账单。
+- 已实现从 Web3 草稿生成待确认账单的数据转换方法，并且 `CacheDatabase.confirmPendingBill()` 已在同一 Room 事务内将 Web3 草稿标记为 `accounted`；但截至本轮审查，`BrowserActivity` 尚未调用草稿列表/待确认账单转换/手动补单入口，现有 `BrowserAccountingToolbar` 也未证明已展示这些草稿。因此不能标记为“Web3 确认弹窗已完整接通”；下一步必须完成草稿可见入口、回执账单创建、手动补单 UI 和用户确认提交联调。
 - 加密本地备份/恢复已包含 Web3 草稿；补充了草稿备份 round-trip、Hash 格式、wei 数量和 L1 费用解析单元测试。
 - **仍待完成：** Kotlin/Room/KAPT 编译与单元测试尚未运行；需要核对 Reown 1.3.3 精确依赖 API、Room 23 Migration 实际升级、WorkManager 进程恢复、MetaMask/Trust 真机行为、拒绝/超时/补单、Arbitrum/OP 回执样本和记账去重。当前未运行 CI、未构建 APK、未做真机验收；PR #135 仍 Draft/Open/Unmerged。
 
@@ -2905,3 +2905,9 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 后端社区贡献链上核验同步采用相同链费规则：Arbitrum 不重复加 L1；Optimism/Base 需取得 L1 fee 和历史区块 `getOperatorFee(gasUsed)` 才能标记金额核验，否则降为 transaction-linked，不把不完整费用当成精确金额。新增后端单元测试覆盖 Arbitrum 和 OP Stack。
 - 本轮仍未执行 Gradle 编译/单元测试、CI 或 APK 构建；需在完整模块审计完成后统一验证。
 
+### 2026-11-12 — Web3 记账界面接线审计更正（未构建）
+
+- 对照实际分支源码复核 `BrowserActivity.kt` 与 `Web3TransactionAccounting.kt`：Repository 已提供 `observeDrafts()`、`createPendingAccountingBill()`、`createManualReviewBillFromDraft()`、`attachManuallyVerifiedHash()`，`CacheDatabase.confirmPendingBill()` 也有同事务将草稿置为 `accounted` 的逻辑。
+- 但 `BrowserActivity.kt` 当前未调用上述草稿观察、待确认账单生成或手动补单方法；因此 Web3 草稿到现有 BrowserAccountingToolbar 的用户可见闭环尚未接通。先前“已进入现有真实记账流程”的状态描述过早，现更正为“数据层已具备，UI/调用链待实施”。
+- 下一步先补齐 UI 入口与 Repository 调用，再核对 USD 缺价时的表单表现，避免将 `gasCostUsd = 0.0` 显示成真实零费用；缺价必须显示未估值/待用户填写，不可当作零。
+- 本次仅更正需求状态，未触发 Gradle、CI 或 APK 构建；PR #135 保持 Draft/Open/Unmerged。
