@@ -2987,3 +2987,11 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 本轮源码和测试已提交到 PR #135 分支；尚未运行 Gradle 编译/单元测试、CI、APK 构建或真机多链会话验收。PR #135 继续保持 Draft/Open/Unmerged。
 
 - 同轮补强：对 `eth_sendTransaction` 与 `eth_signTransaction`，若 DApp 交易对象显式携带 `chainId`，必须与请求账户对应的 WalletConnect 活动链一致；缺失/非法/不一致的链号拒绝转发。未提供 chainId 时继续以当前已授权账户链为准。新增十六进制、十进制、错链和非法链号测试。
+
+
+### 2026-11-13 — WalletConnect response chain binding hardening
+
+- **Security requirement:** a DApp request relayed to WalletConnect may be completed only by a response matching the exact request ID, session topic, RPC method, and a non-empty exact CAIP-2 chain ID. A missing response chain ID is not proof of the requested chain and must fail closed.
+- If the response chain is missing or mismatched, do not forward the result to the DApp and do not mark the transaction as rejected or confirmed. Preserve the existing draft for receipt/manual reconciliation because the wallet may already have broadcast the transaction.
+- Add pure Kotlin regression coverage for missing, mismatched, and matching chain IDs. This is an additional defense-in-depth check; it does not change the user's explicit wallet approval flow or upload any private wallet/ledger data.
+- Status: requirement recorded; implementation and tests pending. No APK build is authorized until the consolidated work batch is complete.
