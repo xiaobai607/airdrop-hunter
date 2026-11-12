@@ -480,13 +480,6 @@ class Web3TransactionRepository(
         return dao.attachHash(draftId, scope, hash.lowercase(), System.currentTimeMillis()) == 1
     }
 
-    suspend fun markAccounted(draftId: String) {
-        dao.setStatus(
-            draftId, scopeProvider(), Web3DraftStatus.ACCOUNTED,
-            null, System.currentTimeMillis()
-        )
-    }
-
     suspend fun markWalletRejected(draftId: String) {
         dao.setWalletStatus(
             draftId, scopeProvider(), Web3DraftStatus.CANCELLED,
