@@ -704,6 +704,7 @@ class Web3TransactionRepository(
 
     companion object {
         fun nativeSymbolForChain(chainId: Long): String = when (chainId) {
+            1L, 10L, 8453L, 42161L -> "ETH"
             56L -> "BNB"
             137L -> "POL"
             else -> "UNKNOWN"
