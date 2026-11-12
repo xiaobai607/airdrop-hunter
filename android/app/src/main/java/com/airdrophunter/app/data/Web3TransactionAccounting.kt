@@ -877,6 +877,10 @@ class Web3ReceiptWorker(
             }
             val saved = repository.saveReceipt(draft, receipt)
             if (saved) {
+                // Materialize the ledger candidate in the worker, not only when the
+                // browser UI is visible. The deterministic WEB3-* ID makes this safe
+                // to repeat when the toolbar later observes the same confirmed draft.
+                repository.createPendingAccountingBill(draftId)
                 Result.success()
             } else if (runAttemptCount < MAX_ATTEMPTS) {
                 Result.retry()
