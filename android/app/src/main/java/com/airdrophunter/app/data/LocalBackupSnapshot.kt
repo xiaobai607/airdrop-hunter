@@ -12,9 +12,10 @@ data class LocalBackupSnapshot(
  val userInteractions:List<UserInteractionEntity> = emptyList(),
  val communityOutbox:List<CommunitySyncOutboxEntity> = emptyList(),
  val communityFavorites:List<CommunityFavoriteEntity> = emptyList(),
- val projectWalletAssignments:List<ProjectWalletAssignmentEntity> = emptyList()
+ val projectWalletAssignments:List<ProjectWalletAssignmentEntity> = emptyList(),
+ val web3Drafts:List<Web3TransactionDraftEntity>? = emptyList()
 ) {
  val totalRecords:Int get() = cachedPayloads.size+pendingBills.size+pnlRecords.size+projectRatings.size+
-  userProjects.size+userInteractions.size+communityOutbox.size+communityFavorites.size+projectWalletAssignments.size
+  userProjects.size+userInteractions.size+communityOutbox.size+communityFavorites.size+projectWalletAssignments.size+(web3Drafts?.size ?: 0)
  companion object { const val APP_NAME="AirdropHunter"; const val CURRENT_VERSION=2; const val MAX_RECORDS=100_000 }
 }
