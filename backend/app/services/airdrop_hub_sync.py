@@ -206,6 +206,39 @@ def _github_source_attribution(source: dict[str, str]) -> str:
     )
 
 
+def _parse_binance_published_at(value: Any) -> datetime | None:
+    """Parse Binance releaseDate values without guessing missing or malformed dates."""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            numeric = float(text)
+        except ValueError:
+            try:
+                parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+    else:
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+    if not 0 < numeric < 100_000_000_000_000:
+        return None
+    if numeric > 10_000_000_000:
+        numeric /= 1000
+    try:
+        return datetime.fromtimestamp(numeric, timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
 def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[dict[str, Any]]:
     """Convert Binance announcement headlines into unverified observation leads."""
     data = payload.get("data") if isinstance(payload, dict) else None
@@ -230,9 +263,11 @@ def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[d
             # Never silently rewrite an upstream identifier into a different article code.
             if not safe_code or safe_code != code:
                 continue
+            published_at = _parse_binance_published_at(article.get("releaseDate"))
             records.append({
                 "source_key": f"binance:{safe_code}"[:240],
                 "name": title[:180],
+                "published_at": published_at,
                 "chain": "Unknown",
                 "description": "Binance 公告线索；请打开原文核实活动资格、时间与参与条件。",
                 "status": "待核实",
@@ -875,7 +910,7 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
             filter_metadata = {**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"], "decision_version": 1}
             project_record = {
                 key: value for key, value in record.items()
-                if not key.startswith("_") and key not in {"catalog_id", "source_url"}
+                if not key.startswith("_") and key not in {"catalog_id", "source_url", "published_at"}
             }
             project_record["filter_status"] = decision_result["disposition"]
             project_record["filter_reasons"] = decision_result["reasons"]
