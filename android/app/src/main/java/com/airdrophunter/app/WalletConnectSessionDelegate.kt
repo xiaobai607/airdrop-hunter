@@ -82,5 +82,5 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
                 chainId = parts[1],
                 walletLabel = walletLabel.ifBlank { "External Wallet" }
             )
-        }.distinctBy { it.address.lowercase() }
+        }.distinctBy { it.chainId.lowercase() + ":" + it.address.lowercase() }
 }
