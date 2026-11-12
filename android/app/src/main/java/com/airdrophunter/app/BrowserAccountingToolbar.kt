@@ -108,6 +108,9 @@ fun BrowserAccountingToolbar(
     var dockDragPosition by remember { mutableStateOf(Offset.Zero) }
     var dockIsDragging by remember { mutableStateOf(false) }
     var showToolManager by remember { mutableStateOf(false) }
+    var showWeb3HashSync by remember { mutableStateOf(false) }
+    var web3HashSyncDraftId by remember { mutableStateOf<String?>(null) }
+    var web3HashSyncInput by remember { mutableStateOf("") }
     val toolOptions = listOf(
         "new_accounting" to "记账",
         "copy_address" to "复制地址",
@@ -471,6 +474,65 @@ fun BrowserAccountingToolbar(
         }
     }
 
+    if (showWeb3HashSync) {
+        Dialog(
+            onDismissRequest = { showWeb3HashSync = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 420.dp),
+                color = Color.White,
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, AppColors.Border),
+                shadowElevation = 14.dp
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("同步链上交易", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "粘贴钱包中已提交的 TxHash。App 会通过该草稿对应的链 RPC 核对发送地址、目标地址、金额和调用数据；核对不一致不会绑定。",
+                        color = AppColors.TextHelper,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    OutlinedTextField(
+                        value = web3HashSyncInput,
+                        onValueChange = { web3HashSyncInput = it.trim() },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("TxHash") },
+                        singleLine = true
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = { showWeb3HashSync = false },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("取消") }
+                        Button(
+                            enabled = web3HashSyncDraftId != null && web3HashSyncInput.isNotBlank(),
+                            onClick = {
+                                val id = web3HashSyncDraftId ?: return@Button
+                                scope.launch {
+                                    val accepted = runCatching {
+                                        web3Repository.attachManuallyVerifiedHash(id, web3HashSyncInput)
+                                    }.getOrDefault(false)
+                                    if (accepted) {
+                                        com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, id)
+                                        showWeb3HashSync = false
+                                        Toast.makeText(context, "TxHash 已核对，开始同步链上回执", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "TxHash 不匹配或链上尚未找到该交易", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("核对并同步") }
+                    }
+                }
+            }
+        }
+    }
+
     if (showToolManager) {
         AlertDialog(
             onDismissRequest = { showToolManager = false },
@@ -594,6 +656,13 @@ fun BrowserAccountingToolbar(
                                                 TextButton(onClick = {
                                                     com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
                                                 }) { Text("重试核实") }
+                                            }
+                                            Web3DraftStatus.TIMED_OUT_NEEDS_SYNC -> {
+                                                TextButton(onClick = {
+                                                    web3HashSyncDraftId = draft.id
+                                                    web3HashSyncInput = ""
+                                                    showWeb3HashSync = true
+                                                }) { Text("补录 Hash") }
                                             }
                                             else -> Unit
                                         }
