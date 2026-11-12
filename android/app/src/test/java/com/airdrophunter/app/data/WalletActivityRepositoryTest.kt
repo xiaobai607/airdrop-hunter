@@ -102,7 +102,12 @@ class WalletActivityRepositoryTest {
     fun refreshReusesFreshSessionScopedSnapshotAndForceRefreshBypassesTtl() = runBlocking {
         val local = FakeLocal()
         val remote = FakeRemote()
-        val repository = WalletActivityRepository(remote, local)
+        val metadata = mutableMapOf<Pair<String, String>, CacheMetadataEntity>()
+        val cacheRefresh = CacheRefreshCoordinator(
+            readMetadata = { key, source -> metadata[key to source] },
+            writeMetadata = { row -> metadata[row.cacheKey to row.source] = row }
+        )
+        val repository = WalletActivityRepository(remote, local, cacheRefresh = cacheRefresh)
         val wallet = wallet("T" + "2".repeat(33), WalletEcosystem.TRON)
 
         val first = repository.refresh(wallet, guest = true, accessToken = null)

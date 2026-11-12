@@ -95,7 +95,13 @@ data class CacheRefreshResult<T>(
 class CacheRefreshCoordinator(
     private val clock: () -> Long = System::currentTimeMillis,
     private val wait: suspend (Long) -> Unit = { delay(it) },
-    private val jitter: () -> Double = { Random.nextDouble(0.8, 1.2) }
+    private val jitter: () -> Double = { Random.nextDouble(0.8, 1.2) },
+    private val readMetadata: suspend (String, String) -> CacheMetadataEntity? = { key, source ->
+        CacheStore.readCacheMetadata(key, source)
+    },
+    private val writeMetadata: suspend (CacheMetadataEntity) -> Unit = { metadata ->
+        writeMetadata(metadata)
+    }
 ) {
     // Fixed stripes bound memory while ensuring same-key work never runs concurrently.
     private val locks = Array(64) { Mutex() }
@@ -111,7 +117,7 @@ class CacheRefreshCoordinator(
         save: suspend (T) -> Unit
     ): CacheRefreshResult<T> {
         val initialCached = readCache()
-        var metadata = CacheStore.readCacheMetadata(cacheKey, source)
+        var metadata = readMetadata(cacheKey, source)
         val initialNow = clock()
         val initialFresh = CacheRefreshPolicy.isFresh(metadata, initialNow)
         if (!force && !manual && initialCached != null && initialFresh) return CacheRefreshResult(initialCached, false)
@@ -125,7 +131,7 @@ class CacheRefreshCoordinator(
         val lock = locks[(("$source:$cacheKey").hashCode() and Int.MAX_VALUE) % locks.size]
         return lock.withLock {
             var cached = readCache()
-            metadata = CacheStore.readCacheMetadata(cacheKey, source)
+            metadata = readMetadata(cacheKey, source)
             val lockedNow = clock()
             val fresh = CacheRefreshPolicy.isFresh(metadata, lockedNow)
             if (!force && !manual && cached != null && fresh) return@withLock CacheRefreshResult(cached, false)
@@ -137,7 +143,7 @@ class CacheRefreshCoordinator(
             }
 
             val lastManual = if (manual) lockedNow else metadata?.lastManualRefreshAt
-            CacheStore.writeCacheMetadata(
+            writeMetadata(
                 CacheMetadataEntity(cacheKey, source, metadata?.fetchedAt, metadata?.expiresAt,
                     ttlMillis, "refreshing", null, lastManual)
             )
@@ -165,13 +171,13 @@ class CacheRefreshCoordinator(
                 save(value)
                 val completedAt = clock()
                 val safeTtl = ttlMillis.coerceAtLeast(1L)
-                CacheStore.writeCacheMetadata(
+                writeMetadata(
                     CacheMetadataEntity(cacheKey, source, completedAt, completedAt + safeTtl,
                         safeTtl, "ready", null, lastManual)
                 )
                 CacheRefreshResult(value, false)
             } catch (cancelled: CancellationException) {
-                CacheStore.writeCacheMetadata(
+                writeMetadata(
                     CacheMetadataEntity(cacheKey, source, metadata?.fetchedAt, metadata?.expiresAt,
                         ttlMillis, "idle", null, lastManual)
                 )
@@ -179,7 +185,7 @@ class CacheRefreshCoordinator(
             } catch (error: Exception) {
                 cached = readCache()
                 val failedAt = clock()
-                CacheStore.writeCacheMetadata(
+                writeMetadata(
                     CacheMetadataEntity(
                         cacheKey, source, metadata?.fetchedAt,
                         failedAt + CacheRefreshPolicy.FAILURE_COOLDOWN_MILLIS,
