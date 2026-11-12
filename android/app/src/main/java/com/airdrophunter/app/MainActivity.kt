@@ -62,10 +62,53 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleWeb3TransactionCallback(intent)
+    }
+
+    private fun handleWeb3TransactionCallback(source: Intent?) {
+        val uri = source?.data ?: return
+        if (uri.scheme != "airdrophunter" || uri.host != "tx_callback") return
+
+        val draftId = uri.getQueryParameter("draftId") ?: return
+        val state = uri.getQueryParameter("state") ?: return
+        val txHash = uri.getQueryParameter("txHash") ?: return
+        val chainId = uri.getQueryParameter("chainId")?.toLongOrNull() ?: return
+        if (!com.airdrophunter.app.data.Web3TransactionRepository.isValidTxHash(txHash)) return
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val app = application as? AirdropHunterApplication ?: return@launch
+            val accepted = runCatching {
+                app.appContainer.web3TransactionRepository.attachCallbackHash(
+                    draftId = draftId,
+                    callbackState = state,
+                    chainId = chainId,
+                    hash = txHash
+                )
+            }.getOrDefault(false)
+            if (accepted) {
+                com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(
+                    applicationContext, draftId
+                )
+            } else {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        applicationContext,
+                        "交易回调未通过校验，请使用链上同步补单",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition { !startupReady }
         super.onCreate(savedInstanceState)
+        handleWeb3TransactionCallback(intent)
         lifecycleScope.launch {
             val token = try {
                 withContext(Dispatchers.IO) { TokenStore.readTokenBlocking() }
