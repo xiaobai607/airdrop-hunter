@@ -2921,3 +2921,10 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 原始请求包含 calldata 时，RPC 缺失 `input/data` 不再被视为通过；缺失发送地址、目标地址、金额或交易 Hash 等必要字段也不能静默跳过校验。
 - 将比对规则提取为纯 Kotlin `Web3ManualTransactionVerifier`，新增单元测试覆盖 Hash 不匹配、calldata 缺失/不匹配、发送地址缺失和金额缺失等情况。
 - 本轮仅提交源码和测试，尚未执行 Gradle 编译、单元测试、CI 或真机验收；PR #135 继续保持 Draft/Open/Unmerged。
+
+### 2026-11-13 — Web3 回执身份绑定校验补强（未构建）
+
+- 回执入账前新增严格身份校验：RPC 回执必须携带格式正确的 32-byte transactionHash，且必须与该 Web3 草稿已保存的 TxHash 大小写无关地完全一致；缺失、格式错误或不匹配时拒绝更新草稿费用与交易状态。
+- 新增纯 Kotlin Web3ReceiptIdentityVerifier，并增加单元测试覆盖大小写一致、错误 Hash、缺失 Hash 和格式错误场景。
+- 该校验发生在解析 Gas、receipt status、L1/Operator Fee 及写入任何回执字段之前，避免错误回执污染本地账本候选。
+- 本轮仅完成源码和测试静态修改；未运行 Gradle 编译/单元测试、CI、APK 构建或真机验收。PR #135 继续保持 Draft/Open/Unmerged。
