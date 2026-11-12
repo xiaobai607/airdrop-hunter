@@ -68,6 +68,7 @@ object LocalBackupCodec {
   require(s.totalRecords<=LocalBackupSnapshot.MAX_RECORDS) { "too many records" }
   val prefixes=if(s.sourceScope=="guest") listOf("guest:","signed-out:") else listOf("${s.sourceScope}:","${s.sourceScope.removePrefix("user:")}:")
   require(s.cachedPayloads.all { row -> prefixes.any { row.cacheKey.startsWith(it) } }) { "invalid cache scope" }
+  require(s.web3Drafts.orEmpty().all { it.accountScope == s.sourceScope }) { "invalid Web3 draft scope" }
  }
  private fun derive(password:String,salt:ByteArray):SecretKeySpec {
   val spec=PBEKeySpec(password.toCharArray(),salt,ITERATIONS,256)
