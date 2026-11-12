@@ -495,6 +495,7 @@ class Web3TransactionRepository(
         val l1Wei = draft.l1Fee?.toBigIntegerOrNull() ?: BigInteger.ZERO
         val l2Wei = totalWei.subtract(l1Wei).takeIf { it.signum() >= 0 } ?: return null
         val symbol = draft.nativeSymbol ?: nativeSymbolForChain(draft.chainId)
+        if (symbol == "UNKNOWN") return null
         val quoteTimestamp = draft.nativePriceTimestamp?.let {
             java.time.Instant.ofEpochMilli(it).toString()
         }
@@ -662,7 +663,7 @@ class Web3TransactionRepository(
         fun nativeSymbolForChain(chainId: Long): String = when (chainId) {
             56L -> "BNB"
             137L -> "POL"
-            else -> "ETH"
+            else -> "UNKNOWN"
         }
 
         private val secureRandom = SecureRandom()
