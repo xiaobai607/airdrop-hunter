@@ -8,6 +8,14 @@ import kotlinx.coroutines.withContext
  * Room-backed public campaign cache. Public discovery data is shared between
  * guest and local-only sessions and contains no personal wallet or ledger data.
  */
+data class AirdropCampaignLoadResult(
+    val rows: List<AirdropCampaignDto>,
+    val stale: Boolean = false,
+    val errorMessage: String? = null
+) {
+    val warning: String? get() = errorMessage?.takeIf { stale }
+}
+
 class AirdropCampaignRepository(
     private val api: ApiService,
     private val gson: Gson = Gson()
@@ -24,33 +32,38 @@ class AirdropCampaignRepository(
         }
 
     suspend fun load(filters: AirdropCampaignFilters = AirdropCampaignFilters()): List<AirdropCampaignDto> =
-        withContext(Dispatchers.IO) {
-            val result = CacheRefreshCoordinator.shared.load(
-                cacheKey = filters.cacheKey(),
-                source = "public-airdrop-campaigns",
-                ttlMillis = CAMPAIGN_TTL_MILLIS,
-                readCache = { readCached(filters) },
-                fetch = {
-                    api.getAirdropCampaigns(
-                        tier = filters.tier,
-                        chain = filters.chain,
-                        status = filters.status,
-                        campaignType = filters.campaignType,
-                        kyc = filters.kyc,
-                        query = filters.query,
-                        limit = 100
-                    ).let(::validateCampaignRows)
-                },
-                save = { rows ->
-                    CacheStore.writePublic(
-                        filters.cacheKey(),
-                        gson.toJson(AirdropCampaignCacheEnvelope(campaigns = rows))
-                    )
-                    require(readCached(filters) == rows) { "空投活动缓存写入校验失败" }
-                }
-            )
-            result.data ?: throw IllegalStateException(result.errorMessage ?: "空投活动暂不可用")
-        }
+        loadWithStatus(filters).rows
+
+    suspend fun loadWithStatus(
+        filters: AirdropCampaignFilters = AirdropCampaignFilters()
+    ): AirdropCampaignLoadResult = withContext(Dispatchers.IO) {
+        val result = CacheRefreshCoordinator.shared.load(
+            cacheKey = filters.cacheKey(),
+            source = "public-airdrop-campaigns",
+            ttlMillis = CAMPAIGN_TTL_MILLIS,
+            readCache = { readCached(filters) },
+            fetch = {
+                api.getAirdropCampaigns(
+                    tier = filters.tier,
+                    chain = filters.chain,
+                    status = filters.status,
+                    campaignType = filters.campaignType,
+                    kyc = filters.kyc,
+                    query = filters.query,
+                    limit = 100
+                ).let(::validateCampaignRows)
+            },
+            save = { rows ->
+                CacheStore.writePublic(
+                    filters.cacheKey(),
+                    gson.toJson(AirdropCampaignCacheEnvelope(campaigns = rows))
+                )
+                require(readCached(filters) == rows) { "空投活动缓存写入校验失败" }
+            }
+        )
+        val rows = result.data ?: throw IllegalStateException(result.errorMessage ?: "空投活动暂不可用")
+        AirdropCampaignLoadResult(rows, stale = result.stale, errorMessage = result.errorMessage)
+    }
 
     suspend fun refresh(filters: AirdropCampaignFilters = AirdropCampaignFilters()): List<AirdropCampaignDto> =
         withContext(Dispatchers.IO) {

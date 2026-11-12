@@ -44,8 +44,12 @@ class AirdropCampaignsViewModel(
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             }
             try {
-                val rows = repository.load(filters)
-                _uiState.value = _uiState.value.copy(items = rows, isLoading = false, error = null)
+                val result = repository.loadWithStatus(filters)
+                _uiState.value = _uiState.value.copy(
+                    items = result.rows,
+                    isLoading = false,
+                    error = result.warning
+                )
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
