@@ -682,11 +682,15 @@ fun BrowserAccountingToolbar(
                                                 }
                                             }
                                             Web3DraftStatus.TIMED_OUT_NEEDS_SYNC -> {
-                                                TextButton(onClick = {
-                                                    web3HashSyncDraftId = draft.id
-                                                    web3HashSyncInput = ""
-                                                    showWeb3HashSync = true
-                                                }) { Text("同步链上记录") }
+                                                if (com.airdrophunter.app.data.Web3RpcRegistry.endpoint(draft.chainId) != null) {
+                                                    TextButton(onClick = {
+                                                        web3HashSyncDraftId = draft.id
+                                                        web3HashSyncInput = ""
+                                                        showWeb3HashSync = true
+                                                    }) { Text("同步链上记录") }
+                                                } else {
+                                                    Text("该链未配置 RPC，请使用普通手动记账", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                                                }
                                             }
                                             else -> Unit
                                         }
