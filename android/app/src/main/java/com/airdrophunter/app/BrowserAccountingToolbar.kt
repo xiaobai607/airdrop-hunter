@@ -857,17 +857,30 @@ private fun isValidNativeAssetInput(amount: String, symbol: String, decimals: St
 
 
 @Composable
-fun AccountingCenterScreen(modifier: Modifier = Modifier) {
-    BrowserAccountingToolbar(
-        walletAddress = "",
-        chainName = "unknown",
-        onCopyAddress = {},
-        onRefreshPage = {},
-        onCopyPageUrl = {},
-        onOpenPageExternally = {},
-        modifier = modifier,
-        initialShowBillList = false,
-        initialCreateMockBill = true,
-        showDock = false
-    )
+fun AccountingCenterScreen(
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit = {}
+) {
+    Column(
+        modifier = modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("记账", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold)
+        Text("选择一条待确认交易，手动填写最终 Gas 与实际收益。", color = AppColors.TextSecondary,
+            style = MaterialTheme.typography.bodySmall)
+        BrowserAccountingToolbar(
+            walletAddress = "",
+            chainName = "unknown",
+            onCopyAddress = {},
+            onRefreshPage = {},
+            onCopyPageUrl = {},
+            onOpenPageExternally = {},
+            modifier = Modifier.fillMaxWidth(),
+            initialShowBillList = true,
+            initialCreateMockBill = false,
+            showDock = false,
+            onCloseAccounting = onClose
+        )
+    }
 }
