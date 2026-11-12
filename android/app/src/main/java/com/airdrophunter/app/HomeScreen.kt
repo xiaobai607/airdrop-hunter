@@ -85,6 +85,11 @@ fun HomeScreen(
         factory = HomeViewModelFactory(application.appContainer)
     )
     val state by homeViewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(state.marketError) {
+        if (state.marketError?.startsWith("刚刚刷新过") == true) {
+            android.widget.Toast.makeText(context, state.marketError, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
     val scope = rememberCoroutineScope()
     var showNotifications by remember { mutableStateOf(false) }
     var showNavOverlay by remember { mutableStateOf(false) }
@@ -158,6 +163,7 @@ fun HomeScreen(
             Text(
                 when {
                     state.isRefreshing && state.lastSuccessfulUpdateAt != null -> "行情更新中 · 保留上次数据"
+                    state.marketError?.startsWith("刚刚刷新过") == true -> "刚刚刷新过 · 请30秒后再试"
                     state.marketError != null && state.lastSuccessfulUpdateAt != null -> "更新失败 · 显示上次成功数据"
                     state.marketCacheStatus == com.airdrophunter.app.data.CacheDisplayStatus.STALE && state.lastSuccessfulUpdateAt != null ->
                         "缓存数据 · 上次更新 " + java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L))
