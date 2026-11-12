@@ -101,6 +101,7 @@ fun BrowserAccountingToolbar(
     var gasL1Usd by remember { mutableStateOf<Double?>(null) }
     var gasL2Usd by remember { mutableStateOf<Double?>(null) }
     var gasSplitQuoteTimestamp by remember { mutableStateOf<String?>(null) }
+    var gasExecutionLabel by remember { mutableStateOf("执行费") }
     var gasSplitSymbol by remember { mutableStateOf("") }
     var rewardNative by remember { mutableStateOf("") }
     var rewardSymbol by remember { mutableStateOf("") }
@@ -183,7 +184,8 @@ fun BrowserAccountingToolbar(
         gasValuationTimestamp = gasAsset?.valuation_timestamp
         gasValuationSource = gasAsset?.valuation_source
         val l1Asset = existingAssets.firstOrNull { it.kind == "l1_fee" }
-        val l2Asset = existingAssets.firstOrNull { it.kind == "l2_fee" }
+        val l2Asset = existingAssets.firstOrNull { it.kind == "l2_fee" || it.kind == "execution_fee" }
+        gasExecutionLabel = if (l2Asset?.kind == "l2_fee") "L2 执行费" else "执行费"
         gasL1Native = l1Asset?.amount_native.orEmpty()
         gasL2Native = l2Asset?.amount_native.orEmpty()
         gasL1Usd = l1Asset?.usd_valuation
@@ -787,7 +789,7 @@ fun BrowserAccountingToolbar(
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text("链上费用明细（原生币）", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                                 if (gasL2Native.isNotBlank()) Text(
-                                    "L2 执行费：$gasL2Native $gasSplitSymbol" + (gasL2Usd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
+                                    "$gasExecutionLabel：$gasL2Native $gasSplitSymbol" + (gasL2Usd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
                                     color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
                                 )
                                 if (gasL1Native.isNotBlank()) Text(
@@ -942,7 +944,8 @@ fun BrowserAccountingToolbar(
                                 )
                                 if (gasL2Native.isNotBlank()) add(
                                     LedgerAssetAmount(
-                                        kind = "l2_fee", amount_native = gasL2Native,
+                                        kind = if (gasExecutionLabel == "L2 执行费") "l2_fee" else "execution_fee",
+                                        amount_native = gasL2Native,
                                         symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
                                         usd_valuation = gasL2Usd,
                                         valuation_timestamp = gasSplitQuoteTimestamp,
