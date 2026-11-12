@@ -24,6 +24,7 @@ class AirdropHubItem(BaseModel):
     description: str
     status: str
     link: str
+    published_at: datetime | None = None
 
 
 class AirdropHubDetail(BaseModel):
@@ -67,7 +68,14 @@ async def list_airdrop_hub(chain: str | None = Query(default=None, max_length=80
     if chain and chain.strip() and chain.strip().lower() != "all":
         statement = statement.where(AirdropProject.chain.ilike(f"%{chain.strip()}%"))
     rows = (await db.scalars(statement.order_by(AirdropProject.updated_at.desc(), AirdropProject.name.asc()))).all()
-    return [AirdropHubItem(id=str(x.id), name=x.name, chain=x.chain, description=x.description, status=x.status, link=x.link) for x in rows]
+    return [
+        AirdropHubItem(
+            id=str(x.id), name=x.name, chain=x.chain, description=x.description,
+            status=x.status, link=x.link,
+            published_at=(x.filter_metadata or {}).get("published_at"),
+        )
+        for x in rows
+    ]
 
 
 @router.get("/status", response_model=AirdropHubSyncStatus)
