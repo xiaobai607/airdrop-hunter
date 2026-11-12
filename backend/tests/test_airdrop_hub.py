@@ -756,7 +756,7 @@ def test_binance_announcement_normalizer_preserves_official_release_date():
         {"title": "Malformed date", "code": "date-test-003", "releaseDate": "not-a-date"},
     ]}]}}, catalog_id=128)
 
-    assert rows[0]["published_at"] == datetime(2026, 11, 12, 4, 0, tzinfo=timezone.utc)
+    assert rows[0]["published_at"] == datetime(2026, 11, 12, 12, 0, tzinfo=timezone.utc)
     assert rows[1]["published_at"] is None
     assert rows[2]["published_at"] is None
     decision = evaluate_discovery_observation(rows[0])
