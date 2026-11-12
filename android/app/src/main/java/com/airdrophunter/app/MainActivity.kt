@@ -53,6 +53,13 @@ class MainActivity : ComponentActivity() {
                 true
             }
         }
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                (application as AirdropHunterApplication)
+                    .appContainer.web3TransactionRepository
+                    .markOldWalletRequestsForSync()
+            }
+        }
         if (!shouldSchedule) return
         // Schedule background work once per process, off the UI thread; Home renders Room cache first.
         lifecycleScope.launch(Dispatchers.IO) {
