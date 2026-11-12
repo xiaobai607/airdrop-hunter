@@ -642,7 +642,7 @@ fun BrowserAccountingToolbar(
                     if (ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
                             selectedProject?.communityOfficialId, ManualRewardKind.USD, contributionNetwork, bill.txHash
                         )) {
-                        Text("该项目属于社区目录，符合条件的记录将自动参与社区脱敏统计；链上核验通过后才计入公共数据。个人账单明细不会公开。",
+                        Text("该项目属于社区目录，符合条件的记录会自动参与脱敏统计；未提供 Tx Hash 按用户自报计入，提供后须通过链上核验。个人账单明细不会公开。",
                             color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
                     } else if (selectedProject?.communityOfficialId == null) {
                         Text("这是私人自建项目，仅保存到个人账本，不参与社区统计。",
