@@ -552,7 +552,8 @@ class Web3TransactionRepository(
         val value = Web3RpcClient.parseRpcQuantity(transaction.optString("value"))
         val input = transaction.optString("input").ifBlank { transaction.optString("data") }
 
-        if (!draft.walletAddress.isNullOrBlank() && !from.equals(draft.walletAddress, true)) return false
+        val expectedFrom = draft.walletAddress?.takeIf { it.isNotBlank() } ?: return false
+        if (!from.equals(expectedFrom, true)) return false
         if (!draft.toAddress.isNullOrBlank() && !to.equals(draft.toAddress, true)) return false
         val expectedValue = draft.valueWei?.toBigIntegerOrNull()
         if (expectedValue != null && value != expectedValue) return false
