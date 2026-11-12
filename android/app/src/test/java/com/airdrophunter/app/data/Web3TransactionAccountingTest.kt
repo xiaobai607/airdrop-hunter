@@ -196,6 +196,14 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun recognizesOpStackDepositTransactionsForOperatorFeeExemption() {
+        assertTrue(Web3ReceiptFeeParser.isOpStackDepositTransaction("0x7e"))
+        assertTrue(Web3ReceiptFeeParser.isOpStackDepositTransaction("0x7E"))
+        assertFalse(Web3ReceiptFeeParser.isOpStackDepositTransaction("0x2"))
+        assertFalse(Web3ReceiptFeeParser.isOpStackDepositTransaction(null))
+    }
+
+    @Test
     fun opStackRequiresAndAddsOperatorFeeSeparately() {
         assertNull(
             Web3ReceiptFeeCalculator.calculate(
