@@ -131,6 +131,36 @@ data class ParsedWalletTransaction(
     val data: String
 )
 
+/**
+ * Strictly binds a manually supplied transaction hash to the original wallet request.
+ * Missing RPC fields are not treated as successful matches when the request had a value.
+ */
+object Web3ManualTransactionVerifier {
+    fun matches(
+        expectedHash: String,
+        actualHash: String?,
+        expectedFrom: String,
+        actualFrom: String?,
+        expectedTo: String?,
+        actualTo: String?,
+        expectedValueWei: BigInteger?,
+        actualValueWei: BigInteger?,
+        expectedData: String?,
+        actualData: String?
+    ): Boolean {
+        if (actualHash.isNullOrBlank() || !actualHash.equals(expectedHash, ignoreCase = true)) return false
+        if (actualFrom.isNullOrBlank() || !actualFrom.equals(expectedFrom, ignoreCase = true)) return false
+        if (!expectedTo.isNullOrBlank() &&
+            (actualTo.isNullOrBlank() || !actualTo.equals(expectedTo, ignoreCase = true))
+        ) return false
+        if (expectedValueWei != null && actualValueWei != expectedValueWei) return false
+        if (!expectedData.isNullOrBlank() &&
+            (actualData.isNullOrBlank() || !actualData.equals(expectedData, ignoreCase = true))
+        ) return false
+        return true
+    }
+}
+
 object WalletTransactionLinkParser {
     private val addressPattern = Regex("^0x[a-fA-F0-9]{40}$")
     private val dataPattern = Regex("^0x([a-fA-F0-9]{2})*$")
@@ -683,18 +713,25 @@ class Web3TransactionRepository(
             return false
         }
         val transaction = rpc.getTransaction(draft.chainId, hash) ?: return false
-        val from = transaction.optString("from")
+        val actualHash = transaction.optString("hash").takeIf { it.isNotBlank() && it != "null" }
+        val from = transaction.optString("from").takeIf { it.isNotBlank() && it != "null" }
         val to = transaction.optString("to").takeIf { it.isNotBlank() && it != "null" }
         val value = Web3RpcClient.parseRpcQuantity(transaction.optString("value"))
-        val input = transaction.optString("input").ifBlank { transaction.optString("data") }
-
+        val input = transaction.optString("input").takeIf { it.isNotBlank() }
+            ?: transaction.optString("data").takeIf { it.isNotBlank() }
         val expectedFrom = draft.walletAddress?.takeIf { it.isNotBlank() } ?: return false
-        if (!from.equals(expectedFrom, true)) return false
-        if (!draft.toAddress.isNullOrBlank() && !to.equals(draft.toAddress, true)) return false
-        val expectedValue = draft.valueWei?.toBigIntegerOrNull()
-        if (expectedValue != null && value != expectedValue) return false
-        if (!draft.dataHex.isNullOrBlank() && input.isNotBlank() &&
-            !input.equals(draft.dataHex, true)
+        if (!Web3ManualTransactionVerifier.matches(
+                expectedHash = hash,
+                actualHash = actualHash,
+                expectedFrom = expectedFrom,
+                actualFrom = from,
+                expectedTo = draft.toAddress,
+                actualTo = to,
+                expectedValueWei = draft.valueWei?.toBigIntegerOrNull(),
+                actualValueWei = value,
+                expectedData = draft.dataHex,
+                actualData = input
+            )
         ) return false
 
         return runCatching {
