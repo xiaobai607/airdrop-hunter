@@ -244,6 +244,15 @@ class Web3RpcClient {
         return parseRpcQuantity(result) ?: error("Invalid eth_estimateGas result")
     }
 
+    suspend fun getTransaction(chainId: Long, txHash: String): JSONObject? {
+        val result = request(
+            chainId,
+            "eth_getTransactionByHash",
+            JSONArray().put(txHash)
+        ).opt("result")
+        return result as? JSONObject
+    }
+
     suspend fun getReceipt(chainId: Long, txHash: String): JSONObject? {
         val result = request(
             chainId,
@@ -481,6 +490,34 @@ class Web3TransactionRepository(
         )
         CacheStore.addPendingBill(bill)
         return bill
+    }
+
+    suspend fun attachManuallyVerifiedHash(draftId: String, hash: String): Boolean {
+        if (!isValidTxHash(hash)) return false
+        val draft = dao.find(draftId, scopeProvider()) ?: return false
+        if (draft.txHash != null) return draft.txHash.equals(hash, true)
+        if (draft.status !in setOf(Web3DraftStatus.TIMED_OUT_NEEDS_SYNC, Web3DraftStatus.PENDING_WALLET, Web3DraftStatus.WAITING_HASH)) {
+            return false
+        }
+        val transaction = rpc.getTransaction(draft.chainId, hash) ?: return false
+        val from = transaction.optString("from")
+        val to = transaction.optString("to").takeIf { it.isNotBlank() && it != "null" }
+        val value = Web3RpcClient.parseRpcQuantity(transaction.optString("value"))
+        val input = transaction.optString("input").ifBlank { transaction.optString("data") }
+
+        if (!draft.walletAddress.isNullOrBlank() && !from.equals(draft.walletAddress, true)) return false
+        if (!draft.toAddress.isNullOrBlank() && !to.equals(draft.toAddress, true)) return false
+        val expectedValue = draft.valueWei?.toBigIntegerOrNull()
+        if (expectedValue != null && value != expectedValue) return false
+        if (!draft.dataHex.isNullOrBlank() && input.isNotBlank() &&
+            !input.equals(draft.dataHex, true)
+        ) return false
+
+        return runCatching {
+            dao.attachHash(
+                draft.id, draft.accountScope, hash.lowercase(), System.currentTimeMillis()
+            ) == 1
+        }.getOrDefault(false)
     }
 
     suspend fun findById(id: String): Web3TransactionDraftEntity? =
