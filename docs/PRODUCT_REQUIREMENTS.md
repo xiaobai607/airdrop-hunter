@@ -2778,3 +2778,5 @@ Implementation status: requirement approved; existing coordinator already has a 
 
 
 - **启动调度幂等补丁：** 静态复核发现原 startupSyncScheduled 是 Activity 实例字段，Activity 重建后会再次入队。现改为进程级 volatile 标记并在锁内原子判断，确保同一进程只调度一次。代码提交：30e6e40cea9cf59b0f4e468a973904c80a8e7bf9。该补丁尚未构建/测试。
+
+- **正式记账落库路径复核完成：** CacheStore.confirmPendingBill() 在同一 Room transaction 内写入本地 personal_ledger payload、pnl_records、user_projects、user_interactions，并删除本次 pending_bills 草稿；只有明确选择公共贡献且满足官方项目/链上哈希核验条件时才创建社区 outbox。手动记账标记为非链上交易，不会伪造已上链状态。该结论为静态代码核对，仍待最终运行时测试。
