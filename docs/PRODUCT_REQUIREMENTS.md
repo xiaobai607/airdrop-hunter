@@ -2390,3 +2390,9 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Code commit `456d923c3d6056c39e2866f58a175aad809c8929` adds `AirdropCampaignLoadResult` with rows/stale/error fields and a status-aware repository method. The campaign screen ViewModel now uses that method, so stale fallback rows remain visible and the existing list warning slot can show the provider failure.
 - Added a focused unit test for warning visibility on stale fallback and suppression on fresh/successful data.
 - Exact-head Android workflow **#43153515681** is currently in progress; backend tests are skipped because this is Android-only. Do not mark complete until the exact-head run finishes.
+
+
+**Verification update — 2026-11-12:**
+- Exact-head Android workflow **#43153515681** completed successfully on code commit `456d923c3d6056c39e2866f58a175aad809c8929`: Android build/unit tests and Debug APK artifact steps passed; backend tests were skipped by Android-only path filtering.
+- The list warning uses the existing non-blocking inline error slot while retaining cached rows. Manual refresh throttling continues to surface the repository's explicit “刚刚刷新过，请30秒后再试” error; this is not treated as a successful network refresh.
+- Physical-device confirmation of the visual warning and Toast/snackbar behavior remains pending.
