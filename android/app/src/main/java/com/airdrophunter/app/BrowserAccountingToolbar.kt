@@ -76,7 +76,7 @@ fun BrowserAccountingToolbar(
     val pending by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
     val web3Drafts by web3Repository.observeDrafts().collectAsStateWithLifecycle(initialValue = emptyList())
     val visibleWeb3Drafts = remember(web3Drafts) {
-        web3Drafts.filter { it.status != Web3DraftStatus.CANCELLED }
+        web3Drafts.filter { it.status !in setOf(Web3DraftStatus.CANCELLED, Web3DraftStatus.ACCOUNTED) }
     }
     // Legacy MOCK fixtures stay stored for compatibility but never enter the real ledger flow.
     val realPending = remember(pending) { pending.filterNot { it.txHash.startsWith("MOCK-") } }
@@ -968,6 +968,9 @@ fun BrowserAccountingToolbar(
                                 }.getOrDefault(false)
                                 saving = false
                                 if (ok) {
+                                    if (bill.id.startsWith("WEB3-")) {
+                                        web3Repository.markAccounted(bill.id.removePrefix("WEB3-"))
+                                    }
                                     showConfirm = false
                                     activeBill = null
                                     Toast.makeText(context,
