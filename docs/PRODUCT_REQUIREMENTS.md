@@ -2892,3 +2892,13 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 加密本地备份/恢复已包含 Web3 草稿；补充了草稿备份 round-trip、Hash 格式、wei 数量和 L1 费用解析单元测试。
 - **仍待完成：** Kotlin/Room/KAPT 编译与单元测试尚未运行；需要核对 Reown 1.3.3 精确依赖 API、Room 23 Migration 实际升级、WorkManager 进程恢复、MetaMask/Trust 真机行为、拒绝/超时/补单、Arbitrum/OP 回执样本和记账去重。当前未运行 CI、未构建 APK、未做真机验收；PR #135 仍 Draft/Open/Unmerged。
 
+### 2026-11-12 — Web3 记账安全与恢复补强
+
+- 钱包超时改为持久化 30 秒 WorkManager 任务；只有明确 EIP-1193 4001 拒绝才取消。进程回到前台时由 `ProcessLifecycleOwner` 扫描超时草稿，并重新入队尚未完成的回执任务，覆盖“Hash 已写库、进程在调度前被杀”的窗口。
+- Arbitrum 优先按 `gasUsedForL1 × effectiveGasPrice` 计算 L1 组件，并兼容服务商直接返回 `l1Fee` 的回执扩展；Optimism/Base 使用 `l1Fee`。普通 L1 网络显示“执行费”，只有 rollup 网络才显示 L1/L2 拆分。
+- 已增加 uint256、calldata 长度、Hash、回调 nonce、手动补单发送地址/目标地址/value/input 匹配校验；不解析 ERC-20/function Deep Link 为原生转账，避免把 token 参数误当成收款地址或金额。
+- Gas USD 报价只使用 OKX 协调缓存返回的 5 分钟内新鲜报价；实际回执 Gas USD 存在资产估值字段，不混入“预估 Gas”字段。缺报价时 UI 要求用户填写，不写假 0。
+- 正式记账提交时，在同一个 Room 事务内将 Web3 草稿标记为 `accounted`，避免“账本已写入、草稿状态未更新”造成重复记账。普通链显示执行费，L2 费用拆分保留独立资产明细。
+- 加密备份导入进一步校验 Web3 草稿 nonce、链 ID、地址、Hash、uint256 数值、calldata、状态和 USD 数值范围。
+- 本轮仍未执行 Gradle 编译/单元测试、CI 或 APK 构建；需在完整模块审计完成后统一验证。
+
