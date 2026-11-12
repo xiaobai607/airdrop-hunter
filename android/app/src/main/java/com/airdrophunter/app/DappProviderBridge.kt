@@ -132,6 +132,31 @@ internal object DappProviderBridge {
     fun isSupportedExternalWalletMethod(method: String): Boolean =
         method.trim().lowercase() in externalWalletMethods
 
+    /** Extract the exact account requested by a signing/transaction method. */
+    fun requestedAccountAddress(
+        method: String,
+        firstParam: String?,
+        secondParam: String?,
+        transactionFrom: String?
+    ): String? {
+        val addressPattern = Regex("^0x[a-fA-F0-9]{40}$")
+        return when (method.trim().lowercase()) {
+            "personal_sign" -> {
+                val firstLooksLikeAddress = firstParam?.let(addressPattern::matches) == true
+                val secondLooksLikeAddress = secondParam?.let(addressPattern::matches) == true
+                when {
+                    firstLooksLikeAddress && !secondLooksLikeAddress -> firstParam
+                    secondLooksLikeAddress && !firstLooksLikeAddress -> secondParam
+                    else -> null
+                }
+            }
+            "eth_sign", "eth_signtypeddata", "eth_signtypeddata_v3",
+            "eth_signtypeddata_v4" -> firstParam?.takeIf(addressPattern::matches)
+            "eth_signtransaction", "eth_sendtransaction" -> transactionFrom?.takeIf(addressPattern::matches)
+            else -> null
+        }
+    }
+
     fun isAuthorizedAccountRequest(
         method: String,
         firstParam: String?,
