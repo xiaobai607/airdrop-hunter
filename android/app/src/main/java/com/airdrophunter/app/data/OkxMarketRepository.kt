@@ -19,6 +19,7 @@ data class OkxTicker(
         "ETH" -> "Ethereum"
         "SOL" -> "Solana"
         "BNB" -> "BNB"
+        "TRX" -> "TRON"
         "XRP" -> "XRP"
         else -> symbol
     }
@@ -54,7 +55,7 @@ class OkxMarketRepository(
 
     suspend fun fetchSpotTickerDetail(symbol: String): OkxTickerDetail = withContext(Dispatchers.IO) {
         val safeSymbol = symbol.uppercase()
-        require(safeSymbol in setOf("BTC", "ETH", "SOL", "BNB", "XRP")) { "暂不支持该币种行情" }
+        require(safeSymbol in setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP")) { "暂不支持该币种行情" }
         val instrumentId = "$safeSymbol-USDT"
         val connection = (URL("https://www.okx.com/api/v5/market/ticker?instId=$instrumentId")
             .openConnection() as HttpURLConnection).apply {
@@ -115,7 +116,7 @@ class OkxMarketRepository(
                 throw IllegalStateException(root.optString("msg").ifBlank { "OKX 行情接口返回异常" })
             }
 
-            val wanted = listOf("BTC-USDT", "ETH-USDT", "SOL-USDT", "BNB-USDT", "XRP-USDT")
+            val wanted = listOf("BTC-USDT", "ETH-USDT", "SOL-USDT", "BNB-USDT", "TRX-USDT", "XRP-USDT")
             val byInstrument = HashMap<String, OkxTicker>()
             val data = root.optJSONArray("data")
                 ?: throw IllegalStateException("OKX 行情接口没有返回数据")
