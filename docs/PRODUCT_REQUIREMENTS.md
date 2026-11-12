@@ -2384,3 +2384,9 @@ Implementation status: requirement approved; existing coordinator already has a 
 **Required correction:** expose a typed campaign load result containing rows + stale/error status; keep the existing simple `load()` API compatible for background callers, while the screen ViewModel uses the status-aware path and displays a non-blocking warning above the retained campaign list. A successful/fresh cache read must not show an error. Manual throttling behavior remains unchanged. Add repository/ViewModel regression coverage as feasible.
 
 **Status:** audit-confirmed UI observability gap; requirement recorded before implementation. Implementation and exact-head CI pending.
+
+
+**Implementation follow-up — code submitted, CI pending (2026-11-12):**
+- Code commit `456d923c3d6056c39e2866f58a175aad809c8929` adds `AirdropCampaignLoadResult` with rows/stale/error fields and a status-aware repository method. The campaign screen ViewModel now uses that method, so stale fallback rows remain visible and the existing list warning slot can show the provider failure.
+- Added a focused unit test for warning visibility on stale fallback and suppression on fresh/successful data.
+- Exact-head Android workflow **#43153515681** is currently in progress; backend tests are skipped because this is Android-only. Do not mark complete until the exact-head run finishes.
