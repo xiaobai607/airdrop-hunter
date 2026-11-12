@@ -68,7 +68,22 @@ object LocalBackupCodec {
   require(s.totalRecords<=LocalBackupSnapshot.MAX_RECORDS) { "too many records" }
   val prefixes=if(s.sourceScope=="guest") listOf("guest:","signed-out:") else listOf("${s.sourceScope}:","${s.sourceScope.removePrefix("user:")}:")
   require(s.cachedPayloads.all { row -> prefixes.any { row.cacheKey.startsWith(it) } }) { "invalid cache scope" }
-  require(s.web3Drafts.orEmpty().all { it.accountScope == s.sourceScope }) { "invalid Web3 draft scope" }
+  require(s.web3Drafts.orEmpty().all { draft ->
+   draft.accountScope == s.sourceScope &&
+    draft.chainId > 0 &&
+    draft.callbackState.matches(Regex("^[a-fA-F0-9]{48}$")) &&
+    (draft.walletAddress == null || draft.walletAddress.matches(Regex("^0x[a-fA-F0-9]{40}$"))) &&
+    (draft.toAddress == null || draft.toAddress.matches(Regex("^0x[a-fA-F0-9]{40}$"))) &&
+    (draft.txHash == null || Web3TransactionRepository.isValidTxHash(draft.txHash)) &&
+    (draft.dataHex == null || (draft.dataHex.length <= WalletTransactionLinkParser.MAX_CALLDATA_LENGTH &&
+     draft.dataHex.matches(Regex("^0x([a-fA-F0-9]{2})*$")))) &&
+    listOf(draft.valueWei, draft.estimatedGas, draft.gasUsed, draft.effectiveGasPrice, draft.l1Fee, draft.totalFeeWei)
+     .all { raw -> raw == null || raw.toBigIntegerOrNull()?.signum()?.let { it >= 0 } == true } &&
+    (draft.receiptStatus == null || draft.receiptStatus == 0 || draft.receiptStatus == 1) &&
+    (draft.nativePriceUsd == null || (draft.nativePriceUsd.isFinite() && draft.nativePriceUsd > 0.0)) &&
+    (draft.actualGasUsd == null || (draft.actualGasUsd.isFinite() && draft.actualGasUsd >= 0.0)) &&
+    (draft.createdAt > 0 && draft.updatedAt >= draft.createdAt)
+  }) { "invalid Web3 draft data" }
  }
  private fun derive(password:String,salt:ByteArray):SecretKeySpec {
   val spec=PBEKeySpec(password.toCharArray(),salt,ITERATIONS,256)
