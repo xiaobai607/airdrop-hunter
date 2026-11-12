@@ -98,6 +98,8 @@ fun BrowserAccountingToolbar(
     var gasValuationSource by remember { mutableStateOf<String?>(null) }
     var gasL1Native by remember { mutableStateOf("") }
     var gasL2Native by remember { mutableStateOf("") }
+    var gasL1Usd by remember { mutableStateOf<Double?>(null) }
+    var gasL2Usd by remember { mutableStateOf<Double?>(null) }
     var gasSplitSymbol by remember { mutableStateOf("") }
     var rewardNative by remember { mutableStateOf("") }
     var rewardSymbol by remember { mutableStateOf("") }
@@ -178,6 +180,8 @@ fun BrowserAccountingToolbar(
         val l2Asset = existingAssets.firstOrNull { it.kind == "l2_fee" }
         gasL1Native = l1Asset?.amount_native.orEmpty()
         gasL2Native = l2Asset?.amount_native.orEmpty()
+        gasL1Usd = l1Asset?.usd_valuation
+        gasL2Usd = l2Asset?.usd_valuation
         gasSplitSymbol = l1Asset?.symbol ?: l2Asset?.symbol ?: gasAsset?.symbol.orEmpty()
         rewardNative = rewardAsset?.amount_native.orEmpty()
         rewardSymbol = rewardAsset?.symbol.orEmpty()
@@ -698,8 +702,14 @@ fun BrowserAccountingToolbar(
                         ) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text("链上费用明细（原生币）", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                                if (gasL2Native.isNotBlank()) Text("L2 执行费：$gasL2Native $gasSplitSymbol", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                                if (gasL1Native.isNotBlank()) Text("L1 数据费：$gasL1Native $gasSplitSymbol", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                if (gasL2Native.isNotBlank()) Text(
+                                    "L2 执行费：$gasL2Native $gasSplitSymbol" + (gasL2Usd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
+                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                                )
+                                if (gasL1Native.isNotBlank()) Text(
+                                    "L1 数据费：$gasL1Native $gasSplitSymbol" + (gasL1Usd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
+                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                                )
                             }
                         }
                     }
@@ -849,13 +859,19 @@ fun BrowserAccountingToolbar(
                                 if (gasL2Native.isNotBlank()) add(
                                     LedgerAssetAmount(
                                         kind = "l2_fee", amount_native = gasL2Native,
-                                        symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18
+                                        symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
+                                        usd_valuation = gasL2Usd,
+                                        valuation_timestamp = gasValuationTimestamp,
+                                        valuation_source = "OKX"
                                     )
                                 )
                                 if (gasL1Native.isNotBlank()) add(
                                     LedgerAssetAmount(
                                         kind = "l1_fee", amount_native = gasL1Native,
-                                        symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18
+                                        symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
+                                        usd_valuation = gasL1Usd,
+                                        valuation_timestamp = gasValuationTimestamp,
+                                        valuation_source = "OKX"
                                     )
                                 )
                                 if (rewardNative.isNotBlank()) add(
