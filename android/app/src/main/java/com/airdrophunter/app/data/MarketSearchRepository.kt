@@ -1,5 +1,8 @@
 package com.airdrophunter.app.data
 
+internal fun hasMarketWarmupFailure(priceRefreshSucceeded: Boolean, hotCoinsRefreshSucceeded: Boolean): Boolean =
+    !priceRefreshSucceeded || !hotCoinsRefreshSucceeded
+
 class MarketSearchRepository(
     private val okxRepository: OkxMarketRepository,
     private val cacheRefresh: CacheRefreshCoordinator = CacheRefreshCoordinator.shared
@@ -83,7 +86,7 @@ class MarketSearchRepository(
         val hotCoinResult = try { loadHotCoins(); true }
         catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
         catch (_: Exception) { false }
-        if (!priceResult || !hotCoinResult) {
+        if (hasMarketWarmupFailure(priceResult, hotCoinResult)) {
             throw IllegalStateException("部分行情目录预加载失败")
         }
     }
