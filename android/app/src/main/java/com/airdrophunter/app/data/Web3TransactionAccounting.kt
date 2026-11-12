@@ -347,6 +347,7 @@ class Web3RpcClient {
                 .put("data", calldata))
             .put(block)
         val result = request(chainId, "eth_call", params).optString("result")
+        if (!result.matches(Regex("^0x[a-fA-F0-9]{64}$"))) return null
         return parseRpcQuantity(result)
     }
 
@@ -370,7 +371,7 @@ class Web3RpcClient {
 
     companion object {
         fun parseRpcQuantity(raw: String?): BigInteger? {
-            if (raw.isNullOrBlank() || !raw.startsWith("0x", true)) return null
+            if (raw.isNullOrBlank() || raw.length <= 2 || !raw.startsWith("0x", true)) return null
             return runCatching {
                 BigInteger(raw.substring(2).ifBlank { "0" }, 16)
             }.getOrNull()
