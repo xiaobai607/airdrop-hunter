@@ -82,7 +82,7 @@ object LocalBackupCodec {
     (draft.receiptStatus == null || draft.receiptStatus == 0 || draft.receiptStatus == 1) &&
     (draft.nativePriceUsd == null || (draft.nativePriceUsd.isFinite() && draft.nativePriceUsd > 0.0)) &&
     (draft.actualGasUsd == null || (draft.actualGasUsd.isFinite() && draft.actualGasUsd >= 0.0)) &&
-    (draft.createdAt > 0 && draft.updatedAt >= draft.createdAt)
+    (draft.createdAt > 0 && draft.updatedAt > 0)
   }) { "invalid Web3 draft data" }
  }
  private fun derive(password:String,salt:ByteArray):SecretKeySpec {
