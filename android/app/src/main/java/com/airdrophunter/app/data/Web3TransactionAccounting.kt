@@ -38,6 +38,7 @@ object Web3DraftStatus {
     const val CONFIRMED = "confirmed"
     const val CONFIRMED_FAILED = "confirmed_failed"
     const val WAITING_L1_FEE = "waiting_l1_fee"
+    const val WAITING_OPERATOR_FEE = "waiting_operator_fee"
     const val RECEIPT_NEEDS_SYNC = "receipt_needs_sync"
     const val TIMED_OUT_NEEDS_SYNC = "timed_out_needs_sync"
     const val CANCELLED = "cancelled"
@@ -100,10 +101,10 @@ interface Web3TransactionDraftDao {
     @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND walletConnectRequestId = :requestId LIMIT 1")
     suspend fun findByWalletRequest(scope: String, requestId: Long): Web3TransactionDraftEntity?
 
-    @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('waiting_receipt','waiting_l1_fee','receipt_needs_sync','timed_out_needs_sync') AND txHash IS NOT NULL")
+    @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('waiting_receipt','waiting_l1_fee','waiting_operator_fee','receipt_needs_sync','timed_out_needs_sync') AND txHash IS NOT NULL")
     suspend fun receiptCandidates(scope: String): List<Web3TransactionDraftEntity>
 
-    @Query("SELECT id FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('waiting_receipt','waiting_l1_fee') AND txHash IS NOT NULL")
+    @Query("SELECT id FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('waiting_receipt','waiting_l1_fee','waiting_operator_fee') AND txHash IS NOT NULL")
     suspend fun pendingReceiptDraftIds(scope: String): List<String>
 
     @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('pending_wallet','waiting_hash') AND updatedAt <= :cutoff")
@@ -726,8 +727,22 @@ class Web3TransactionRepository(
             return true
         }
 
+        val operatorFee = runCatching {
+            rpc.getOperatorFee(
+                draft.chainId,
+                gasUsed,
+                receipt.optString("blockNumber").takeIf { it.isNotBlank() }
+            )
+        }.getOrNull()
+        if (Web3RpcRegistry.requiresOperatorFee(draft.chainId) && operatorFee == null) {
+            dao.setStatus(
+                draft.id, draft.accountScope, Web3DraftStatus.WAITING_OPERATOR_FEE,
+                "OP Stack 运营商费用无法从交易所在区块核实", System.currentTimeMillis()
+            )
+            return true
+        }
         val feeBreakdown = Web3ReceiptFeeCalculator.calculate(
-            draft.chainId, gasUsed, effectiveGasPrice, l1Fee
+            draft.chainId, gasUsed, effectiveGasPrice, l1Fee, operatorFee
         ) ?: return false
         val l2Fee = feeBreakdown.l2FeeWei
         val totalFee = feeBreakdown.totalFeeWei
@@ -743,6 +758,7 @@ class Web3TransactionRepository(
             gasUsed = gasUsed.toString(),
             effectiveGasPrice = effectiveGasPrice.toString(),
             l1Fee = (l1Fee ?: BigInteger.ZERO).toString(),
+            operatorFeeWei = feeBreakdown.operatorFeeWei.toString(),
             totalFeeWei = totalFee.toString(),
             nativeSymbol = nativeSymbol,
             nativePriceUsd = nativePriceUsd,
