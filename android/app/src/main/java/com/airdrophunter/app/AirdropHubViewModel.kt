@@ -83,11 +83,11 @@ class AirdropHubViewModel(
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (failure: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isRefreshing = false,
                     error = if (_uiState.value.projects.isEmpty()) "服务器繁忙，请稍后重试。" else null,
-                    sourceError = airdropHubRefreshWarning(error.message)
+                    sourceError = airdropHubRefreshWarning(failure.message)
                 )
             }
         }
