@@ -133,7 +133,7 @@ object ManualProjectAccountingPolicy {
         txHash: String
     ): Boolean =
         !projectOfficialId.isNullOrBlank() &&
-            rewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION) &&
+            rewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.TOKEN, ManualRewardKind.MANUAL_USD_VALUATION) &&
             (txHash.isBlank() || isSupportedHash(network, txHash))
 
     fun isTransactionVerificationNetworkSupported(network: String): Boolean =
