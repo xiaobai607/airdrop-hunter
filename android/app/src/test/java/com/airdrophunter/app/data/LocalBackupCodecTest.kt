@@ -15,7 +15,7 @@ class LocalBackupCodecTest {
    id="web3-1", accountScope="guest", origin="https://example.org", chainId=42161L,
    walletAddress="0x1111111111111111111111111111111111111111",
    toAddress="0x2222222222222222222222222222222222222222",
-   valueWei="100", dataHex="0x", callbackState="state",
+   valueWei="100", dataHex="0x", callbackState="a".repeat(48),
    walletConnectRequestId=7L, txHash="0x"+"a".repeat(64),
    status=Web3DraftStatus.WAITING_RECEIPT, estimatedGas="21000",
    gasUsed=null, effectiveGasPrice=null, l1Fee=null, totalFeeWei=null,
