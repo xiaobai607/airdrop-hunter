@@ -101,7 +101,7 @@ class MainActivity : ComponentActivity() {
 }
 private data class Destination(val label: Int, val icon: ImageVector)
 
-private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY, ACCOUNTING }
+private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,6 +119,8 @@ private fun AirdropHunterApp(
     var selectedMarketSymbol by rememberSaveable { mutableStateOf("BTC") }
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
     var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
+    var showAccountingSheet by rememberSaveable { mutableStateOf(false) }
+    val accountingSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Never leave a previous account's secondary screen or editor alive after a session switch.
     LaunchedEffect(sessionScopeKey) {
@@ -128,7 +130,7 @@ private fun AirdropHunterApp(
     }
 
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
-    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY, AppOverlay.ACCOUNTING) || selectedProject != null || selectedCommunityProject != null
+    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
 
     BackHandler(hasSecondaryDestination) {
         activeOverlay = AppOverlay.NONE
@@ -150,7 +152,6 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "$selectedMarketSymbol 行情"
         activeOverlay == AppOverlay.TRON_ENERGY -> "TRON 能量租赁助手"
-        activeOverlay == AppOverlay.ACCOUNTING -> "记账"
         selectedCommunityProject != null -> "项目微社区"
         else -> stringResource(R.string.project_detail)
     }
@@ -203,7 +204,6 @@ private fun AirdropHunterApp(
                     modifier = Modifier.fillMaxSize(),
                     onOpenBinanceOfficial = { activeOverlay = AppOverlay.AIRDROP_HUB }
                 )
-                activeOverlay == AppOverlay.ACCOUNTING -> AccountingCenterScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.TRON_ENERGY -> TronEnergyAssistantScreen(
                     modifier = Modifier.fillMaxSize(),
                     onBack = { activeOverlay = AppOverlay.NONE },
@@ -280,7 +280,7 @@ private fun AirdropHunterApp(
                     onOpenProjects = { tab = 2 },
                     onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
                     onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
-                    onOpenAccounting = { activeOverlay = AppOverlay.ACCOUNTING },
+                    onOpenAccounting = { showAccountingSheet = true },
                     isGuest = isGuest, onRequireAuth = onRequireAuth,
                     sessionScopeKey = sessionScopeKey
                     )
@@ -301,6 +301,18 @@ private fun AirdropHunterApp(
                     }
                 }
             }
+        }
+    }
+    if (showAccountingSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showAccountingSheet = false },
+            sheetState = accountingSheetState,
+            containerColor = AppColors.Surface
+        ) {
+            AccountingCenterScreen(
+                modifier = Modifier.fillMaxWidth(),
+                onClose = { showAccountingSheet = false }
+            )
         }
     }
 }
