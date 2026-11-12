@@ -672,25 +672,28 @@ private fun BrowserScreen(
                                     }
                                     val parsed = com.airdrophunter.app.data.WalletTransactionLinkParser.parse(target)
                                     dappRequestScope.launch {
+                                        var draftId: String? = null
                                         if (parsed != null) {
-                                            runCatching {
+                                            draftId = runCatching {
                                                 web3Repository.createExternalLinkDraft(
                                                     parsed = parsed,
                                                     origin = runCatching { DappProviderBridge.origin(Uri.parse(currentPageUrl)) }.getOrDefault("unknown"),
                                                     walletAddress = selectedWallet?.address
-                                                )
+                                                ).id
                                             }.onFailure {
                                                 Log.e("AirdropBrowser", "Could not persist wallet transaction draft", it)
-                                            }
+                                            }.getOrNull()
                                         }
                                         val walletIntent = Intent(Intent.ACTION_VIEW, target)
                                         if (walletIntent.resolveActivity(context.packageManager) == null) {
+                                            draftId?.let { web3Repository.markWalletUnavailable(it) }
                                             Toast.makeText(context, "未找到可处理此钱包链接的应用", Toast.LENGTH_LONG).show()
                                         } else {
                                             runCatching {
                                                 context.startActivity(walletIntent)
                                             }.onFailure {
-                                                Toast.makeText(context, "无法打开外部钱包", Toast.LENGTH_LONG).show()
+                                                draftId?.let { id -> web3Repository.markWalletTimedOut(id) }
+                                                Toast.makeText(context, "无法打开外部钱包；交易草稿已保留待核对", Toast.LENGTH_LONG).show()
                                             }
                                         }
                                     }
