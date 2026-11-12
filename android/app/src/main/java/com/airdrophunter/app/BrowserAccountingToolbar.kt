@@ -100,6 +100,7 @@ fun BrowserAccountingToolbar(
     var gasL2Native by remember { mutableStateOf("") }
     var gasL1Usd by remember { mutableStateOf<Double?>(null) }
     var gasL2Usd by remember { mutableStateOf<Double?>(null) }
+    var gasSplitQuoteTimestamp by remember { mutableStateOf<String?>(null) }
     var gasSplitSymbol by remember { mutableStateOf("") }
     var rewardNative by remember { mutableStateOf("") }
     var rewardSymbol by remember { mutableStateOf("") }
@@ -185,6 +186,7 @@ fun BrowserAccountingToolbar(
         gasL2Native = l2Asset?.amount_native.orEmpty()
         gasL1Usd = l1Asset?.usd_valuation
         gasL2Usd = l2Asset?.usd_valuation
+        gasSplitQuoteTimestamp = l1Asset?.valuation_timestamp ?: l2Asset?.valuation_timestamp
         gasSplitSymbol = l1Asset?.symbol ?: l2Asset?.symbol ?: gasAsset?.symbol.orEmpty()
         rewardNative = rewardAsset?.amount_native.orEmpty()
         rewardSymbol = rewardAsset?.symbol.orEmpty()
@@ -930,7 +932,7 @@ fun BrowserAccountingToolbar(
                                         kind = "l2_fee", amount_native = gasL2Native,
                                         symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
                                         usd_valuation = gasL2Usd,
-                                        valuation_timestamp = gasValuationTimestamp,
+                                        valuation_timestamp = gasSplitQuoteTimestamp,
                                         valuation_source = "OKX"
                                     )
                                 )
