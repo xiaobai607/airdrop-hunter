@@ -2985,3 +2985,5 @@ Implementation status: requirement approved; existing coordinator already has a 
 - DApp 发起签名/交易请求时，不再默认使用 Session 列表第一项账户。现在先从 `personal_sign`、`eth_sign/eth_signTypedData` 或交易对象的 `from` 字段提取请求账户，再要求该地址同时存在于已授权 Session、且其 chainId 与当前 AppKit 活动 EVM 网络一致；找不到唯一匹配账户时拒绝转发，不创建错误归属的交易草稿。
 - 这样可避免“请求使用第二个已授权地址，但本地 Web3 草稿错误记到第一个地址/另一条链”的账务归属问题。新增请求账户提取测试；现有授权地址校验仍作为第二道门禁。
 - 本轮源码和测试已提交到 PR #135 分支；尚未运行 Gradle 编译/单元测试、CI、APK 构建或真机多链会话验收。PR #135 继续保持 Draft/Open/Unmerged。
+
+- 同轮补强：对 `eth_sendTransaction` 与 `eth_signTransaction`，若 DApp 交易对象显式携带 `chainId`，必须与请求账户对应的 WalletConnect 活动链一致；缺失/非法/不一致的链号拒绝转发。未提供 chainId 时继续以当前已授权账户链为准。新增十六进制、十进制、错链和非法链号测试。
