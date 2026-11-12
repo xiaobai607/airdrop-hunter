@@ -64,7 +64,6 @@ fun BrowserAccountingToolbar(
     onOpenPageExternally: () -> Unit,
     modifier: Modifier = Modifier,
     initialShowBillList: Boolean = false,
-    initialCreateMockBill: Boolean = false,
     showDock: Boolean = true,
     onCloseAccounting: () -> Unit = {}
 ) {
@@ -98,7 +97,7 @@ fun BrowserAccountingToolbar(
     var dragUpdateJob by remember { mutableStateOf<Job?>(null) }
     var showToolManager by remember { mutableStateOf(false) }
     val toolOptions = listOf(
-        "new_accounting" to "新增记账",
+        "new_accounting" to "记账",
         "copy_address" to "复制地址",
         "pending_bills" to "待确认记录",
         "refresh_page" to "刷新网页",
@@ -885,7 +884,6 @@ fun AccountingCenterScreen(
             onOpenPageExternally = {},
             modifier = Modifier.fillMaxWidth(),
             initialShowBillList = true,
-            initialCreateMockBill = false,
             showDock = false,
             onCloseAccounting = onClose
         )
