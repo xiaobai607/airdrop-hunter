@@ -43,11 +43,14 @@ import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     @Volatile private var startupReady = false
+    private var startupSyncScheduled = false
     private val startupTokenState = mutableStateOf<String?>(null)
 
     override fun onStart() {
         super.onStart()
-        // Schedule background work off the UI thread; Home renders local Room cache first.
+        if (startupSyncScheduled) return
+        startupSyncScheduled = true
+        // Schedule background work once per process, off the UI thread; Home renders Room cache first.
         lifecycleScope.launch(Dispatchers.IO) {
             GlobalSyncScheduler.ensurePeriodic(applicationContext)
             GlobalSyncScheduler.enqueueNow(applicationContext)
