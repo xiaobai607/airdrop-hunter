@@ -541,6 +541,11 @@ private fun BrowserScreen(
                                                                         return@launch
                                                                     }
                                                                 }
+                                                                draftId?.let {
+                                                                    com.airdrophunter.app.data.Web3DraftTimeoutScheduler.enqueue(
+                                                                        context.applicationContext, it
+                                                                    )
+                                                                }
                                                                 val current = pendingDappExternalRequest
                                                                 if (current?.request?.id != request.id) {
                                                                     draftId?.let { web3Repository.markWalletTimedOut(it) }
@@ -683,6 +688,11 @@ private fun BrowserScreen(
                                             }.onFailure {
                                                 Log.e("AirdropBrowser", "Could not persist wallet transaction draft", it)
                                             }.getOrNull()
+                                        }
+                                        draftId?.let {
+                                            com.airdrophunter.app.data.Web3DraftTimeoutScheduler.enqueue(
+                                                context.applicationContext, it
+                                            )
                                         }
                                         val walletIntent = Intent(Intent.ACTION_VIEW, target)
                                         if (walletIntent.resolveActivity(context.packageManager) == null) {
