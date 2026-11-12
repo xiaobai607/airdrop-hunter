@@ -72,7 +72,12 @@ fun BrowserAccountingToolbar(
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
     val accountingRepository = remember(application) { application.appContainer.accountingRepository }
+    val web3Repository = remember(application) { application.appContainer.web3TransactionRepository }
     val pending by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
+    val web3Drafts by web3Repository.observeDrafts().collectAsStateWithLifecycle(initialValue = emptyList())
+    val visibleWeb3Drafts = remember(web3Drafts) {
+        web3Drafts.filter { it.status != Web3DraftStatus.CANCELLED }
+    }
     // Legacy MOCK fixtures stay stored for compatibility but never enter the real ledger flow.
     val realPending = remember(pending) { pending.filterNot { it.txHash.startsWith("MOCK-") } }
 
@@ -91,6 +96,9 @@ fun BrowserAccountingToolbar(
     var gasDecimals by remember { mutableStateOf("") }
     var gasValuationTimestamp by remember { mutableStateOf<String?>(null) }
     var gasValuationSource by remember { mutableStateOf<String?>(null) }
+    var gasL1Native by remember { mutableStateOf("") }
+    var gasL2Native by remember { mutableStateOf("") }
+    var gasSplitSymbol by remember { mutableStateOf("") }
     var rewardNative by remember { mutableStateOf("") }
     var rewardSymbol by remember { mutableStateOf("") }
     var rewardDecimals by remember { mutableStateOf("") }
@@ -166,6 +174,11 @@ fun BrowserAccountingToolbar(
         gasDecimals = gasAsset?.decimals?.toString().orEmpty()
         gasValuationTimestamp = gasAsset?.valuation_timestamp
         gasValuationSource = gasAsset?.valuation_source
+        val l1Asset = existingAssets.firstOrNull { it.kind == "l1_fee" }
+        val l2Asset = existingAssets.firstOrNull { it.kind == "l2_fee" }
+        gasL1Native = l1Asset?.amount_native.orEmpty()
+        gasL2Native = l2Asset?.amount_native.orEmpty()
+        gasSplitSymbol = l1Asset?.symbol ?: l2Asset?.symbol ?: gasAsset?.symbol.orEmpty()
         rewardNative = rewardAsset?.amount_native.orEmpty()
         rewardSymbol = rewardAsset?.symbol.orEmpty()
         rewardDecimals = rewardAsset?.decimals?.toString().orEmpty()
@@ -522,9 +535,71 @@ fun BrowserAccountingToolbar(
                             Icon(Icons.Default.Close, contentDescription = "关闭", tint = AppColors.TextSecondary)
                         }
                     }
+                    if (visibleWeb3Drafts.isNotEmpty()) {
+                        Text("链上交易", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 190.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            items(visibleWeb3Drafts, key = { "web3-${it.id}" }) { draft ->
+                                val statusLabel = when (draft.status) {
+                                    Web3DraftStatus.CONFIRMED -> "回执已确认"
+                                    Web3DraftStatus.CONFIRMED_FAILED -> "链上执行失败 · Gas 已产生"
+                                    Web3DraftStatus.WAITING_L1_FEE -> "L1 费用待核实"
+                                    Web3DraftStatus.TIMED_OUT_NEEDS_SYNC -> "钱包未回传 · 待同步"
+                                    Web3DraftStatus.WAITING_RECEIPT -> "等待链上回执"
+                                    Web3DraftStatus.PENDING_WALLET, Web3DraftStatus.WAITING_HASH -> "等待钱包返回"
+                                    Web3DraftStatus.WALLET_UNAVAILABLE -> "未找到钱包应用"
+                                    else -> "处理中"
+                                }
+                                Surface(
+                                    color = Color(0xFFF5F8FF),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, Color(0xFFD8E4FA))
+                                ) {
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                            Text(statusLabel, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                                            Text(
+                                                draft.txHash?.let { it.take(8) + "..." + it.takeLast(6) }
+                                                    ?: "Chain ID ${draft.chainId}",
+                                                color = AppColors.TextHelper,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                            draft.lastError?.let {
+                                                Text(it, color = Color(0xFF9A5A16), style = MaterialTheme.typography.labelSmall, maxLines = 2)
+                                            }
+                                        }
+                                        when (draft.status) {
+                                            Web3DraftStatus.CONFIRMED, Web3DraftStatus.CONFIRMED_FAILED -> {
+                                                TextButton(onClick = {
+                                                    scope.launch {
+                                                        val bill = runCatching {
+                                                            web3Repository.createPendingAccountingBill(draft.id)
+                                                        }.getOrNull()
+                                                        if (bill != null) openBill(bill)
+                                                        else Toast.makeText(context, "链上费用尚未完整确认", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }) { Text("继续记账") }
+                                            }
+                                            Web3DraftStatus.WAITING_L1_FEE -> {
+                                                TextButton(onClick = {
+                                                    com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
+                                                }) { Text("重试核实") }
+                                            }
+                                            else -> Unit
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     if (realPending.isEmpty()) {
-                        Box(Modifier.fillMaxWidth().padding(vertical = 22.dp), contentAlignment = Alignment.Center) {
-                            Text("暂无待确认记录", color = AppColors.TextHelper)
+                        Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                            Text("暂无其他待确认记录", color = AppColors.TextHelper)
                         }
                     } else {
                         LazyColumn(
@@ -608,7 +683,20 @@ fun BrowserAccountingToolbar(
                             Icon(Icons.Default.Close, contentDescription = "关闭确认弹窗", tint = AppColors.TextSecondary)
                         }
                     }
-                    Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账（非链上交易）" else "待确认交易：") + if (bill.txHash.startsWith("MANUAL-")) "" else "\${bill.txHash.take(16)}…", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账（非链上交易）" else "待确认交易：") + if (bill.txHash.startsWith("MANUAL-")) "" else bill.txHash.take(8) + "..." + bill.txHash.takeLast(6), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    if (gasL1Native.isNotBlank() || gasL2Native.isNotBlank()) {
+                        Surface(
+                            color = Color(0xFFF7F8FA),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("链上费用明细（原生币）", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                                if (gasL2Native.isNotBlank()) Text("L2 执行费：$gasL2Native $gasSplitSymbol", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                if (gasL1Native.isNotBlank()) Text("L1 数据费：$gasL1Native $gasSplitSymbol", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
                     OutlinedTextField(
                         value = gas,
                         onValueChange = { gas = it; gasValuationTimestamp = Instant.now().toString(); gasValuationSource = "user_input" },
@@ -750,6 +838,18 @@ fun BrowserAccountingToolbar(
                                         usd_valuation = if (gasValuationSource != null) safeGas else null,
                                         valuation_timestamp = gasValuationTimestamp,
                                         valuation_source = gasValuationSource
+                                    )
+                                )
+                                if (gasL2Native.isNotBlank()) add(
+                                    LedgerAssetAmount(
+                                        kind = "l2_fee", amount_native = gasL2Native,
+                                        symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18
+                                    )
+                                )
+                                if (gasL1Native.isNotBlank()) add(
+                                    LedgerAssetAmount(
+                                        kind = "l1_fee", amount_native = gasL1Native,
+                                        symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18
                                     )
                                 )
                                 if (rewardNative.isNotBlank()) add(
