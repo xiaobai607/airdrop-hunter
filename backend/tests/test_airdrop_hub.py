@@ -58,7 +58,8 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
             chain="Unknown", description="Unverified announcement lead", status="待核实",
             link="https://www.binance.com/en/support/announcement/test123",
             source_name="binance-announcements", trust_level="TRUST_LEVEL_0",
-            publication_status="OBSERVATION"
+            publication_status="OBSERVATION",
+            filter_metadata={"published_at": "2026-11-12T12:00:00+00:00"},
         ))
         await db.commit()
         return 2
@@ -87,6 +88,7 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         assert not any(row["name"] in {"Hub Solana Test", "Hub Ethereum Test", "Filtered Binance News Test"} for row in all_rows.json())
         observation = next(row for row in all_rows.json() if row["name"] == "Binance Observation Test")
         assert observation["link"].endswith("/test123")
+        assert observation["published_at"] == "2026-11-12T12:00:00+00:00"
         assert "publication_status" not in observation
         assert "data_source" not in observation
         detail = client.get("/api/airdrops/hub/" + observation["id"])
@@ -760,4 +762,4 @@ def test_binance_announcement_normalizer_preserves_official_release_date():
     assert rows[1]["published_at"] is None
     assert rows[2]["published_at"] is None
     decision = evaluate_discovery_observation(rows[0])
-    assert decision["metadata"]["published_at"] == "2026-11-12T04:00:00+00:00"
+    assert decision["metadata"]["published_at"] == "2026-11-12T12:00:00+00:00"
