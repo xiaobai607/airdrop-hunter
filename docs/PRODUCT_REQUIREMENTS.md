@@ -2432,3 +2432,11 @@ Implementation status: requirement approved; existing coordinator already has a 
 6. Do not change personal ledger/project/task persistence, wallet account scopes, registration/account flows, or enable private cloud sync.
 
 **Status:** audit-confirmed gaps; requirements recorded before implementation. Code and exact-head CI pending.
+
+
+**Implementation follow-up — code submitted, exact-head CI pending (2026-11-12):**
+- Code commit `24f2db7022b1443a4131ff69a56c73534cc1e1f1` separates community-snapshot refresh from market warm-up, so a snapshot exception no longer skips market refresh. Airdrop Hub exceptions now mark the worker attempt failed and enter WorkManager retry while retaining cached announcements.
+- `MarketSearchRepository.warmUpMarketCaches()` now treats either failed source (CoinPaprika market prices or OKX hot coins) as a failed warm-up. A successful source remains cheap on retry through its own TTL. Commit `e1bf8a00dbd9322ba0aa2cd1ea539ee3d866b349` adds four policy tests covering both-success, both-failure and each partial-failure case.
+- A configured invalid/non-HTTPS snapshot base URL now fails instead of returning a successful cached result; a 304 response without cached snapshots and an empty manifest are also rejected. An intentionally blank base URL remains a supported disabled/no-op configuration.
+- Community directory, snapshot, campaign, market and Airdrop Hub attempts now have independent failure boundaries. WorkManager retains exponential backoff (30-second initial delay) and unique-work KEEP behavior.
+- Exact-head Android CI is pending. Device/background scheduling and real provider validation remain separate acceptance items.
