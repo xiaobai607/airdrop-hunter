@@ -2908,7 +2908,7 @@ Implementation status: requirement approved; existing coordinator already has a 
 ### 2026-11-12 — Web3 记账界面接线审计复核（未构建）
 
 - 更正上一条审计结论：Web3 草稿的 UI 接线**已经存在于 `BrowserAccountingToolbar.kt`，并非由 `BrowserActivity.kt` 直接调用 Repository**。工具栏通过 Application Container 取得 `web3TransactionRepository`，订阅 `observeDrafts()`，在“交易记录”列表中展示链上草稿状态。
-- `CONFIRMED/CONFIRMED_FAILED` 在 `Web3ReceiptWorker` 收到完整回执并保存后即自动调用 `createPendingAccountingBill()`，因此不依赖浏览器页面是否仍打开；`BrowserAccountingToolbar` 同时对已确认草稿执行幂等补齐，按稳定 `WEB3-<draftId>` 生成待确认账单并进入既有交易记录列表。用户仍需打开表单、选择项目并确认实际收益后，才写入正式个人账本；`WAITING_L1_FEE` 可重试；`WAITING_OPERATOR_FEE/RECEIPT_NEEDS_SYNC` 可重试或进入手动核验记账；`TIMED_OUT_NEEDS_SYNC` 可输入 TxHash，并通过对应链 RPC 核对发送地址、目标地址、金额和 calldata 后再排队查询回执。
+- `CONFIRMED/CONFIRMED_FAILED` 在 `Web3ReceiptWorker` 收到完整回执并保存后即自动调用 `createPendingAccountingBill()`，因此不依赖浏览器页面是否仍打开；`BrowserAccountingToolbar` 同时对已确认草稿执行幂等补齐，按稳定 `WEB3-<draftId>` 生成待确认账单并进入既有交易记录列表。若回执已确认但账单落库失败，Worker 后续重试只补建账单，不重新解释或降级已确认的链上回执。用户仍需打开表单、选择项目并确认实际收益后，才写入正式个人账本；`WAITING_L1_FEE` 可重试；`WAITING_OPERATOR_FEE/RECEIPT_NEEDS_SYNC` 可重试或进入手动核验记账；`TIMED_OUT_NEEDS_SYNC` 可输入 TxHash，并通过对应链 RPC 核对发送地址、目标地址、金额和 calldata 后再排队查询回执。
 - USD 缺价处理已在 UI 做出区分：Web3 记录的 `gasCostUsd = 0.0` 是旧 PendingBill 非空字段的占位值，列表会显示“真实 Gas 已获取 · USD 待填写”；打开表单时只有有效 USD 估值才预填，缺价时 Gas USD 输入保持空白。真实原生 Gas 数量仍保存在资产明细中。**不得把占位 0.0 解释成真实零 Gas。**
 - `CacheDatabase.confirmPendingBill()` 在同一个 Room transaction 中校验 Web3 草稿状态、写入个人账本并将草稿置为 `ACCOUNTED`，随后删除待确认单，具备原子确认与重复确认保护。
 - 当前代码仍未完成最终编译/单元测试/真机验收；现有测试主要覆盖 L1/L2/Operator Fee 计算规则，尚未覆盖完整 Repository→Toolbar→Room 确认流程、缺价表单及进程恢复端到端场景。上述状态是源码静态审计结论，不代表运行验证。
