@@ -54,6 +54,8 @@ object Web3DraftStatus {
     fun canConfirmAccounting(status: String): Boolean =
         status in setOf(CONFIRMED, CONFIRMED_FAILED) || canCreateManualReviewBill(status)
 
+    fun isReceiptWorkComplete(status: String): Boolean = status == ACCOUNTED
+
     fun shouldRefreshPendingAccountingBill(existingAssetBreakdownJson: String?): Boolean =
         existingAssetBreakdownJson.isNullOrBlank()
 }
@@ -1037,7 +1039,7 @@ class Web3ReceiptWorker(
         val app = applicationContext as? AirdropHunterApplication ?: return Result.failure()
         val repository = app.appContainer.web3TransactionRepository
         val draft = repository.findById(draftId) ?: return Result.success()
-        if (draft.status == Web3DraftStatus.ACCOUNTED) return Result.success()
+        if (Web3DraftStatus.isReceiptWorkComplete(draft.status)) return Result.success()
 
         suspend fun materializeOrAlreadyAccounted(): Boolean {
             val bill = repository.createPendingAccountingBill(draftId)
