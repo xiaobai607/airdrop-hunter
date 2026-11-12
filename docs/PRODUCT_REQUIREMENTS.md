@@ -2929,4 +2929,5 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 该校验发生在解析 Gas、receipt status、L1/Operator Fee 及写入任何回执字段之前，避免错误回执污染本地账本候选。
 
 - 进一步收紧 Arbitrum L1 费用来源：只接受官方 receipt 扩展 gasUsedForL1，并按其子链 Gas 单位乘 effectiveGasPrice；该字段缺失时费用保持待核验，不再回退到含义不明确的非标准 l1Fee。同步调整单元测试。
+- 钱包 Hash 绑定增加状态门禁：仅 pending_wallet、waiting_hash、timed_out_needs_sync 可首次绑定；已取消、钱包不可用、已进入回执/记账阶段的草稿拒绝新 Hash。Room UPDATE 同步增加状态条件，防止并发迟到回调绕过 Repository 检查；已有同一 Hash 的重复回调仍保持幂等。新增状态门禁单元测试。
 - 本轮仅完成源码和测试静态修改；未运行 Gradle 编译/单元测试、CI、APK 构建或真机验收。PR #135 继续保持 Draft/Open/Unmerged。
