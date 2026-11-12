@@ -2641,3 +2641,12 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **记账取消留白：** 首页点击记账当前切换到 `AppOverlay.ACCOUNTING` 全屏二级目的地。下一步需定位该目的地的具体表单/弹窗状态，改为首页直接弹层；不能只改标题或简单隐藏导航而留下空白占位。
 
 **首轮状态：** 已确认的实现缺口和已有实现已分开记录；开始实施 Splash/首屏阻塞、Dock 更新竞争、Profile 滚动与快捷入口文案。空投入口迁移待用户确认底部导航目标。记账弹层待进一步定位实现文件。
+
+
+### 记账入口交互修正的实现方案（2026-11-12）
+
+- 当前 `AccountingCenterScreen` 通过 `initialCreateMockBill=true` 自动写入一条 MOCK 草稿，再弹出确认 Dialog；取消后底层没有内容，正是“取消后留白”的原因。
+- 改为 Home 直接打开 Material3 `ModalBottomSheet`，不再切换到全屏 `AppOverlay.ACCOUNTING`；底层使用已有待确认记录，若有记录直接打开首条确认表单，无记录则显示待确认记录空状态/列表，不再自动创建模拟账单。
+- 表单取消/系统返回/保存成功后关闭整个 Home 记账弹层，不遗留空白页面。浏览器 Dock 原有调用不受影响。
+- 该修正不自动新增链上交易，不伪造 tx hash，不改变用户手动确认实际 Gas/收益的既有规则。
+- **状态：方案已记录，代码待实施。**
