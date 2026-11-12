@@ -2865,3 +2865,17 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 已将该 requestId 保存到当前待处理 DApp 请求；只有响应同时匹配 requestId、session topic、RPC method 和 chain ID 才会回传网页。页面跳转后旧响应即使晚到，也不能被新页面相同 method 的请求误领。
 - 增加单元测试覆盖正确匹配、旧 requestId、错误 topic、错误 method、错误 chain 及缺少 requestId 的拒绝情况。
 - 此修复只加固既有 WalletConnect 请求，不改变 DApp 授权范围、支持的方法列表或 UI。仍需最终 Android 编译和真机 WalletConnect 测试验证 SDK 依赖版本及回调时序。
+
+### 2026-11-12 — Web3 半自动智能记账闭环（需求登记）
+
+- **目标：** 在现有 BrowserActivity / WalletConnect / Room 正式记账链路上增加 Web3 半自动交易记账闭环，不另建一套与现有个人账本冲突的账本。
+- **阶段一 — 拦截与预估：** WebView 只允许 HTTPS 页面内导航；识别 MetaMask、Trust、WalletConnect 等外部钱包 scheme 时必须拦截，禁止 WebView 加载。只解析受支持格式中明确携带的交易字段（chainId、from、to、value、data）；WalletConnect 的 `wc:` pairing/callback 交给现有 Reown AppKit，不可把它当普通 URL 任意启动。Gas 预估通过按 chainId 白名单映射的 RPC endpoint 执行 `eth_estimateGas`，预估结果只标记为 estimate，不得冒充实际花费。草稿写入独立持久化 Room 记录。
+- **阶段二 — Hash 回调：** 兼容现有 `airdrophunter://request` WalletConnect redirect；新增独立交易回调 URI 只作为可选 provider callback，不假设所有钱包都会返回 TxHash。MainActivity 的 `onNewIntent` 和冷启动 `intent.data` 都必须处理。TxHash 必须验证格式、chainId 和草稿关联后再保存；重复回调幂等。
+- **阶段三 — 回执确认：** WorkManager 唯一任务按草稿 ID 轮询 `eth_getTransactionReceipt`，网络失败使用有界重试/退避；receipt 不存在保持 Pending。计算真实 Gas = gasUsed × effectiveGasPrice；L2 的 L1 费用由 chain adapter 解析 receipt 扩展字段或该网络专用 RPC，不能假设所有 EVM 链都有通用 `l1Fee` 字段。USD 折算使用带时间戳的原生 Gas 资产价格；缺少价格时保留真实原生币花费，不伪造 USD。交易失败（receipt.status=0）仍然要记真实 Gas 花费。
+- **生命周期与补单：** ProcessLifecycleOwner 监听 App 前后台；钱包跳转后超时只允许标记“超时/待核对”，不得仅凭没有回调断言用户拒绝或交易未发生。提供“同步链上记录”入口，按钱包地址/链读取历史记录并去重补单。所有草稿在进程被杀后仍可恢复。
+- **阶段四 — 记账确认：** 复用现有 ModalBottomSheet/BrowserAccountingToolbar 记账表单，自动预填真实 Gas、L1/L2 明细与 TxHash；字段允许用户修正，项目与实际收益由用户确认后写入既有本地账本事务。Hash 展示使用 Kotlin 安全截断 `txHash.take(8) + "..." + txHash.takeLast(6)`，完整 Hash 仍存数据库。
+- **数据边界：** 新增链上交易草稿实体/DAO，避免把 estimate/receipt 状态塞进现有 PendingBillEntity 的 MANUAL- 手动记账语义；个人账本仍 local-first，不启用注册、登录或私人云同步。真实链上交易费用与用户填写的实际收益分开存储。
+- **安全约束：** 不信任 Deep Link 中的任意 RPC URL；不自动签名、不自动广播、不保存私钥；外部钱包仍须由用户在钱包内确认。无回调、用户拒绝、钱包未安装、RPC 不可用均不得伪造成功记录。
+- **验收：** 覆盖 scheme 拦截、无钱包 App、无效参数、预估失败、用户拒绝、钱包返回 Hash、无 Hash 回调、冷启动恢复、重复回调、receipt Pending/Confirmed/Failed、L2 L1 fee、价格缺失、进程杀死后补单、重复同步及用户覆盖字段。最终 APK 统一构建，不提前触发 CI/APK。
+- **状态：** 需求已登记；代码、CI 和真机验收均待实施。PR #135 保持 Draft/Open/Unmerged。
+
