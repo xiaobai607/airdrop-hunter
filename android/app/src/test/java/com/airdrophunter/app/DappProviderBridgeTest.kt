@@ -105,6 +105,14 @@ class DappProviderBridgeTest {
             "eip155:1", "eip155:137"
         ))
         assertEquals(false, DappProviderBridge.isMatchingExternalWalletResponse(
+            101L, 101L, "topic-a", "topic-a", "personal_sign", "personal_sign",
+            "eip155:1", null
+        ))
+        assertEquals(false, DappProviderBridge.isMatchingExternalWalletResponse(
+            101L, 101L, "topic-a", "topic-a", "personal_sign", "personal_sign",
+            "eip155:1", ""
+        ))
+        assertEquals(false, DappProviderBridge.isMatchingExternalWalletResponse(
             null, 101L, "topic-a", "topic-a", "personal_sign", "personal_sign",
             "eip155:1", "eip155:1"
         ))
