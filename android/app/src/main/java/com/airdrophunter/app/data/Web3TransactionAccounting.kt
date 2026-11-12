@@ -165,7 +165,15 @@ interface Web3TransactionDraftDao {
     @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('pending_wallet','waiting_hash') AND updatedAt <= :cutoff")
     suspend fun staleWalletRequests(scope: String, cutoff: Long): List<Web3TransactionDraftEntity>
 
-    @Query("UPDATE web3_transaction_drafts SET walletConnectRequestId = :requestId, walletConnectSessionTopic = :sessionTopic, status = 'waiting_hash', updatedAt = :now WHERE id = :id AND accountScope = :scope AND walletConnectRequestId IS NULL")
+    @Query("""
+        UPDATE web3_transaction_drafts
+        SET walletConnectRequestId = :requestId,
+            walletConnectSessionTopic = :sessionTopic,
+            status = CASE WHEN status = 'timed_out_needs_sync' THEN status ELSE 'waiting_hash' END,
+            updatedAt = :now
+        WHERE id = :id AND accountScope = :scope AND walletConnectRequestId IS NULL
+          AND status IN ('pending_wallet','waiting_hash','timed_out_needs_sync')
+    """)
     suspend fun bindWalletRequest(id: String, scope: String, requestId: Long, sessionTopic: String, now: Long): Int
 
     @Query("UPDATE web3_transaction_drafts SET txHash = :hash, status = 'waiting_receipt', lastError = NULL, updatedAt = :now WHERE id = :id AND accountScope = :scope AND txHash IS NULL AND status IN ('pending_wallet','waiting_hash','timed_out_needs_sync')")
