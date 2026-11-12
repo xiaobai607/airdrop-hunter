@@ -102,6 +102,9 @@ def evaluate_discovery_observation(record: dict[str, Any], *, now: datetime | No
         if catalog_id != 128 and not BINANCE_AIRDROP_KEYWORDS.search(str(record.get("name") or "")):
             reasons.append("binance_activity_title_not_airdrop_related")
         metadata["catalog_id"] = catalog_id
+        published_at = record.get("published_at")
+        if isinstance(published_at, datetime):
+            metadata["published_at"] = published_at.isoformat()
     elif source_name == "github-airdrop-lists":
         official_url = metadata.get("official_url")
         if not official_url:
