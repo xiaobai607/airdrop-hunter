@@ -2951,3 +2951,13 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 这项顺序调整不得扩大钱包请求权限、不得自动签名/广播，也不得把钱包成功响应直接等同于回执确认或正式记账。
 - 冷启动和 `onNewIntent` 的独立交易回调仍必须通过随机 callbackState、草稿 ID、chainId、Hash 格式和草稿状态验证；回调只负责绑定 Hash，后续由唯一 WorkManager 查询 receipt。
 - 验证状态：本条先登记需求；源码修改与静态审计随后进行。Gradle/单元测试/CI/APK/真机验收仍统一留到全部模块完成后。
+
+
+### 2026-11-13 — 外部钱包返回与进程冷启动恢复审计（源码修正，未构建）
+
+- WalletConnect 的 `eth_sendTransaction` 成功响应现在先等待本地 Room 草稿完成 Hash 绑定，再向 DApp 回传钱包成功结果；成功绑定后立即入队 receipt Worker。若本地绑定失败，不把已经由钱包确认成功的广播伪报为 DApp 失败，而是将仍可恢复的草稿置为待同步核对并保留手动 TxHash 补核路径。
+- `WalletConnectRedirectActivity` 现在校验回调 URI 必须为 `airdrophunter://request`，拒绝通过显式 Intent 注入的其他 URI；并在处理回调前确保 AppKit 已初始化，覆盖 Android 在外部钱包停留期间杀进程、随后由 redirect Activity 冷启动的场景。初始化等待设有 15 秒上限，失败时记录错误并退出，不假装回调已处理。
+- MainActivity 的冷启动 `onCreate(intent)` 与复用实例的 `onNewIntent(intent)` 均调用交易回调处理；回调 Hash 仍需匹配草稿随机 callbackState、chainId、格式和可绑定状态。独立 WalletConnect redirect 与交易 Hash callback 继续使用不同 host，避免互相误处理。
+- 后台恢复仍由 Application 的 ProcessLifecycleOwner 在进程回到前台时扫描超时钱包请求并重新调度所有有 Hash 的待查回执；WorkManager 对每个 draft 使用唯一任务。超时仅表示待同步核对，不代表链上失败。
+- 静态审计发现并修复了“DApp 先收到成功、Room 后异步写 Hash”的崩溃窗口；尚未运行 Android 编译或测试，因此 Activity/SDK 生命周期与 Reown 1.3.3 的实际回调仍需最终构建和真机验证。
+- 本轮未运行 Gradle、CI 或 APK 构建；PR #135 保持 Draft/Open/Unmerged。
