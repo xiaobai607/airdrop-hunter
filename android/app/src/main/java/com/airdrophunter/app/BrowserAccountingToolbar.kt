@@ -105,7 +105,9 @@ fun BrowserAccountingToolbar(
     )
     val preferences = remember(context) { context.getSharedPreferences("browser_dock_preferences", android.content.Context.MODE_PRIVATE) }
     var selectedToolIds by remember {
-        mutableStateOf(preferences.getString("selected_tools", null)?.split(",")?.filter { id -> toolOptions.any { it.first == id } }
+        mutableStateOf(preferences.getString("selected_tools", null)?.split(",")
+            ?.map { if (it == "mock_bill") "new_accounting" else it }
+            ?.filter { id -> toolOptions.any { it.first == id } }
             ?.distinct()?.takeIf { it.isNotEmpty() } ?: toolOptions.map { it.first })
     }
     val dragOffsetX = remember { androidx.compose.animation.core.Animatable(0f) }
@@ -196,10 +198,7 @@ fun BrowserAccountingToolbar(
         }
     }
 
-    LaunchedEffect(initialCreateMockBill) {
-        if (initialCreateMockBill) createMockBill()
-    }
-
+    
     fun deleteDraft(bill: PendingBillEntity) {
         scope.launch {
             val ok = runCatching { accountingRepository.deletePendingBill(bill.id) }.isSuccess
@@ -301,14 +300,20 @@ fun BrowserAccountingToolbar(
                                             .coerceIn(-maxHorizontalDrag, maxHorizontalDrag)
                                         val nextY = (dragOffsetY.value + delta.y)
                                             .coerceIn(-maxVerticalDrag, 0f)
-                                        dragOffsetX.snapTo(nextX)
-                                        dragOffsetY.snapTo(nextY)
+                                        dragUpdateJob?.cancel()
+                                        dragUpdateJob = scope.launch {
+                                            dragOffsetX.snapTo(nextX)
+                                            dragOffsetY.snapTo(nextY)
+                                        }
                                         change.consume()
                                     }
                                     lastPosition = change.position
                                 }
                             }
-                            scope.launch {\n                                dragUpdateJob?.join()\n                                animateDockToEdge()\n                            }
+                            scope.launch {\n                                dragUpdateJob?.join()\n                                scope.launch {
+                                dragUpdateJob?.join()
+                                animateDockToEdge()
+                            }\n                            }
                         }
                     }
                 }
@@ -536,8 +541,13 @@ fun BrowserAccountingToolbar(
                             }
                         }
                     }
-                    Button(onClick = { if (showDock) showBillList = false else onCloseAccounting() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
-                        Text("完成")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { createManualAccountingEntry() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
+                            Text("＋ 新增记账")
+                        }
+                        Button(onClick = { if (showDock) showBillList = false else onCloseAccounting() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
+                            Text("完成")
+                        }
                     }
                 }
             }
