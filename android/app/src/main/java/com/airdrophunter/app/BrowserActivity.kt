@@ -33,6 +33,7 @@ import com.google.accompanist.navigation.material.BottomSheetNavigator
 import com.reown.appkit.client.AppKit
 import com.reown.appkit.client.Modal
 import com.reown.appkit.client.models.request.Request as ExternalWalletRequest
+import com.reown.appkit.client.models.request.SentRequestResult
 import com.reown.appkit.ui.appKitGraph
 import com.reown.appkit.ui.openAppKit
 import androidx.compose.animation.core.animateFloatAsState
@@ -80,7 +81,8 @@ private data class PendingDappExternalRequest(
     val origin: String,
     val replyProxy: JavaScriptReplyProxy,
     val sessionTopic: String,
-    val chainId: String
+    val chainId: String,
+    val walletConnectRequestId: Long? = null
 )
 
 class BrowserActivity : ComponentActivity() {
@@ -220,10 +222,16 @@ private fun BrowserScreen(
     LaunchedEffect(Unit) {
         WalletConnectSessionDelegate.requestResponses.collect { response ->
             val pending = pendingDappExternalRequest
-            if (pending != null &&
-                response.topic == pending.sessionTopic &&
-                response.method.equals(pending.request.method, ignoreCase = true) &&
-                (response.chainId.isNullOrBlank() || response.chainId == pending.chainId)
+            if (pending != null && DappProviderBridge.isMatchingExternalWalletResponse(
+                    pending.walletConnectRequestId,
+                    response.result.id,
+                    pending.sessionTopic,
+                    response.topic,
+                    pending.request.method,
+                    response.method,
+                    pending.chainId,
+                    response.chainId
+                )
             ) {
                 when (val result = response.result) {
                     is Modal.Model.JsonRpcResponse.JsonRpcResult ->
@@ -456,7 +464,27 @@ private fun BrowserScreen(
                                                                         method = request.method,
                                                                         params = request.params.toString()
                                                                     ),
-                                                                    onSuccess = { _ -> },
+                                                                    onSuccess = { sentRequest ->
+                                                                        dappRequestScope.launch {
+                                                                            val current = pendingDappExternalRequest
+                                                                            if (current?.request?.id == request.id) {
+                                                                                val walletConnectRequest = sentRequest as? SentRequestResult.WalletConnect
+                                                                                if (walletConnectRequest == null ||
+                                                                                    walletConnectRequest.sessionTopic != current.sessionTopic
+                                                                                ) {
+                                                                                    DappProviderBridge.error(
+                                                                                        replyProxy, request.id, 4200,
+                                                                                        "无法确认外部钱包请求编号，已安全取消本次请求"
+                                                                                    )
+                                                                                    pendingDappExternalRequest = null
+                                                                                } else {
+                                                                                    pendingDappExternalRequest = current.copy(
+                                                                                        walletConnectRequestId = walletConnectRequest.requestId
+                                                                                    )
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    },
                                                                     onError = { error: Throwable ->
                                                                         dappRequestScope.launch {
                                                                             if (pendingDappExternalRequest?.request?.id == request.id) {
