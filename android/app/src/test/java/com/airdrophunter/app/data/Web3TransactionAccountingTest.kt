@@ -318,4 +318,35 @@ class Web3TransactionAccountingTest {
             )
         )
     }
+
+    @Test
+    fun walletResponseRecoveryRequiresExpectedMethodTopicChainAndHash() {
+        val hash = "0x" + "a".repeat(64)
+        val topic = "session-topic-123"
+        assertTrue(
+            Web3WalletResponseIdentityVerifier.matches(
+                "eth_sendTransaction", topic, 1L, hash
+            )
+        )
+        assertFalse(
+            Web3WalletResponseIdentityVerifier.matches(
+                "personal_sign", topic, 1L, hash
+            )
+        )
+        assertFalse(
+            Web3WalletResponseIdentityVerifier.matches(
+                "eth_sendTransaction", null, 1L, hash
+            )
+        )
+        assertFalse(
+            Web3WalletResponseIdentityVerifier.matches(
+                "eth_sendTransaction", topic, 0L, hash
+            )
+        )
+        assertFalse(
+            Web3WalletResponseIdentityVerifier.matches(
+                "eth_sendTransaction", topic, 1L, "0x1234"
+            )
+        )
+    }
 }
