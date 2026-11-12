@@ -662,7 +662,7 @@ fun BrowserAccountingToolbar(
                                                     web3HashSyncDraftId = draft.id
                                                     web3HashSyncInput = ""
                                                     showWeb3HashSync = true
-                                                }) { Text("补录 Hash") }
+                                                }) { Text("同步链上记录") }
                                             }
                                             else -> Unit
                                         }
