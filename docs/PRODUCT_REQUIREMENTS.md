@@ -2791,3 +2791,12 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **钱包 SDK 初始化状态更正：** 当前 `AirdropHunterApplication.onCreate()` 只初始化 `ApiClient`；`WalletConnectInitializer` 提供 `ensureInitialized()` 与 `ready` StateFlow，在首次钱包管理或浏览器 DApp 流程中延迟初始化。此前文档中“仍在 Application.onCreate 同步初始化”的描述已被后续提交覆盖，以上述当前源码为准。
 - **行情设置与迁移：** Room 数据库 version=22，实体列表包含 `MarketDashboardPreferenceEntity`，注册 21→22 migration 建表；首页编辑支持六币选择、至少保留一个、恢复默认并通过 `CacheStore.saveMarketDashboardSymbols` 保存。旧数据库真实升级仍须最终安装测试。
 - **本轮不触发 APK 构建：** 按用户明确指示，当前仅做源码审查和需求记录；未运行最终构建、未安装真机 APK、未发布、未合并 PR。下次代码修正优先处理 Dock 的双 Animatable 更新竞争，并检查 MainActivity 的启动任务幂等性与手动记账完整生命周期。
+
+
+### 2026-11-12 — 浏览器 Dock 二维拖动更新收敛方案（先登记需求）
+
+- 复核当前实现后确认：每次手指移动都会取消/重启更新 Job，并分别调用 X/Y 两个 Animatable 的 snapTo；Job 若在两次更新之间被取消，可能出现单轴更新暂时落后。
+- 修正方案：将 Dock 的 X/Y 位置统一为一个二维 Offset 状态/动画对象；在同一长按手势协程内原子更新完整坐标，不再为每个 pointer move 创建或取消更新 Job。松手后以单一二维动画执行边缘吸附。
+- 必须保留：长按才拖动、短按仍触发工具、LazyRow 内部横向滑动、垂直拖动不强制改变横向位置、水平移动后左右边缘吸附、垂直安全边界约束、位置不写入持久化存储。
+- 验收边界：源码确认不存在双 Animatable/每帧可取消更新 Job；最终统一 APK 真机测试长按、短按、内部横滑、快速斜向拖动、左右吸附、垂直边界和退出重进复位。此修正未授权提前构建 APK。
+- **状态：修正方案已登记，待实施；CI/真机验收待整批构建后执行。**
