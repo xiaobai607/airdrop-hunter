@@ -310,10 +310,10 @@ fun BrowserAccountingToolbar(
                                     lastPosition = change.position
                                 }
                             }
-                            scope.launch {\n                                dragUpdateJob?.join()\n                                scope.launch {
+                            scope.launch {
                                 dragUpdateJob?.join()
                                 animateDockToEdge()
-                            }\n                            }
+                            }
                         }
                     }
                 }
