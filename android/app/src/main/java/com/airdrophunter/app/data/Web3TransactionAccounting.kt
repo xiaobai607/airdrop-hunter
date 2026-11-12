@@ -130,7 +130,7 @@ object WalletTransactionLinkParser {
     private val addressPattern = Regex("^0x[a-fA-F0-9]{40}$")
     private val dataPattern = Regex("^0x([a-fA-F0-9]{2})*$")
     private val maxUint256 = BigInteger.ONE.shiftLeft(256).subtract(BigInteger.ONE)
-    private const val MAX_CALLDATA_LENGTH = 262_146
+    const val MAX_CALLDATA_LENGTH = 262_146
 
     fun parse(uri: Uri): ParsedWalletTransaction? {
         val scheme = uri.scheme?.lowercase() ?: return null
@@ -349,7 +349,7 @@ class Web3TransactionRepository(
         val rawData = transaction.optString("data")
             .ifBlank { transaction.optString("input") }
             .ifBlank { "0x" }
-        require(rawData.length <= MAX_CALLDATA_LENGTH &&
+        require(rawData.length <= WalletTransactionLinkParser.MAX_CALLDATA_LENGTH &&
             rawData.matches(Regex("^0x([a-fA-F0-9]{2})*$"))) {
             "交易 data 参数无效或超过安全长度"
         }
