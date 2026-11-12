@@ -136,6 +136,7 @@ fun HomeScreen(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("行情看板", color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
                 TextButton(onClick = {
                     marketSymbolDraft = marketSymbols.toSet()
                     showMarketEditor = true
@@ -171,7 +172,10 @@ fun HomeScreen(
                         val visibleMarket = state.market.filter { ticker ->
                             ticker.symbol.substringBefore("-").uppercase(Locale.US) in marketSymbols
                         }
-                        visibleMarket.forEachIndexed { index, ticker ->
+                        if (visibleMarket.isEmpty()) {
+                            Text("所选币种暂无行情数据", modifier = Modifier.padding(18.dp),
+                                color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                        } else visibleMarket.forEachIndexed { index, ticker ->
                             MarketRow(ticker)
                             if (index != visibleMarket.lastIndex) HorizontalDivider(color = AppColors.Border)
                         }
