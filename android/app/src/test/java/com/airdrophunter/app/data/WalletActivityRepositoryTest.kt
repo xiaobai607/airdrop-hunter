@@ -119,8 +119,13 @@ class WalletActivityRepositoryTest {
         repository.refresh(wallet, guest = true, accessToken = null)
         assertEquals(1, remote.chainCalls.size)
 
-        repository.refresh(wallet, guest = true, accessToken = null, manual = true)
-        assertEquals(1, remote.chainCalls.size)
+        val firstManual = repository.refresh(wallet, guest = true, accessToken = null, manual = true)
+        assertEquals(2, remote.chainCalls.size)
+        assertTrue(!firstManual.throttled)
+
+        val repeatedManual = repository.refresh(wallet, guest = true, accessToken = null, manual = true)
+        assertEquals(2, remote.chainCalls.size)
+        assertTrue(repeatedManual.throttled)
         assertEquals(1, metadata.size)
         assertTrue(metadata.keys.single().first.startsWith("guest:wallet-1:tron"))
     }
