@@ -2976,3 +2976,12 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 回执状态更新改为条件 SQL，只允许 `waiting_receipt / waiting_l1_fee / waiting_operator_fee / receipt_needs_sync / timed_out_needs_sync` 状态参与更新。迟到 Worker 不得把 `CONFIRMED / CONFIRMED_FAILED / ACCOUNTED` 或取消状态覆盖回待同步/等待回执。
 - 修复 30 秒超时 Worker 与 WalletConnect `onSuccess` 竞态：钱包请求编号/Session Topic 绑定 SQL 现在只接受 `pending_wallet / waiting_hash / timed_out_needs_sync`；若超时先发生，绑定请求元数据时保留 `timed_out_needs_sync`，不会错误回退到 `waiting_hash`。后续迟到 Hash 仍可按已校验的 request/topic/chain 绑定。
 - 新增纯 Kotlin 状态策略测试，覆盖 ACCOUNTED 终态和回执状态可更新边界。源码静态检查可确认这些条件已写入；未运行 Gradle/单元测试/CI/APK，Room SQL 与 WorkManager 并发行为仍须最终构建和设备验收。
+
+
+### 2026-11-13 — DApp 多账户/多链请求归属校验（源码修正，未构建）
+
+- 审计发现 WalletConnect Session 可能同时包含同一 EVM 地址在多个 chainId 下的授权账户；旧逻辑只按地址去重，会丢失同地址的其他链授权信息，导致账户与链的关联依赖返回顺序。
+- 账户列表现在按 `chainId + address` 组合去重，保留同一地址在不同链上的独立授权记录。
+- DApp 发起签名/交易请求时，不再默认使用 Session 列表第一项账户。现在先从 `personal_sign`、`eth_sign/eth_signTypedData` 或交易对象的 `from` 字段提取请求账户，再要求该地址同时存在于已授权 Session、且其 chainId 与当前 AppKit 活动 EVM 网络一致；找不到唯一匹配账户时拒绝转发，不创建错误归属的交易草稿。
+- 这样可避免“请求使用第二个已授权地址，但本地 Web3 草稿错误记到第一个地址/另一条链”的账务归属问题。新增请求账户提取测试；现有授权地址校验仍作为第二道门禁。
+- 本轮源码和测试已提交到 PR #135 分支；尚未运行 Gradle 编译/单元测试、CI、APK 构建或真机多链会话验收。PR #135 继续保持 Draft/Open/Unmerged。
