@@ -2877,7 +2877,7 @@ Implementation status: requirement approved; existing coordinator already has a 
 - **数据边界：** 新增链上交易草稿实体/DAO，避免把 estimate/receipt 状态塞进现有 PendingBillEntity 的 MANUAL- 手动记账语义；个人账本仍 local-first，不启用注册、登录或私人云同步。真实链上交易费用与用户填写的实际收益分开存储。
 - **安全约束：** 不信任 Deep Link 中的任意 RPC URL；不自动签名、不自动广播、不保存私钥；外部钱包仍须由用户在钱包内确认。无回调、用户拒绝、钱包未安装、RPC 不可用均不得伪造成功记录。
 - **验收：** 覆盖 scheme 拦截、无钱包 App、无效参数、预估失败、用户拒绝、钱包返回 Hash、无 Hash 回调、冷启动恢复、重复回调、receipt Pending/Confirmed/Failed、L2 L1 fee、价格缺失、进程杀死后补单、重复同步及用户覆盖字段。最终 APK 统一构建，不提前触发 CI/APK。
-- **状态：** 需求已登记；代码、CI 和真机验收均待实施。PR #135 保持 Draft/Open/Unmerged。
+- **状态：** 需求已登记；第一轮核心代码已落入分支，最终编译、CI 和真机验收待完成。PR #135 保持 Draft/Open/Unmerged。
 
 ### 2026-11-12 — Web3 半自动记账第一轮代码落地（未构建）
 
