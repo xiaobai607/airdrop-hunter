@@ -44,6 +44,9 @@ object Web3DraftStatus {
     const val CANCELLED = "cancelled"
     const val ACCOUNTED = "accounted"
     const val WALLET_UNAVAILABLE = "wallet_unavailable"
+
+    fun canAttachHash(status: String): Boolean =
+        status in setOf(PENDING_WALLET, WAITING_HASH, TIMED_OUT_NEEDS_SYNC)
 }
 
 @Entity(
@@ -113,7 +116,7 @@ interface Web3TransactionDraftDao {
     @Query("UPDATE web3_transaction_drafts SET walletConnectRequestId = :requestId, status = 'waiting_hash', updatedAt = :now WHERE id = :id AND accountScope = :scope AND walletConnectRequestId IS NULL")
     suspend fun bindWalletRequest(id: String, scope: String, requestId: Long, now: Long): Int
 
-    @Query("UPDATE web3_transaction_drafts SET txHash = :hash, status = 'waiting_receipt', lastError = NULL, updatedAt = :now WHERE id = :id AND accountScope = :scope AND txHash IS NULL")
+    @Query("UPDATE web3_transaction_drafts SET txHash = :hash, status = 'waiting_receipt', lastError = NULL, updatedAt = :now WHERE id = :id AND accountScope = :scope AND txHash IS NULL AND status IN ('pending_wallet','waiting_hash','timed_out_needs_sync')")
     suspend fun attachHash(id: String, scope: String, hash: String, now: Long): Int
 
     @Query("UPDATE web3_transaction_drafts SET status = :status, lastError = :error, updatedAt = :now WHERE id = :id AND accountScope = :scope")
@@ -566,6 +569,7 @@ class Web3TransactionRepository(
         val draft = dao.find(draftId, scope) ?: return false
         if (draft.walletConnectRequestId != requestId || draft.chainId != chainId) return false
         if (draft.txHash != null) return draft.txHash.equals(hash, true)
+        if (!Web3DraftStatus.canAttachHash(draft.status)) return false
         return dao.attachHash(draftId, scope, hash.lowercase(), System.currentTimeMillis()) == 1
     }
 
@@ -581,6 +585,7 @@ class Web3TransactionRepository(
         if (!constantTimeEquals(draft.callbackState, callbackState)) return false
         if (draft.chainId != chainId) return false
         if (draft.txHash != null) return draft.txHash.equals(hash, true)
+        if (!Web3DraftStatus.canAttachHash(draft.status)) return false
         return dao.attachHash(draftId, scope, hash.lowercase(), System.currentTimeMillis()) == 1
     }
 
@@ -720,9 +725,7 @@ class Web3TransactionRepository(
         if (!isValidTxHash(hash)) return false
         val draft = dao.find(draftId, scopeProvider()) ?: return false
         if (draft.txHash != null) return draft.txHash.equals(hash, true)
-        if (draft.status !in setOf(Web3DraftStatus.TIMED_OUT_NEEDS_SYNC, Web3DraftStatus.PENDING_WALLET, Web3DraftStatus.WAITING_HASH)) {
-            return false
-        }
+        if (!Web3DraftStatus.canAttachHash(draft.status)) return false
         val transaction = rpc.getTransaction(draft.chainId, hash) ?: return false
         val actualHash = transaction.optString("hash").takeIf { it.isNotBlank() && it != "null" }
         val from = transaction.optString("from").takeIf { it.isNotBlank() && it != "null" }
