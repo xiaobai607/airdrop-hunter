@@ -94,9 +94,9 @@ fun BrowserAccountingToolbar(
     var creatingMockBill by remember { mutableStateOf(false) }
     var showToolManager by remember { mutableStateOf(false) }
     val toolOptions = listOf(
-        "mock_bill" to "模拟账单",
+        "mock_bill" to "本地演示记录",
         "copy_address" to "复制地址",
-        "pending_bills" to "待确认账单",
+        "pending_bills" to "待确认记录",
         "refresh_page" to "刷新网页",
         "copy_url" to "复制网址",
         "open_external" to "外部打开"
@@ -186,14 +186,14 @@ fun BrowserAccountingToolbar(
                     txHash = mockHash,
                     walletAddress = walletAddress.ifBlank { "MOCK-WALLET-LOCAL" },
                     gasCostUsd = mockGasSamples[pending.size % mockGasSamples.size],
-                    interactionMethod = "模拟合约交互",
+                    interactionMethod = "本地演示交互",
                     timestamp = System.currentTimeMillis(),
                     chain = chainName.ifBlank { "unknown" }
                 )
                 accountingRepository.addPendingBill(bill)
                 openBill(bill)
             } catch (_: Exception) {
-                Toast.makeText(context, "模拟账单创建失败，请重试", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "本地演示记录创建失败，请重试", Toast.LENGTH_SHORT).show()
             } finally {
                 creatingMockBill = false
             }
@@ -305,10 +305,8 @@ fun BrowserAccountingToolbar(
                                             .coerceIn(-maxHorizontalDrag, maxHorizontalDrag)
                                         val nextY = (dragOffsetY.value + delta.y)
                                             .coerceIn(-maxVerticalDrag, 0f)
-                                        scope.launch {
-                                            dragOffsetX.snapTo(nextX)
-                                            dragOffsetY.snapTo(nextY)
-                                        }
+                                        dragOffsetX.snapTo(nextX)
+                                        dragOffsetY.snapTo(nextY)
                                         change.consume()
                                     }
                                     lastPosition = change.position
@@ -531,7 +529,7 @@ fun BrowserAccountingToolbar(
                                             verticalArrangement = Arrangement.spacedBy(3.dp)
                                         ) {
                                             Text(String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd), color = Color(0xFF9A5A16), fontWeight = FontWeight.Bold)
-                                            Text("模拟账单 · " + bill.interactionMethod, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                            Text((if (bill.txHash.startsWith("MOCK-")) "本地演示记录 · " else "待确认交易 · ") + bill.interactionMethod, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                                             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                                         }
                                         IconButton(onClick = { deleteDraft(bill) }) {
@@ -586,7 +584,7 @@ fun BrowserAccountingToolbar(
                             Icon(Icons.Default.Close, contentDescription = "关闭确认弹窗", tint = AppColors.TextSecondary)
                         }
                     }
-                    Text("模拟账单：\${bill.txHash.take(16)}…", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    Text((if (bill.txHash.startsWith("MOCK-")) "本地演示记录：" else "待确认交易：") + "\${bill.txHash.take(16)}…", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     OutlinedTextField(
                         value = gas,
                         onValueChange = { gas = it; gasValuationTimestamp = Instant.now().toString(); gasValuationSource = "user_input" },
@@ -637,11 +635,54 @@ fun BrowserAccountingToolbar(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1.2f)
                         )
-                        OutlinedTextField(
-                            value = gasSymbol, onValueChange = { gasSymbol = it.uppercase(Locale.US); gasValuationTimestamp = null; gasValuationSource = null },
-                            label = { Text("Gas 币种") }, singleLine = true,
-                            modifier = Modifier.weight(0.8f)
-                        )
+                        val gasSymbolChoices = remember(chainName) {
+                            val chain = chainName.lowercase(Locale.US)
+                            when {
+                                "tron" in chain -> listOf("TRX")
+                                "sol" in chain -> listOf("SOL")
+                                "bsc" in chain || "bnb" in chain || "binance" in chain -> listOf("BNB")
+                                "polygon" in chain -> listOf("POL", "MATIC")
+                                "ethereum" in chain || chain == "eth" -> listOf("ETH")
+                                else -> listOf("ETH", "BNB", "TRX", "SOL", "POL", "MATIC")
+                            }
+                        }
+                        var gasSymbolMenuExpanded by remember { mutableStateOf(false) }
+                        var gasSymbolCustom by remember { mutableStateOf(gasSymbol.isNotBlank() && gasSymbol !in gasSymbolChoices) }
+                        Box(Modifier.weight(0.8f)) {
+                            if (gasSymbolCustom) {
+                                OutlinedTextField(
+                                    value = gasSymbol,
+                                    onValueChange = { gasSymbol = it.uppercase(Locale.US); gasValuationTimestamp = null; gasValuationSource = null },
+                                    label = { Text("Gas 币种") }, singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    trailingIcon = {
+                                        TextButton(onClick = { gasSymbolCustom = false; gasSymbol = gasSymbolChoices.firstOrNull().orEmpty() }) {
+                                            Text("选择")
+                                        }
+                                    }
+                                )
+                            } else {
+                                OutlinedButton(onClick = { gasSymbolMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                                    Text(gasSymbol.ifBlank { "Gas 币种" }, maxLines = 1)
+                                }
+                                DropdownMenu(expanded = gasSymbolMenuExpanded, onDismissRequest = { gasSymbolMenuExpanded = false }) {
+                                    gasSymbolChoices.forEach { symbol ->
+                                        DropdownMenuItem(text = { Text(symbol) }, onClick = {
+                                            gasSymbol = symbol
+                                            gasSymbolCustom = false
+                                            gasSymbolMenuExpanded = false
+                                            gasValuationTimestamp = null
+                                            gasValuationSource = null
+                                        })
+                                    }
+                                    DropdownMenuItem(text = { Text("自定义币种") }, onClick = {
+                                        gasSymbol = ""
+                                        gasSymbolCustom = true
+                                        gasSymbolMenuExpanded = false
+                                    })
+                                }
+                            }
+                        }
                     }
                     OutlinedTextField(
                         value = gasDecimals, onValueChange = { gasDecimals = it.filter(Char::isDigit).take(2) },
