@@ -672,7 +672,10 @@ class Web3TransactionRepository(
     suspend fun markReceiptNeedsManualSync(draftId: String) {
         dao.setStatus(
             draftId, scopeProvider(), Web3DraftStatus.RECEIPT_NEEDS_SYNC,
-            "链上回执自动核验达到重试上限，请重新同步", System.currentTimeMillis()
+            if (Web3RpcRegistry.endpoint(findById(draftId)?.chainId ?: -1L) == null)
+                "当前链尚未配置受信任 RPC，需手动记账"
+            else "链上回执自动核验达到重试上限，请重新同步",
+            System.currentTimeMillis()
         )
     }
 
@@ -724,6 +727,10 @@ class Web3ReceiptWorker(
         val repository = app.appContainer.web3TransactionRepository
         val draft = repository.findById(draftId) ?: return Result.success()
         if (draft.txHash.isNullOrBlank()) return Result.success()
+        if (Web3RpcRegistry.endpoint(draft.chainId) == null) {
+            repository.markReceiptNeedsManualSync(draftId)
+            return Result.success()
+        }
 
         return try {
             val receipt = repository.getReceipt(draft)
