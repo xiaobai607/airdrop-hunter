@@ -78,6 +78,7 @@ data class Web3TransactionDraftEntity(
     val dataHex: String?,
     val callbackState: String,
     val walletConnectRequestId: Long?,
+    val walletConnectSessionTopic: String? = null,
     val txHash: String?,
     val status: String,
     val estimatedGas: String?,
@@ -146,8 +147,8 @@ interface Web3TransactionDraftDao {
     @Query("SELECT * FROM web3_transaction_drafts WHERE id = :id AND accountScope = :scope LIMIT 1")
     suspend fun find(id: String, scope: String): Web3TransactionDraftEntity?
 
-    @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND walletConnectRequestId = :requestId LIMIT 1")
-    suspend fun findByWalletRequest(scope: String, requestId: Long): Web3TransactionDraftEntity?
+    @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND walletConnectRequestId = :requestId AND walletConnectSessionTopic = :sessionTopic")
+    suspend fun findByWalletRequest(scope: String, requestId: Long, sessionTopic: String): List<Web3TransactionDraftEntity>
 
     @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('waiting_receipt','waiting_l1_fee','waiting_operator_fee','receipt_needs_sync','timed_out_needs_sync') AND txHash IS NOT NULL")
     suspend fun receiptCandidates(scope: String): List<Web3TransactionDraftEntity>
@@ -158,8 +159,8 @@ interface Web3TransactionDraftDao {
     @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope = :scope AND status IN ('pending_wallet','waiting_hash') AND updatedAt <= :cutoff")
     suspend fun staleWalletRequests(scope: String, cutoff: Long): List<Web3TransactionDraftEntity>
 
-    @Query("UPDATE web3_transaction_drafts SET walletConnectRequestId = :requestId, status = 'waiting_hash', updatedAt = :now WHERE id = :id AND accountScope = :scope AND walletConnectRequestId IS NULL")
-    suspend fun bindWalletRequest(id: String, scope: String, requestId: Long, now: Long): Int
+    @Query("UPDATE web3_transaction_drafts SET walletConnectRequestId = :requestId, walletConnectSessionTopic = :sessionTopic, status = 'waiting_hash', updatedAt = :now WHERE id = :id AND accountScope = :scope AND walletConnectRequestId IS NULL")
+    suspend fun bindWalletRequest(id: String, scope: String, requestId: Long, sessionTopic: String, now: Long): Int
 
     @Query("UPDATE web3_transaction_drafts SET txHash = :hash, status = 'waiting_receipt', lastError = NULL, updatedAt = :now WHERE id = :id AND accountScope = :scope AND txHash IS NULL AND status IN ('pending_wallet','waiting_hash','timed_out_needs_sync')")
     suspend fun attachHash(id: String, scope: String, hash: String, now: Long): Int
@@ -607,10 +608,34 @@ class Web3TransactionRepository(
         }
     }
 
-    suspend fun bindWalletConnectRequest(draftId: String, requestId: Long): Boolean {
+    suspend fun bindWalletConnectRequest(draftId: String, requestId: Long, sessionTopic: String): Boolean {
+        if (sessionTopic.isBlank() || sessionTopic.length > 256) return false
         return dao.bindWalletRequest(
-            draftId, scopeProvider(), requestId, System.currentTimeMillis()
+            draftId, scopeProvider(), requestId, sessionTopic, System.currentTimeMillis()
         ) == 1
+    }
+
+    /**
+     * Reconciles a WalletConnect success after BrowserActivity's in-memory JS bridge
+     * has been lost. Only one exact request/topic/chain match may receive the hash.
+     */
+    suspend fun attachWalletConnectResponse(
+        requestId: Long,
+        sessionTopic: String,
+        chainId: Long,
+        hash: String
+    ): String? {
+        if (!isValidTxHash(hash) || sessionTopic.isBlank() || chainId <= 0) return null
+        val scope = scopeProvider()
+        val candidates = dao.findByWalletRequest(scope, requestId, sessionTopic)
+            .filter { it.chainId == chainId }
+        if (candidates.size != 1) return null
+        val draft = candidates.single()
+        if (draft.txHash != null) return draft.id.takeIf { draft.txHash.equals(hash, true) }
+        if (!Web3DraftStatus.canAttachHash(draft.status)) return null
+        return draft.id.takeIf {
+            dao.attachHash(it, scope, hash.lowercase(), System.currentTimeMillis()) == 1
+        }
     }
 
     suspend fun attachWalletConnectHash(
