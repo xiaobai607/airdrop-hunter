@@ -83,6 +83,42 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun arbitrumReceiptGasUsedAlreadyIncludesL1Component() {
+        val fees = Web3ReceiptFeeCalculator.calculate(
+            chainId = 42161L,
+            gasUsed = BigInteger("23000"),
+            effectiveGasPrice = BigInteger("100"),
+            l1FeeWei = BigInteger("200000")
+        )!!
+        assertEquals(BigInteger("2300000"), fees.totalFeeWei)
+        assertEquals(BigInteger("200000"), fees.l1FeeWei)
+        assertEquals(BigInteger("2100000"), fees.l2FeeWei)
+    }
+
+    @Test
+    fun optimismAddsReceiptL1FeeOnTopOfExecutionFee() {
+        val fees = Web3ReceiptFeeCalculator.calculate(
+            chainId = 10L,
+            gasUsed = BigInteger("21000"),
+            effectiveGasPrice = BigInteger("100"),
+            l1FeeWei = BigInteger("500000")
+        )!!
+        assertEquals(BigInteger("2600000"), fees.totalFeeWei)
+        assertEquals(BigInteger("500000"), fees.l1FeeWei)
+        assertEquals(BigInteger("2100000"), fees.l2FeeWei)
+    }
+
+    @Test
+    fun arbitrumRejectsL1ComponentLargerThanReceiptGasTotal() {
+        assertNull(
+            Web3ReceiptFeeCalculator.calculate(
+                42161L, BigInteger("100"), BigInteger("10"),
+                BigInteger("2000")
+            )
+        )
+    }
+
+    @Test
     fun ethereumDoesNotInventSeparateL1Fee() {
         assertEquals(
             BigInteger.ZERO,
