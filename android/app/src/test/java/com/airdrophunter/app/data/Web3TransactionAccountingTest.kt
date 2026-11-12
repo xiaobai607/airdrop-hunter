@@ -46,6 +46,69 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun manualHashVerificationRequiresExactHashAndRequestFields() {
+        val hash = "0x" + "a".repeat(64)
+        val address = "0x" + "b".repeat(40)
+        val recipient = "0x" + "c".repeat(40)
+        val calldata = "0x1234"
+        val value = BigInteger("100")
+
+        assertTrue(
+            Web3ManualTransactionVerifier.matches(
+                hash, hash.uppercase(), address, address.uppercase(),
+                recipient, recipient.uppercase(), value, value,
+                calldata, calldata.uppercase()
+            )
+        )
+        assertFalse(
+            Web3ManualTransactionVerifier.matches(
+                hash, "0x" + "d".repeat(64), address, address,
+                recipient, recipient, value, value, calldata, calldata
+            )
+        )
+    }
+
+    @Test
+    fun manualHashVerificationRejectsMissingOrMismatchedCalldata() {
+        val hash = "0x" + "a".repeat(64)
+        val address = "0x" + "b".repeat(40)
+        val recipient = "0x" + "c".repeat(40)
+        val calldata = "0x1234"
+
+        assertFalse(
+            Web3ManualTransactionVerifier.matches(
+                hash, hash, address, address, recipient, recipient,
+                BigInteger.ZERO, BigInteger.ZERO, calldata, null
+            )
+        )
+        assertFalse(
+            Web3ManualTransactionVerifier.matches(
+                hash, hash, address, address, recipient, recipient,
+                BigInteger.ZERO, BigInteger.ZERO, calldata, "0xabcd"
+            )
+        )
+    }
+
+    @Test
+    fun manualHashVerificationRejectsMissingSenderAndValue() {
+        val hash = "0x" + "a".repeat(64)
+        val address = "0x" + "b".repeat(40)
+
+        assertFalse(
+            Web3ManualTransactionVerifier.matches(
+                hash, hash, address, null, null, null,
+                null, null, null, null
+            )
+        )
+        assertFalse(
+            Web3ManualTransactionVerifier.matches(
+                hash, hash, address, address, null, null,
+                BigInteger.ONE, null, null, null
+            )
+        )
+    }
+
+    @Test
     fun arbitrumL1FeeUsesGasUsedForL1InChildGasUnits() {
         val fee = Web3ReceiptFeeParser.l1FeeWei(
             chainId = 42161L,
