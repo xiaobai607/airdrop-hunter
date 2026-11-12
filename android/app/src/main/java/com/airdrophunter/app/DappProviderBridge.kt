@@ -132,6 +132,26 @@ internal object DappProviderBridge {
     fun isSupportedExternalWalletMethod(method: String): Boolean =
         method.trim().lowercase() in externalWalletMethods
 
+    /** Reject transaction payloads that explicitly target a different EVM chain. */
+    fun isTransactionChainCompatible(method: String, requestedChainId: String?, activeChainId: String): Boolean {
+        if (method.trim().lowercase() !in setOf("eth_sendtransaction", "eth_signtransaction")) return true
+        if (requestedChainId.isNullOrBlank()) return true
+        val requested = runCatching {
+            if (requestedChainId.startsWith("0x", ignoreCase = true)) {
+                requestedChainId.substring(2).toLong(16)
+            } else {
+                requestedChainId.toLong()
+            }
+        }.getOrNull() ?: return false
+        val active = activeChainId.removePrefix("eip155:").removePrefix("0x").let { raw ->
+            runCatching {
+                if (activeChainId.removePrefix("eip155:").startsWith("0x", ignoreCase = true)) raw.toLong(16)
+                else raw.toLong()
+            }.getOrNull()
+        } ?: return false
+        return requested == active
+    }
+
     /** Extract the exact account requested by a signing/transaction method. */
     fun requestedAccountAddress(
         method: String,
