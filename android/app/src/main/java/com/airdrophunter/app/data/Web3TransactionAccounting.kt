@@ -49,8 +49,8 @@ object Web3DraftStatus {
     indices = [
         Index(value = ["accountScope", "createdAt"]),
         Index(value = ["accountScope", "status"]),
-        Index(value = ["chainId", "txHash"], unique = true),
-        Index(value = ["walletConnectRequestId"], unique = true)
+        Index(value = ["accountScope", "chainId", "txHash"], unique = true),
+        Index(value = ["accountScope", "walletConnectRequestId"])
     ]
 )
 data class Web3TransactionDraftEntity(
