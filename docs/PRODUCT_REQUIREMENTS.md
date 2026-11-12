@@ -2317,3 +2317,15 @@ User correction: tapping refresh repeatedly must **not** cause one real provider
 - Acceptance: first eligible manual tap causes at most one fetch; repeated taps within 30 seconds cause zero additional fetches and show the transient message; after cooldown, a new tap can fetch; account/wallet/network scopes remain independent; UI retains the previous snapshot throughout.
 
 Implementation status: requirement approved; existing coordinator already has a 30-second manual throttle, but wallet transaction UI currently bypasses it with `force=true`. Balance repository/UI must also be verified to return and display the throttle state.
+
+
+### 2026-11-12 — wallet manual-refresh cooldown implementation verified
+
+- Exact-head Android workflow **#43147830389** completed successfully on code commit `38768e5c6f3ef0f58406e1941636010adae2ed5d`: Android build, unit tests, Debug APK assembly and artifact upload all passed. Backend tests were skipped because this change set was Android-only.
+- Wallet transaction history now passes `manual=true` for user-triggered refresh rather than bypassing the cooldown with `force=true`; the repository returns the coordinator's `throttled` state. The existing background worker's `force` API remains compatible.
+- Wallet balances now use the shared refresh coordinator while retaining the existing account/wallet/chain-scoped Room payload. The balance and transaction screens display a short Android Toast when the shared 30-second manual cooldown blocks a request: “刷新太频繁，请30秒后再试”. Cached snapshots remain the displayed data; a throttled attempt is not represented as a successful fetch.
+- Added/updated repository regression coverage for manual cooldown behavior. This verifies the repository/coordinator path under unit tests; it does not replace physical-device confirmation of Toast visibility or network behavior.
+- **This slice status: Complete in code + exact-head CI; physical-device acceptance pending.** The prior paragraph saying implementation was still pending is superseded for the wallet manual-throttle slice only.
+- Still pending next: implement a scheduled wallet-balance background worker; make the balance UI render cached data immediately before network completion; route the Airdrop Campaign background worker through its coordinator and publish cached campaign rows before awaiting refresh; audit all coordinator callers for ignored `throttled` results. No registration, login, account switching, guest-to-login migration, private cloud restore, or private-record TTL caching is authorized.
+- PR #135 remains **Draft / Open / unmerged** at the verified code head above. No production sync, production deployment or physical-device test is claimed.
+- Progress estimate after this passing slice: **code/CI implementation ~69%**; **overall release readiness ~42%**. These are rounded project-level estimates, not test coverage. Live-data validation, physical-device acceptance, production/recovery and final release gates remain separate and incomplete.
