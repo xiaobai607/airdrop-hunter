@@ -70,10 +70,6 @@ class WalletAssetRepository(
         .takeIf { it.isNotEmpty() }
         ?.map { it.toDomain() }
 
-    private fun cacheKey(walletId: String, chain: String, accessToken: String?): String =
-        CacheRefreshPolicy.walletAssetCacheKey(
-            CacheStore.accountScopeKey(accessToken), walletId, chain
-        )
 
     private fun UnifiedAssetEntity.toDomain() = UnifiedAsset(
         walletId, chain, assetId, contractAddress, symbol, name, decimals,

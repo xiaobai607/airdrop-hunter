@@ -19,9 +19,6 @@ class ProviderHttpException(
 ) : IOException(message)
 
 object CacheRefreshPolicy {
-    fun walletAssetCacheKey(accountScope: String, walletId: String, chain: String): String =
-        "wallet-assets:$accountScope:$walletId:${chain.lowercase()}"
-
     fun displayStatus(metadata: CacheMetadataEntity?, now: Long): CacheDisplayStatus {
         metadata ?: return CacheDisplayStatus.UNKNOWN
         return when {

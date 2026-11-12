@@ -65,6 +65,34 @@ class CacheRefreshCoordinatorTest {
     }
 
     @Test
+    fun freshCacheSuppressesOrdinaryRefreshWithoutCallingProvider() = runBlocking {
+        val now = 10_000L
+        val metadata = mutableMapOf("directory:items" to CacheMetadataEntity(
+            cacheKey = "items", source = "directory", fetchedAt = 9_000L,
+            expiresAt = 20_000L, ttlMillis = 11_000L, refreshStatus = "ready",
+            lastError = null, lastManualRefreshAt = null
+        ))
+        var cached: String? = "fresh-cache"
+        var fetches = 0
+        val engine = CacheRefreshCoordinator(
+            clock = { now }, wait = {}, jitter = { 1.0 },
+            readMetadata = { key, source -> metadata["$source:$key"] },
+            writeMetadata = { metadata["${it.source}:${it.cacheKey}"] = it }
+        )
+
+        val result = engine.load(
+            cacheKey = "items", source = "directory",
+            readCache = { cached },
+            fetch = { fetches++; "unexpected-network-result" },
+            save = { cached = it }
+        )
+
+        assertEquals("fresh-cache", result.data)
+        assertFalse(result.stale)
+        assertEquals(0, fetches)
+    }
+
+    @Test
     fun failedRefreshKeepsLastKnownGoodPayloadAndMarksItStale() = runBlocking {
         var now = 100_000L
         val metadata = mutableMapOf<String, CacheMetadataEntity>()

@@ -36,20 +36,6 @@ class CacheRefreshPolicyTest {
     }
 
     @Test
-    fun walletAssetCacheKeysAreIsolatedByAccountWalletAndNetwork() {
-        val guest = CacheRefreshPolicy.walletAssetCacheKey("guest", "wallet-1", "Ethereum")
-        val accountA = CacheRefreshPolicy.walletAssetCacheKey("user:a", "wallet-1", "ethereum")
-        val accountB = CacheRefreshPolicy.walletAssetCacheKey("user:b", "wallet-1", "ethereum")
-        val otherWallet = CacheRefreshPolicy.walletAssetCacheKey("user:a", "wallet-2", "ethereum")
-        val otherNetwork = CacheRefreshPolicy.walletAssetCacheKey("user:a", "wallet-1", "base")
-        assertEquals("wallet-assets:user:a:wallet-1:ethereum", accountA)
-        assertFalse(guest == accountA)
-        assertFalse(accountA == accountB)
-        assertFalse(accountA == otherWallet)
-        assertFalse(accountA == otherNetwork)
-    }
-
-    @Test
     fun manualRefreshThrottleHasExactThirtySecondBoundary() {
         val row = metadata(lastManual = 10_000L)
         assertTrue(CacheRefreshPolicy.isManualRefreshThrottled(row, 39_999L))
