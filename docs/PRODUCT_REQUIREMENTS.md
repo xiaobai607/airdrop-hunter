@@ -2507,3 +2507,8 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Added four policy tests for cached-vs-empty initial loading, retaining cached rows after failed refresh, and replacing rows after successful refresh.
 - The preceding cooldown-message build exposed an unbound catch variable; corrected in commit `81529302595dc2909283826653f9679c88a58499`. Its exact-head CI #43158102664 was still running at this checkpoint.
 - Cache-first Home dashboard code is queued in exact-head Android workflow **#43158350021**. Neither workflow is marked passed yet; physical-device rendering and live provider behavior remain pending.
+
+
+**Additional cancellation-safety audit note (2026-11-12):**
+- Review of the cache-first implementation found that using Kotlin `runCatching` around the initial Room read could swallow `CancellationException` and incorrectly continue as if the cache were empty. The cache read and metadata read must explicitly rethrow cancellation while allowing ordinary storage-read failures to fall back safely.
+- This is an implementation-safety correction within the cache-first requirement; no product-scope expansion.
