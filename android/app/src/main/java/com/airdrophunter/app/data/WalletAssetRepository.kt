@@ -19,20 +19,19 @@ data class WalletAssetSnapshot(
 )
 
 class WalletAssetRepository(
-    private val remote: WalletAssetsRemoteDataSource,
-    private val cacheRefresh: CacheRefreshCoordinator = CacheRefreshCoordinator.shared
+    private val remote: WalletAssetsRemoteDataSource
 ) {
     suspend fun readCached(walletId: String, chain: String, accessToken: String?): WalletAssetSnapshot? {
         val cached = readAssets(walletId, chain, accessToken) ?: return null
-        val metadata = CacheStore.readCacheMetadata(cacheKey(walletId, chain, accessToken), SOURCE)
         return WalletAssetSnapshot(
             cached,
             cached.firstOrNull()?.source ?: SOURCE,
-            cached.maxOfOrNull { it.fetchedAt } ?: metadata?.fetchedAt ?: 0L,
-            stale = !CacheRefreshPolicy.isFresh(metadata, System.currentTimeMillis())
+            cached.maxOfOrNull { it.fetchedAt } ?: 0L,
+            stale = true
         )
     }
 
+    @Suppress("UNUSED_PARAMETER")
     suspend fun refresh(
         walletId: String,
         address: String,
@@ -40,37 +39,26 @@ class WalletAssetRepository(
         accessToken: String?,
         manual: Boolean = false
     ): WalletAssetSnapshot {
-        val key = cacheKey(walletId, chain, accessToken)
-        val result = cacheRefresh.load(
-            cacheKey = key,
-            source = SOURCE,
-            manual = manual,
-            readCache = { readAssets(walletId, chain, accessToken) },
-            fetch = {
-                val response = remote.getAssets(chain, address)
-                response.assets.map { dto ->
-                    UnifiedAsset(
-                        walletId, chain, dto.asset_id, dto.contract_address, dto.symbol, dto.name,
-                        dto.decimals, dto.raw_quantity, dto.formatted_quantity,
-                        dto.price_usd?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 },
-                        dto.usd_value?.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 },
-                        dto.is_verified, dto.source, response.fetched_at, response.fetched_at
-                    )
-                }
-            },
-            save = { rows ->
-                CacheStore.replaceUnifiedAssetsForToken(
-                    walletId, chain, rows.map { it.toEntity(accessToken) }, accessToken
-                )
-            }
+        // Wallet balances are private, account-scoped user data. Keep their payload
+        // in the existing session-scoped Room store, outside the public cache engine.
+        val response = remote.getAssets(chain, address)
+        val assets = response.assets.map { dto ->
+            UnifiedAsset(
+                walletId, chain, dto.asset_id, dto.contract_address, dto.symbol, dto.name,
+                dto.decimals, dto.raw_quantity, dto.formatted_quantity,
+                dto.price_usd?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 },
+                dto.usd_value?.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 },
+                dto.is_verified, dto.source, response.fetched_at, response.fetched_at
+            )
+        }
+        CacheStore.replaceUnifiedAssetsForToken(
+            walletId, chain, assets.map { it.toEntity(accessToken) }, accessToken
         )
-        val assets = result.data ?: throw IllegalStateException(result.errorMessage ?: "读取资产失败")
         return WalletAssetSnapshot(
             assets = assets,
             provider = assets.firstOrNull()?.source ?: "public chain providers",
-            fetchedAt = assets.maxOfOrNull { it.fetchedAt } ?: System.currentTimeMillis(),
-            stale = result.stale,
-            errorMessage = result.errorMessage ?: if (result.throttled) "刚刚刷新过，请稍后再试" else null
+            fetchedAt = assets.maxOfOrNull { it.fetchedAt } ?: response.fetched_at,
+            stale = false
         )
     }
 
