@@ -2942,3 +2942,12 @@ Implementation status: requirement approved; existing coordinator already has a 
 - 如果用户先创建手动核验草稿，之后后台重试又成功拿到完整链上回执，系统会用已核实的币种/Gas 明细补齐原待处理账单，而不是因相同账单 ID 直接返回空明细草稿；已有完整明细时仍保持幂等，不覆盖用户已确认的数据。
 - 回执写入改为带状态条件的 Room UPDATE：仅允许 waiting_receipt、waiting_l1_fee、waiting_operator_fee、receipt_needs_sync、timed_out_needs_sync 接受回执更新；若用户确认入账先完成，后台任务不能把 ACCOUNTED 覆盖回 CONFIRMED，也不能用较旧回执把已确认状态降级。
 - 本轮只完成源码、测试和需求记录更新；未运行 Gradle 编译/单元测试、CI、APK 构建或真机验收。PR #135 继续保持 Draft/Open/Unmerged。
+
+
+### 2026-11-13 — WalletConnect 广播结果与本地 Hash 持久化顺序（需求/审计修正）
+
+- WalletConnect 对 `eth_sendTransaction` 返回成功结果时，必须先完成本地草稿 Hash 的校验与持久化，再向 DApp 回传 JSON-RPC 成功，避免“链上已广播但进程在本地写入前被杀”导致网页已成功、本地却长期无 Hash。
+- 如果钱包已明确返回成功但本地草稿绑定失败，不能向 DApp 伪报交易失败或拒绝；仍须按 WalletConnect 语义回传钱包的成功结果，同时保留本地草稿为待同步核对状态，并记录可诊断错误。用户可通过手动 TxHash 补核恢复。
+- 这项顺序调整不得扩大钱包请求权限、不得自动签名/广播，也不得把钱包成功响应直接等同于回执确认或正式记账。
+- 冷启动和 `onNewIntent` 的独立交易回调仍必须通过随机 callbackState、草稿 ID、chainId、Hash 格式和草稿状态验证；回调只负责绑定 Hash，后续由唯一 WorkManager 查询 receipt。
+- 验证状态：本条先登记需求；源码修改与静态审计随后进行。Gradle/单元测试/CI/APK/真机验收仍统一留到全部模块完成后。
