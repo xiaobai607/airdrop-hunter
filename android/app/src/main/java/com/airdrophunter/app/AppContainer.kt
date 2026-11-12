@@ -91,7 +91,7 @@ class AppContainer {
             dao = dao,
             scopeProvider = { CacheStore.accountScopeKey(TokenStore.readTokenBlocking()) },
             nativePriceProvider = { symbol ->
-                runCatching { okxMarketRepository.fetchSpotTickerDetail(symbol) }.getOrNull()
+                runCatching { okxMarketRepository.loadSpotTickerDetail(symbol).data }.getOrNull()
             }
         )
     }
