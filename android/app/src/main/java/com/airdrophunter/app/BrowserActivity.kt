@@ -658,7 +658,7 @@ private fun BrowserScreen(
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 val target = request?.url ?: return true
                                 val scheme = target.scheme?.lowercase()
-                                if (scheme in setOf("metamask", "trust", "trustwallet", "wc")) {
+                                if (scheme in setOf("metamask", "trust", "trustwallet", "ethereum", "wc")) {
                                     if (request?.hasGesture() != true) {
                                         Log.w("AirdropBrowser", "Blocked wallet deep link without a user gesture")
                                         return true
