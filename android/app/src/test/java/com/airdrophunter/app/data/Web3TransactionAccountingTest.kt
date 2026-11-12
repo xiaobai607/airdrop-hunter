@@ -88,7 +88,8 @@ class Web3TransactionAccountingTest {
             chainId = 42161L,
             gasUsed = BigInteger("23000"),
             effectiveGasPrice = BigInteger("100"),
-            l1FeeWei = BigInteger("200000")
+            l1FeeWei = BigInteger("200000"),
+            operatorFeeWei = BigInteger.ZERO
         )!!
         assertEquals(BigInteger("2300000"), fees.totalFeeWei)
         assertEquals(BigInteger("200000"), fees.l1FeeWei)
@@ -101,11 +102,31 @@ class Web3TransactionAccountingTest {
             chainId = 10L,
             gasUsed = BigInteger("21000"),
             effectiveGasPrice = BigInteger("100"),
-            l1FeeWei = BigInteger("500000")
+            l1FeeWei = BigInteger("500000"),
+            operatorFeeWei = BigInteger("100000")
         )!!
-        assertEquals(BigInteger("2600000"), fees.totalFeeWei)
+        assertEquals(BigInteger("2700000"), fees.totalFeeWei)
         assertEquals(BigInteger("500000"), fees.l1FeeWei)
+        assertEquals(BigInteger("100000"), fees.operatorFeeWei)
         assertEquals(BigInteger("2100000"), fees.l2FeeWei)
+    }
+
+    @Test
+    fun opStackRequiresAndAddsOperatorFeeSeparately() {
+        assertNull(
+            Web3ReceiptFeeCalculator.calculate(
+                10L, BigInteger("21000"), BigInteger("100"),
+                BigInteger("500000"), null
+            )
+        )
+        val fees = Web3ReceiptFeeCalculator.calculate(
+            8453L, BigInteger("21000"), BigInteger("100"),
+            BigInteger("500000"), BigInteger("100000")
+        )!!
+        assertEquals(BigInteger("2700000"), fees.totalFeeWei)
+        assertEquals(BigInteger("2100000"), fees.l2FeeWei)
+        assertEquals(BigInteger("500000"), fees.l1FeeWei)
+        assertEquals(BigInteger("100000"), fees.operatorFeeWei)
     }
 
     @Test
