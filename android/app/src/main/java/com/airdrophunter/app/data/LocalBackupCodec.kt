@@ -77,7 +77,7 @@ object LocalBackupCodec {
     (draft.txHash == null || Web3TransactionRepository.isValidTxHash(draft.txHash)) &&
     (draft.dataHex == null || (draft.dataHex.length <= WalletTransactionLinkParser.MAX_CALLDATA_LENGTH &&
      draft.dataHex.matches(Regex("^0x([a-fA-F0-9]{2})*$")))) &&
-    listOf(draft.valueWei, draft.estimatedGas, draft.gasUsed, draft.effectiveGasPrice, draft.l1Fee, draft.totalFeeWei)
+    listOf(draft.valueWei, draft.estimatedGas, draft.gasUsed, draft.effectiveGasPrice, draft.l1Fee, draft.operatorFeeWei, draft.totalFeeWei)
      .all { raw -> raw == null || raw.toBigIntegerOrNull()?.signum()?.let { it >= 0 } == true } &&
     (draft.receiptStatus == null || draft.receiptStatus == 0 || draft.receiptStatus == 1) &&
     (draft.nativePriceUsd == null || (draft.nativePriceUsd.isFinite() && draft.nativePriceUsd > 0.0)) &&
