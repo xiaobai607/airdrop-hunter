@@ -232,6 +232,37 @@ def test_estimated_reward_contributes_to_approximate_public_income_without_becom
         assert body["data_quality"] == "approximate_actual_and_estimated"
 
 
+def test_hashless_official_project_contribution_is_user_reported_and_idempotent(monkeypatch):
+    async def unexpected_verification(*args, **kwargs):
+        raise AssertionError("hashless user-reported contributions must not call chain verification")
+
+    monkeypatch.setattr("app.api.community_stats.verify_community_transaction", unexpected_verification)
+    with TestClient(app) as client:
+        payload = {
+            "event_id": str(uuid4()),
+            "network": "ethereum",
+            "public_contribution_opt_in": True,
+            "gas_cost_usd": "1.25",
+            "actual_reward_usd": "0",
+            "estimated_reward_usd": "4.50",
+            "actual_reward_confirmed": False,
+        }
+        first = client.post("/api/community/projects/linea/contributions", json=payload)
+        assert first.status_code == 200
+        body = first.json()
+        assert body["verification_tier"] == "user_reported"
+        assert body["total_gas_cost_usd"] == 1.25
+        assert body["total_actual_reward_usd"] == 0.0
+        assert body["total_estimated_reward_usd"] == 4.5
+        assert body["gas_by_verification_tier"]["user_reported"] == 1.25
+
+        retry = client.post("/api/community/projects/linea/contributions", json=payload)
+        assert retry.status_code == 200
+        assert retry.json()["verification_tier"] == "user_reported"
+        assert retry.json()["total_gas_cost_usd"] == 1.25
+        assert retry.json()["total_estimated_reward_usd"] == 4.5
+
+
 def test_guest_can_contribute_to_public_stats_idempotently():
     with TestClient(app) as client:
         payload = {
