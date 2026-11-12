@@ -195,6 +195,22 @@ internal object DappProviderBridge {
         null
     }
 
+    fun isMatchingExternalWalletResponse(
+        expectedRequestId: Long?,
+        responseRequestId: Long,
+        expectedTopic: String,
+        responseTopic: String,
+        expectedMethod: String,
+        responseMethod: String,
+        expectedChainId: String,
+        responseChainId: String?
+    ): Boolean =
+        expectedRequestId != null &&
+            responseRequestId == expectedRequestId &&
+            responseTopic == expectedTopic &&
+            responseMethod.equals(expectedMethod, ignoreCase = true) &&
+            (responseChainId.isNullOrBlank() || responseChainId == expectedChainId)
+
     fun isTrustedMainFrame(sourceOrigin: Uri, pageUrl: String?): Boolean {
         if (pageUrl.isNullOrBlank()) return false
         return runCatching {
