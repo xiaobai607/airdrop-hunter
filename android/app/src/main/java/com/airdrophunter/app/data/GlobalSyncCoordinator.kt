@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
  * A lightweight dispatcher runs every 15 minutes and schedules each source into
  * its own unique WorkManager queue. Failures retry independently. Individual
  * workers decide whether their own data source is due:
- * public contributions 15m; wallet activity 8h; dynamic market/community catalogs are
+ * public contributions 15m; wallet activity and wallet balances 8h per isolated wallet/network; dynamic market/community catalogs are
  * warmed on launch and revalidated from their own Room cache TTLs; the public Binance airdrop hub is revalidated every 6h. Personal cloud sync is disabled.
  */
 private const val AIRDROP_HUB_REFRESH_KEY = "airdrop_hub_last_success"
@@ -47,6 +47,15 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
             throw cancelled
         } catch (_: Exception) {
             // Community directory cache remains usable if a market provider is unavailable.
+        }
+        try {
+            // Warm the published campaign directory through its Room cache and shared coordinator.
+            AirdropCampaignRepository(ApiClient.service).load()
+            succeeded++
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Keep last-known-good campaign rows available if the public API is down.
         }
         try {
             val preferences = applicationContext.getSharedPreferences("global_sync_cadence_v1", Context.MODE_PRIVATE)
@@ -141,6 +150,10 @@ object GlobalSyncScheduler {
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
+        val walletAssets = OneTimeWorkRequestBuilder<WalletAssetSyncWorker>()
+            .setConstraints(network)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
         // Each source has its own unique queue. A failure in one source retries
         // independently and cannot block unrelated ledger, wallet, or favorite work.
         workManager.enqueueUniqueWork(
@@ -153,6 +166,11 @@ object GlobalSyncScheduler {
             if (forceWalletActivity) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
             walletActivity
         )
+        workManager.enqueueUniqueWork(
+            "global-sync-wallet-assets",
+            ExistingWorkPolicy.KEEP,
+            walletAssets
+        )
         enqueueDynamicCatalogWarmup(context)
 
     }
@@ -161,6 +179,7 @@ object GlobalSyncScheduler {
 internal object SyncCadence {
     const val COMMUNITY_KEY = "community_contribution_last_success"
     const val WALLET_ACTIVITY_KEY = "wallet_activity_last_success"
+    const val WALLET_ASSET_KEY = "wallet_asset_last_success"
     const val PERSONAL_LEDGER_KEY = "personal_ledger_last_success"
     const val COMMUNITY_FAVORITES_KEY = "community_favorites_last_success"
     private const val PREFERENCES = "global_sync_cadence_v1"

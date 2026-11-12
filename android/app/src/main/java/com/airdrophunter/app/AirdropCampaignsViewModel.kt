@@ -36,14 +36,23 @@ class AirdropCampaignsViewModel(
     fun load() {
         val filters = AirdropCampaignFilters(tier = _uiState.value.selectedTier)
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            // Publish the last-known-good Room snapshot before waiting for network refresh.
+            val cached = repository.readCached(filters)
+            if (cached != null) {
+                _uiState.value = _uiState.value.copy(items = cached, isLoading = false, error = null)
+            } else {
+                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            }
             try {
                 val rows = repository.load(filters)
                 _uiState.value = _uiState.value.copy(items = rows, isLoading = false, error = null)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = error.message ?: "空投活动暂不可用")
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = error.message ?: "空投活动暂不可用"
+                )
             }
         }
     }
