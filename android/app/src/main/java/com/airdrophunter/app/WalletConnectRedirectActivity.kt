@@ -37,7 +37,7 @@ class WalletConnectRedirectActivity : ComponentActivity() {
         // while an external wallet was foregrounded. Reinitialize AppKit before
         // forwarding the redirect envelope; BrowserActivity may not exist yet.
         lifecycleScope.launch {
-            val app = application as? android.app.Application
+            val app = application as? AirdropHunterApplication
             if (app == null) {
                 finish()
                 return@launch
@@ -52,6 +52,7 @@ class WalletConnectRedirectActivity : ComponentActivity() {
                 return@launch
             }
 
+            app.startWalletResponseReconciliation()
             runCatching {
                 AppKit.handleDeepLink(callbackUri.toString()) { error ->
                     Log.e("AirdropWallet", "WalletConnect callback dispatch failed", error.throwable)
