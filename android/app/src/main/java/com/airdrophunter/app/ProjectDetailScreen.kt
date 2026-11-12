@@ -727,7 +727,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             showManualAccounting = false
                             Toast.makeText(context,
                                 if (project.communityDelisted) "记账成功；该项目已下架，记录仅保存在本机"
-                                else if (batch.hasPublicContributionOptIn) "记账成功；符合条件的社区数据等待链上核验" else "记账成功",
+                                else if (batch.hasPublicContributionOptIn) "记账成功；符合条件的社区数据已进入脱敏统计流程" else "记账成功",
                                 Toast.LENGTH_LONG).show()
                         } catch (error: Exception) {
                             Toast.makeText(context, error.message ?: "记账失败，请检查输入", Toast.LENGTH_LONG).show()
