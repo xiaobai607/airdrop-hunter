@@ -109,6 +109,13 @@ class Web3TransactionAccountingTest {
     }
 
     @Test
+    fun verifiedReceiptCanEnrichAnExistingManualReviewBill() {
+        assertTrue(Web3DraftStatus.shouldRefreshPendingAccountingBill(null))
+        assertTrue(Web3DraftStatus.shouldRefreshPendingAccountingBill(""))
+        assertFalse(Web3DraftStatus.shouldRefreshPendingAccountingBill("[{\\"kind\\":\\"gas\\"}]"))
+    }
+
+    @Test
     fun unresolvedL1FeeCanBeManuallyReviewedAndConfirmed() {
         assertTrue(Web3DraftStatus.canCreateManualReviewBill(Web3DraftStatus.WAITING_L1_FEE))
         assertTrue(Web3DraftStatus.canConfirmAccounting(Web3DraftStatus.WAITING_L1_FEE))
