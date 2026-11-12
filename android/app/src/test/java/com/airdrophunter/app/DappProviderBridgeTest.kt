@@ -38,6 +38,17 @@ class DappProviderBridgeTest {
     }
 
     @Test
+    fun requestedAccountIsExtractedFromEachSupportedSigningShape() {
+        val first = "0x0123456789012345678901234567890123456789"
+        val second = "0x9999999999999999999999999999999999999999"
+        assertEquals(first, DappProviderBridge.requestedAccountAddress("personal_sign", "0xdeadbeef", first, null))
+        assertEquals(first, DappProviderBridge.requestedAccountAddress("eth_signTypedData_v4", first, "{}", null))
+        assertEquals(second, DappProviderBridge.requestedAccountAddress("eth_sendTransaction", null, null, second))
+        assertEquals(null, DappProviderBridge.requestedAccountAddress("personal_sign", first, first, null))
+        assertEquals(null, DappProviderBridge.requestedAccountAddress("eth_sendTransaction", null, null, null))
+    }
+
+    @Test
     fun signingRequestsMustTargetAnAccountApprovedInTheExternalWalletSession() {
         val account = "0x0123456789012345678901234567890123456789"
         val accounts = setOf(account)
