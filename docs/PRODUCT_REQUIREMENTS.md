@@ -2995,3 +2995,7 @@ Implementation status: requirement approved; existing coordinator already has a 
 - If the response chain is missing or mismatched, do not forward the result to the DApp and do not mark the transaction as rejected or confirmed. Preserve the existing draft for receipt/manual reconciliation because the wallet may already have broadcast the transaction.
 - Add pure Kotlin regression coverage for missing, mismatched, and matching chain IDs. This is an additional defense-in-depth check; it does not change the user's explicit wallet approval flow or upload any private wallet/ledger data.
 - Status: requirement recorded; implementation and tests pending. No APK build is authorized until the consolidated work batch is complete.
+
+
+- Implementation checkpoint: `DappProviderBridge.isMatchingExternalWalletResponse` now rejects a missing or blank response chain ID and accepts only an exact chain match. `DappProviderBridgeTest` covers exact match, mismatched chain, missing chain and blank chain. Code commits: `6694a62a1c217da18d40c22094fcb8a7eb388daf` and `ad8afc7cca0e76f81f7eae248d82be5dc99577f8`.
+- Static source verification confirms the fail-closed predicate and both regression cases are present. Gradle compilation, unit-test execution, CI, APK build and physical-device acceptance have **not** been run for this checkpoint; they remain pending.
