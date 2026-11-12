@@ -141,14 +141,20 @@ object WalletTransactionLinkParser {
                 // EIP-681 native transfer: ethereum:<address>@<chainId>?value=<wei>
                 val authority = uri.toString().substringAfter(":", "")
                     .substringBefore("?").substringBefore("#").trimStart('/')
-                val addressAndChain = authority.substringBefore("/")
-                pathRecipient = addressAndChain.substringBefore("@").takeIf { it.contains("0x") }
-                pathChainId = addressAndChain.substringAfter("@", "").takeIf { it.isNotBlank() }
+                // ERC-20/function routes require ABI decoding; do not misread their
+                // address/uint256 parameters as a native transfer.
+                if (authority.contains("/")) return null
+                pathRecipient = authority.substringBefore("@").takeIf { it.contains("0x") }
+                pathChainId = authority.substringAfter("@", "").takeIf { it.isNotBlank() }
             }
             "metamask" -> {
                 // MetaMask mobile send route: metamask://send/<recipient>@<chainId>?value=<wei>
                 val route = (listOf(uri.host.orEmpty()) + uri.pathSegments).filter { it.isNotBlank() }
-                val sendTarget = route.dropWhile { it != "send" }.drop(1).firstOrNull()
+                val sendRoute = route.dropWhile { it != "send" }.drop(1)
+                // Only native send routes are parsed here. Token/function routes are
+                // still intercepted and opened, but are not assigned a false estimate.
+                if (sendRoute.size > 1) return null
+                val sendTarget = sendRoute.firstOrNull()
                 if (sendTarget != null) {
                     pathRecipient = sendTarget.substringBefore("@")
                     pathChainId = sendTarget.substringAfter("@", "").takeIf { it.isNotBlank() }
@@ -156,8 +162,10 @@ object WalletTransactionLinkParser {
             }
         }
 
+        val queryAddress = if (scheme == "trust" || scheme == "trustwallet") null
+            else uri.getQueryParameter("address")
         val to = uri.getQueryParameter("to")
-            ?: uri.getQueryParameter("address")
+            ?: queryAddress
             ?: pathRecipient
             ?: return null
         if (!addressPattern.matches(to)) return null
