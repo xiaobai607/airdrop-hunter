@@ -46,7 +46,10 @@ class WalletAssetSyncWorker(
                     "${SyncCadence.WALLET_ASSET_KEY}:${wallet.id}:${network.lowercase()}",
                     accessToken
                 )
-                if (!SyncCadence.isDue(applicationContext, cadenceKey, 8, TimeUnit.HOURS)) continue
+                val hasCachedSnapshot = repository.readCached(wallet.id, network, accessToken) != null
+                if (hasCachedSnapshot &&
+                    !SyncCadence.isDue(applicationContext, cadenceKey, 8, TimeUnit.HOURS)
+                ) continue
                 try {
                     repository.refresh(wallet.id, wallet.address, network, accessToken)
                     SyncCadence.markSuccess(applicationContext, cadenceKey)

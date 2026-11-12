@@ -126,7 +126,6 @@ class AirdropHubRepository(
             source = CACHE_SOURCE,
             ttlMillis = AUTO_REFRESH_INTERVAL_MILLIS,
             manual = manual,
-            force = true,
             readCache = { cache.read(key) },
             fetch = {
                 val response = remote.sync()

@@ -84,6 +84,15 @@ fun AirdropCampaignsScreen(
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                if (state.error != null) {
+                    item {
+                        Text(
+                            state.error.orEmpty(),
+                            color = AppColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
                 item {
                     Text(
                         "${state.items.size} 个公开活动",

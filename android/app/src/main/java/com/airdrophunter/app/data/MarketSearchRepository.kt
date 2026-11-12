@@ -60,6 +60,7 @@ class MarketSearchRepository(
             },
             save = { rows -> CacheStore.replaceHotCoins(HOT_COIN_CACHE_KEY, rows) }
         )
+        if (result.throttled) throw IllegalStateException("刚刚刷新过，请稍后再试")
         val rows = result.data ?: throw IllegalStateException(result.errorMessage ?: "热门行情暂时不可用")
         return rows.map { it.toDomain() }
     }

@@ -80,6 +80,7 @@ class AirdropCampaignRepository(
                     require(readCached(filters) == rows) { "空投活动缓存写入校验失败" }
                 }
             )
+            if (result.throttled) throw IllegalStateException("刚刚刷新过，请30秒后再试")
             result.data ?: throw IllegalStateException(result.errorMessage ?: "空投活动暂不可用")
         }
 
