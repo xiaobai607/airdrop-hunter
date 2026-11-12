@@ -15,11 +15,13 @@ data class WalletAssetSnapshot(
     val fetchedAt: Long,
     val coverageNote: String? = null,
     val stale: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val throttled: Boolean = false
 )
 
 class WalletAssetRepository(
-    private val remote: WalletAssetsRemoteDataSource
+    private val remote: WalletAssetsRemoteDataSource,
+    private val cacheRefresh: CacheRefreshCoordinator = CacheRefreshCoordinator.shared
 ) {
     suspend fun readCached(walletId: String, chain: String, accessToken: String?): WalletAssetSnapshot? {
         val cached = readAssets(walletId, chain, accessToken) ?: return null
@@ -31,35 +33,32 @@ class WalletAssetRepository(
         )
     }
 
-    @Suppress("UNUSED_PARAMETER")
     suspend fun refresh(
-        walletId: String,
-        address: String,
-        chain: String,
-        accessToken: String?,
+        walletId: String, address: String, chain: String, accessToken: String?,
         manual: Boolean = false
     ): WalletAssetSnapshot {
-        // Wallet balances are private, account-scoped user data. Keep their payload
-        // in the existing session-scoped Room store, outside the public cache engine.
-        val response = remote.getAssets(chain, address)
-        val assets = response.assets.map { dto ->
-            UnifiedAsset(
-                walletId, chain, dto.asset_id, dto.contract_address, dto.symbol, dto.name,
-                dto.decimals, dto.raw_quantity, dto.formatted_quantity,
-                dto.price_usd?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 },
-                dto.usd_value?.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 },
-                dto.is_verified, dto.source, response.fetched_at, response.fetched_at
-            )
-        }
-        CacheStore.replaceUnifiedAssetsForToken(
-            walletId, chain, assets.map { it.toEntity(accessToken) }, accessToken
+        val scopeKey = "${CacheStore.accountScopeKey(accessToken)}:$walletId:${chain.lowercase()}"
+        val result = cacheRefresh.load(
+            cacheKey = scopeKey, source = WALLET_ASSET_SOURCE, ttlMillis = WALLET_ASSET_TTL_MILLIS,
+            manual = manual, readCache = { readCached(walletId, chain, accessToken) },
+            fetch = {
+                val response = remote.getAssets(chain, address)
+                val assets = response.assets.map { dto ->
+                    UnifiedAsset(walletId, chain, dto.asset_id, dto.contract_address, dto.symbol, dto.name,
+                        dto.decimals, dto.raw_quantity, dto.formatted_quantity,
+                        dto.price_usd?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 },
+                        dto.usd_value?.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 },
+                        dto.is_verified, dto.source, response.fetched_at, response.fetched_at)
+                }
+                WalletAssetSnapshot(assets, assets.firstOrNull()?.source ?: "public chain providers",
+                    assets.maxOfOrNull { it.fetchedAt } ?: response.fetched_at, stale = false)
+            },
+            save = { snapshot -> CacheStore.replaceUnifiedAssetsForToken(
+                walletId, chain, snapshot.assets.map { it.toEntity(accessToken) }, accessToken
+            ) }
         )
-        return WalletAssetSnapshot(
-            assets = assets,
-            provider = assets.firstOrNull()?.source ?: "public chain providers",
-            fetchedAt = assets.maxOfOrNull { it.fetchedAt } ?: response.fetched_at,
-            stale = false
-        )
+        return (result.data ?: throw IllegalStateException(result.errorMessage ?: "余额暂不可用"))
+            .copy(throttled = result.throttled)
     }
 
     private suspend fun readAssets(
@@ -87,5 +86,7 @@ class WalletAssetRepository(
 
     companion object {
         private const val SOURCE = "wallet-assets-api"
+        private const val WALLET_ASSET_SOURCE = "private-wallet-assets"
+        private const val WALLET_ASSET_TTL_MILLIS = 8 * 60 * 60 * 1000L
     }
 }

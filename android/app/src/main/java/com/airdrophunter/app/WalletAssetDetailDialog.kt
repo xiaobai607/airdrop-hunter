@@ -65,6 +65,7 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
         try {
             snapshot = repository.refresh(wallet.id, wallet.address, selectedNetwork, sessionToken, manual = reload > 0)
             error = snapshot?.errorMessage
+            if (snapshot?.throttled == true) android.widget.Toast.makeText(context, "刷新太频繁，请30秒后再试", android.widget.Toast.LENGTH_SHORT).show()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {

@@ -44,7 +44,8 @@ data class WalletActivitySnapshot(
     val transactions: List<WalletTransactionDto>,
     val networksChecked: List<String> = emptyList(),
     val networksUnavailable: List<String> = emptyList(),
-    val fetchedAtEpochMillis: Long = 0L
+    val fetchedAtEpochMillis: Long = 0L,
+    val throttled: Boolean = false
 )
 
 /** Routes a saved public address to the read-only chain activity API. */
@@ -67,7 +68,7 @@ class WalletActivityRepository(
         wallet: WalletDto,
         guest: Boolean,
         accessToken: String? = TokenStore.readTokenBlocking(),
-        force: Boolean = false
+        manual: Boolean = false
     ): WalletActivitySnapshot {
         val token = accessToken?.takeIf { it.isNotBlank() }
         val scopedCacheKey = metadataCacheKey(wallet, token)
@@ -75,7 +76,7 @@ class WalletActivityRepository(
             cacheKey = scopedCacheKey,
             source = WALLET_ACTIVITY_SOURCE,
             ttlMillis = WALLET_ACTIVITY_TTL_MILLIS,
-            force = force,
+            manual = manual,
             readCache = { readCached(wallet, guest, token) },
             fetch = {
                 val authorizationHeader = token?.let { "Bearer $it" }
@@ -87,7 +88,8 @@ class WalletActivityRepository(
                 local?.writeForSession(cacheKey(wallet), gson.toJson(snapshot), guest, token)
             }
         )
-        return result.data ?: throw IllegalStateException(result.errorMessage ?: "交易记录暂不可用")
+        return (result.data ?: throw IllegalStateException(result.errorMessage ?: "交易记录暂不可用"))
+            .copy(throttled = result.throttled)
     }
 
     private fun cacheKey(wallet: WalletDto) = "wallet_activity:${wallet.id}"

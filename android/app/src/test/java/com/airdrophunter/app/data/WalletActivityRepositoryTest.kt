@@ -115,12 +115,12 @@ class WalletActivityRepositoryTest {
         assertEquals(first.networksChecked, cached?.networksChecked)
         assertTrue(local.sessionRows.containsKey("guest:wallet_activity:wallet-1"))
 
-        // Ordinary refresh is cache-first; an explicit forced refresh bypasses the 8h TTL.
+        // Ordinary refresh is cache-first; manual refresh is throttled for 30 seconds.
         repository.refresh(wallet, guest = true, accessToken = null)
         assertEquals(1, remote.chainCalls.size)
 
-        repository.refresh(wallet, guest = true, accessToken = null, force = true)
-        assertEquals(2, remote.chainCalls.size)
+        repository.refresh(wallet, guest = true, accessToken = null, manual = true)
+        assertEquals(1, remote.chainCalls.size)
         assertEquals(1, metadata.size)
         assertTrue(metadata.keys.single().first.startsWith("guest:wallet-1:tron"))
     }

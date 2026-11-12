@@ -100,9 +100,10 @@ private fun WalletActivityPanel(
                 transactions = cached.transactions
                 networksUnavailable = cached.networksUnavailable
             }
-            val result = activityRepository.refresh(wallet, sessionIsGuest, sessionToken, force = refreshNonce > 0)
+            val result = activityRepository.refresh(wallet, sessionIsGuest, sessionToken, manual = refreshNonce > 0)
             transactions = result.transactions
             networksUnavailable = result.networksUnavailable
+            if (result.throttled) android.widget.Toast.makeText(context, "刷新太频繁，请30秒后再试", android.widget.Toast.LENGTH_SHORT).show()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
