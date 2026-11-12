@@ -73,6 +73,10 @@ data class Web3TransactionDraftEntity(
     val totalFeeWei: String?,
     val receiptStatus: Int?,
     val lastError: String?,
+    val nativeSymbol: String? = null,
+    val nativePriceUsd: Double? = null,
+    val nativePriceTimestamp: Long? = null,
+    val actualGasUsd: Double? = null,
     val createdAt: Long,
     val updatedAt: Long
 )
@@ -262,7 +266,8 @@ class Web3RpcClient {
 class Web3TransactionRepository(
     private val dao: Web3TransactionDraftDao,
     private val scopeProvider: () -> String,
-    private val rpc: Web3RpcClient = Web3RpcClient()
+    private val rpc: Web3RpcClient = Web3RpcClient(),
+    private val nativePriceProvider: suspend (String) -> OkxTickerDetail? = { null }
 ) {
     suspend fun createDappDraft(
         chainId: Long,
@@ -434,17 +439,24 @@ class Web3TransactionRepository(
         val totalWei = draft.totalFeeWei?.toBigIntegerOrNull() ?: return null
         val l1Wei = draft.l1Fee?.toBigIntegerOrNull() ?: BigInteger.ZERO
         val l2Wei = totalWei.subtract(l1Wei).takeIf { it.signum() >= 0 } ?: return null
-        val symbol = when (draft.chainId) {
-            56L -> "BNB"
-            137L -> "POL"
-            else -> "ETH"
+        val symbol = draft.nativeSymbol ?: nativeSymbolForChain(draft.chainId)
+        val quoteTimestamp = draft.nativePriceTimestamp?.let {
+            java.time.Instant.ofEpochMilli(it).toString()
+        }
+        val l1Usd = draft.nativePriceUsd?.let {
+            java.math.BigDecimal(l1Wei).movePointLeft(18)
+                .multiply(java.math.BigDecimal.valueOf(it)).toDouble()
+        }
+        val l2Usd = draft.nativePriceUsd?.let {
+            java.math.BigDecimal(l2Wei).movePointLeft(18)
+                .multiply(java.math.BigDecimal.valueOf(it)).toDouble()
         }
         fun nativeAmount(wei: BigInteger): String =
             java.math.BigDecimal(wei).movePointLeft(18).stripTrailingZeros().toPlainString()
         val assets = listOf(
-            LedgerAssetAmount("gas", nativeAmount(totalWei), symbol, 18),
-            LedgerAssetAmount("l2_fee", nativeAmount(l2Wei), symbol, 18),
-            LedgerAssetAmount("l1_fee", nativeAmount(l1Wei), symbol, 18)
+            LedgerAssetAmount("gas", nativeAmount(totalWei), symbol, 18, draft.actualGasUsd, quoteTimestamp, "OKX"),
+            LedgerAssetAmount("l2_fee", nativeAmount(l2Wei), symbol, 18, l2Usd, quoteTimestamp, "OKX"),
+            LedgerAssetAmount("l1_fee", nativeAmount(l1Wei), symbol, 18, l1Usd, quoteTimestamp, "OKX")
         )
         val network = when (draft.chainId) {
             1L -> "ethereum"
@@ -513,15 +525,26 @@ class Web3TransactionRepository(
 
         val l2Fee = gasUsed.multiply(effectiveGasPrice)
         val totalFee = l2Fee.add(l1Fee ?: BigInteger.ZERO)
+        val nativeSymbol = nativeSymbolForChain(draft.chainId)
+        val quote = runCatching { nativePriceProvider(nativeSymbol) }.getOrNull()
+        val totalNative = java.math.BigDecimal(totalFee).movePointLeft(18)
+        val actualGasUsd = quote?.lastPrice
+            ?.takeIf { it.isFinite() && it > 0.0 }
+            ?.let { totalNative.multiply(java.math.BigDecimal.valueOf(it)).toDouble() }
+            ?.takeIf { it.isFinite() && it >= 0.0 }
         dao.update(draft.copy(
             gasUsed = gasUsed.toString(),
             effectiveGasPrice = effectiveGasPrice.toString(),
             l1Fee = (l1Fee ?: BigInteger.ZERO).toString(),
             totalFeeWei = totalFee.toString(),
+            nativeSymbol = nativeSymbol,
+            nativePriceUsd = quote?.lastPrice,
+            nativePriceTimestamp = quote?.timestamp,
+            actualGasUsd = actualGasUsd,
             receiptStatus = receiptStatus,
             status = if (receiptStatus == 1) Web3DraftStatus.CONFIRMED
                 else Web3DraftStatus.CONFIRMED_FAILED,
-            lastError = null,
+            lastError = if (actualGasUsd == null) "真实 Gas 已确认；当前缺少可用币价，USD 估值待补" else null,
             updatedAt = System.currentTimeMillis()
         ))
         return true
@@ -553,6 +576,12 @@ class Web3TransactionRepository(
     }
 
     companion object {
+        fun nativeSymbolForChain(chainId: Long): String = when (chainId) {
+            56L -> "BNB"
+            137L -> "POL"
+            else -> "ETH"
+        }
+
         private val secureRandom = SecureRandom()
         fun isValidTxHash(hash: String): Boolean =
             Regex("^0x[a-fA-F0-9]{64}$").matches(hash)
