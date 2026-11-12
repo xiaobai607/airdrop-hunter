@@ -16,6 +16,7 @@ from app.services.community_privacy import anonymous_contributor_fingerprint
 from app.services.transaction_verification import (
     VerificationPending,
     VerificationRejected,
+    VerificationResult,
     verify_community_transaction,
 )
 
@@ -56,8 +57,8 @@ class CommunityAssetAmount(BaseModel):
 class CommunityContributionRequest(BaseModel):
     event_id: UUID
     network: str = Field(min_length=1, max_length=40)
-    wallet_address: str = Field(min_length=1, max_length=160)
-    tx_hash: str = Field(min_length=1, max_length=180)
+    wallet_address: str | None = Field(default=None, max_length=160)
+    tx_hash: str | None = Field(default=None, max_length=180)
     public_contribution_opt_in: bool
     gas_cost_usd: Decimal = Field(ge=0, le=MAX_AMOUNT)
     actual_reward_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
@@ -179,14 +180,28 @@ async def add_community_contribution(
 
     # Tx Hash/address are transient verification inputs only. The database stores
     # a server-keyed fingerprint and sanitized verification metadata, never raw values.
-    try:
-        verification = await verify_community_transaction(
-            payload.network, payload.wallet_address, payload.tx_hash, payload.gas_cost_usd
+    # A missing hash is explicitly user-reported: do not require or persist an address,
+    # and do not imply that any chain verification took place.
+    normalized_tx_hash = (payload.tx_hash or "").strip()
+    if normalized_tx_hash:
+        wallet_address = (payload.wallet_address or "").strip()
+        if not wallet_address:
+            raise HTTPException(status_code=422, detail="提供 Tx Hash 时必须同时提供对应钱包地址")
+        try:
+            verification = await verify_community_transaction(
+                payload.network, wallet_address, normalized_tx_hash, payload.gas_cost_usd
+            )
+        except VerificationPending:
+            raise HTTPException(status_code=503, detail="链上核验暂不可用，记录已保留并等待重试")
+        except VerificationRejected as error:
+            raise HTTPException(status_code=422, detail=str(error))
+    else:
+        verification = VerificationResult(
+            tier="user_reported",
+            gas_cost_usd=payload.gas_cost_usd,
+            tx_fingerprint=None,
+            metadata={"verification_method": "user_reported", "reason": "tx_hash_not_provided"},
         )
-    except VerificationPending:
-        raise HTTPException(status_code=503, detail="链上核验暂不可用，记录已保留并等待重试")
-    except VerificationRejected as error:
-        raise HTTPException(status_code=422, detail=str(error))
 
     public_gas_cost = verification.gas_cost_usd
     public_reward_usd = (
