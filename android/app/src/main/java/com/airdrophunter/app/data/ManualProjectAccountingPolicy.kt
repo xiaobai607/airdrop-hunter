@@ -123,7 +123,9 @@ object ManualProjectAccountingPolicy {
 
     fun isTransactionHashFormatValid(network: String, hash: String): Boolean = isSupportedHash(network, hash)
 
-    /** Community directory projects contribute by default only with a verifiable EVM hash and confirmed USD reward. */
+    /** Official community projects contribute by default when the row has a USD-valued reward.
+     * A missing hash is user-reported; a supplied hash must be valid for a supported EVM network.
+     */
     fun isEligibleForDefaultCommunityContribution(
         projectOfficialId: String?,
         rewardKind: ManualRewardKind,
@@ -132,7 +134,7 @@ object ManualProjectAccountingPolicy {
     ): Boolean =
         !projectOfficialId.isNullOrBlank() &&
             rewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION) &&
-            isSupportedHash(network, txHash)
+            (txHash.isBlank() || isSupportedHash(network, txHash))
 
     fun isTransactionVerificationNetworkSupported(network: String): Boolean =
         network.trim().lowercase() in setOf("ethereum", "eth", "erc20", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche")
