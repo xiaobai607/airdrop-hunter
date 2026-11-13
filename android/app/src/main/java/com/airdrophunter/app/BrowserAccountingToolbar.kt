@@ -609,7 +609,7 @@ fun BrowserAccountingToolbar(
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("交易记录", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                             Text("选择待确认记录继续填写，或新增一笔记账", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                         }
@@ -623,7 +623,7 @@ fun BrowserAccountingToolbar(
                         Text("链上交易", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth().heightIn(max = 190.dp),
-                            verticalArrangement = Arrangement.spacedBy(7.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(visibleWeb3Drafts, key = { "web3-${it.id}" }) { draft ->
                                 val statusLabel = when (draft.status) {
@@ -644,10 +644,10 @@ fun BrowserAccountingToolbar(
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Row(
-                                        Modifier.fillMaxWidth().padding(10.dp),
+                                        Modifier.fillMaxWidth().padding(8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Text(statusLabel, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                                             Text(
                                                 draft.txHash?.let { it.take(8) + "..." + it.takeLast(6) }
@@ -672,7 +672,7 @@ fun BrowserAccountingToolbar(
                                                 }) { Text("继续记账") }
                                             }
                                             Web3DraftStatus.WAITING_L1_FEE -> {
-                                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                                     AppTextButton(onClick = {
                                                         com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
                                                     }) { Text("重试核实") }
@@ -688,7 +688,7 @@ fun BrowserAccountingToolbar(
                                                 }
                                             }
                                             Web3DraftStatus.WAITING_OPERATOR_FEE -> {
-                                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                                     AppTextButton(onClick = {
                                                         com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
                                                     }) { Text("重试核实") }
@@ -704,7 +704,7 @@ fun BrowserAccountingToolbar(
                                                 }
                                             }
                                             Web3DraftStatus.RECEIPT_NEEDS_SYNC -> {
-                                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                                     if (com.airdrophunter.app.data.Web3RpcRegistry.endpoint(draft.chainId) != null) {
                                                         AppTextButton(onClick = {
                                                             com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
@@ -759,8 +759,8 @@ fun BrowserAccountingToolbar(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(
-                                            Modifier.weight(1f).appPressFeedback(onClick = { openBill(bill) }, scale = 1f).padding(vertical = 3.dp),
-                                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                                            Modifier.weight(1f).appPressFeedback(onClick = { openBill(bill) }, scale = 1f).padding(vertical = 4.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
                                             Text(
                                                 if (bill.id.startsWith("WEB3-") && bill.gasCostUsd == 0.0) {
@@ -879,7 +879,7 @@ fun BrowserAccountingToolbar(
                         placeholder = "Gas 费（USD估值）",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("归属项目", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                         val selectedProject = projects.firstOrNull { it.id == selectedProjectLocalId }
                         AppButton(
@@ -1097,7 +1097,7 @@ fun BrowserAccountingToolbar(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 shadowElevation = 8.dp
             ) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("选择归属项目", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -1120,7 +1120,7 @@ fun BrowserAccountingToolbar(
                     if (projects.isEmpty()) {
                         Text("暂无项目，请先新建。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                     } else {
-                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 230.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 230.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(projects, key = { it.id }) { project ->
                                 val selected = selectedProjectLocalId == project.id
                                 Surface(
@@ -1132,7 +1132,7 @@ fun BrowserAccountingToolbar(
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
                                 ) {
-                                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
+                                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically) {
                                         Text(project.name, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                                         if (selected) Text("已选择", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
