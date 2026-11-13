@@ -109,24 +109,25 @@ fun ProfileScreen(
         modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Text("我的", color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+            style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         Row(
             Modifier.fillMaxWidth().padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(60.dp)) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.size(64.dp)) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(if (isGuest) "G" else "U", color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(if (isGuest) "本地模式" else (state.profile?.username ?: "账户中心"),
-                    color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold)
                 Text(
                     when {
@@ -142,21 +143,22 @@ fun ProfileScreen(
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("数据概览", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 4.dp))
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 4.dp))
         Card(
             modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column {
-                Row(Modifier.fillMaxWidth().height(80.dp)) {
+                Row(Modifier.fillMaxWidth().heightIn(min = 76.dp)) {
                     StatCell("跟踪项目", stats.tracked_projects.toString(), Modifier.weight(1f))
                     Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
                     StatCell(if (stats.usd_profit_complete) "胜率" else "已估值胜率",
                         String.format(Locale.US, "%.1f%%", stats.win_rate), Modifier.weight(1f))
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Row(Modifier.fillMaxWidth().height(80.dp)) {
+                Row(Modifier.fillMaxWidth().heightIn(min = 76.dp)) {
                     StatCell("累计 Gas", String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost),
                         Modifier.weight(1f), "USD")
                     Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
@@ -182,7 +184,8 @@ fun ProfileScreen(
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("数据迁移", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                Text("数据迁移", color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 AppButton(
                     text = if (backupBusy) "正在处理…" else "备份我的数据",
                     onClick = { showBackupPasswordDialog = true },
@@ -218,7 +221,8 @@ fun ProfileScreen(
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("设置与管理", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 4.dp))
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 4.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
@@ -366,10 +370,12 @@ fun ProfileScreen(
 private fun StatCell(label: String, value: String, modifier: Modifier, suffix: String = "") {
     Column(modifier.fillMaxHeight().padding(horizontal = 12.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.Center) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium,
+            maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold)
+            Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold, maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             if (suffix.isNotBlank()) Text(suffix, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
         }
@@ -386,7 +392,7 @@ private fun SettingRow(
         .appPressFeedback(onClick = onClick, scale = 1f),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(
-            Modifier.size(32.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)),
+            Modifier.size(36.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
