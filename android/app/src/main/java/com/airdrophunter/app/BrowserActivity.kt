@@ -10,6 +10,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.os.Bundle
@@ -113,10 +114,18 @@ class BrowserActivity : ComponentActivity() {
         val wallets = parseWallets(intent.getStringExtra(EXTRA_WALLETS_JSON).orEmpty())
         val selectedId = intent.getStringExtra(EXTRA_SELECTED_WALLET_ID).orEmpty()
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = AndroidColor.rgb(248, 249, 250)
-        window.navigationBarColor = AndroidColor.rgb(248, 249, 250)
+        val isDarkSystemTheme =
+            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        val systemBarColor = if (isDarkSystemTheme) AndroidColor.rgb(18, 18, 20) else AndroidColor.rgb(248, 248, 250)
+        window.statusBarColor = systemBarColor
+        window.navigationBarColor = systemBarColor
         @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        window.decorView.systemUiVisibility = if (isDarkSystemTheme) {
+            0
+        } else {
+            android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+                android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        }
         setContent {
             AirdropHunterTheme {
                 BrowserScreen(site.ifBlank { Uri.parse(url).host.orEmpty() }, url, wallets, selectedId, intent.getStringExtra(EXTRA_QUICK_COPY_ADDRESS).orEmpty()) { finish() }
