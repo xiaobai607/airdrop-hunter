@@ -315,3 +315,16 @@
 - 开启多窗口支持，但只接受用户手势触发的新窗口；弹窗导航仍限制为 HTTP/HTTPS，HTTP 升级 HTTPS，跨 Origin 必须经过现有顶部确认横幅。
 - 不启用自动弹窗、不允许任意 scheme 弹窗、不改变 TLS 失败即取消、Safe Browsing、文件/地理位置/摄像头权限拒绝、DApp Origin 授权及交易确认规则。
 - 对新窗口子 WebView 做生命周期管理，避免 Activity 退出后残留渲染实例；本轮不处理绕过验证码、反机器人挑战或网站访问控制。
+
+
+### 2026-11-13 — 浏览器登录 Cookie 与用户主动弹窗兼容
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/BrowserActivity.kt`
+- 登录兼容：主 WebView 与受控弹窗 WebView 启用第三方 Cookie 接收，策略仅应用于本 App 创建的 WebView，不修改系统 Chrome 或其他应用。该调整可改善 OAuth/SSO、跨站登录回跳；代价是网页可能进行更多跨站 Cookie 读写，因此属于明确的兼容性折中。
+- 弹窗兼容：启用 WebView 多窗口支持，但 `javaScriptCanOpenWindowsAutomatically` 仍为 false；只有 WebChromeClient 收到真实用户手势后才创建子 WebView。
+- 弹窗导航：子 WebView 只接受 HTTP/HTTPS；HTTP 自动升级 HTTPS；拒绝非 HTTP(S) scheme、空 Host 和 userInfo；同 Origin 导航回主 WebView，跨 Origin 进入现有顶部确认横幅，用户确认后才切换主页面。
+- 生命周期：主浏览器退出时停止、清空并销毁所有子 WebView，避免弹窗渲染实例泄漏。
+- 安全边界：TLS 证书错误仍直接取消；Safe Browsing 保持开启；混合内容仍禁止；文件访问、内容访问和文件 URL 跨域访问仍关闭；地理位置/摄像头/麦克风和文件选择权限仍拒绝；DApp Origin 授权与交易签名确认逻辑未改。
+- 静态检查 11 项通过：用户手势门槛、HTTP(S) scheme 限制、HTTPS 升级、跨 Origin 确认、主/弹窗第三方 Cookie 策略、多窗口开关、自动弹窗仍关闭、子 WebView 生命周期、TLS fail-closed、Safe Browsing、文件访问限制。
+- 本轮 commits：`b9b3faf3`（先登记实施计划）、`09554f0a`（登录 Cookie 与安全弹窗）、`b52d4af5`（子 WebView Cookie 策略）。
+- 尚未运行 Gradle 编译、Android 单元测试、CI、APK 或真机站点验收；因此只能确认静态代码条件，不宣称第三方站点登录已实际成功。下一步需真机测试需要 SSO 的站点、`target=_blank` 链接及跨域跳转，并观察过滤后的错误日志。
