@@ -50,7 +50,7 @@ class AirdropHunterApplication : Application() {
                         appContainer.web3TransactionRepository.attachWalletConnectResponse(
                             requestId = rpcResult.id,
                             method = response.method,
-                            sessionTopic = response.topic,
+                            sessionTopic = response.topic ?: return@collect,
                             chainId = chainId,
                             hash = txHash
                         )
