@@ -1051,6 +1051,26 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
             error_code = "source_payload_stale_or_timestamp_invalid"
             raise RuntimeError("source payload contains generatedAt/updatedAt older than 7 days")
         for record in records:
+            campaign_detail = None
+            if (
+                source_name == "binance-announcements"
+                and record.get("catalog_id") == 128
+                and str(record.get("catalog_name") or "").strip().casefold() == "crypto airdrop"
+            ):
+                article_code = str(record.get("source_key") or "").removeprefix("binance:")
+                try:
+                    campaign_detail = await _fetch_binance_article_detail_with_client(
+                        client,
+                        article_code,
+                        fallback_title=str(record.get("name") or ""),
+                        fallback_url=str(record.get("link") or ""),
+                    )
+                except (httpx.HTTPError, ValueError, TypeError) as exc:
+                    logger.warning(
+                        "Binance Crypto Airdrop detail unavailable for article %s: %s",
+                        article_code[:80],
+                        type(exc).__name__,
+                    )
             from app.services.airdrop_discovery_filter import compose_discovery_decision, evaluate_discovery_identity, evaluate_discovery_observation
             filter_result = evaluate_discovery_observation(record, now=now)
             identity_result = await evaluate_discovery_identity(db, record)
@@ -1084,6 +1104,13 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
                 identity_result=identity_result,
                 decision_result=decision_result,
             )
+            if campaign_detail is not None:
+                await _upsert_binance_airdrop_campaign(
+                    db,
+                    record=record,
+                    detail=campaign_detail,
+                    now=now,
+                )
             candidate_key = _candidate_source_key(source_name, str(record.get("source_key") or ""))
             candidate = await db.scalar(
                 select(AirdropDiscoveryCandidate).where(AirdropDiscoveryCandidate.source_key == candidate_key)
