@@ -1,6 +1,7 @@
 package com.airdrophunter.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -59,8 +60,20 @@ fun AppTextField(
         onValueChange = onValueChange,
         modifier = modifier
             .fillMaxWidth()
-            .height(heightDp.dp)
-            .background(colors.surfaceVariant, shape)
+            .height(AppDesignTokens.Control.InputHeight.dp)
+            .then(
+                if (focused && !isError) Modifier.shadow(
+                    elevation = 2.dp,
+                    shape = shape,
+                    clip = false,
+                    ambientColor = colors.primary.copy(alpha = 0.12f),
+                    spotColor = colors.primary.copy(alpha = 0.12f)
+                ) else Modifier
+            )
+            .background(
+                colors.surfaceVariant.copy(alpha = if (enabled) 1f else 0.4f),
+                shape
+            )
             .then(if (borderColor != Color.Transparent) Modifier.border(if (focused) 1.5.dp else 1.dp, borderColor, shape) else Modifier)
             .onFocusChanged { focused = it.isFocused }
             .padding(horizontal = 16.dp, vertical = 12.dp),
