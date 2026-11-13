@@ -110,7 +110,7 @@ fun ProfileScreen(
         Row(
             Modifier,
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(13.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(52.dp)) {
                 Box(contentAlignment = Alignment.Center) {
@@ -118,7 +118,7 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(if (isGuest) "本地模式" else (state.profile?.username ?: "账户中心"),
                     color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold)
@@ -157,7 +157,7 @@ fun ProfileScreen(
                 }
                 Text(
                     "参与项目 ${stats.ledger_project_count} · 净收益 ${if (stats.usd_profit_complete) String.format(Locale.US, "%.2f", stats.ledger_net_profit) + " USD" else "估值未完整"} · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
-                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -171,7 +171,7 @@ fun ProfileScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("数据迁移", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 AppButton(
                     text = "备份我的数据",
@@ -206,9 +206,9 @@ fun ProfileScreen(
                 style = MaterialTheme.typography.bodySmall)
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("设置", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
             SettingRow("设置", Icons.Default.Settings) { activeProfileDestination = ProfileDestination.SETTINGS }
             SettingRow("安全中心", Icons.Default.Security) { activeProfileDestination = ProfileDestination.SECURITY }
             SettingRow("消息通知", Icons.Default.NotificationsNone) { activeProfileDestination = ProfileDestination.NOTIFICATIONS }
@@ -324,14 +324,14 @@ fun ProfileScreen(
 
 @Composable
 private fun StatCell(label: String, value: String, modifier: Modifier, suffix: String = "") {
-    Column(modifier.fillMaxHeight().padding(horizontal = 14.dp, vertical = 15.dp),
+    Column(modifier.fillMaxHeight().padding(horizontal = 12.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.Center) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold)
             if (suffix.isNotBlank()) Text(suffix, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 5.dp))
+                style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
         }
     }
 }
