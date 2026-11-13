@@ -26,5 +26,17 @@ class WalletUsageIdentityTest {
             "name:okxwallet",
             canonicalWalletIdentity("OKX Wallet", "not a valid host")
         )
+        assertEquals(
+            "name:okxwallet",
+            canonicalWalletIdentity("OKX Wallet", "https://bad_host.example")
+        )
+    }
+
+    @Test
+    fun domainNamesAreNormalizedBeforeIdentityIsStored() {
+        assertEquals(
+            "host:metamask.io",
+            canonicalWalletIdentity("MetaMask", "HTTPS://WWW.MetaMask.io./wallet")
+        )
     }
 }
