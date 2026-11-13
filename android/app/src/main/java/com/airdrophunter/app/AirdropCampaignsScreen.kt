@@ -40,7 +40,7 @@ fun AirdropCampaignsScreen(
 
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             listOf("全部" to null, "精选" to "featured", "普通" to "ordinary").forEach { (label, tier) ->
@@ -59,7 +59,7 @@ fun AirdropCampaignsScreen(
         if (state.error != null && state.items.isEmpty()) {
             Column(
                 Modifier.fillMaxSize().padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("暂时无法加载空投活动", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
@@ -77,7 +77,7 @@ fun AirdropCampaignsScreen(
         } else {
             LazyColumn(
                 Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (state.error != null) {
@@ -112,11 +112,11 @@ fun AirdropCampaignsScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(10.dp)) {
-                                Text("币安", Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                Text("币安", Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                                     color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold)
                             }
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text("币安官方活动", color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                                 Text("查看 Binance 官方公告与活动", color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -159,7 +159,7 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     campaign.name,
@@ -174,7 +174,7 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
                 ) {
                     Text(
                         if (campaign.tier == "featured") "精选" else "普通",
-                        Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -190,8 +190,8 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
                 )
             }
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 CampaignTag("Binance 官方")
                 CampaignTag(campaign.chain ?: "链待确认")
