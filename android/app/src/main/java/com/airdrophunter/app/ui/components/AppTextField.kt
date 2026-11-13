@@ -71,10 +71,20 @@ fun AppTextField(
                 ) else Modifier
             )
             .background(
-                colors.surfaceVariant.copy(alpha = if (enabled) 1f else 0.4f),
+                when {
+                    !enabled -> colors.surfaceVariant.copy(alpha = 0.4f)
+                    isError -> colors.errorContainer
+                    else -> colors.surfaceVariant
+                },
                 shape
             )
-            .then(if (borderColor != Color.Transparent) Modifier.border(if (focused) 1.5.dp else 1.dp, borderColor, shape) else Modifier)
+            .then(
+                if (borderColor != Color.Transparent) Modifier.border(
+                    if (focused || isError) 1.5.dp else 1.dp,
+                    borderColor,
+                    shape
+                ) else Modifier
+            )
             .onFocusChanged { focused = it.isFocused }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         enabled = enabled,
@@ -91,9 +101,11 @@ fun AppTextField(
                 when {
                     trailingContent != null -> trailingContent()
                     trailingClear && value.isNotEmpty() && enabled -> {
-                        IconButton(onClick = { onValueChange("") }, modifier = Modifier.height(32.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = "清除输入", tint = colors.onSurfaceVariant)
-                        }
+                        AppIconButton(
+                            icon = Icons.Default.Close,
+                            contentDescription = "清除输入",
+                            onClick = { onValueChange("") }
+                        )
                     }
                 }
             }
