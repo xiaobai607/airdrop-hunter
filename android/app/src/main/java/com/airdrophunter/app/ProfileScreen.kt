@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppTextField
 import java.util.Locale
 
 @Composable
@@ -219,17 +220,15 @@ fun ProfileScreen(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("备份文件会使用此密码加密。换手机导入时必须输入相同密码，密码不会保存在应用中。")
-                        OutlinedTextField(
+                        AppTextField(
                             value = backupPassword, onValueChange = { backupPassword = it },
-                            label = { Text("备份密码（至少8位）") },
-                            visualTransformation = PasswordVisualTransformation(),
-                            singleLine = true
+                            placeholder = "备份密码（至少8位）",
+                            visualTransformation = PasswordVisualTransformation()
                         )
-                        OutlinedTextField(
+                        AppTextField(
                             value = backupPasswordConfirm, onValueChange = { backupPasswordConfirm = it },
-                            label = { Text("再次输入密码") },
-                            visualTransformation = PasswordVisualTransformation(),
-                            singleLine = true
+                            placeholder = "再次输入密码",
+                            visualTransformation = PasswordVisualTransformation()
                         )
                     }
                 },
@@ -253,11 +252,10 @@ fun ProfileScreen(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("请输入创建该备份文件时设置的密码。")
-                        OutlinedTextField(
+                        AppTextField(
                             value = importPassword, onValueChange = { importPassword = it },
-                            label = { Text("备份密码") },
-                            visualTransformation = PasswordVisualTransformation(),
-                            singleLine = true
+                            placeholder = "备份密码",
+                            visualTransformation = PasswordVisualTransformation()
                         )
                     }
                 },
