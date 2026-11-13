@@ -806,3 +806,12 @@
 - 已修复：对 `chainId` 使用安全调用并保留无效链 ID 的提前返回；将三个实验性 API 标记合并为一个 `@OptIn`。
 - 对应提交：`2b581e5e`、`ee6b2132`。
 - 验证状态：修复已推送，等待新一轮 Android 单元测试；本轮未触发 APK 打包，未进行设备 UI 验收。
+
+
+## 2026-11-13 单元测试失败项回归处理
+
+- 最新运行 `43452260454` 已通过 `:app:compileDebugKotlin` 与测试源码编译，224 个单元测试中 222 个通过、2 个失败。
+- `CommunityVerificationTierTest`：失败原因是 rejected 状态文案从测试约定的“核验拒绝”变成“公共贡献核验拒绝”。已恢复为既有产品文案“核验拒绝”，不修改测试断言。
+- `Web3TransactionAccountingTest.receiptIdentityMustMatchSavedTransactionHash`：大小写规范化断言失败。当前先不放宽交易哈希/回执校验；需继续追踪 verifier 的真实实现来源后再做最小修复，防止无关回执被错误绑定到账本交易。
+- 修复提交：`5a3d8c8b`。新一轮 CI 将验证文案修复；Web3 identity 测试仍为明确未解决项。
+- 本轮未构建 APK；未更改钱包页面或交易安全边界。
