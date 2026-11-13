@@ -143,8 +143,7 @@ class WalletManagerViewModelFactory(private val repository: WalletRepository) : 
     }
 }
 
-@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class)
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun WalletManagerScreen(
     modifier: Modifier = Modifier,
