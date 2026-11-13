@@ -101,6 +101,17 @@
 - Background Home warmup retains its initial last-known-good read. After a successful six-hour provider sync it force-refreshes the published campaign GET into Room without repeating provider ingestion; the published snapshot also has its own six-hour revalidation cadence.
 - This closes the source-ingest → scoring/publication → public API → Room cache path in code. Live endpoint behavior, backend tests and Android tests remain pending.
 
+## 2026-11-13 — UI redesign authority and acceptance gate
+
+- The user-designated `空投猎人-UI与动效重构设计说明书.docx v1.1` is the sole visual and interaction authority for this redesign. The earlier isolated visual tweaks are not considered completion and must be reconciled with the specification.
+- Design direction is Apple-style hierarchy/material/motion plus Xiaomi-style information density, capsule controls and tactile feedback. Apply the same tokens across all existing and newly added UI; do not invent a parallel style.
+- Scope is presentation and interaction feedback only: preserve business logic, data structures, API behavior, existing feature set and navigation semantics. Do not add product features as part of the redesign. Do not modify WalletConnect SDK internal screens or third-party WebView page content; unify only their surrounding container.
+- Phase 1 is mandatory before page-by-page redesign: centralize exact light/dark color tokens, typography, spacing (4/8/12/16/20/24/32 only), four radii (28/20/12/full), surface hierarchy, icon rules, motion specs and reusable button/input/card/chip/tab components. Every tappable element must provide visual press feedback and the specified haptic class within 150ms; honor Android reduced-motion settings.
+- Phase 2: rebuild Home, Search, Projects, Community, Profile and data presentation using list-density/detail-spacing rules, 40ms stagger (max 6), 400ms tabular-number transitions, 320ms page push and 250ms tab/chip transitions.
+- Phase 3: rebuild browser shell, Airdrop navigation sheet, wallet manager/add-wallet sheet, WalletConnect outer wrapper, TRON Energy page, login flow, app icon/splash and full dark-mode pass. Keep the WebView TLS/origin security and wallet-accounting behavior unchanged. Browser security warning must be a single non-blocking banner; no duplicate blocking dialog.
+- Critical quality gates: input height 52; primary/secondary buttons 52; icon hit area at least 44; cards use solid surface + hairline and no shadow; glass/blur only on floating layers and no more than two simultaneously; no emoji mixed with icon family; no large gradients/glow/decorative looping motion; tab bar fixed four items with moving indicator; no duplicated page title; reduced-motion and 1.3x font-scale checks.
+- The document's listed page specs and component parameters are binding. Do not mark the UI redesign complete based on token-only or isolated-card changes. Final acceptance requires a page-by-page checklist, screenshot/device review and functional regression; no APK build until the current agreed batch is complete.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
