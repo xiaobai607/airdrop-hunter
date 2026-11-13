@@ -37,7 +37,7 @@ fun Modifier.appPressFeedback(
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val view = LocalView.current
-    val overlay = pressedOverlay ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f)
+    val overlay = pressedOverlay ?: Color.Black.copy(alpha = 0.06f)
     val target = if (pressed && enabled) scale else 1f
     val animatedScale by animateFloatAsState(
         targetValue = target,
