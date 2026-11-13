@@ -97,7 +97,7 @@
 | WalletConnect 外层 | 已限制 SDK 强制浅色主题的影响范围 | 进行中：只调整外层容器/转场，不改 SDK 内部 UI |
 | TRON 能量助手 `TronEnergyAssistantScreen.kt` | 已完成标题层级、图标容器、地址输入分组和安全提示卡片的视觉收口；保留共享字段/按钮 | 代码已落地待验收：浅深色、窄屏、输入错误与点击反馈待设备验收 |
 | 项目管理 `ProjectsScreen.kt` | 已统一标题/副标题层级、页面左右边距与列表起始节奏；保留真实净盈亏、状态标签和错峰列表 | 进行中：筛选胶囊、空态、FAB 与 Tab 避让及完整视觉回归 |
-| 项目详情 `ProjectDetailScreen.kt` | 本轮统一项目概览标题、主卡片/钱包/账本/任务卡片圆角和内边距，页面节奏统一 | 进行中：弹窗/抽屉、交互流水细节和全部触控反馈待完整回归 |
+| 项目详情 `ProjectDetailScreen.kt` | 已统一项目概览标题、主卡片/钱包/账本/任务卡片圆角和内边距；交互流水实际 Gas/收益改为双列指标卡 | 进行中：弹窗/抽屉、交互流水剩余信息和全部触控反馈待完整回归 |
 | 微社区 `MicroCommunityScreen.kt` / `CommunitySquareScreen.kt` | 广场页标题/说明层次补齐；项目名称窄屏省略、标签行横向滚动，保留真实数据和操作 | 进行中：榜单胶囊、标签样式、卡片密度和图标系统统一 |
 | 社区验证等级 `CommunityVerificationTierBar.kt` | 文字颜色已改为主题语义色 | 代码已落地待验收 |
 | 我的/个人中心 `ProfileScreen.kt` | 设置行、图标容器、备份/导入按钮已有统一风格改动 | 进行中：统计区、列表分组、底部滚动/insets、空态和暗色模式 |
@@ -609,3 +609,13 @@
 - 保留项目卡片点击、加入项目、收藏、真实评分、收益/Gas 比例条、目录筛选与排序；没有修改数据或业务操作。
 - 静态核对：仅调整文本行数/溢出和标签容器滚动；按钮回调、数据计算及项目筛选逻辑保持不变。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机窄屏验收。
 - Commit：`5b6ec2fa1598503f2aac5a2ae793f9b125cb5233`。
+
+
+### 2026-11-13 — 项目详情真实交互流水金额层级优化（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ProjectDetailScreen.kt`，`InteractionLedgerRow`。
+- 将流水中的实际 Gas USD 估值与实际收益 USD 估值拆为并列双列指标块，分别使用 error/secondary 语义色的低透明度容器；金额提升到 titleSmall/SemiBold，标签单独显示，窄屏下两列各自等宽，避免长文本直接在同一行争抢空间。
+- 流水卡片圆角统一到设计令牌大圆角，内边距调整为 16dp、内部节奏调整为 8dp。
+- 保留预估 Gas/奖励、实际 Gas/奖励、原生币种明细、公共贡献核验状态、交易哈希及原有数值来源；未将预估值混入实际值，也未修改任何账本数据。
+- 静态核对：金额仍直接取自同一条 `UserInteractionEntity` 的 `gasCostUsd` / `actualRewardUsd`；只调整展示层级与布局。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色/窄屏验收。
+- Commit：`a6e7fad0171ea16ba47da24f9fcd18893424bbaf`。
