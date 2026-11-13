@@ -1078,7 +1078,7 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
             filter_metadata = {**filter_result["metadata"], "evaluated_at": filter_result["evaluated_at"], "decision_version": 1}
             project_record = {
                 key: value for key, value in record.items()
-                if not key.startswith("_") and key not in {"catalog_id", "source_url", "published_at"}
+                if not key.startswith("_") and key not in {"catalog_id", "catalog_name", "source_url", "published_at"}
             }
             project_record["filter_status"] = decision_result["disposition"]
             project_record["filter_reasons"] = decision_result["reasons"]
