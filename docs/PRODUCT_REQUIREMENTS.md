@@ -59,6 +59,13 @@
 - Keep the existing single global search entry below the market dashboard; do not add a second search box to quick shortcuts. Keep Airdrop Library as the bottom-navigation destination, not a duplicate Home shortcut.
 - Continue the same compact, rounded, low-noise visual language across Projects, Wallet and Profile after the Home/campaign pass. Do not alter data behavior or add login/registration flows as part of visual work.
 
+## 2026-11-13 — first UI refresh pass committed
+
+- Home dashboard shortcuts now use consistently sized, generously rounded icon tiles with restrained function-specific colors. Existing developer-owned width/height specs and user add/remove/reorder behavior are unchanged.
+- Campaign cards now limit long announcement descriptions to three lines and wrap source/chain/status/KYC tags to multiple rows on narrow phones. The card identifies the verified Binance source explicitly.
+- Profile settings rows now use compact rounded accent tiles for their icons.
+- This is the first visual pass, not the full UI acceptance. Projects, Wallet, browser dock and complete profile/settings scrolling still need review on device. No APK/build/test was run mid-batch.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
