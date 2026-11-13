@@ -530,10 +530,11 @@ fun BrowserAccountingToolbar(
                             onClick = { showWeb3HashSync = false },
                             modifier = Modifier.weight(1f)
                         ) { Text("取消") }
-                        Button(
+                        AppButton(
+                            text = "核对并同步",
                             enabled = web3HashSyncDraftId != null && web3HashSyncInput.isNotBlank(),
                             onClick = {
-                                val id = web3HashSyncDraftId ?: return@Button
+                                val id = web3HashSyncDraftId ?: return@AppButton
                                 scope.launch {
                                     val accepted = runCatching {
                                         web3Repository.attachManuallyVerifiedHash(id, web3HashSyncInput)
@@ -548,7 +549,7 @@ fun BrowserAccountingToolbar(
                                 }
                             },
                             modifier = Modifier.weight(1f)
-                        ) { Text("核对并同步") }
+                        )
                     }
                 }
             }
@@ -888,10 +889,11 @@ fun BrowserAccountingToolbar(
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("归属项目", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                         val selectedProject = projects.firstOrNull { it.id == selectedProjectLocalId }
-                        OutlinedButton(onClick = { showProjectPicker = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
-                            Text(selectedProject?.name ?: "选择项目", modifier = Modifier.weight(1f), maxLines = 1)
-                            Text("选择", color = MaterialTheme.colorScheme.primary)
-                        }
+                        AppButton(
+                            text = selectedProject?.name ?: "选择项目",
+                            onClick = { showProjectPicker = true },
+                            style = AppButtonStyle.SECONDARY
+                        )
                         if (selectedProject == null) {
                             Text("请先选择项目，或新建一个本地项目。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                         }
@@ -945,13 +947,15 @@ fun BrowserAccountingToolbar(
                                     modifier = Modifier.fillMaxWidth(),
                                     trailingContent = {
                                         AppButton("选择", onClick = { gasSymbolCustom = false; gasSymbol = gasSymbolChoices.firstOrNull().orEmpty() },
-                                            style = AppButtonStyle.TEXT, fullWidth = false, heightDp = 40, fontSizeSp = 12)
+                                            style = AppButtonStyle.TEXT, fullWidth = false, heightDp = 44, fontSizeSp = 12)
                                     }
                                 )
                             } else {
-                                OutlinedButton(onClick = { gasSymbolMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                                    Text(gasSymbol.ifBlank { "Gas 币种" }, maxLines = 1)
-                                }
+                                AppButton(
+                                    text = gasSymbol.ifBlank { "Gas 币种" },
+                                    onClick = { gasSymbolMenuExpanded = true },
+                                    style = AppButtonStyle.SECONDARY
+                                )
                                 DropdownMenu(expanded = gasSymbolMenuExpanded, onDismissRequest = { gasSymbolMenuExpanded = false }) {
                                     gasSymbolChoices.forEach { symbol ->
                                         DropdownMenuItem(text = { Text(symbol) }, onClick = {
