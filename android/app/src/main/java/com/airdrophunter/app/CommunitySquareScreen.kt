@@ -264,16 +264,24 @@ fun CommunitySquareScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("微社区广场", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "微社区广场",
+                        modifier = Modifier.weight(1f).semantics { heading() },
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    AppIconButton(
+                        icon = Icons.Default.Add,
+                        contentDescription = "提交新空投项目",
+                        onClick = { showSubmissionDialog = true }
+                    )
+                }
                 Text(
                     "发现值得关注的 Web3 项目，查看社区真实参与数据与口碑",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
-                )
-                AppButton(
-                    text = "提交新空投项目",
-                    onClick = { showSubmissionDialog = true },
-                    style = AppButtonStyle.SECONDARY
                 )
                 Row(
                     Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant,

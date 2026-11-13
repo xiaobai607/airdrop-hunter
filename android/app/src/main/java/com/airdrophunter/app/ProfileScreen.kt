@@ -36,6 +36,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButton
 import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppTextField
@@ -113,8 +114,16 @@ fun ProfileScreen(
             .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text("我的", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("我的", modifier = Modifier.weight(1f).semantics { heading() },
+                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+            AppIconButton(
+                icon = Icons.Default.Settings,
+                contentDescription = "打开设置",
+                onClick = { activeProfileDestination = ProfileDestination.SETTINGS }
+            )
+        }
         Row(
             Modifier.fillMaxWidth().padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
