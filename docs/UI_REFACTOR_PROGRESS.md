@@ -1150,3 +1150,12 @@
 - 记账中心的“连接钱包”按钮直接打开现有钱包管理页内的 WalletConnect AppKit 选择面板，不再要求用户额外点击“添加钱包”或“连接外部钱包”。
 - 复用 WalletManagerScreen 的 AppKit、会话监听和公开地址保存流程；连接后仍由钱包管理现有流程提示保存地址。
 - 从记账中心发起后，关闭钱包管理页面会返回记账中心；普通进入钱包管理的行为不变。
+
+
+### 2026-11-14 — WalletConnect delegate 源码修复与成功连接计数接线
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/WalletConnectSessionDelegate.kt`、`docs/UI_REFACTOR_PROGRESS.md`
+- 修复 delegate 声明区域被写成字面量 `\\n` 的源码问题，恢复为真实 Kotlin 换行；该问题会导致 Kotlin 源码无法正常解析。
+- 在 `onSessionApproved` 成功回调中记录钱包名称与成功连接次数；拒绝、点击或连接失败不计数。统计仍保存在设备本地，不进入公共缓存或个人账本。
+- 当前边界：成功连接计数存储与回调已接通，但尚未接入 Reown 钱包目录的排序；钱包目录全局去重、精选 ID 核验、预热缓存仍待继续。尚未运行 Gradle/CI/真机验收，不标记为已验收。
+- 对应代码提交：`990aa6d1b1ea0a6a3c3f2be80b595b6cc5b548f9`。
