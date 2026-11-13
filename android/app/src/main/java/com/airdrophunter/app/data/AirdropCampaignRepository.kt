@@ -3,6 +3,7 @@ package com.airdrophunter.app.data
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 
 /**
  * Room-backed public campaign cache. Public discovery data is shared between
@@ -77,7 +78,14 @@ class AirdropCampaignRepository(
                 fetch = {
                     // A manual Library refresh runs the approved free-provider sync,
                     // then reads only campaigns that passed the server publication gate.
-                    val sync = api.syncAirdrops()
+                    val sync = try {
+                        api.syncAirdrops()
+                    } catch (error: HttpException) {
+                        if (error.code() == 429) {
+                            throw IllegalStateException("空投数据刚刚同步过，请稍后再试")
+                        }
+                        throw error
+                    }
                     if (!sync.ok) {
                         throw IllegalStateException(sync.status.error ?: "空投活动同步未成功")
                     }
@@ -102,6 +110,42 @@ class AirdropCampaignRepository(
             if (result.throttled) throw IllegalStateException("刚刚刷新过，请30秒后再试")
             result.data ?: throw IllegalStateException(result.errorMessage ?: "空投活动暂不可用")
         }
+
+    /**
+     * Refresh the published Room snapshot after a source sync has already succeeded.
+     * This deliberately performs only the campaign GET and never repeats provider ingestion.
+     */
+    suspend fun refreshPublishedSnapshot(
+        filters: AirdropCampaignFilters = AirdropCampaignFilters()
+    ): AirdropCampaignLoadResult = withContext(Dispatchers.IO) {
+        val result = CacheRefreshCoordinator.shared.load(
+            cacheKey = filters.cacheKey(),
+            source = "public-airdrop-campaigns",
+            ttlMillis = CAMPAIGN_TTL_MILLIS,
+            force = true,
+            readCache = { readCached(filters) },
+            fetch = {
+                api.getAirdropCampaigns(
+                    tier = filters.tier,
+                    chain = filters.chain,
+                    status = filters.status,
+                    campaignType = filters.campaignType,
+                    kyc = filters.kyc,
+                    query = filters.query,
+                    limit = 100
+                ).let(::validateCampaignRows)
+            },
+            save = { rows ->
+                CacheStore.writePublic(
+                    filters.cacheKey(),
+                    gson.toJson(AirdropCampaignCacheEnvelope(campaigns = rows))
+                )
+                require(readCached(filters) == rows) { "空投活动缓存写入校验失败" }
+            }
+        )
+        val rows = result.data ?: throw IllegalStateException(result.errorMessage ?: "空投活动暂不可用")
+        AirdropCampaignLoadResult(rows, stale = result.stale, errorMessage = result.errorMessage)
+    }
 
     private fun validateCampaignRows(rows: List<AirdropCampaignDto>): List<AirdropCampaignDto> {
         require(rows.map { it.id }.distinct().size == rows.size) {
