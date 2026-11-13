@@ -1,7 +1,14 @@
-import com.airdrophunter.app.ui.components.AppTextButton
 package com.airdrophunter.app
 
 import androidx.compose.foundation.layout.Arrangement
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.AppTextField
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppButton
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,13 +18,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -57,12 +61,15 @@ fun AirdropDiscoveryScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { airdropsViewModel.loadAirdrops() }, enabled = !state.isLoading) {
-                Text("刷新")
-            }
-            Button(onClick = { showAddDialog = true }, enabled = !state.isSaving) {
-                Text("添加空投")
-            }
+            AppButton(
+                text = "刷新", onClick = { airdropsViewModel.loadAirdrops() },
+                enabled = !state.isLoading, loading = state.isLoading,
+                style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 44, fontSizeSp = 14
+            )
+            AppButton(
+                text = "添加空投", onClick = { showAddDialog = true },
+                enabled = !state.isSaving, fullWidth = false, heightDp = 44, fontSizeSp = 14
+            )
         }
         if (state.message != null) {
             Text(state.message!!, color = MaterialTheme.colorScheme.primary)
@@ -81,7 +88,13 @@ fun AirdropDiscoveryScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(state.items, key = { it.id }) { item ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(0.dp)
+                    ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(5.dp)
@@ -140,21 +153,27 @@ private fun AddAirdropDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("添加空投记录") },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("添加空投记录", color = MaterialTheme.colorScheme.onSurface) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(name, { name = it }, label = { Text("项目名称 *") }, singleLine = true)
-                OutlinedTextField(description, { description = it }, label = { Text("项目简介") })
-                OutlinedTextField(chain, { chain = it }, label = { Text("所属链，例如 Base") }, singleLine = true)
-                OutlinedTextField(reward, { reward = it }, label = { Text("奖励说明") })
-                OutlinedTextField(eligibility, { eligibility = it }, label = { Text("参与条件") })
-                OutlinedTextField(officialUrl, { officialUrl = it }, label = { Text("官方活动链接") })
-                OutlinedTextField(sourceUrl, { sourceUrl = it }, label = { Text("信息来源链接") })
+            Column(
+                Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AppTextField(name, { name = it }, placeholder = "项目名称 *")
+                AppTextField(description, { description = it }, placeholder = "项目简介", singleLine = false)
+                AppTextField(chain, { chain = it }, placeholder = "所属链，例如 Base")
+                AppTextField(reward, { reward = it }, placeholder = "奖励说明", singleLine = false)
+                AppTextField(eligibility, { eligibility = it }, placeholder = "参与条件", singleLine = false)
+                AppTextField(officialUrl, { officialUrl = it }, placeholder = "官方活动链接")
+                AppTextField(sourceUrl, { sourceUrl = it }, placeholder = "信息来源链接")
             }
         },
         confirmButton = {
-            AppTextButton(
+            AppButton(
+                text = "保存",
                 enabled = name.isNotBlank() && !saving,
+                loading = saving,
                 onClick = {
                     onSave(
                         AirdropWriteRequest(
@@ -173,7 +192,7 @@ private fun AddAirdropDialog(
                         )
                     )
                 }
-            ) { Text(if (saving) "保存中…" else "保存") }
+            )
         },
         dismissButton = { AppTextButton(onClick = onDismiss, enabled = !saving) { Text("取消") } }
     )
