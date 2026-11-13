@@ -221,6 +221,14 @@ private fun AirdropHunterApp(
         Destination(R.string.tab_projects, Icons.Default.GridView),
         Destination(R.string.tab_profile, Icons.Default.Person)
     )
+    val projectTransitionSnapshots = remember { mutableStateMapOf<String, ProjectDto>() }
+    val communityTransitionSnapshots = remember { mutableStateMapOf<String, ProjectDto>() }
+    LaunchedEffect(selectedProject) {
+        selectedProject?.let { projectTransitionSnapshots[it.id] = it }
+    }
+    LaunchedEffect(selectedCommunityProject) {
+        selectedCommunityProject?.let { communityTransitionSnapshots[it.id] = it }
+    }
     val currentRouteKey = when {
         activeOverlay == AppOverlay.SOURCES -> "sources"
         activeOverlay == AppOverlay.AIRDROP_HUB -> "airdrop-hub"
@@ -379,20 +387,32 @@ private fun AirdropHunterApp(
                                 .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, selectedWallet.id))
                         }
                     )
-                    route.startsWith("community:") -> MicroCommunityScreen(
-                        projectOfficialId = selectedCommunityProject!!.officialIdentifier(),
-                        projectName = selectedCommunityProject!!.name,
-                        modifier = Modifier.fillMaxSize(),
-                        isGuest = isGuest,
-                        sessionScopeKey = sessionScopeKey
-                    )
-                    route.startsWith("project:") -> ProjectDetailScreen(
-                        selectedProject!!,
-                        Modifier.fillMaxSize(),
-                        isGuest,
-                        onOpenCommunity = { selectedCommunityProject = it },
-                        sessionScopeKey = sessionScopeKey
-                    )
+                    route.startsWith("community:") -> {
+                        val projectId = route.substringAfter("community:")
+                        val project = communityTransitionSnapshots[projectId] ?: selectedCommunityProject
+                        if (project != null) {
+                            MicroCommunityScreen(
+                                projectOfficialId = project.officialIdentifier(),
+                                projectName = project.name,
+                                modifier = Modifier.fillMaxSize(),
+                                isGuest = isGuest,
+                                sessionScopeKey = sessionScopeKey
+                            )
+                        } else Box(Modifier.fillMaxSize())
+                    }
+                    route.startsWith("project:") -> {
+                        val projectId = route.substringAfter("project:")
+                        val project = projectTransitionSnapshots[projectId] ?: selectedProject
+                        if (project != null) {
+                            ProjectDetailScreen(
+                                project,
+                                Modifier.fillMaxSize(),
+                                isGuest,
+                                onOpenCommunity = { selectedCommunityProject = it },
+                                sessionScopeKey = sessionScopeKey
+                            )
+                        } else Box(Modifier.fillMaxSize())
+                    }
                     route == "tab:0" -> tabStateHolder.SaveableStateProvider("bottom-tab-0") {
                         HomeScreen(
                             modifier = Modifier.fillMaxSize(),
