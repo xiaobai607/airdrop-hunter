@@ -27,7 +27,7 @@ enum class AppHaptic { LIGHT, MEDIUM, WARNING }
  */
 fun Modifier.appPressFeedback(
     onClick: () -> Unit,
-    scale: Float = 0.94f,
+    scale: Float = 0.96f,
     enabled: Boolean = true,
     haptic: AppHaptic = AppHaptic.LIGHT,
     pressedAlpha: Float = 1f,

@@ -65,6 +65,7 @@ fun AppButton(
             .then(if (border != Color.Transparent) Modifier.border(1.dp, border, shape) else Modifier)
             .appPressFeedback(
                 onClick = onClick,
+                scale = AppDesignTokens.Motion.PressButtonScale,
                 enabled = active,
                 haptic = if (style == AppButtonStyle.DANGER) AppHaptic.WARNING else AppHaptic.LIGHT,
                 pressedOverlay = Color.Black.copy(alpha = 0.08f),
