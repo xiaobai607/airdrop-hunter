@@ -129,3 +129,62 @@ def test_two_low_temperature_runs_do_not_archive_even_if_opportunity_score_is_lo
     })
     assert result["tier"] == "observation"
     assert result["is_published"] is False
+
+
+def test_verified_binance_crypto_airdrop_can_publish_without_invented_heat():
+    result = evaluate_campaign({
+        "source_name": "binance-crypto-airdrop",
+        "campaign_type": "airdrop",
+        "temperature": None,
+        "opportunity_score": None,
+        "campaign_status": "unknown",
+        "trust_status": "verified",
+        "official_url_verified": True,
+        "requires_kyc": None,
+        "is_kyc_free": None,
+    })
+    assert result["score"] is None
+    assert result["tier"] == "ordinary"
+    assert result["is_published"] is True
+    assert result["score_breakdown"]["official_binance_airdrop_evidence"] is True
+    assert "保持未知" in result["listing_reason"]
+
+
+def test_binance_campaign_without_detail_verified_official_url_stays_unpublished():
+    result = evaluate_campaign({
+        "source_name": "binance-crypto-airdrop",
+        "campaign_type": "airdrop",
+        "trust_status": "verified",
+        "official_url_verified": False,
+    })
+    assert result["tier"] == "observation"
+    assert result["is_published"] is False
+
+
+def test_latest_activities_or_other_source_cannot_use_binance_airdrop_gate():
+    for payload in (
+        {"source_name": "binance-announcements", "campaign_type": "airdrop"},
+        {"source_name": "binance-crypto-airdrop", "campaign_type": "promotion"},
+    ):
+        result = evaluate_campaign({
+            **payload,
+            "trust_status": "verified",
+            "official_url_verified": True,
+            "temperature": None,
+            "opportunity_score": None,
+        })
+        assert result["tier"] == "observation"
+        assert result["is_published"] is False
+
+
+def test_binance_airdrop_publication_still_honors_risk_and_source_conflict():
+    for payload in ({"corroborated_risk": True}, {"source_conflict": True}):
+        result = evaluate_campaign({
+            "source_name": "binance-crypto-airdrop",
+            "campaign_type": "airdrop",
+            "trust_status": "verified",
+            "official_url_verified": True,
+            **payload,
+        })
+        assert result["tier"] == "observation"
+        assert result["is_published"] is False
