@@ -52,6 +52,7 @@ object AppDesignTokens {
     }
 
     object Radius {
+        const val Sm = 8
         const val Xl = 28
         const val Lg = 20
         const val Md = 12
