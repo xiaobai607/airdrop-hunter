@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +39,7 @@ import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.StaggeredListItem
 import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppTextField
 import java.util.Locale
@@ -192,7 +194,8 @@ fun ProjectsScreen(
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(filtered, key = { it.id }) { project ->
+                itemsIndexed(filtered, key = { _, project -> project.id }) { index, project ->
+                    StaggeredListItem(project.id, index) {
                     val pnl = pnlRecords.firstOrNull { it.projectLocalId == project.id }
                     val savedProjectRecord = savedProjects.firstOrNull { it.projectLocalId == project.id }
                     val showAccountingReminder = savedProjectRecord?.let {
@@ -326,6 +329,7 @@ fun ProjectsScreen(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }
