@@ -153,9 +153,9 @@ fun HomeScreen(
             }
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 when {
@@ -251,8 +251,8 @@ fun HomeScreen(
             Modifier.fillMaxWidth()
                 .height(54.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(AppColors.Surface)
-                .clickable(onClick = onOpenGlobalSearch)
+                .background(MaterialTheme.colorScheme.surface)
+                .appPressFeedback(onClick = onOpenGlobalSearch, scale = 0.96f)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(11.dp)
@@ -588,12 +588,12 @@ private fun ShortcutCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        onClick = onClick,
-        modifier = modifier.wrapContentHeight(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-        border = BorderStroke(1.dp, AppColors.Border),
-        elevation = CardDefaults.cardElevation(1.dp)
+        modifier = modifier.wrapContentHeight()
+            .appPressFeedback(onClick = onClick, scale = 0.96f),
+        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(34.dp))
