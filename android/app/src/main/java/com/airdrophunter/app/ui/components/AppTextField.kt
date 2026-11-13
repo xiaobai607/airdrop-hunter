@@ -43,7 +43,8 @@ fun AppTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     trailingClear: Boolean = false,
     heightDp: Int = AppDesignTokens.Control.InputHeight,
-    visualTransformation: VisualTransformation = VisualTransformation.None
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailingContent: (@Composable () -> Unit)? = null
 ) {
     var focused by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
@@ -74,9 +75,12 @@ fun AppTextField(
                     if (value.isEmpty()) Text(placeholder, color = colors.onSurfaceVariant.copy(alpha = 0.72f), fontSize = 15.sp)
                     inner()
                 }
-                if (trailingClear && value.isNotEmpty() && enabled) {
-                    IconButton(onClick = { onValueChange("") }, modifier = Modifier.height(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "清除输入", tint = colors.onSurfaceVariant)
+                when {
+                    trailingContent != null -> trailingContent()
+                    trailingClear && value.isNotEmpty() && enabled -> {
+                        IconButton(onClick = { onValueChange("") }, modifier = Modifier.height(32.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "清除输入", tint = colors.onSurfaceVariant)
+                        }
                     }
                 }
             }
