@@ -114,7 +114,7 @@ fun ProfileScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Text("我的", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+            style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
         Row(
             Modifier.fillMaxWidth().padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

@@ -125,7 +125,7 @@ fun HomeScreen(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("首页", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
-                    style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
                 Text("Web3 机会与资产管理", color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium)
             }

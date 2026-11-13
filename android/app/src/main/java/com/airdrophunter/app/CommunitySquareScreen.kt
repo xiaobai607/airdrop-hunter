@@ -264,7 +264,7 @@ fun CommunitySquareScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("微社区广场", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                Text("微社区广场", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
                 Text(
                     "发现值得关注的 Web3 项目，查看社区真实参与数据与口碑",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
