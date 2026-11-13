@@ -88,6 +88,12 @@
 - The Airdrop Campaign Library's refresh button previously performed only a GET through its cache coordinator; it did not request provider sync. This left the list refresh disconnected from the approved free source pipeline.
 - Required correction: run campaign scoring after successful source sync in the API route, and make explicit user refresh invoke the same sync endpoint before re-reading the filtered campaign list. Preserve the existing shared 30-second client throttle and server-side 5-minute sync cooldown; surface cooldown/failure without clearing last-known-good cached rows.
 
+## 2026-11-13 — refresh the Room campaign snapshot after background sync
+
+- The Home warmup currently loads the campaign Room snapshot before it performs the 6-hour Binance source refresh. If the campaign cache is still fresh, the newly published campaigns can remain invisible until the next TTL expiry.
+- After a successful server-side source sync, force one bounded GET of the published campaign endpoint through the shared cache coordinator and save the new Room snapshot. Do not repeat source sync for this cache read.
+- Keep the initial last-known-good cache warmup. Only perform the forced campaign snapshot read when the scheduled source refresh actually succeeds. Map server 429 cooldowns to a user-facing non-retryable message instead of hammering the sync endpoint.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
