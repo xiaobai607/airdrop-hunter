@@ -51,8 +51,8 @@ fun AirdropHubScreen(
         factory = AirdropHubViewModelFactory(application.appContainer.airdropHubRepository)
     )
     val state by hubViewModel.uiState.collectAsStateWithLifecycle()
-    var selectedAnnouncement by remember { mutableStateOf<AirdropHubDto?>(null)
-    var showSourceDetails by remember { mutableStateOf(false) } }
+    var selectedAnnouncement by remember { mutableStateOf<AirdropHubDto?>(null) }
+    var showSourceDetails by remember { mutableStateOf(false) }
 
     if (selectedAnnouncement != null) {
         AirdropAnnouncementDetail(
