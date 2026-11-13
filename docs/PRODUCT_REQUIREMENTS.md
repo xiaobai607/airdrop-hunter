@@ -92,7 +92,7 @@
 
 - The Home warmup currently loads the campaign Room snapshot before it performs the 6-hour Binance source refresh. If the campaign cache is still fresh, the newly published campaigns can remain invisible until the next TTL expiry.
 - After a successful server-side source sync, force one bounded GET of the published campaign endpoint through the shared cache coordinator and save the new Room snapshot. Do not repeat source sync for this cache read.
-- Keep the initial last-known-good cache warmup. Only perform the forced campaign snapshot read when the scheduled source refresh actually succeeds. Map server 429 cooldowns to a user-facing non-retryable message instead of hammering the sync endpoint.
+- Keep the initial last-known-good cache warmup. Force-refresh the published campaign snapshot after a successful scheduled source sync, and otherwise revalidate that snapshot on its own six-hour cadence. Map server 429 cooldowns to a user-facing non-retryable message instead of hammering the sync endpoint.
 
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
