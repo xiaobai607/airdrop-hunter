@@ -41,7 +41,9 @@ fun Modifier.appPressFeedback(
     val target = if (pressed && enabled) scale else 1f
     val animatedScale by animateFloatAsState(
         targetValue = target,
-        animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMedium),
+        // Match the design spec's short, responsive spring (damping 0.9 / ~250ms feel).
+        // Medium stiffness made the press state feel sluggish on rapid repeated taps.
+        animationSpec = spring(dampingRatio = 0.9f, stiffness = 1_500f),
         label = "app-press-scale"
     )
 
