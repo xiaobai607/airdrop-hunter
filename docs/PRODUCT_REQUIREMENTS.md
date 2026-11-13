@@ -7,8 +7,9 @@ Planned correction:
 - Use the Android WebView provider's native User-Agent; do not spoof a fixed, aging browser/device fingerprint.
 - Do not mutate User-Agent after page completion or before retry.
 - Extend the main-frame watchdog to 30 seconds, keep the page in a diagnosable loading state during that bounded window, and preserve a manual retry.
+- Upgrade explicitly supplied `http://` URLs to their `https://` equivalent before loading; never enable cleartext traffic as a fallback. For in-page HTTP links, upgrade same-origin links directly and retain the existing user confirmation for cross-origin navigation.
 - Keep strict TLS failure handling, mixed-content blocking, file/content access disabled, safe browsing, and existing DApp origin/WalletConnect security checks unchanged.
-- Add privacy-safe WebChrome console/error diagnostics only if they materially help identify the blank-page cause; never log cookies, tokens, form values, or full sensitive query strings.
+- Sanitize browser logs to host-only diagnostics; never log full URLs, query strings, cookies, tokens, or form values. Add privacy-safe WebChrome console/error diagnostics only if they materially help identify the blank-page cause.
 
 # 2026-11-13 — Apple × Xiaomi UI system-wide refactor (active)
 
