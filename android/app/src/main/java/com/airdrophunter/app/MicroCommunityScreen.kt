@@ -403,7 +403,7 @@ private fun CommunitySnapshotPeriodMetric(
                         contentAlignment = Alignment.Center
                     ) {
                         if (gasWeight >= 0.15f) {
-                            Text("${(gasWeight * 100).roundToInt()}%", color = Color.White,
+                            Text("${(gasWeight * 100).roundToInt()}%", color = MaterialTheme.colorScheme.onError,
                                 style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -417,7 +417,7 @@ private fun CommunitySnapshotPeriodMetric(
                         contentAlignment = Alignment.Center
                     ) {
                         if (rewardWeight >= 0.15f) {
-                            Text("${(rewardWeight * 100).roundToInt()}%", color = Color.White,
+                            Text("${(rewardWeight * 100).roundToInt()}%", color = MaterialTheme.colorScheme.onSecondary,
                                 style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                     }
