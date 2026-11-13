@@ -730,3 +730,12 @@
 - `MicroCommunityScreen.kt`：项目标识容器和全圆角标签改用 Md/Full 令牌。
 - Commits：`eb2242923a44cd150337d301d89ed41a87ea149b`、`f2f595de491736805dbd28b55622305bb82ade05`、`4042250beacf236118328b355334438e4244e9a9`。
 - 这是视觉令牌统一，不改变卡片内容、项目数据、筛选、账本或社区交互。
+
+
+### 2026-11-13 — 全局圆角令牌补齐与主要页面统一
+
+- `AppDesignTokens.Radius` 新增 Sm=8dp，补齐小尺寸图标容器的统一圆角档位。
+- `HomeScreen.kt`、`ProjectsScreen.kt`、`AirdropCampaignsScreen.kt`、`AirdropHubScreen.kt`、`AirdropDiscoveryScreen.kt`：将剩余 8/10/14/999dp 的散落圆角常量迁移到 Sm/Md/Full 设计令牌。
+- 与上一轮一起完成的 `ProjectDetailScreen.kt`、`CommunitySquareScreen.kt`、`MicroCommunityScreen.kt` 已统一引用相同令牌。
+- Commits：`327cd93cf11486447a43f77ac80b31ddbbd93bba`、`f25de47c1daa56762d6b4e31e04b8b5bec395fef`、`b34441e69d2da5a880b8733d81e5da5a8f977de5`、`6cedcbfeba91506073d529f4e8f14e04376b3a43`、`ebd8ff94277dde665c05d2f2b1defc33af5690ca`、`55151dbcd54d3fc1834dfc2caa73fe2ad146dfb2`。
+- 本轮仍未构建 APK 或执行编译/设备验收。
