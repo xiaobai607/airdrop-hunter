@@ -51,6 +51,14 @@
 - Campaign bridge now excludes the provider-only `catalog_name` field from the legacy `AirdropProject` constructor, validates a non-empty detail category when supplied, and strips script/style contents from compact campaign descriptions.
 - Static source assertions and code-path review were completed. Backend unit tests, Gradle compilation, Android unit tests, CI and real-device browser acceptance are deliberately still pending; no APK was built during this batch.
 
+## 2026-11-13 — UI refresh scope before implementation
+
+- Start with the Home dashboard's shortcut-card icon treatment: each function icon sits inside a consistently sized, generously rounded colored tile; use restrained per-function color accents and keep text hierarchy/spacing aligned.
+- Improve the campaign Library cards for phone-width readability: cap long descriptions, allow metadata tags to wrap instead of overflowing, and keep official-link actions clear.
+- Preserve developer-owned dashboard card dimensions. Users may add/remove/reorder shortcut cards, but must not resize cards.
+- Keep the existing single global search entry below the market dashboard; do not add a second search box to quick shortcuts. Keep Airdrop Library as the bottom-navigation destination, not a duplicate Home shortcut.
+- Continue the same compact, rounded, low-noise visual language across Projects, Wallet and Profile after the Home/campaign pass. Do not alter data behavior or add login/registration flows as part of visual work.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
