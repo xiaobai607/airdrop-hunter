@@ -1,6 +1,10 @@
 package com.airdrophunter.app
 
 import androidx.compose.foundation.background
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppButton
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -8,7 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -20,7 +23,6 @@ import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CacheDisplayStatus
 import com.airdrophunter.app.data.CacheRefreshPolicy
 import kotlinx.coroutines.launch
-import com.airdrophunter.app.ui.theme.AppColors
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -73,14 +75,16 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
             error != null && detail == null -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("暂时无法获取行情", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 Text(error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Button(onClick = { scope.launch { refresh(manual = true) } }) { Text("重新加载") }
+                AppButton("重新加载", onClick = { scope.launch { refresh(manual = true) } })
             }
             detail != null -> {
                 val value = detail!!
                 val positive = value.change24hPercent >= 0
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(18.dp)
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("最新价格", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -93,7 +97,9 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
                 }
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(18.dp)
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
                         MarketMetricRow("24小时最高", "$ " + priceFormat.format(value.high24h))
@@ -109,10 +115,13 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
                     "数据来源：OKX · " + marketCacheStatusLabel(cacheMetadata),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall
                 )
-                OutlinedButton(onClick = { scope.launch { refresh(manual = true) } }, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
-                    if (loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                    else Text("刷新行情")
-                }
+                AppButton(
+                    text = "刷新行情",
+                    onClick = { scope.launch { refresh(manual = true) } },
+                    enabled = !loading,
+                    loading = loading,
+                    style = AppButtonStyle.SECONDARY
+                )
                 if (error != null) Text(error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
             }
         }
