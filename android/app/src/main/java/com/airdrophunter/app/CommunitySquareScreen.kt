@@ -254,13 +254,13 @@ fun CommunitySquareScreen(
         }
 
     LazyColumn(
-        modifier.fillMaxSize().background(AppColors.Background),
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("空投库", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("空投库", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 AppButton(
                     text = "提交新空投项目",
                     onClick = { showSubmissionDialog = true },
@@ -310,7 +310,7 @@ fun CommunitySquareScreen(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("社区榜单", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text("社区榜单", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CommunityRanking.values().forEach { option ->
                         AppChip(
@@ -326,7 +326,7 @@ fun CommunitySquareScreen(
                     ranking == CommunityRanking.REWARD -> "按全网收益概况排列（含预估与实际）"
                     ranking == CommunityRanking.GAS -> "按全网 Gas 支出排列"
                     else -> "按项目收录时间排列"
-                }, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                }, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
         }
         item {
@@ -336,7 +336,7 @@ fun CommunitySquareScreen(
                     catalogError != null && catalogEntries.isEmpty() -> catalogError!!
                     else -> "发现 ${displayedProjects.size} 个项目" + if (statsLoading) " · 统计加载中" else ""
                 },
-                color = if (catalogError != null && catalogEntries.isEmpty()) AppColors.Danger else AppColors.TextHelper,
+                color = if (catalogError != null && catalogEntries.isEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.labelSmall
             )
         }
@@ -351,7 +351,7 @@ fun CommunitySquareScreen(
                         else -> "暂无符合条件的项目"
                     },
                     Modifier.fillMaxWidth().padding(vertical = 28.dp),
-                    color = AppColors.TextHelper,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -362,8 +362,8 @@ fun CommunitySquareScreen(
                     onClick = { onProjectSelected(project.id, project.name, project.chain) },
                     scale = 0.96f
                 ),
-                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                elevation = CardDefaults.cardElevation(0.dp), border = BorderStroke(1.dp, AppColors.Border)
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(0.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -372,8 +372,8 @@ fun CommunitySquareScreen(
                         }
                         Spacer(Modifier.width(11.dp))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(project.name, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(project.chain, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                            Text(project.name, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(project.chain, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Surface(
@@ -407,7 +407,7 @@ fun CommunitySquareScreen(
                             Icon(
                                 imageVector = if (project.id in joinedOfficialIds) Icons.Default.Check else Icons.Default.Add,
                                 contentDescription = if (project.id in joinedOfficialIds) "已添加到库管理" else "添加到库管理",
-                                tint = if (project.id in joinedOfficialIds) AppColors.Success else AppColors.Primary
+                                tint = if (project.id in joinedOfficialIds) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
                             )
                         }
                         IconButton(onClick = {
@@ -419,7 +419,7 @@ fun CommunitySquareScreen(
                             Icon(
                                 imageVector = if (project.id in favoriteIds) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 contentDescription = if (project.id in favoriteIds) "取消收藏" else "收藏项目",
-                                tint = if (project.id in favoriteIds) Color(0xFFE65B75) else AppColors.TextHelper
+                                tint = if (project.id in favoriteIds) Color(0xFFE65B75) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
                             )
                         }
                     }
@@ -433,7 +433,7 @@ fun CommunitySquareScreen(
                             if (project.ratingCount > 0 && project.averageRating != null)
                                 "★ ${String.format(Locale.US, "%.1f", project.averageRating)} · ${project.reputationLabel} · ${project.ratingCount} 个账号评分"
                             else "暂无全网评分",
-                            color = if (project.ratingCount > 0) Color(0xFFB7791F) else AppColors.TextHelper,
+                            color = if (project.ratingCount > 0) Color(0xFFB7791F) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -460,7 +460,7 @@ fun CommunitySquareScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         project.tags.forEach { tag ->
                             Surface(color = Color(0xFFF1F4F7), shape = RoundedCornerShape(6.dp)) {
-                                Text(tag, Modifier.padding(horizontal = 7.dp, vertical = 4.dp), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                Text(tag, Modifier.padding(horizontal = 7.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -480,7 +480,7 @@ fun CommunitySquareScreen(
                     Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Text("同一组内多选为“满足任一项”，不同组之间为“同时满足”。只按目录中已核验/已录入的信息筛选，未标注条件不会被猜测。", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
+                    Text("同一组内多选为“满足任一项”，不同组之间为“同时满足”。只按目录中已核验/已录入的信息筛选，未标注条件不会被猜测。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     visibleAirdropFilterGroups.forEach { group ->
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(group.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
