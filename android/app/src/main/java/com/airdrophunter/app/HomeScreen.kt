@@ -129,144 +129,18 @@ fun HomeScreen(
                 Text("Web3 机会与资产管理", color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium)
             }
-            com.airdrophunter.app.ui.components.AppIconButton(
-                icon = Icons.Default.NotificationsNone,
-                contentDescription = "通知",
-                onClick = { showNotifications = true }
-            )
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("行情看板", color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.weight(1f))
-                AppTextButton(onClick = {
-                    marketSymbolDraft = marketSymbols.toSet()
-                    showMarketEditor = true
-                }) { Text("编辑", color = MaterialTheme.colorScheme.primary) }
-                AppTextButton(
-                    onClick = { homeViewModel.refresh(isGuest) },
-                    enabled = !state.isRefreshing,
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        if (state.isRefreshing) "更新中" else "刷新",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.airdrophunter.app.ui.components.AppIconButton(
+                    icon = Icons.Default.Search,
+                    contentDescription = "搜索",
+                    onClick = onOpenGlobalSearch
+                )
+                com.airdrophunter.app.ui.components.AppIconButton(
+                    icon = Icons.Default.NotificationsNone,
+                    contentDescription = "通知",
+                    onClick = { showNotifications = true }
+                )
             }
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                elevation = CardDefaults.cardElevation(0.dp)
-            ) {
-                when {
-                    state.isLoading && state.market.isEmpty() -> Box(
-                        Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
-                    state.market.isEmpty() -> Column(
-                        Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("无法获取实时行情", color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text(state.marketError ?: "请检查网络连接后重试。",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                        AppTextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
-                            Text("点击重试", color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                    else -> Column {
-                        val visibleMarket = state.market.filter { ticker ->
-                            ticker.symbol.substringBefore("-").uppercase(Locale.US) in marketSymbols
-                        }
-                        if (visibleMarket.isEmpty()) {
-                            Text("所选币种暂无行情数据", modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
-                        } else visibleMarket.forEachIndexed { index, ticker ->
-                            MarketRow(ticker)
-                            if (index != visibleMarket.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
-                    }
-                }
-            }
-            Text(
-                when {
-                    state.isRefreshing && state.lastSuccessfulUpdateAt != null -> "行情更新中 · 保留上次数据"
-                    state.marketError?.startsWith("刚刚刷新过") == true -> "刚刚刷新过 · 请30秒后再试"
-                    state.marketError != null && state.lastSuccessfulUpdateAt != null -> "更新失败 · 显示上次成功数据"
-                    state.marketCacheStatus == com.airdrophunter.app.data.CacheDisplayStatus.STALE && state.lastSuccessfulUpdateAt != null ->
-                        "缓存数据 · 上次更新 " + java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L))
-                    state.marketCacheStatus == com.airdrophunter.app.data.CacheDisplayStatus.REFRESHING && state.lastSuccessfulUpdateAt != null ->
-                        "行情更新中 · 保留上次数据"
-                    state.lastSuccessfulUpdateAt != null -> "数据更新于 " + java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L))
-                    state.marketError != null -> "行情暂不可用"
-                    else -> "等待行情数据"
-                },
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-        if (showMarketEditor) {
-            AlertDialog(
-                onDismissRequest = { showMarketEditor = false },
-                containerColor = MaterialTheme.colorScheme.surface,
-                title = { Text("自定义行情看板", color = MaterialTheme.colorScheme.onSurface) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("选择要在首页显示的币种，至少保留一个。", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall)
-                        listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").forEach { symbol ->
-                            Row(Modifier.fillMaxWidth().appPressFeedback(onClick = {
-                                marketSymbolDraft = if (symbol in marketSymbolDraft) marketSymbolDraft - symbol
-                                    else marketSymbolDraft + symbol
-                            }, scale = 1f).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = symbol in marketSymbolDraft, onCheckedChange = { checked ->
-                                    marketSymbolDraft = if (checked) marketSymbolDraft + symbol else marketSymbolDraft - symbol
-                                })
-                                Text(symbol, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    AppTextButton(enabled = marketSymbolDraft.isNotEmpty(), onClick = {
-                        val saved = listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").filter { it in marketSymbolDraft }
-                        marketSymbols = saved
-                        showMarketEditor = false
-                        scope.launch { runCatching { CacheStore.saveMarketDashboardSymbols(saved) } }
-                    }) { Text("保存") }
-                },
-                dismissButton = {
-                    AppTextButton(onClick = {
-                        marketSymbolDraft = defaultMarketSymbols.toSet()
-                        marketSymbols = defaultMarketSymbols
-                        showMarketEditor = false
-                        scope.launch { runCatching { CacheStore.saveMarketDashboardSymbols(defaultMarketSymbols) } }
-                    }) { Text("恢复默认") }
-                }
-            )
-        }
-
-        // Search belongs directly below the market dashboard, before all shortcuts.
-        Row(
-            Modifier.fillMaxWidth()
-                .height(54.dp)
-                .clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .then(Modifier)
-                .appPressFeedback(onClick = onOpenGlobalSearch, scale = 0.94f)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("搜索币种或 DApp", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         }
 
         var dashboardCards by remember { mutableStateOf(HomeDashboardLayoutStore.load(context)) }
@@ -438,6 +312,122 @@ fun HomeScreen(
                     }
                 },
                 confirmButton = { AppTextButton(onClick = { showAddDashboardCard = false }) { Text("关闭") } }
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("行情看板", color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                AppTextButton(onClick = {
+                    marketSymbolDraft = marketSymbols.toSet()
+                    showMarketEditor = true
+                }) { Text("编辑", color = MaterialTheme.colorScheme.primary) }
+                AppTextButton(
+                    onClick = { homeViewModel.refresh(isGuest) },
+                    enabled = !state.isRefreshing,
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        if (state.isRefreshing) "更新中" else "刷新",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                when {
+                    state.isLoading && state.market.isEmpty() -> Box(
+                        Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
+                    state.market.isEmpty() -> Column(
+                        Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("无法获取实时行情", color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(state.marketError ?: "请检查网络连接后重试。",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        AppTextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
+                            Text("点击重试", color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    else -> Column {
+                        val visibleMarket = state.market.filter { ticker ->
+                            ticker.symbol.substringBefore("-").uppercase(Locale.US) in marketSymbols
+                        }
+                        if (visibleMarket.isEmpty()) {
+                            Text("所选币种暂无行情数据", modifier = Modifier.padding(16.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
+                        } else visibleMarket.forEachIndexed { index, ticker ->
+                            MarketRow(ticker)
+                            if (index != visibleMarket.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                    }
+                }
+            }
+            Text(
+                when {
+                    state.isRefreshing && state.lastSuccessfulUpdateAt != null -> "行情更新中 · 保留上次数据"
+                    state.marketError?.startsWith("刚刚刷新过") == true -> "刚刚刷新过 · 请30秒后再试"
+                    state.marketError != null && state.lastSuccessfulUpdateAt != null -> "更新失败 · 显示上次成功数据"
+                    state.marketCacheStatus == com.airdrophunter.app.data.CacheDisplayStatus.STALE && state.lastSuccessfulUpdateAt != null ->
+                        "缓存数据 · 上次更新 " + java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L))
+                    state.marketCacheStatus == com.airdrophunter.app.data.CacheDisplayStatus.REFRESHING && state.lastSuccessfulUpdateAt != null ->
+                        "行情更新中 · 保留上次数据"
+                    state.lastSuccessfulUpdateAt != null -> "数据更新于 " + java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L))
+                    state.marketError != null -> "行情暂不可用"
+                    else -> "等待行情数据"
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        if (showMarketEditor) {
+            AlertDialog(
+                onDismissRequest = { showMarketEditor = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("自定义行情看板", color = MaterialTheme.colorScheme.onSurface) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("选择要在首页显示的币种，至少保留一个。", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall)
+                        listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").forEach { symbol ->
+                            Row(Modifier.fillMaxWidth().appPressFeedback(onClick = {
+                                marketSymbolDraft = if (symbol in marketSymbolDraft) marketSymbolDraft - symbol
+                                    else marketSymbolDraft + symbol
+                            }, scale = 1f).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = symbol in marketSymbolDraft, onCheckedChange = { checked ->
+                                    marketSymbolDraft = if (checked) marketSymbolDraft + symbol else marketSymbolDraft - symbol
+                                })
+                                Text(symbol, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    AppTextButton(enabled = marketSymbolDraft.isNotEmpty(), onClick = {
+                        val saved = listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").filter { it in marketSymbolDraft }
+                        marketSymbols = saved
+                        showMarketEditor = false
+                        scope.launch { runCatching { CacheStore.saveMarketDashboardSymbols(saved) } }
+                    }) { Text("保存") }
+                },
+                dismissButton = {
+                    AppTextButton(onClick = {
+                        marketSymbolDraft = defaultMarketSymbols.toSet()
+                        marketSymbols = defaultMarketSymbols
+                        showMarketEditor = false
+                        scope.launch { runCatching { CacheStore.saveMarketDashboardSymbols(defaultMarketSymbols) } }
+                    }) { Text("恢复默认") }
+                }
             )
         }
 
