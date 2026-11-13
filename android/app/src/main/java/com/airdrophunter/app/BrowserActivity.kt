@@ -992,9 +992,9 @@ private fun BrowserScreen(
             title = { Text("⚠️ 即将切换第三方网站", color = Color(0xFFB42318), fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("当前网页：${displayHost(currentPageUrl)}", color = AppColors.TextSecondary)
+                    Text("当前网页：${displayHost(currentPageUrl)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("即将访问：$targetHost", color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
-                    Text("这是不同的网站主机。请确认域名完全正确；不要输入助记词、私钥或验证码。", color = AppColors.TextPrimary)
+                    Text("这是不同的网站主机。请确认域名完全正确；不要输入助记词、私钥或验证码。", color = MaterialTheme.colorScheme.onSurface)
                 }
             },
             confirmButton = {
@@ -1017,11 +1017,11 @@ private fun BrowserScreen(
                 DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                 pendingDappConnection = null
             },
-            title = { Text("网站请求连接钱包", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text("网站请求连接钱包", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("来源网站：$requestedHost", color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
-                    Text("该网站请求读取已连接钱包的公开地址。只有您确认后才会授权；本次不会签名消息、发送交易或读取助记词。", color = AppColors.TextPrimary)
+                    Text("该网站请求读取已连接钱包的公开地址。只有您确认后才会授权；本次不会签名消息、发送交易或读取助记词。", color = MaterialTheme.colorScheme.onSurface)
                 }
             },
             confirmButton = {
@@ -1037,7 +1037,7 @@ private fun BrowserScreen(
                         waitingDappWalletApproval = true
                         if (walletConnectReady) walletNavController.openAppKit()
                     }
-                }) { Text(if (connectedDappAccounts.isEmpty() && !walletConnectReady) "钱包连接服务初始化中…" else "确认并连接", color = AppColors.Primary) }
+                }) { Text(if (connectedDappAccounts.isEmpty() && !walletConnectReady) "钱包连接服务初始化中…" else "确认并连接", color = MaterialTheme.colorScheme.primary) }
             },
             dismissButton = {
                 AppTextButton(onClick = {
@@ -1058,8 +1058,8 @@ private fun BrowserScreen(
         Dialog(onDismissRequest = { showWalletPicker = false }) {
             Surface(shape = RoundedCornerShape(22.dp), color = Color.White) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("选择钱包", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    if (wallets.isEmpty()) Text("尚未保存钱包地址", color = AppColors.TextSecondary)
+                    Text("选择钱包", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    if (wallets.isEmpty()) Text("尚未保存钱包地址", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     wallets.forEach { wallet ->
                         AppTextButton(onClick = { selectedWallet = wallet; showWalletPicker = false }, modifier = Modifier.fillMaxWidth()) {
                             Text("${wallet.walletName.ifBlank { wallet.chain }}  ·  ${shortAddress(wallet.address)}")
