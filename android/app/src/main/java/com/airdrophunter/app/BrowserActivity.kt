@@ -194,6 +194,7 @@ private fun BrowserScreen(
     }
     var browser by remember { mutableStateOf<WebView?>(null) }
     val bridgeReplyProxies = remember { mutableMapOf<String, JavaScriptReplyProxy>() }
+    val popupWebViews = remember { mutableStateListOf<WebView>() }
     var selectedWallet by remember(wallets, selectedWalletId) {
         mutableStateOf(wallets.firstOrNull { it.id == selectedWalletId } ?: wallets.firstOrNull())
     }
@@ -227,6 +228,13 @@ private fun BrowserScreen(
                 runCatching { web.removeAllViews() }
                 runCatching { web.destroy() }
             }
+            popupWebViews.toList().forEach { popup ->
+                runCatching { popup.stopLoading() }
+                runCatching { popup.loadUrl("about:blank") }
+                runCatching { popup.removeAllViews() }
+                runCatching { popup.destroy() }
+            }
+            popupWebViews.clear()
         }
     }
     LaunchedEffect(browser) {
@@ -808,14 +816,16 @@ private fun BrowserScreen(
                             allowContentAccess = false
                             allowUniversalAccessFromFileURLs = false
                             allowFileAccessFromFileURLs = false
+                            // Allow window.open/target=_blank only when WebChromeClient confirms a user gesture.
                             javaScriptCanOpenWindowsAutomatically = false
-                            setSupportMultipleWindows(false)
+                            setSupportMultipleWindows(true)
                             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                             safeBrowsingEnabled = true
                         }
                         CookieManager.getInstance().setAcceptCookie(true)
-                        // Keep third-party cookies disabled by default; do not weaken cross-site privacy globally.
-                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+                        // This setting is scoped to this embedded browser WebView only. It improves
+                        // OAuth/SSO and cross-site login compatibility; it does not alter other apps.
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                         webChromeClient = object : WebChromeClient() {
                             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                                 val message = consoleMessage ?: return false
@@ -843,7 +853,49 @@ private fun BrowserScreen(
                                 filePathCallback?.onReceiveValue(null)
                                 return true
                             }
-                            override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message?): Boolean = false
+                            override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message?): Boolean {
+                                // Reject scripted popups without a real user gesture.
+                                if (!isUserGesture || view == null || resultMsg == null) return false
+                                val popup = WebView(context)
+                                popup.settings.apply {
+                                    javaScriptEnabled = true
+                                    domStorageEnabled = true
+                                    userAgentString = view.settings.userAgentString
+                                    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                                    safeBrowsingEnabled = true
+                                    allowFileAccess = false
+                                    allowContentAccess = false
+                                    allowUniversalAccessFromFileURLs = false
+                                    allowFileAccessFromFileURLs = false
+                                    javaScriptCanOpenWindowsAutomatically = false
+                                    setSupportMultipleWindows(false)
+                                }
+                                popup.webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(child: WebView?, request: WebResourceRequest?): Boolean {
+                                        val target = request?.url ?: return true
+                                        val scheme = target.scheme?.lowercase()
+                                        if (scheme != "https" && scheme != "http") return true
+                                        val secureTarget = if (scheme == "http") target.buildUpon().scheme("https").build() else target
+                                        if (secureTarget.host.isNullOrBlank() || secureTarget.userInfo != null) return true
+                                        val targetOrigin = runCatching { DappProviderBridge.origin(secureTarget) }.getOrNull() ?: return true
+                                        if (targetOrigin == approvedOrigin) {
+                                            view.loadUrl(secureTarget.toString())
+                                        } else {
+                                            pendingNavigationUrl = secureTarget.toString()
+                                        }
+                                        return true
+                                    }
+                                }
+                                popupWebViews.add(popup)
+                                val transport = resultMsg.obj as? WebView.WebViewTransport ?: run {
+                                    popupWebViews.remove(popup)
+                                    popup.destroy()
+                                    return false
+                                }
+                                transport.webView = popup
+                                resultMsg.sendToTarget()
+                                return true
+                            }
                         }
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
