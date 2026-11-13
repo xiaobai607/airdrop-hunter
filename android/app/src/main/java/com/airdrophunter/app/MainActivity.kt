@@ -1,6 +1,8 @@
 package com.airdrophunter.app
 
 import android.content.Intent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.Crossfade
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -346,33 +348,49 @@ private fun AirdropHunterApp(
                     onOpenCommunity = { selectedCommunityProject = it },
                     sessionScopeKey = sessionScopeKey
                 )
-                tab == 0 -> tabStateHolder.SaveableStateProvider("bottom-tab-0") {
-                    HomeScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    onOpenSources = { activeOverlay = AppOverlay.SOURCES },
-                    onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
-                    onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
-                    onOpenProjects = { tab = 2 },
-                    onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
-                    onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
-                    onOpenAccounting = { showAccountingSheet = true },
-                    isGuest = isGuest, onRequireAuth = onRequireAuth,
-                    sessionScopeKey = sessionScopeKey
-                    )
-                }
-                else -> tabStateHolder.SaveableStateProvider("bottom-tab-$tab") {
-                    when (tab) {
-                        1 -> CommunitySquareScreen(
-                            modifier = Modifier.fillMaxSize(),
-                            onProjectSelected = { id, name, description ->
-                                selectedCommunityProject = ProjectDto("community:$id", name, description, "tracking", communityOfficialId = id)
-                            }
-                        )
-                        2 -> ProjectsScreen(Modifier.fillMaxSize(), { selectedProject = it }, isGuest, onRequireAuth,
-                            onOpenCommunity = { selectedCommunityProject = it }, sessionScopeKey = sessionScopeKey)
-                        else -> ProfileScreen(Modifier.fillMaxSize(), onLogout, isGuest, onRequireAuth,
-                            onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER },
-                            sessionScopeKey = sessionScopeKey)
+                else -> Crossfade(
+                    targetState = tab,
+                    animationSpec = tween(AppDesignTokens.Motion.StandardMs),
+                    label = "main-tab-crossfade"
+                ) { targetTab ->
+                    tabStateHolder.SaveableStateProvider("bottom-tab-$targetTab") {
+                        when (targetTab) {
+                            0 -> HomeScreen(
+                                modifier = Modifier.fillMaxSize(),
+                                onOpenSources = { activeOverlay = AppOverlay.SOURCES },
+                                onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
+                                onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
+                                onOpenProjects = { tab = 2 },
+                                onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
+                                onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
+                                onOpenAccounting = { showAccountingSheet = true },
+                                isGuest = isGuest,
+                                onRequireAuth = onRequireAuth,
+                                sessionScopeKey = sessionScopeKey
+                            )
+                            1 -> CommunitySquareScreen(
+                                modifier = Modifier.fillMaxSize(),
+                                onProjectSelected = { id, name, description ->
+                                    selectedCommunityProject = ProjectDto("community:$id", name, description, "tracking", communityOfficialId = id)
+                                }
+                            )
+                            2 -> ProjectsScreen(
+                                Modifier.fillMaxSize(),
+                                { selectedProject = it },
+                                isGuest,
+                                onRequireAuth,
+                                onOpenCommunity = { selectedCommunityProject = it },
+                                sessionScopeKey = sessionScopeKey
+                            )
+                            else -> ProfileScreen(
+                                Modifier.fillMaxSize(),
+                                onLogout,
+                                isGuest,
+                                onRequireAuth,
+                                onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER },
+                                sessionScopeKey = sessionScopeKey
+                            )
+                        }
                     }
                 }
             }
