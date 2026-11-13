@@ -29,6 +29,17 @@ data class AirdropHubSyncStatusDto(
     val error: String? = null
 )
 
+data class AirdropHubSourceStatusDto(
+    val source_name: String,
+    val label: String,
+    val enabled: Boolean,
+    val status: String,
+    val last_attempt_at: String? = null,
+    val last_success_at: String? = null,
+    val last_item_count: Int = 0,
+    val last_error: String? = null
+)
+
 data class AirdropHubRefreshResponse(
     val ok: Boolean,
     val imported_count: Int,
