@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.airdrophunter.app.data.AirdropCampaignDto
 import com.airdrophunter.app.data.AirdropCampaignFilters
 import com.airdrophunter.app.data.AirdropCampaignRepository
+import com.airdrophunter.app.data.AirdropHubSourceStatusDto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +17,9 @@ data class AirdropCampaignsUiState(
     val selectedTier: String? = null,
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val sourceStatuses: List<AirdropHubSourceStatusDto> = emptyList(),
+    val sourceStatusError: String? = null
 )
 
 class AirdropCampaignsViewModel(
@@ -34,6 +37,16 @@ class AirdropCampaignsViewModel(
     }
 
     fun load() {
+        viewModelScope.launch {
+            try {
+                val statuses = repository.loadSourceStatuses()
+                _uiState.value = _uiState.value.copy(sourceStatuses = statuses, sourceStatusError = null)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(sourceStatusError = "暂时无法读取数据源状态")
+            }
+        }
         val filters = AirdropCampaignFilters(tier = _uiState.value.selectedTier)
         viewModelScope.launch {
             // Publish the last-known-good Room snapshot before waiting for network refresh.
@@ -67,11 +80,23 @@ class AirdropCampaignsViewModel(
             _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
             try {
                 val rows = repository.refresh(filters)
-                _uiState.value = _uiState.value.copy(items = rows, isRefreshing = false)
+                val sourceStatusResult = runCatching { repository.loadSourceStatuses() }
+                _uiState.value = _uiState.value.copy(
+                    items = rows,
+                    isRefreshing = false,
+                    sourceStatuses = sourceStatusResult.getOrDefault(_uiState.value.sourceStatuses),
+                    sourceStatusError = if (sourceStatusResult.isFailure) "暂时无法读取数据源状态" else null
+                )
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                _uiState.value = _uiState.value.copy(isRefreshing = false, error = error.message ?: "刷新失败")
+                val latestStatuses = runCatching { repository.loadSourceStatuses() }
+                _uiState.value = _uiState.value.copy(
+                    isRefreshing = false,
+                    error = error.message ?: "刷新失败",
+                    sourceStatuses = latestStatuses.getOrDefault(_uiState.value.sourceStatuses),
+                    sourceStatusError = if (latestStatuses.isFailure) "暂时无法读取数据源状态" else null
+                )
             }
         }
     }
