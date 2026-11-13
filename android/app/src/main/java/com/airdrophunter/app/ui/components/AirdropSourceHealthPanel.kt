@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.airdrophunter.app.data.AirdropHubSourceStatusDto
 import com.airdrophunter.app.ui.theme.AppDesignTokens
@@ -83,8 +84,15 @@ fun AirdropSourceHealthPanel(
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(source.label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                            Text(
+                                source.label,
+                                Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                             Surface(color = chipBackground, shape = RoundedCornerShape(999.dp)) {
                                 Text(statusLabel, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     color = chipForeground, style = MaterialTheme.typography.labelSmall)
@@ -104,8 +112,13 @@ fun AirdropSourceHealthPanel(
                             style = MaterialTheme.typography.labelSmall
                         )
                         source.last_error?.takeIf { it.isNotBlank() }?.let {
-                            Text(it, color = if (source.enabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                it,
+                                color = if (source.enabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
