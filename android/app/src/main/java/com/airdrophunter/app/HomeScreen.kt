@@ -216,10 +216,10 @@ fun HomeScreen(
                         Text("选择要在首页显示的币种，至少保留一个。", color = AppColors.TextSecondary,
                             style = MaterialTheme.typography.bodySmall)
                         listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").forEach { symbol ->
-                            Row(Modifier.fillMaxWidth().clickable {
+                            Row(Modifier.fillMaxWidth().appPressFeedback(onClick = {
                                 marketSymbolDraft = if (symbol in marketSymbolDraft) marketSymbolDraft - symbol
                                     else marketSymbolDraft + symbol
-                            }.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            }, scale = 0.98f).padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Checkbox(checked = symbol in marketSymbolDraft, onCheckedChange = { checked ->
                                     marketSymbolDraft = if (checked) marketSymbolDraft + symbol else marketSymbolDraft - symbol
                                 })
