@@ -1,4 +1,28 @@
 # Airdrop Hunter — Product Requirements & Progress Ledger
+# 2026-11-13 — Apple × Xiaomi UI system-wide refactor (active)
+
+User direction: perform a thorough UI redesign using an Apple + Xiaomi visual language. Every newly added screen/control must follow the same system. Interaction feedback is part of the design, not an optional polish pass.
+
+Design contract:
+- Calm, restrained surfaces: clear hierarchy, generous but controlled spacing, consistent rounded geometry, subtle borders/elevation, and semantic accent colors. Avoid oversized empty areas, decorative gradients, and mixed visual styles.
+- Apple influence: clean typography, restrained hierarchy, predictable navigation, carefully aligned controls, native-feeling transitions and clear focus states.
+- Xiaomi influence: practical information density, clear action affordances, compact but readable cards, useful status chips and fast-access controls.
+- Use shared design tokens and shared components for buttons, text actions, fields, chips, cards, icon tiles, and feedback. Do not invent a one-off style for each feature.
+- All interactive controls must provide immediate pressed feedback (scale/opacity or an equivalent state), visible enabled/disabled states, and loading/progress feedback for asynchronous actions. Use accessible touch targets and semantic labels. Avoid haptic feedback on every tap if it creates noise; use it only for meaningful actions where supported.
+- Lists/cards should have consistent radius, border, spacing and content hierarchy. Keep developer-controlled card dimensions; do not add end-user resize controls.
+- Support light/dark themes through MaterialTheme semantic colors; do not hardcode white/black surfaces in reusable components.
+- Preserve real product behavior and data. No simulated balances, fake ratings, fake ledger records, or placeholder actions masquerading as completed features.
+- Keep wallet, accounting, browser, campaign, project, community and profile screens within this shared system. New UI must comply from its first commit.
+
+Refactor sequence:
+1. Audit and consolidate shared UI primitives and design tokens.
+2. Apply them across wallet/accounting and browser surfaces.
+3. Apply them across home, campaign/library, project/community, and profile surfaces.
+4. Check dark/light theme, loading/empty/error states, touch feedback, accessibility and narrow-screen layouts.
+5. Only after the refactor is complete, run the full Android/backend test and APK build batch. Do not claim runtime/device acceptance from source inspection alone.
+
+Current implementation status at entry time: first-pass shared button/field/text-action components and selected screen migrations have landed; this is not a completed global redesign. Continue auditing remaining screens and verify compile compatibility before marking any area complete.
+
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
