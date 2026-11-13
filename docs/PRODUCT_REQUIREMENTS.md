@@ -6,7 +6,7 @@ The user needs to know why the public airdrop catalog is empty or stale without 
 Add a public, privacy-safe source-health summary for the app:
 - expose only source name, last attempt/success timestamps, status, item count, and a short sanitized error label;
 - do not expose source URLs, credentials, response bodies, admin review candidates, or GitHub approval payloads;
-- render the source-health summary in the official airdrop hub so the user can distinguish no new records, a failed provider, an unconfigured optional provider, and a stale last-known-good cache;
+- render the same expandable source-health summary in both the official airdrop hub and the main public campaign library so the user can distinguish no new records, a failed provider, an unconfigured optional provider, and a stale last-known-good cache;
 - keep CoinGecko Demo key and GitHub Raw approvals optional; do not require paid plans, proxies, or third-party scraping services;
 - DexScreener remains market-lead evidence only; Binance official announcements remain source evidence, not invented campaign details.
 
