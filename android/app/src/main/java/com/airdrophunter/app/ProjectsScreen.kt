@@ -189,7 +189,7 @@ fun ProjectsScreen(
             )
             else -> LazyColumn(
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 108.dp),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filtered, key = { it.id }) { project ->
@@ -227,22 +227,22 @@ fun ProjectsScreen(
                                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
                                     val statusLabel = when (project.status) { "tracking" -> "进行中"; "completed" -> "已完成"; else -> "待开始" }
                                     Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(999.dp)) {
-                                        Text(statusLabel, Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                        Text(statusLabel, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                             color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                                 if (project.communityDelisted || showAccountingReminder) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         if (project.communityDelisted) {
                                             Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(999.dp)) {
-                                                Text("社区已下架", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                                Text("社区已下架", Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                                     color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.SemiBold)
                                             }
                                         }
                                         if (showAccountingReminder) {
                                             Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = RoundedCornerShape(999.dp)) {
-                                                Text("待记账", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                                Text("待记账", Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                                     color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.SemiBold)
                                             }
@@ -263,7 +263,7 @@ fun ProjectsScreen(
                                         style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                                 }
                             }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Surface(
                                     modifier = Modifier.appPressFeedback(
                                         onClick = {
@@ -279,7 +279,7 @@ fun ProjectsScreen(
                                     color = MaterialTheme.colorScheme.surfaceVariant,
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
-                                    Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
+                                    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(if (project.communityDelisted) "私人模式" else if (project.communityOfficialId != null) "微社区" else "本地项目", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         if (!project.communityDelisted && project.communityOfficialId != null && communityAverage != null) {
@@ -440,7 +440,7 @@ fun ProjectsScreen(
                                     shape = RoundedCornerShape(10.dp),
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
-                                    Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(item.name, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                                         Text(item.chain, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                         if (item.description.isNotBlank()) Text(item.description, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -460,7 +460,7 @@ fun ProjectsScreen(
         containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("添加项目", color = MaterialTheme.colorScheme.onSurface) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                     AppTextField(newProjectName, { newProjectName = it }, "项目名称", modifier = Modifier.weight(1f))
                     AppTextButton(onClick = { communitySearchQuery = ""; showCommunityPicker = true }) {
@@ -515,7 +515,7 @@ fun ProjectsScreen(
 @Composable
 private fun EmptyProjects(modifier: Modifier = Modifier, title: String, subtitle: String) {
     Column(
-        modifier.fillMaxWidth().padding(28.dp),
+        modifier.fillMaxWidth().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
