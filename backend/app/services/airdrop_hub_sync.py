@@ -841,17 +841,24 @@ class _CampaignHtmlTextParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
+        self._ignored_depth = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag.lower() in self._BLOCK_TAGS:
+        if tag.lower() in {"script", "style"}:
+            self._ignored_depth += 1
+            return
+        if self._ignored_depth == 0 and tag.lower() in self._BLOCK_TAGS:
             self.parts.append("\n")
 
     def handle_endtag(self, tag: str) -> None:
-        if tag.lower() in self._BLOCK_TAGS:
+        if tag.lower() in {"script", "style"}:
+            self._ignored_depth = max(0, self._ignored_depth - 1)
+            return
+        if self._ignored_depth == 0 and tag.lower() in self._BLOCK_TAGS:
             self.parts.append("\n")
 
     def handle_data(self, data: str) -> None:
-        if data.strip():
+        if self._ignored_depth == 0 and data.strip():
             self.parts.append(data.strip())
 
 
@@ -881,6 +888,10 @@ async def _upsert_binance_airdrop_campaign(
 
     article_code = str(record.get("source_key") or "").removeprefix("binance:")
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,200}", article_code):
+        return False
+
+    detail_category = str(detail.get("catalog_name") or "").strip()
+    if detail_category and detail_category.casefold() != "crypto airdrop":
         return False
 
     content_html = str(detail.get("content_html") or "")
