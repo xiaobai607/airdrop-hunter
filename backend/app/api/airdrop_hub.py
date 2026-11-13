@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import os
 from uuid import UUID
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -7,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal, get_db
 from app.routers.auth import limiter
-from app.models import AirdropProject
+from app.models import AirdropDiscoverySourceStatus, AirdropProject
 from app.services.airdrop_hub_sync import OBSERVATION, fetch_binance_article_detail, get_sync_status, sync_airdrop_hub
 from app.services.airdrop_campaign_scoring import recalculate_campaign_scores
 
@@ -41,6 +42,16 @@ class AirdropHubSyncStatus(BaseModel):
     imported_count: int
     source: str
     error: str | None
+
+class AirdropHubSourceStatus(BaseModel):
+    source_name: str
+    label: str
+    enabled: bool
+    status: str
+    last_attempt_at: datetime | None = None
+    last_success_at: datetime | None = None
+    last_item_count: int = 0
+    last_error: str | None = None
 
 async def _sync_now() -> dict[str, Any]:
     last = get_sync_status().get("last_attempt_at")
@@ -88,6 +99,62 @@ async def list_airdrop_hub(chain: str | None = Query(default=None, max_length=80
 @router.get("/status", response_model=AirdropHubSyncStatus)
 async def airdrop_hub_sync_status() -> dict[str, Any]:
     return get_sync_status()
+
+
+@router.get("/sources/status", response_model=list[AirdropHubSourceStatus])
+async def airdrop_hub_source_status(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
+    rows = list(await db.scalars(
+        select(AirdropDiscoverySourceStatus).order_by(
+            AirdropDiscoverySourceStatus.last_attempt_at.desc(),
+            AirdropDiscoverySourceStatus.id.desc(),
+        )
+    ))
+    grouped: dict[str, list[AirdropDiscoverySourceStatus]] = {}
+    for row in rows:
+        grouped.setdefault(row.source_name, []).append(row)
+
+    optional_enabled = {
+        "coingecko-airdrop-category": bool(os.getenv("COINGECKO_DEMO_API_KEY", "").strip()),
+        "github-airdrop-lists": bool(os.getenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", "").strip()),
+    }
+    definitions = (
+        ("binance-announcements", "Binance 官方公告", True, "未配置 Binance 来源"),
+        ("coingecko-airdrop-category", "CoinGecko 空投分类", optional_enabled["coingecko-airdrop-category"], "未配置免费 Demo API Key"),
+        ("github-airdrop-lists", "GitHub 人工审核名单", optional_enabled["github-airdrop-lists"], "未配置已审核的 Raw 来源"),
+        ("dexscreener-new-pools", "DexScreener 市场线索", True, "来源尚未运行"),
+    )
+    result: list[dict[str, Any]] = []
+    for source_name, label, enabled, disabled_message in definitions:
+        source_rows = grouped.get(source_name, [])
+        latest = source_rows[0] if source_rows else None
+        if not enabled:
+            status = "disabled"
+            last_error = disabled_message
+        elif latest is None:
+            status = "not_run"
+            last_error = None
+        else:
+            status = latest.last_status
+            last_error = latest.last_error
+            if len(source_rows) > 1:
+                successful = any(row.last_status == "success" for row in source_rows)
+                failed = any(row.last_status == "failed" for row in source_rows)
+                if successful and failed:
+                    status = "partial"
+        result.append({
+            "source_name": source_name,
+            "label": label,
+            "enabled": enabled,
+            "status": status,
+            "last_attempt_at": latest.last_attempt_at if latest else None,
+            "last_success_at": max(
+                (row.last_success_at for row in source_rows if row.last_success_at is not None),
+                default=None,
+            ),
+            "last_item_count": sum(max(0, row.last_item_count) for row in source_rows),
+            "last_error": last_error,
+        })
+    return result
 
 
 @router.get("/{item_id}", response_model=AirdropHubDetail)
