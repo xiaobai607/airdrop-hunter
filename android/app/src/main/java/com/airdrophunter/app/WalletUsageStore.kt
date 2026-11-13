@@ -68,13 +68,24 @@ object WalletUsageStore {
         }.getOrDefault(emptyMap())
     }
 
-    private fun identityFor(name: String, url: String?): String {
-        val host = runCatching {
-            url?.trim()?.takeIf { it.isNotEmpty() }?.let {
-                android.net.Uri.parse(it).host?.lowercase(Locale.ROOT)
-            }
-        }.getOrNull()
-        return host?.let { "host:$it" }
-            ?: "name:${name.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]+"), "")}"
-    }
+    private fun identityFor(name: String, url: String?): String =
+        canonicalWalletIdentity(name, url)
+}
+
+/**
+ * Stable local identity for a connected wallet. WalletConnect metadata may
+ * provide a bare domain or a URL; normalize both before using the host.
+ */
+internal fun canonicalWalletIdentity(name: String, url: String?): String {
+    val host = runCatching {
+        val raw = url?.trim()?.takeIf { it.isNotEmpty() } ?: return@runCatching null
+        val withScheme = if ("://" in raw) raw else "https://$raw"
+        android.net.Uri.parse(withScheme).host
+            ?.trimEnd('.')
+            ?.lowercase(Locale.ROOT)
+            ?.removePrefix("www.")
+            ?.takeIf { it.isNotBlank() }
+    }.getOrNull()
+    return host?.let { "host:$it" }
+        ?: "name:${name.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]+"), "")}"
 }
