@@ -33,6 +33,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppButtonStyle
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppTextField
@@ -171,17 +173,18 @@ fun ProfileScreen(
         ) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("数据迁移", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                Button(
+                AppButton(
+                    text = "备份我的数据",
                     onClick = { showBackupPasswordDialog = true },
                     enabled = !backupBusy,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                ) { Text(if (backupBusy) "正在处理…" else "备份我的数据") }
-                OutlinedButton(
+                    loading = backupBusy
+                )
+                AppButton(
+                    text = "导入数据",
                     onClick = { openBackupLauncher.launch(arrayOf("*/*")) },
                     enabled = !backupBusy,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("导入数据") }
+                    style = AppButtonStyle.SECONDARY
+                )
                 Text(
                     "支持 .ahbackup 和 .hunter 文件。备份文件经过密码加密；换机时选择文件并输入相同密码即可恢复，请妥善保存文件和密码。",
                     color = AppColors.TextHelper,
