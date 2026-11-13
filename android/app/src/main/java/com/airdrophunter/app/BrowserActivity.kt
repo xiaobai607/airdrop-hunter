@@ -197,7 +197,12 @@ private fun BrowserScreen(
     DisposableEffect(browser) {
         onDispose {
             bridgeReplyProxies.clear()
-            browser?.apply { stopLoading(); loadUrl("about:blank"); removeAllViews(); destroy() }
+            browser?.let { web ->
+                runCatching { web.stopLoading() }
+                runCatching { web.loadUrl("about:blank") }
+                runCatching { web.removeAllViews() }
+                runCatching { web.destroy() }
+            }
         }
     }
     LaunchedEffect(approvedExternalEntry, browser) {
