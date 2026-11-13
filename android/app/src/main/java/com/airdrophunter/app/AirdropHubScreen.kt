@@ -65,27 +65,27 @@ fun AirdropHubScreen(
             Text(
                 "查看最新官方空投公告",
                 Modifier.weight(1f),
-                color = AppColors.TextHelper,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.bodySmall
             )
             AppTextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
-                Text(if (state.isRefreshing) "刷新中…" else "刷新", color = AppColors.Primary)
+                Text(if (state.isRefreshing) "刷新中…" else "刷新", color = MaterialTheme.colorScheme.primary)
             }
         }
 
         when {
             state.isLoading && state.projects.isEmpty() -> Box(
                 Modifier.fillMaxSize(), contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator(color = AppColors.Primary) }
+            ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
 
             state.error != null && state.projects.isEmpty() -> Column(
                 Modifier.fillMaxSize().padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("暂时无法加载空投公告", color = AppColors.TextPrimary,
+                Text("暂时无法加载空投公告", color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("请检查网络后重试。", color = AppColors.TextSecondary,
+                Text("请检查网络后重试。", color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
                 AppButton("重新加载", onClick = hubViewModel::refresh, enabled = !state.isRefreshing)
             }
@@ -93,7 +93,7 @@ fun AirdropHubScreen(
             state.projects.isEmpty() -> Box(
                 Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center
             ) {
-                Text("暂时没有新的空投公告", color = AppColors.TextHelper)
+                Text("暂时没有新的空投公告", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
             }
 
             else -> LazyColumn(
@@ -103,7 +103,7 @@ fun AirdropHubScreen(
             ) {
                 item {
                     Text("${state.projects.size} 条空投公告",
-                        color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                 }
                 items(state.projects, key = { it.id }) { item ->
                     Card(
@@ -111,8 +111,8 @@ fun AirdropHubScreen(
                             onClick = { selectedAnnouncement = item }, scale = 0.96f
                         ),
                         shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
-                        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                        border = BorderStroke(1.dp, AppColors.Border),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         Column(
@@ -120,12 +120,12 @@ fun AirdropHubScreen(
                             verticalArrangement = Arrangement.spacedBy(9.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(item.name, Modifier.weight(1f), color = AppColors.TextPrimary,
+                                Text(item.name, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold)
-                                Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
+                                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(999.dp)) {
                                     Text("Binance", Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                        color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                                        color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                             item.published_at?.let { publishedAt ->
@@ -134,12 +134,12 @@ fun AirdropHubScreen(
                                 }.getOrNull()
                                 if (formattedDate != null) {
                                     Text("公告时间：$formattedDate",
-                                        color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                             Text("点击查看公告完整内容",
-                                color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                            Text("查看详情 →", color = AppColors.Primary,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            Text("查看详情 →", color = MaterialTheme.colorScheme.primary,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold)
                         }
@@ -173,41 +173,41 @@ private fun AirdropAnnouncementDetail(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(AppColors.Background)) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "返回列表", tint = AppColors.TextPrimary)
+                Icon(Icons.Default.ArrowBack, contentDescription = "返回列表", tint = MaterialTheme.colorScheme.onSurface)
             }
-            Text("公告详情", color = AppColors.TextPrimary,
+            Text("公告详情", color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         Text(
             detail?.title ?: item.name,
             Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
-            color = AppColors.TextPrimary,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
         Text(
             "Binance 官方公告原文",
             Modifier.padding(horizontal = 18.dp, vertical = 2.dp),
-            color = AppColors.TextHelper,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
             style = MaterialTheme.typography.labelSmall
         )
 
         when {
             loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = AppColors.Primary)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             detail == null -> Column(
                 Modifier.weight(1f).fillMaxWidth().padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(error ?: "公告正文暂不可用", color = AppColors.TextSecondary)
+                Text(error ?: "公告正文暂不可用", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 AppButton("重新加载", onClick = { reloadKey += 1 }, style = AppButtonStyle.SECONDARY)
             }
             else -> {
@@ -215,7 +215,7 @@ private fun AirdropAnnouncementDetail(
                     Text(
                         DateFormat.getDateTimeInstance().format(Date(timestamp)),
                         Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
-                        color = AppColors.TextHelper,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
