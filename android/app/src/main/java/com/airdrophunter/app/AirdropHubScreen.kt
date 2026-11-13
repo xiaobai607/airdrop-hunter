@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.AirdropHubDetailDto
 import com.airdrophunter.app.data.AirdropHubDto
+import com.airdrophunter.app.data.AirdropHubSourceStatusDto
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.theme.AppDesignTokens
@@ -50,7 +51,8 @@ fun AirdropHubScreen(
         factory = AirdropHubViewModelFactory(application.appContainer.airdropHubRepository)
     )
     val state by hubViewModel.uiState.collectAsStateWithLifecycle()
-    var selectedAnnouncement by remember { mutableStateOf<AirdropHubDto?>(null) }
+    var selectedAnnouncement by remember { mutableStateOf<AirdropHubDto?>(null)
+    var showSourceDetails by remember { mutableStateOf(false) } }
 
     if (selectedAnnouncement != null) {
         AirdropAnnouncementDetail(
@@ -76,7 +78,16 @@ fun AirdropHubScreen(
             }
         }
 
-        when {
+        Column(Modifier.weight(1f)) {
+            if (state.sourceStatuses.isNotEmpty() || state.sourceStatusError != null) {
+                AirdropSourceHealthCard(
+                    statuses = state.sourceStatuses,
+                    error = state.sourceStatusError,
+                    expanded = showSourceDetails,
+                    onToggle = { showSourceDetails = !showSourceDetails }
+                )
+            }
+            when {
             state.isLoading && state.projects.isEmpty() -> Box(
                 Modifier.fillMaxSize(), contentAlignment = Alignment.Center
             ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
@@ -148,6 +159,97 @@ fun AirdropHubScreen(
                                 fontWeight = FontWeight.SemiBold)
                         }
                     }
+                    }
+                }
+            }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AirdropSourceHealthCard(
+    statuses: List<AirdropHubSourceStatusDto>,
+    error: String?,
+    expanded: Boolean,
+    onToggle: () -> Unit
+) {
+    val active = statuses.count { it.enabled }
+    val failed = statuses.count { it.status == "failed" || it.status == "partial" }
+    val successful = statuses.count { it.status == "success" }
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("免费数据源状态", color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "启用 $active · 正常 $successful · 异常 $failed",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+                AppTextButton(onClick = onToggle) { Text(if (expanded) "收起" else "诊断") }
+            }
+            if (error != null) {
+                Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+            }
+            if (expanded) {
+                statuses.forEach { source ->
+                    val statusLabel = when (source.status) {
+                        "success" -> "正常"
+                        "partial" -> "部分成功"
+                        "empty" -> "暂无新记录"
+                        "stale" -> "使用缓存"
+                        "failed" -> "获取失败"
+                        "disabled" -> "未配置"
+                        "not_run" -> "等待首次运行"
+                        else -> "状态未知"
+                    }
+                    val chipBackground = when (source.status) {
+                        "success" -> MaterialTheme.colorScheme.primaryContainer
+                        "partial" -> MaterialTheme.colorScheme.tertiaryContainer
+                        "failed" -> MaterialTheme.colorScheme.errorContainer
+                        else -> MaterialTheme.colorScheme.surfaceVariant
+                    }
+                    val chipForeground = when (source.status) {
+                        "success" -> MaterialTheme.colorScheme.onPrimaryContainer
+                        "partial" -> MaterialTheme.colorScheme.onTertiaryContainer
+                        "failed" -> MaterialTheme.colorScheme.onErrorContainer
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(source.label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                            Surface(color = chipBackground, shape = RoundedCornerShape(999.dp)) {
+                                Text(statusLabel, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    color = chipForeground, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        val timeValue = source.last_success_at ?: source.last_attempt_at
+                        val timeLabel = timeValue?.let {
+                            runCatching { DateFormat.getDateTimeInstance().format(Date(Instant.parse(it).toEpochMilli())) }.getOrNull()
+                        }
+                        val timePrefix = if (source.last_success_at != null) "最近成功" else "最近尝试"
+                        Text(
+                            buildString {
+                                append("记录 ${source.last_item_count}")
+                                if (timeLabel != null) append(" · $timePrefix：$timeLabel")
+                            },
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        source.last_error?.takeIf { it.isNotBlank() }?.let {
+                            Text(it, color = if (source.enabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }
