@@ -1127,7 +1127,7 @@ fun BrowserAccountingToolbar(
                                     modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = {
                                         selectedProjectLocalId = project.id
                                         showProjectPicker = false
-                                    }, scale = 0.96f),
+                                    }, scale = 1f),
                                     color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
