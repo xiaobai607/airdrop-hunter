@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.airdrophunter.app.ui.theme.AppDesignTokens
@@ -41,7 +42,8 @@ fun AppTextField(
     isError: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     trailingClear: Boolean = false,
-    heightDp: Int = AppDesignTokens.Control.InputHeight
+    heightDp: Int = AppDesignTokens.Control.InputHeight,
+    visualTransformation: VisualTransformation = VisualTransformation.None
 ) {
     var focused by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
@@ -64,6 +66,7 @@ fun AppTextField(
         enabled = enabled,
         singleLine = singleLine,
         keyboardOptions = keyboardOptions,
+        visualTransformation = visualTransformation,
         textStyle = TextStyle(color = colors.onSurface, fontSize = 15.sp, lineHeight = 22.sp),
         decorationBox = { inner ->
             Row(verticalAlignment = Alignment.CenterVertically) {
