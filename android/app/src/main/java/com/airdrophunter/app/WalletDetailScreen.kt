@@ -36,29 +36,29 @@ fun WalletDetailScreen(
 ) {
     val clipboard = LocalClipboardManager.current
     var showAssetDialog by remember(wallet.id) { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(AppColors.Background)) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary)
+                Icon(Icons.Default.ArrowBack, "返回", tint = MaterialTheme.colorScheme.onSurface)
             }
             Column(Modifier.weight(1f)) {
                 Text(
                     wallet.wallet_name.ifBlank { "钱包详情" },
-                    color = AppColors.TextPrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     shortAddress(wallet.address),
-                    color = AppColors.TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall
                 )
             }
-            AppTextButton(onClick = { showAssetDialog = true }) { Text("资产", color = AppColors.Primary) }
+            AppTextButton(onClick = { showAssetDialog = true }) { Text("资产", color = MaterialTheme.colorScheme.primary) }
             IconButton(onClick = { clipboard.setText(AnnotatedString(wallet.address)) }) {
-                Icon(Icons.Default.ContentCopy, "复制地址", tint = AppColors.Primary)
+                Icon(Icons.Default.ContentCopy, "复制地址", tint = MaterialTheme.colorScheme.primary)
             }
         }
         WalletActivityPanel(wallet, Modifier.weight(1f), isGuest)
@@ -126,31 +126,31 @@ private fun WalletActivityPanel(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text("链上交易", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text("只读查询，不会发起交易或签名", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                Text("链上交易", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                Text("只读查询，不会发起交易或签名", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
             IconButton(onClick = { if (!isLoading) refreshNonce++ }, enabled = !isLoading) {
-                Icon(Icons.Default.Refresh, "刷新交易", tint = AppColors.Primary)
+                Icon(Icons.Default.Refresh, "刷新交易", tint = MaterialTheme.colorScheme.primary)
             }
         }
         if (networksUnavailable.isNotEmpty()) {
             Text(
                 "部分网络暂时不可用：${networksUnavailable.joinToString()}",
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                color = AppColors.Danger,
+                color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelSmall
             )
         }
         errorMessage?.let {
-            Text(it, modifier = Modifier.padding(16.dp), color = AppColors.Danger)
+            Text(it, modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
         }
         if (isLoading && transactions.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = AppColors.Primary)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else if (!isLoading && transactions.isEmpty() && errorMessage == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("暂无链上交易记录", color = AppColors.TextSecondary)
+                Text("暂无链上交易记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyColumn(
@@ -166,7 +166,7 @@ private fun WalletActivityPanel(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = AppColors.Surface)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
                         Column(
                             Modifier.fillMaxWidth().padding(13.dp),
@@ -175,7 +175,7 @@ private fun WalletActivityPanel(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     tx.chain.uppercase(Locale.US),
-                                    color = AppColors.Primary,
+                                    color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -185,40 +185,40 @@ private fun WalletActivityPanel(
                                         "failed" -> "失败（已产生费用）"
                                         else -> "待确认"
                                     },
-                                    color = if (tx.status.equals("failed", true)) AppColors.Danger else AppColors.TextSecondary,
+                                    color = if (tx.status.equals("failed", true)) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
                             Text(
                                 "${shortAddress(tx.from_address)} → ${shortAddress(tx.to_address)}",
-                                color = AppColors.TextPrimary,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
                                 "哈希：${shortAddress(tx.hash)}",
-                                color = AppColors.TextHelper,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                                 style = MaterialTheme.typography.labelSmall
                             )
                             Text(
                                 "时间：${formatWalletActivityTime(tx.timestamp)}",
-                                color = AppColors.TextSecondary,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(
                                         "费用：${tx.gas_cost_native} ${tx.native_symbol}",
-                                        color = AppColors.TextPrimary,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
                                         tx.gas_cost_usd?.let { "约 \$${it}" } ?: "美元估值暂不可用",
-                                        color = AppColors.TextSecondary,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 }
                                 if (!tx.fee_paid_by_wallet) {
-                                    Text("付款归属待核对", color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                                    Text("付款归属待核对", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                             Button(
@@ -280,7 +280,7 @@ private fun WalletActivityPanel(
                                 },
                                 enabled = !alreadyPending && !tx.status.equals("pending", true) && addingHash == null,
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                             ) {
                                 Text(
                                     when {
@@ -294,7 +294,7 @@ private fun WalletActivityPanel(
                             if (suggestedGas.isBlank()) {
                                 Text(
                                     "系统无法确认该钱包是否承担完整费用，Gas 不会自动填入；入账时请人工核对。",
-                                    color = AppColors.TextHelper,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
