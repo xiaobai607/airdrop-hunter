@@ -80,11 +80,27 @@ internal fun canonicalWalletIdentity(name: String, url: String?): String {
     val host = runCatching {
         val raw = url?.trim()?.takeIf { it.isNotEmpty() } ?: return@runCatching null
         val withScheme = if ("://" in raw) raw else "https://$raw"
-        android.net.Uri.parse(withScheme).host
+        val parsedHost = android.net.Uri.parse(withScheme).host
             ?.trimEnd('.')
             ?.lowercase(Locale.ROOT)
             ?.removePrefix("www.")
             ?.takeIf { it.isNotBlank() }
+            ?: return@runCatching null
+        val asciiHost = java.net.IDN.toASCII(
+            parsedHost,
+            java.net.IDN.USE_STD3_ASCII_RULES
+        ).lowercase(Locale.ROOT)
+        val labels = asciiHost.split('.')
+        asciiHost.takeIf {
+            it.length <= 253 &&
+                labels.size >= 2 &&
+                labels.all { label ->
+                    label.length in 1..63 &&
+                        label.first().isLetterOrDigit() &&
+                        label.last().isLetterOrDigit() &&
+                        label.all { character -> character.isLetterOrDigit() || character == '-' }
+                }
+        }
     }.getOrNull()
     return host?.let { "host:$it" }
         ?: "name:${name.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]+"), "")}"
