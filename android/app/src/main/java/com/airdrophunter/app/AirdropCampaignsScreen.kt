@@ -38,7 +38,7 @@ fun AirdropCampaignsScreen(
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
 
-    Column(modifier.fillMaxSize().background(AppColors.Background)) {
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -52,7 +52,7 @@ fun AirdropCampaignsScreen(
             }
             Spacer(Modifier.weight(1f))
             AppTextButton(onClick = vm::refresh, enabled = !state.isRefreshing) {
-                Text(if (state.isRefreshing) "刷新中…" else "刷新", color = AppColors.Primary)
+                Text(if (state.isRefreshing) "刷新中…" else "刷新", color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -62,17 +62,17 @@ fun AirdropCampaignsScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("暂时无法加载空投活动", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text(state.error.orEmpty(), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Text("暂时无法加载空投活动", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 AppButton("重试", onClick = vm::load, enabled = !state.isLoading)
             }
         } else if (state.isLoading && state.items.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = AppColors.Primary)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else if (state.items.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("暂无已核验并公开的空投活动", color = AppColors.TextHelper)
+                Text("暂无已核验并公开的空投活动", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
             }
         } else {
             LazyColumn(
@@ -84,7 +84,7 @@ fun AirdropCampaignsScreen(
                     item {
                         Text(
                             state.error.orEmpty(),
-                            color = AppColors.TextSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -92,7 +92,7 @@ fun AirdropCampaignsScreen(
                 item {
                     Text(
                         "${state.items.size} 个公开活动",
-                        color = AppColors.TextSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
@@ -102,8 +102,8 @@ fun AirdropCampaignsScreen(
                         modifier = Modifier.fillMaxWidth()
                             .appPressFeedback(onClick = onOpenBinanceOfficial, scale = 0.96f),
                         shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
-                        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                        border = BorderStroke(1.dp, AppColors.Border),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         Row(
@@ -111,18 +111,18 @@ fun AirdropCampaignsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Surface(color = AppColors.TealTint, shape = RoundedCornerShape(10.dp)) {
+                            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(10.dp)) {
                                 Text("币安", Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                    color = AppColors.Primary, style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold)
                             }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text("币安官方活动", color = AppColors.TextPrimary,
+                                Text("币安官方活动", color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                Text("查看 Binance 官方公告与活动", color = AppColors.TextSecondary,
+                                Text("查看 Binance 官方公告与活动", color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.bodySmall)
                             }
-                            Text("›", color = AppColors.Primary, style = MaterialTheme.typography.titleLarge)
+                            Text("›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge)
                         }
                     }
                 }
@@ -156,7 +156,7 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = onClick, scale = 0.96f),
         shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, AppColors.Border),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -164,18 +164,18 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
                 Text(
                     campaign.name,
                     Modifier.weight(1f),
-                    color = AppColors.TextPrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Surface(
-                    color = if (campaign.tier == "featured") AppColors.TealTint else AppColors.MutedBackground,
+                    color = if (campaign.tier == "featured") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(999.dp)
                 ) {
                     Text(
                         if (campaign.tier == "featured") "精选" else "普通",
                         Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        color = AppColors.Primary,
+                        color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -183,7 +183,7 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
             if (campaign.description.isNotBlank()) {
                 Text(
                     campaign.description,
-                    color = AppColors.TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
@@ -200,7 +200,7 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
             }
             Text(
                 if (campaign.official_url.isNullOrBlank()) "官方链接待核验" else "打开官方活动 ↗",
-                color = if (campaign.official_url.isNullOrBlank()) AppColors.TextHelper else AppColors.Primary,
+                color = if (campaign.official_url.isNullOrBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f) else MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -210,8 +210,8 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
 
 @Composable
 private fun CampaignTag(value: String) {
-    Surface(color = AppColors.MutedBackground, shape = RoundedCornerShape(999.dp)) {
-        Text(value, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(999.dp)) {
+        Text(value, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
     }
 }
 
