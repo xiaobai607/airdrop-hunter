@@ -688,3 +688,12 @@
 - 保留完整公告/活动名称的数据，不截断底层字段；详情页标题、公告详情加载、活动筛选、官方链接点击和浏览器跳转均未修改。
 - 静态核对：仅增加标题 Text 的 maxLines/overflow 展示策略；未改变列表 key、数据源或点击回调。未运行 Gradle 编译、Android tests、CI、APK 或真机窄屏验收。
 - 代码 commits：公告列表 `87732111fe0645a70309a566f4c9980c0146c104`；活动卡片 `a26b3038964ae8d480a6caa03a4c4c6d8ace7fd2`。
+
+
+### 2026-11-13 — 微社区与全局搜索页面收尾
+
+- `MicroCommunityScreen.kt`：Gas/奖励指标标题移除装饰性 emoji，回归统一文字与语义色表达；官方网站长链接增加单行省略，保留原始 HTTPS 地址与点击打开行为。
+- `GlobalSearchScreen.kt`：币种/DApp 结果卡片统一使用设计圆角令牌；币种名称、DApp 名称与链名称增加单行省略，避免窄屏挤压右侧价格/操作信息；搜索空态说明最多两行，避免长错误文案撑高卡片。
+- `CommunityVerificationTierBar.kt`：复核后无需改动，当前文件已使用主题语义色；金额说明行本轮未发现需要扩大改动的风险。
+- 代码变更 commits：`8216b48826f93404100e59ed50a65cc7d581da6a`、`b7bb1d08c03b489c91feabc46991e656c831b6de`。
+- 本轮仅完成源码层面的 UI 收口；未运行 Gradle、Android tests、CI、APK 构建或真机视觉/触感验收。
