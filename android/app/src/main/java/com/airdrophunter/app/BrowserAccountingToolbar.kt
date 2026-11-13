@@ -231,15 +231,6 @@ fun BrowserAccountingToolbar(
         showConfirm = true
     }
 
-    DisposableEffect(activeBill?.id) {
-        val openedBill = activeBill
-        onDispose {
-            if (openedBill?.txHash?.startsWith("MANUAL-") == true) {
-                scope.launch { runCatching { accountingRepository.deletePendingBill(openedBill.id) } }
-            }
-        }
-    }
-
     LaunchedEffect(initialShowBillList, realPending) {
         if (initialShowBillList && realPending.isNotEmpty() && activeBill == null && !showConfirm) {
             // Home's accounting shortcut opens the latest real pending record directly.
@@ -278,6 +269,7 @@ fun BrowserAccountingToolbar(
     }
 
     fun deleteDraft(bill: PendingBillEntity) {
+        if (!bill.txHash.startsWith("MANUAL-")) return
         scope.launch {
             val ok = runCatching { accountingRepository.deletePendingBill(bill.id) }.isSuccess
             if (!ok) Toast.makeText(context, "删除失败，请重试", Toast.LENGTH_SHORT).show()
@@ -779,12 +771,14 @@ fun BrowserAccountingToolbar(
                                             Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账 · " else "待确认交易 · ") + bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                                         }
-                                        AppIconButton(
-                                            icon = Icons.Default.Close,
-                                            contentDescription = "删除草稿",
-                                            onClick = { deleteDraft(bill) },
-                                            haptic = AppHaptic.WARNING
-                                        )
+                                        if (bill.txHash.startsWith("MANUAL-")) {
+                                            AppIconButton(
+                                                icon = Icons.Default.Close,
+                                                contentDescription = "删除手动草稿",
+                                                onClick = { deleteDraft(bill) },
+                                                haptic = AppHaptic.WARNING
+                                            )
+                                        }
                                     }
                                 }
                             }
