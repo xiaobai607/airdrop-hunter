@@ -30,14 +30,18 @@ fun AppChip(
     Box(
         modifier = modifier
             .height(AppDesignTokens.Control.ChipHeight.dp)
-            .background(if (selected) colors.primary else colors.surfaceVariant, shape)
+            .background(if (!enabled) colors.surfaceVariant.copy(alpha = 0.48f) else if (selected) colors.primary else colors.surfaceVariant, shape)
             .appPressFeedback(onClick, scale = AppDesignTokens.Motion.PressButtonScale, enabled = enabled, role = Role.Tab)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text,
-            color = if (selected) colors.onPrimary else colors.onSurface,
+            color = when {
+                !enabled -> colors.onSurfaceVariant.copy(alpha = 0.45f)
+                selected -> colors.onPrimary
+                else -> colors.onSurface
+            },
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1
