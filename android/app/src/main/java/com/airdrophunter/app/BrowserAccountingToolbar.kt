@@ -291,7 +291,7 @@ fun BrowserAccountingToolbar(
             ((maxWidth - dockWidth) / 2f).toPx()
         }
         val maxVerticalDrag = with(androidx.compose.ui.platform.LocalDensity.current) {
-            (maxHeight - 124.dp).coerceAtLeast(0.dp).toPx()
+            (maxHeight - 100.dp).coerceAtLeast(0.dp).toPx()
         }
         val dockShape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp)
         val leftSnap = -maxHorizontalDrag
@@ -319,7 +319,7 @@ fun BrowserAccountingToolbar(
                 .padding(bottom = 24.dp)
                 .fillMaxWidth(0.94f)
                 .widthIn(max = 420.dp)
-                .height(88.dp)
+                .height(64.dp)
                 .shadow(
                     elevation = 8.dp,
                     shape = dockShape,
@@ -391,14 +391,14 @@ fun BrowserAccountingToolbar(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(dockShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = if (androidx.compose.foundation.isSystemInDarkTheme()) 0.68f else 0.72f))
                     .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), dockShape)
             ) {
                 androidx.compose.foundation.lazy.LazyRow(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(selectedToolIds, key = { it }) { id ->
                         val option = toolOptions.firstOrNull { it.first == id } ?: return@items
@@ -420,7 +420,7 @@ fun BrowserAccountingToolbar(
                             else -> { { onOpenPageExternally() } }
                         }
                         Box(
-                            modifier = Modifier.size(width = 68.dp, height = 78.dp)
+                            modifier = Modifier.size(width = 60.dp, height = 56.dp)
                                 .appPressFeedback(onClick = action, scale = 0.94f)
                         ) {
                             Column(
@@ -429,7 +429,7 @@ fun BrowserAccountingToolbar(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(44.dp)
+                                        .size(32.dp)
                                         .clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp))
                                         .background(iconBackground),
                                     contentAlignment = Alignment.Center
@@ -438,14 +438,14 @@ fun BrowserAccountingToolbar(
                                         imageVector = icon,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
-                                Spacer(Modifier.height(3.dp))
+                                Spacer(Modifier.height(2.dp))
                                 Text(
                                     option.second,
                                     color = AppColors.TextPrimary,
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
                                     maxLines = 1
                                 )
                             }
