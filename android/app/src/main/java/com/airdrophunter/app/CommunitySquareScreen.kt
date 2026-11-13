@@ -41,6 +41,7 @@ import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppTextField
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import java.time.Instant
@@ -387,7 +388,9 @@ fun CommunitySquareScreen(
                                 )
                             }
                         }
-                        IconButton(
+                        AppIconButton(
+                            icon = if (project.id in joinedOfficialIds) Icons.Default.Check else Icons.Default.Add,
+                            contentDescription = if (project.id in joinedOfficialIds) "已添加到库管理" else "添加到库管理",
                             enabled = !project.isDemo && (project.id in joinedOfficialIds || project.id !in addingProjectIds),
                             onClick = {
                                 if (project.id !in joinedOfficialIds) scope.launch {
@@ -403,25 +406,17 @@ fun CommunitySquareScreen(
                                     ).show()
                                 }
                             }
-                        ) {
-                            Icon(
-                                imageVector = if (project.id in joinedOfficialIds) Icons.Default.Check else Icons.Default.Add,
-                                contentDescription = if (project.id in joinedOfficialIds) "已添加到库管理" else "添加到库管理",
-                                tint = if (project.id in joinedOfficialIds) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        IconButton(onClick = {
-                            scope.launch {
-                                // Favorites are personal local data in the current release.
-                                CacheStore.toggleCommunityFavorite(project.id, project.name)
+                        )
+                        AppIconButton(
+                            icon = if (project.id in favoriteIds) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = if (project.id in favoriteIds) "取消收藏" else "收藏项目",
+                            onClick = {
+                                scope.launch {
+                                    // Favorites are personal local data in the current release.
+                                    CacheStore.toggleCommunityFavorite(project.id, project.name)
+                                }
                             }
-                        }) {
-                            Icon(
-                                imageVector = if (project.id in favoriteIds) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = if (project.id in favoriteIds) "取消收藏" else "收藏项目",
-                                tint = if (project.id in favoriteIds) Color(0xFFE65B75) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
-                            )
-                        }
+                        )
                     }
                     if (project.isDemo) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
