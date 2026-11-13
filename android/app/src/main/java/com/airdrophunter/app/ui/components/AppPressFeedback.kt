@@ -13,6 +13,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 
@@ -28,11 +31,13 @@ fun Modifier.appPressFeedback(
     enabled: Boolean = true,
     haptic: AppHaptic = AppHaptic.LIGHT,
     pressedAlpha: Float = 1f,
+    pressedOverlay: Color? = null,
     role: Role = Role.Button
 ): Modifier = composed {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val view = LocalView.current
+    val overlay = pressedOverlay ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f)
     val target = if (pressed && enabled) scale else 1f
     val animatedScale by animateFloatAsState(
         targetValue = target,
@@ -55,6 +60,9 @@ fun Modifier.appPressFeedback(
         scaleX = animatedScale
         scaleY = animatedScale
         alpha = if (pressed && enabled) pressedAlpha.coerceIn(0f, 1f) else 1f
+    }.drawWithContent {
+        drawContent()
+        if (pressed && enabled) drawRect(overlay)
     }.clickable(
         interactionSource = source,
         indication = null,
