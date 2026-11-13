@@ -209,7 +209,7 @@ fun WalletManagerScreen(
     AppKitTheme(mode = AppKitTheme.Mode.LIGHT) {
     ModalBottomSheetLayout(
         bottomSheetNavigator = walletSheetNavigator,
-        sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        sheetShape = RoundedCornerShape(topStart = AppDesignTokens.Radius.Xl.dp, topEnd = AppDesignTokens.Radius.Xl.dp)
     ) {
     Column(
         modifier = modifier
@@ -249,7 +249,7 @@ fun WalletManagerScreen(
                 style = AppButtonStyle.SECONDARY,
                 enabled = !state.isSaving,
                 fullWidth = false,
-                heightDp = 40,
+                heightDp = 44,
                 leadingIcon = Icons.Default.Add,
                 fontSizeSp = 14
             )
@@ -453,12 +453,12 @@ fun WalletManagerScreen(
                 topStart = AppDesignTokens.Radius.Xl.dp,
                 topEnd = AppDesignTokens.Radius.Xl.dp
             ),
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
         ) {
             Column(
                 Modifier.fillMaxWidth().fillMaxHeight(0.88f).imePadding()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text("添加公开钱包地址", style = MaterialTheme.typography.headlineMedium,
