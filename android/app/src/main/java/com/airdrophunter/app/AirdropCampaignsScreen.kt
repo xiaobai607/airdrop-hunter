@@ -5,6 +5,8 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -43,20 +45,28 @@ fun AirdropCampaignsScreen(
     var showSourceDetails by remember { mutableStateOf(false) }
 
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Row(
+        Column(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            listOf("全部" to null, "精选" to "featured", "普通" to "ordinary").forEach { (label, tier) ->
-                AppChip(
-                    text = label,
-                    selected = state.selectedTier == tier,
-                    onClick = { vm.selectTier(tier) }
-                )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("活动目录", color = MaterialTheme.colorScheme.onBackground,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("查看已收录的公开活动与参与条件", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall)
+                }
+                AppTextButton(onClick = vm::refresh, enabled = !state.isRefreshing) {
+                    Text(if (state.isRefreshing) "刷新中…" else "刷新", color = MaterialTheme.colorScheme.primary)
+                }
             }
-            Spacer(Modifier.weight(1f))
-            AppTextButton(onClick = vm::refresh, enabled = !state.isRefreshing) {
-                Text(if (state.isRefreshing) "刷新中…" else "刷新", color = MaterialTheme.colorScheme.primary)
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("全部" to null, "精选" to "featured", "普通" to "ordinary").forEach { (label, tier) ->
+                    AppChip(text = label, selected = state.selectedTier == tier, onClick = { vm.selectTier(tier) })
+                }
             }
         }
 
@@ -71,28 +81,50 @@ fun AirdropCampaignsScreen(
             )
         }
         if (state.error != null && state.items.isEmpty()) {
-            Column(
-                Modifier.fillMaxSize().padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("暂时无法加载空投活动", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                AppButton("重试", onClick = vm::load, enabled = !state.isLoading)
+            Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                    elevation = CardDefaults.cardElevation(0.dp)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("活动目录暂时不可用", color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("请检查网络后重试。\n${state.error.orEmpty()}", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall)
+                        AppButton("重新加载", onClick = vm::load, enabled = !state.isLoading, fullWidth = false)
+                    }
+                }
             }
         } else if (state.isLoading && state.items.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else if (state.items.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("暂无已核验并公开的空投活动", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
+            Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                    elevation = CardDefaults.cardElevation(0.dp)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("暂时没有公开活动", color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("当前筛选条件下没有可展示的记录。稍后可以刷新再查看。",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        AppButton("刷新活动", onClick = vm::refresh, enabled = !state.isRefreshing, fullWidth = false)
+                    }
+                }
             }
         } else {
             LazyColumn(
                 Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (state.error != null && state.sourceStatuses.isEmpty()) {
                     item {
