@@ -188,7 +188,7 @@ private fun BrowserScreen(
     var webViewGeneration by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
-    var approvedExternalEntry by remember(url) { mutableStateOf(false) }
+    var showSecurityBanner by remember(url) { mutableStateOf(true) }
     var approvedOrigin by remember(url) { mutableStateOf(DappProviderBridge.origin(Uri.parse(url))) }
     var pendingNavigationUrl by remember { mutableStateOf<String?>(null) }
     val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
@@ -205,17 +205,23 @@ private fun BrowserScreen(
             }
         }
     }
-    LaunchedEffect(approvedExternalEntry, browser) {
-        if (approvedExternalEntry) browser?.loadUrl(url)
+    LaunchedEffect(browser) {
+        // Load immediately; the safety notice is informational and must never block browsing.
+        browser?.loadUrl(url)
     }
-
-    LaunchedEffect(pageState, approvedExternalEntry) {
-        if (approvedExternalEntry && pageState == BrowserPageState.Loading) {
-            kotlinx.coroutines.delay(30_000)
+    LaunchedEffect(showSecurityBanner) {
+        if (showSecurityBanner) {
+            kotlinx.coroutines.delay(3_000)
+            showSecurityBanner = false
+        }
+    }
+    LaunchedEffect(pageState, browser) {
+        if (pageState == BrowserPageState.Loading) {
+            kotlinx.coroutines.delay(15_000)
             if (pageState == BrowserPageState.Loading) {
                 pageState = BrowserPageState.Error
-                pageErrorMessage = "网页在 30 秒内未完成加载。可能是网络连接、网站响应或登录跳转较慢；请检查网络后重试。"
-                Log.w("AirdropBrowser", "Main-frame load timed out after 30 seconds")
+                pageErrorMessage = "网页在 15 秒内未返回首屏内容。可能是网络连接、网站响应或登录跳转失败；请检查网络后重试。"
+                Log.w("AirdropBrowser", "Main-frame load timed out after 15 seconds")
             }
         }
     }
@@ -391,19 +397,44 @@ private fun BrowserScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background)
                 )
-                Surface(Modifier.fillMaxWidth(), color = Color(0xFF9F2525)) {
-                    Text("⚠️ 安全提醒：本 App 不保存私钥。签名和交易请求会交由外部钱包展示并由您确认；请仔细核对网站域名与请求内容。",
-                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
-                        color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                if (showSecurityBanner) {
+                    Surface(
+                        Modifier.fillMaxWidth(),
+                        color = if (androidx.compose.foundation.isSystemInDarkTheme())
+                            AppDesignTokens.Dark.WarningSoft else AppDesignTokens.Light.WarningSoft
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = null,
+                                tint = if (androidx.compose.foundation.isSystemInDarkTheme())
+                                    AppDesignTokens.Dark.Warning else AppDesignTokens.Light.Warning,
+                                modifier = Modifier.size(18.dp))
+                            Text(
+                                "安全提醒：本 App 不保存私钥。签名和交易由外部钱包确认；请核对网站域名。",
+                                Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 2
+                            )
+                            TextButton(onClick = { showSecurityBanner = false }) {
+                                Text("知道了", color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
                 }
-                Surface(Modifier.fillMaxWidth(), color = Color(0xFFFFF4E5)) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp),
+                Surface(Modifier.fillMaxWidth().height(40.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Row(Modifier.fillMaxSize().padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text("当前主机", color = Color(0xFF8A4B08), style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold)
+                        Text("当前主机", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.width(8.dp))
-                        Text(displayHost(currentPageUrl), color = Color(0xFF7A271A),
-                            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                        Text(displayHost(currentPageUrl), color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                            maxLines = 1)
                     }
                 }
             }
@@ -936,29 +967,6 @@ private fun BrowserScreen(
         }
     }
 
-    if (!approvedExternalEntry) {
-        Dialog(onDismissRequest = onExit, properties = DialogProperties(
-            dismissOnBackPress = false, dismissOnClickOutside = false
-        )) {
-            Surface(shape = RoundedCornerShape(22.dp), color = Color.White) {
-                Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("⚠️ 第三方网站安全提醒", color = Color(0xFFB42318),
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("您即将离开 Airdrop Hunter，进入第三方网站。本 App 无法控制该网站安全，请核对域名，切勿泄露私钥。",
-                        color = AppColors.TextPrimary, style = MaterialTheme.typography.bodyMedium)
-                    Text("目标域名：${displayHost(url)}", color = Color(0xFFB42318),
-                        fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                    Button(onClick = { approvedExternalEntry = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB42318))) {
-                        Text("已了解，继续", color = Color.White)
-                    }
-                    TextButton(onClick = onExit, modifier = Modifier.fillMaxWidth()) { Text("取消并返回") }
-                }
-            }
-        }
-    }
-
     pendingNavigationUrl?.let { targetUrl ->
         val targetHost = displayHost(targetUrl)
         AlertDialog(
@@ -1065,39 +1073,36 @@ private fun BrowserPageOverlay(
     onBack: () -> Unit,
     onRetry: () -> Unit
 ) {
-    val infinite = rememberInfiniteTransition(label = "loading-pulse")
-    val pulse by infinite.animateFloat(0.92f, 1.08f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse")
-    Box(Modifier.fillMaxSize().background(Color(0xFFF8F9FA)), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center) {
         if (state == BrowserPageState.Loading) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                Box(Modifier.size(76.dp).scale(pulse).background(Color(0xFFE8F3F1), CircleShape), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(Modifier.size(42.dp), color = AppColors.Primary, strokeWidth = 3.dp)
-                    Text("⚡", style = MaterialTheme.typography.titleLarge)
-                }
-                Text("正在连接网页，请稍候...", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text("正在等待网页响应，最长约 30 秒", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            Column(horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                CircularProgressIndicator(Modifier.size(48.dp), color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 3.dp)
+                Text("正在连接网页，请稍候…", color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.titleMedium)
+                Text("正在等待网页返回首屏内容", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall)
             }
         } else {
-            Column(
-                Modifier.fillMaxWidth().padding(horizontal = 28.dp),
+            Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("☁️", style = MaterialTheme.typography.displaySmall)
-                Text("网页加载失败", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(
-                    errorDetail ?: "网站未提供具体错误原因。请检查网络后重试。",
-                    color = AppColors.TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Button(onClick = onRetry, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
-                    Text("重新加载")
-                }
-                TextButton(onClick = onBack) { Text("返回") }
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(Icons.Default.CloudOff, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(64.dp))
+                Text("网页加载超时", color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.titleLarge)
+                Text(errorDetail ?: "网站未提供具体错误原因。请检查网络后重试。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium)
+                AppButton("重新加载", onClick = onRetry)
+                AppButton("返回", onClick = onBack, style = AppButtonStyle.TEXT)
             }
         }
     }
 }
+
 private fun currentDappAuthorizationStamp(): String {
     val generation = WalletConnectSessionDelegate.sessionGeneration.value
     val addresses = WalletConnectSessionDelegate.accounts.value
