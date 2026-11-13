@@ -157,7 +157,7 @@ fun AirdropCampaignsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(10.dp)) {
+                            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)) {
                                 Text("币安", Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                                     color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold)
@@ -221,7 +221,7 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
                 )
                 Surface(
                     color = if (campaign.tier == "featured") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(999.dp)
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)
                 ) {
                     Text(
                         if (campaign.tier == "featured") "精选" else "普通",
@@ -261,7 +261,7 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
 
 @Composable
 private fun CampaignTag(value: String) {
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(999.dp)) {
+    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
         Text(value, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
     }
 }
