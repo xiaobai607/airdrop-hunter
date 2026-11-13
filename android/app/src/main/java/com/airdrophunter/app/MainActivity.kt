@@ -382,7 +382,7 @@ private fun AirdropHunterApp(
         ModalBottomSheet(
             onDismissRequest = { showAccountingSheet = false },
             sheetState = accountingSheetState,
-            containerColor = AppColors.Surface
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
             AccountingCenterScreen(
                 modifier = Modifier.fillMaxWidth(),
