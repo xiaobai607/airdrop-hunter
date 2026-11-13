@@ -130,9 +130,11 @@ fun HomeScreen(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("首页", Modifier.weight(1f), style = MaterialTheme.typography.displayLarge,
                 color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { showNotifications = true }) {
-                Icon(Icons.Default.NotificationsNone, "通知", tint = AppColors.TextSecondary)
-            }
+            com.airdrophunter.app.ui.components.AppIconButton(
+                icon = Icons.Default.NotificationsNone,
+                contentDescription = "通知",
+                onClick = { showNotifications = true }
+            )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
