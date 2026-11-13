@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.airdrophunter.app.ui.theme.AppDesignTokens
@@ -88,7 +89,14 @@ fun AppButton(
                     Icon(leadingIcon, contentDescription = null, tint = foreground, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(text, color = foreground, fontSize = fontSizeSp.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text,
+                    color = foreground,
+                    fontSize = fontSizeSp.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
