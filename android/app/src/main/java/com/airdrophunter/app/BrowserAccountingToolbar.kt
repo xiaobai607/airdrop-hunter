@@ -1415,7 +1415,7 @@ fun AccountingCenterScreen(
                                         }
                                         Surface(color = MaterialTheme.colorScheme.secondaryContainer,
                                             shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
-                                            Text("已确认", modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                            Text("已确认入账", modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                                 style = MaterialTheme.typography.labelSmall)
                                         }
