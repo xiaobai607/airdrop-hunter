@@ -1,5 +1,6 @@
 package com.airdrophunter.app
 
+import android.content.Context
 import com.reown.appkit.client.AppKit
 import com.reown.appkit.client.Modal
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,7 +15,7 @@ data class WalletConnectAccount(
     val walletLabel: String
 )
 
-object WalletConnectSessionDelegate : AppKit.ModalDelegate {
+object WalletConnectSessionDelegate : AppKit.ModalDelegate {\n    @Volatile private var applicationContext: Context? = null\n\n    fun attachApplicationContext(context: Context) {\n        applicationContext = context.applicationContext\n    }
     private val _accounts = MutableStateFlow<List<WalletConnectAccount>>(emptyList())
     val accounts = _accounts.asStateFlow()
     private val _sessionGeneration = MutableStateFlow(0L)
