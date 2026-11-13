@@ -70,6 +70,12 @@
 
 - Limit automatic Binance article-detail enrichment to the newest 12 Crypto Airdrop entries per source sync and use an 8-second per-detail timeout. This bounds provider load and keeps the scheduled job within its existing five-minute ceiling; failed details remain observations and are not promoted.
 
+## 2026-11-13 — simplify project library list cards
+
+- Keep the project list cards concise: project name, lifecycle/status markers, a short description when available, a compact actual net-P&L summary and the community/local binding indicator.
+- Move detailed Gas/reward breakdown and direct interaction entry out of the list card; selecting a project should open its detail page, where full information and the website action belong.
+- Preserve all accounting values and project actions; this is a presentation-only change. Keep private/community project contribution and delisting rules unchanged.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
