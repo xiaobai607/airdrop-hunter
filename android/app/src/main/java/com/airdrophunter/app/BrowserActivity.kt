@@ -797,6 +797,9 @@ private fun BrowserScreen(
                         }
                         setBackgroundColor(AndroidColor.WHITE)
                         settings.apply {
+                            // Present a Chrome-compatible mobile UA while retaining the WebView's
+                            // actual Chromium version; do not hardcode a stale Chrome release.
+                            userAgentString = chromeCompatibleUserAgent(userAgentString)
                             javaScriptEnabled = true
                             domStorageEnabled = true
                             databaseEnabled = true
@@ -1173,6 +1176,16 @@ private fun markBrowserSecurityBannerShown(context: Context) {
         .putString(BROWSER_SECURITY_DATE_KEY, LocalDate.now().toString())
         .putInt(BROWSER_SECURITY_COUNT_KEY, preferences.getInt(BROWSER_SECURITY_COUNT_KEY, 0) + 1)
         .apply()
+}
+
+private fun chromeCompatibleUserAgent(defaultUserAgent: String): String {
+    // Android WebView normally appends "; wv" and "Version/4.0" to its Chromium UA.
+    // Removing those WebView markers improves site compatibility without inventing a
+    // Chrome version or pretending that WebView has Chrome's full browser capabilities.
+    if (!defaultUserAgent.contains("Chrome/", ignoreCase = true)) return defaultUserAgent
+    return defaultUserAgent
+        .replace("; wv)", ")")
+        .replace("Version/4.0 ", "")
 }
 
 private fun displayHost(rawUrl: String): String {
