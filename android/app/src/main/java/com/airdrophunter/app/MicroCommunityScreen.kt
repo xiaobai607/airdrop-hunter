@@ -1,4 +1,3 @@
-import com.airdrophunter.app.ui.components.AppTextButton
 package com.airdrophunter.app
 
 import androidx.compose.animation.AnimatedContent
@@ -30,6 +29,9 @@ import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
@@ -148,7 +150,12 @@ fun MicroCommunityScreen(
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(projectName, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("Steam 式真实参与者评价 · 仅星级评分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                OutlinedButton(
+                AppButton(
+                    text = when {
+                        isDemoProject -> "测试项目 · 不会加入库管理"
+                        isJoined -> "已添加到库管理"
+                        else -> "添加到库管理"
+                    },
                     onClick = {
                         if (isDemoProject) {
                             Toast.makeText(context, "测试项目不会写入库管理", Toast.LENGTH_SHORT).show()
@@ -164,17 +171,9 @@ fun MicroCommunityScreen(
                         }
                     },
                     enabled = !isJoined && !isDemoProject,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(if (isJoined) Icons.Default.Check else Icons.Default.Add, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(when {
-                        isDemoProject -> "测试项目 · 不会加入库管理"
-                        isJoined -> "已添加到库管理"
-                        else -> "添加到库管理"
-                    })
-                }
+                    style = AppButtonStyle.SECONDARY,
+                    leadingIcon = if (isJoined) Icons.Default.Check else Icons.Default.Add
+                )
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -302,11 +301,15 @@ fun MicroCommunityScreen(
                                 imageVector = if (score <= selectedScore) Icons.Default.Star else Icons.Outlined.StarBorder,
                                 contentDescription = "$score 星",
                                 tint = if (score <= selectedScore) Color(0xFFFFB12B) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(34.dp).clickable(enabled = !saved) {
-                                    if (!participationChecked || !canRate) {
-                                        Toast.makeText(context, "仅限真实参与该项目的用户打分", Toast.LENGTH_SHORT).show()
-                                    } else selectedScore = score
-                                }
+                                modifier = Modifier.size(44.dp).appPressFeedback(
+                                    onClick = {
+                                        if (!participationChecked || !canRate) {
+                                            Toast.makeText(context, "仅限真实参与该项目的用户打分", Toast.LENGTH_SHORT).show()
+                                        } else selectedScore = score
+                                    },
+                                    enabled = !saved,
+                                    scale = 0.94f
+                                )
                             )
                         }
                     }
@@ -317,7 +320,8 @@ fun MicroCommunityScreen(
                     } else {
                         Text("评分仅保存在本机；当前版本不会上传个人账本或提交全网评分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
-                    Button(
+                    AppButton(
+                        text = if (saved) "已评价" else "保存星级评分",
                         onClick = {
                             if (!participationChecked || !canRate) {
                                 Toast.makeText(context, "仅限本机有真实参与记账记录的用户打分", Toast.LENGTH_SHORT).show()
@@ -332,13 +336,8 @@ fun MicroCommunityScreen(
                             }
                         },
                         enabled = canRate && selectedScore in 1..5 && !saved && !saving,
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            disabledContainerColor = MaterialTheme.colorScheme.outline
-                        ),
-                        shape = RoundedCornerShape(13.dp)
-                    ) { Text(if (saving) "保存中…" else if (saved) "已评价" else "保存星级评分", fontWeight = FontWeight.Bold) }
+                        loading = saving
+                    )
                 }
             }
         }
