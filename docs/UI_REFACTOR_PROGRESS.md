@@ -489,3 +489,11 @@
 - 未改变导航目的地、Tab 顺序、业务状态或页面层级。
 - 静态核对：空列表提前返回、选中索引约束、选中语义导入和应用、点击索引回调及原动画参数均已检查。尚未运行 Gradle 编译、Android 测试、CI、APK 或真机 TalkBack/窄屏验收。
 - 代码 commit：`e34560584e2a093d6b3cb2c395db7dc723d8273a`。
+
+
+### 2026-11-13 — 底部导航与禁用按钮可读性收口（代码已落地待验收）
+
+- `AppBottomBar.kt`：空列表防除零、selectedIndex 边界保护、Tab selected 无障碍语义已落地；代码提交 `e34560584e2a093d6b3cb2c395db7dc723d8273a`。
+- `AppButton.kt`：主按钮/危险按钮在禁用或加载状态下，背景保持低饱和语义底色，前景继续使用对应品牌/错误色的适度透明度，不再把文字与加载指示器一并压成低对比的通用 onSurfaceVariant；点击仍由 `active = enabled && !loading` 严格禁用，未改变点击回调和业务流程。代码提交 `325d9da130d44cab87592220f69616613805b791`。
+- 同轮基础组件审计：`BaseCard.kt` 已符合实底、1dp 低对比描边、0dp elevation 的设计基线；不做重复修改。
+- 静态检查范围：按钮 enabled/loading 门槛、PRIMARY/DANGER 两种状态颜色、底栏空项/索引边界和 Tab 语义。尚未运行 Gradle 编译、自动化测试、CI、APK 或真机对比度/触控验收；最终颜色对比度仍需设备实测。
