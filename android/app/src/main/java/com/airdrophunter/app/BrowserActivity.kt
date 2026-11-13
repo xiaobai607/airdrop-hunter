@@ -391,7 +391,7 @@ private fun BrowserScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             Column {
-                TopAppBar(
+                CenterAlignedTopAppBar(
                     modifier = Modifier.height(56.dp),
                     title = { Text(title, color = MaterialTheme.colorScheme.onBackground,
                         style = MaterialTheme.typography.titleLarge, maxLines = 1) },
@@ -419,7 +419,7 @@ private fun BrowserScreen(
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
                 )
                 androidx.compose.animation.AnimatedVisibility(
                     visible = showSecurityBanner || pendingNavigationUrl != null,
