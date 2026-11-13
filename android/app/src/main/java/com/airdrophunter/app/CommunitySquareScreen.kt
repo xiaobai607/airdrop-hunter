@@ -283,13 +283,13 @@ fun CommunitySquareScreen(
                     )
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(
+                    AppButton(
+                        text = if (airdropFilterSelection.selectedCount == 0) "筛选空投条件" else "筛选空投条件 · ${airdropFilterSelection.selectedCount}",
                         onClick = { showAirdropFilters = true },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(if (airdropFilterSelection.selectedCount == 0) "筛选空投条件" else "筛选空投条件 · ${airdropFilterSelection.selectedCount}")
-                    }
+                        style = AppButtonStyle.SECONDARY,
+                        fontSizeSp = 14
+                    )
                     AppChip("我的收藏", favoritesOnly, onClick = { favoritesOnly = !favoritesOnly })
                 }
                 Surface(color = if (useDemoData) Color(0xFFFFF4E5) else Color(0xFFE8F7EF), shape = RoundedCornerShape(999.dp)) {
