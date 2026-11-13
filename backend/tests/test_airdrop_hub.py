@@ -1,13 +1,20 @@
 from uuid import uuid4
 from fastapi.testclient import TestClient
 from app.main import app
-from app.models import AirdropProject
+from app.models import (
+    AirdropCampaign,
+    AirdropCampaignSourceSnapshot,
+    AirdropCampaignStatusHistory,
+    AirdropProject,
+)
 from app.services.airdrop_hub_sync import (
+    _binance_article_plain_text,
     _configured_github_raw_sources,
     _normalize_binance_announcements,
     _normalize_binance_article_detail,
     _normalize_dexscreener_pairs,
     _normalize_github_airdrop_list,
+    _upsert_binance_airdrop_campaign,
 )
 
 def test_binance_article_detail_preserves_official_html_and_metadata():
@@ -240,6 +247,7 @@ def test_github_markdown_entries_are_preserved_for_central_https_validation():
 def test_binance_article_codes_are_rejected_instead_of_silently_rewritten():
     rows = _normalize_binance_announcements({
         "data": {"catalogs": [{
+            "catalogName": "Crypto Airdrop",
             "articles": [
                 {"title": "Valid Crypto Airdrop", "code": "valid_code-123"},
                 {"title": "Malformed code", "code": "valid!code"},
@@ -249,6 +257,7 @@ def test_binance_article_codes_are_rejected_instead_of_silently_rewritten():
 
     assert len(rows) == 1
     assert rows[0]["source_key"] == "binance:valid_code-123"
+    assert rows[0]["catalog_name"] == "Crypto Airdrop"
     assert rows[0]["link"].endswith("/valid_code-123")
 
 
@@ -763,3 +772,91 @@ def test_binance_announcement_normalizer_preserves_official_release_date():
     assert rows[2]["published_at"] is None
     decision = evaluate_discovery_observation(rows[0])
     assert decision["metadata"]["published_at"] == "2026-11-12T12:00:00+00:00"
+
+
+def test_official_binance_crypto_airdrop_detail_creates_evidence_backed_campaign():
+    import asyncio
+
+    class FakeDb:
+        def __init__(self):
+            self.added = []
+
+        async def scalar(self, statement):
+            return None
+
+        def add(self, value):
+            self.added.append(value)
+
+        async def flush(self):
+            for value in self.added:
+                if isinstance(value, AirdropCampaign) and value.id is None:
+                    value.id = uuid4()
+
+    db = FakeDb()
+    record = {
+        "catalog_id": 128,
+        "catalog_name": "Crypto Airdrop",
+        "source_key": "binance:article-code-123",
+        "name": "Official token airdrop",
+        "link": "https://www.binance.com/en/support/announcement/article-code-123",
+    }
+    detail = {
+        "title": "Official token airdrop",
+        "content_html": "<h2>Reward</h2><p>Stake BNB to earn tokens.</p><p>Eligibility is subject to terms.</p>",
+        "release_date": 1790000000000,
+    }
+
+    created = asyncio.run(_upsert_binance_airdrop_campaign(
+        db, record=record, detail=detail, now=datetime.now(timezone.utc)
+    ))
+
+    campaign = next(item for item in db.added if isinstance(item, AirdropCampaign))
+    assert created is True
+    assert campaign.source_key == "binance:crypto-airdrop:article-code-123"
+    assert campaign.source_name == "binance-crypto-airdrop"
+    assert campaign.campaign_type == "airdrop"
+    assert campaign.campaign_status == "unknown"
+    assert campaign.trust_status == "verified"
+    assert campaign.official_url == record["link"]
+    assert campaign.chain is None
+    assert campaign.requires_kyc is None
+    assert "Stake BNB to earn tokens." in campaign.description
+    assert any(isinstance(item, AirdropCampaignStatusHistory) for item in db.added)
+    assert any(isinstance(item, AirdropCampaignSourceSnapshot) for item in db.added)
+
+
+def test_latest_activities_and_missing_binance_article_body_are_not_promoted():
+    import asyncio
+
+    class FakeDb:
+        async def scalar(self, statement):
+            raise AssertionError("ineligible records must be rejected before database access")
+
+        def add(self, value):
+            raise AssertionError("ineligible records must not be persisted")
+
+    db = FakeDb()
+    record = {
+        "catalog_id": 93,
+        "catalog_name": "Latest Activities",
+        "source_key": "binance:activity-code",
+        "link": "https://www.binance.com/en/support/announcement/activity-code",
+    }
+    detail = {"title": "Some promotion", "content_html": "<p>Reward</p>"}
+    assert asyncio.run(_upsert_binance_airdrop_campaign(
+        db, record=record, detail=detail, now=datetime.now(timezone.utc)
+    )) is False
+
+    record["catalog_id"] = 128
+    record["catalog_name"] = "Crypto Airdrop"
+    detail["content_html"] = ""
+    assert asyncio.run(_upsert_binance_airdrop_campaign(
+        db, record=record, detail=detail, now=datetime.now(timezone.utc)
+    )) is False
+
+
+def test_binance_campaign_description_is_plain_text_not_html():
+    text = _binance_article_plain_text("<h2>Reward</h2><p>Stake BNB &amp; earn.</p>")
+    assert "<h2>" not in text
+    assert "Reward" in text
+    assert "Stake BNB & earn." in text
