@@ -190,8 +190,8 @@ private fun WalletActivityPanel(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(transactions, key = { _, tx -> "${tx.chain}:${tx.hash}" }) { index, tx ->
                     StaggeredListItem("${tx.chain}:${tx.hash}", index) {
@@ -207,8 +207,8 @@ private fun WalletActivityPanel(
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         Column(
-                            Modifier.fillMaxWidth().padding(13.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
