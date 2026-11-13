@@ -160,10 +160,10 @@ fun HomeScreen(
             ) {
                 when {
                     state.isLoading && state.market.isEmpty() -> Box(
-                        Modifier.fillMaxWidth().padding(22.dp), contentAlignment = Alignment.Center
+                        Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center
                     ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
                     state.market.isEmpty() -> Column(
-                        Modifier.fillMaxWidth().padding(18.dp),
+                        Modifier.fillMaxWidth().padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("无法获取实时行情", color = MaterialTheme.colorScheme.onSurface,
@@ -179,7 +179,7 @@ fun HomeScreen(
                             ticker.symbol.substringBefore("-").uppercase(Locale.US) in marketSymbols
                         }
                         if (visibleMarket.isEmpty()) {
-                            Text("所选币种暂无行情数据", modifier = Modifier.padding(18.dp),
+                            Text("所选币种暂无行情数据", modifier = Modifier.padding(16.dp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                         } else visibleMarket.forEachIndexed { index, ticker ->
                             MarketRow(ticker)
@@ -218,7 +218,7 @@ fun HomeScreen(
                             Row(Modifier.fillMaxWidth().appPressFeedback(onClick = {
                                 marketSymbolDraft = if (symbol in marketSymbolDraft) marketSymbolDraft - symbol
                                     else marketSymbolDraft + symbol
-                            }, scale = 1f).padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            }, scale = 1f).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Checkbox(checked = symbol in marketSymbolDraft, onCheckedChange = { checked ->
                                     marketSymbolDraft = if (checked) marketSymbolDraft + symbol else marketSymbolDraft - symbol
                                 })
@@ -255,7 +255,7 @@ fun HomeScreen(
                 .appPressFeedback(onClick = onOpenGlobalSearch, scale = 0.94f)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(11.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("搜索币种或 DApp", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
@@ -383,7 +383,7 @@ fun HomeScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 DashboardIconTile(icon, iconBackground, iconTint, 40.dp)
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.SemiBold)
                                     Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -395,7 +395,7 @@ fun HomeScreen(
                             }
                         } else {
                             Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     DashboardIconTile(icon, iconBackground, iconTint, 40.dp)
                                     Spacer(Modifier.weight(1f))
@@ -420,7 +420,7 @@ fun HomeScreen(
                 containerColor = MaterialTheme.colorScheme.surface,
                 title = { Text("添加快捷卡片", color = MaterialTheme.colorScheme.onSurface) },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (available.isEmpty()) Text("目前没有更多可添加的快捷功能。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         available.forEach { id ->
                             AppTextButton(onClick = {
@@ -612,12 +612,12 @@ private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker) {
         Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(ticker.symbol, color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             Text(ticker.displayName, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
         }
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("$ $price", color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             Text(change, color = if (ticker.change24hPercent >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
@@ -643,7 +643,7 @@ private fun ShortcutCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
             Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
