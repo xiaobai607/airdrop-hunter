@@ -252,7 +252,7 @@ fun HomeScreen(
                 .height(54.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surface)
-                .appPressFeedback(onClick = onOpenGlobalSearch, scale = 0.96f)
+                .appPressFeedback(onClick = onOpenGlobalSearch, scale = 0.94f)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(11.dp)
