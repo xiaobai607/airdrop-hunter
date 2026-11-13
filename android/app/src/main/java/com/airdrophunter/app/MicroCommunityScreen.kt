@@ -8,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -21,6 +20,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.heading
@@ -210,17 +211,23 @@ fun MicroCommunityScreen(
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
-                            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, CircleShape).padding(3.dp),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, CircleShape).padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             listOf("overall" to "总览", "3d" to "近3天", "1h" to "近1小时").forEach { (window, label) ->
                                 val selected = selectedPeriod == window
                                 Surface(
-                                    modifier = Modifier.weight(1f).heightIn(min = 40.dp).clickable { selectedPeriod = window },
+                                    modifier = Modifier.weight(1f).heightIn(min = 44.dp)
+                                        .appPressFeedback(
+                                            onClick = { selectedPeriod = window },
+                                            scale = 1f,
+                                            role = androidx.compose.ui.semantics.Role.Tab
+                                        )
+                                        .semantics { this.selected = selected },
                                     color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                                     shape = CircleShape
                                 ) {
-                                    Box(Modifier.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
+                                    Box(Modifier.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                                         Text(label, color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                                             style = MaterialTheme.typography.labelLarge)
