@@ -126,13 +126,13 @@ fun ProfileScreen(
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(if (isGuest) "本地模式" else (state.profile?.username ?: "账户中心"),
+                Text(if (isGuest) "游客模式" else (state.profile?.username ?: "账户中心"),
                     color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold, maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 Text(
                     when {
-                        isGuest -> "个人数据仅保存在本机"
+                        isGuest -> "当前以游客身份使用"
                         state.profile != null -> "ID: " + state.profile!!.uid
                         state.isLoading -> "正在加载账户信息…"
                         else -> "账户信息暂时无法加载"

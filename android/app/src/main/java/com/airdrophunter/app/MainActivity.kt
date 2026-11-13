@@ -44,7 +44,6 @@ import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.ui.components.AppBottomBar
 import com.airdrophunter.app.ui.components.AppNavigationItem
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
-import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -155,7 +154,7 @@ class MainActivity : ComponentActivity() {
                     onRequireAuth = {
                         Toast.makeText(
                             applicationContext,
-                            "当前版本暂不开放注册/登录，个人数据仅保存在本机",
+                            "当前版本暂不开放注册/登录",
                             Toast.LENGTH_LONG
                         ).show()
                     },
@@ -163,7 +162,7 @@ class MainActivity : ComponentActivity() {
                     onOpenAuth = {
                         Toast.makeText(
                             applicationContext,
-                            "当前版本暂不开放注册/登录，个人数据仅保存在本机",
+                            "当前版本暂不开放注册/登录",
                             Toast.LENGTH_LONG
                         ).show()
                     }
