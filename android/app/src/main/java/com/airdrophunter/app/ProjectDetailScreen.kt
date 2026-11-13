@@ -41,6 +41,7 @@ import com.airdrophunter.app.data.ManualRewardAllocationMode
 import kotlinx.coroutines.launch
 import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppTextField
 import java.util.Locale
 import java.math.BigDecimal
 import java.util.UUID
@@ -420,9 +421,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         modifier = Modifier.fillMaxWidth().height(7.dp), color = AppColors.Primary,
                         trackColor = AppColors.Border,
                         strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    OutlinedTextField(value = taskName, onValueChange = { taskName = it },
-                        modifier = Modifier.fillMaxWidth(), placeholder = { Text("添加一个待办任务…") },
-                        singleLine = true, shape = RoundedCornerShape(13.dp))
+                    AppTextField(taskName, { taskName = it }, "添加一个待办任务…")
                     Button(enabled = taskName.isNotBlank() && !state.isBusy,
                         onClick = { projectDetailViewModel.addTask(project.id, taskName.trim(), projectUsesLocalTasks); taskName = "" },
                         modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(13.dp),
@@ -509,22 +508,18 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             }
                         }
                         if (wallet.id in selectedAccountingWalletIds) {
-                            OutlinedTextField(
+                            AppTextField(
                                 value = accountingWalletGasAmounts[wallet.id].orEmpty(),
                                 onValueChange = { accountingWalletGasAmounts = accountingWalletGasAmounts + (wallet.id to it.filter { ch -> ch.isDigit() || ch == '.' }.take(18)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(wallet.wallet_name.ifBlank { "钱包" } + " · Gas（USD）") },
-                                singleLine = true,
+                                placeholder = wallet.wallet_name.ifBlank { "钱包" } + " · Gas（USD）",
                                 enabled = !isSavingAccounting
                             )
                             if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET &&
                                 accountingRewardKind != ManualRewardKind.UNKNOWN) {
-                                OutlinedTextField(
+                                AppTextField(
                                     value = accountingWalletRewardAmounts[wallet.id].orEmpty(),
                                     onValueChange = { accountingWalletRewardAmounts = accountingWalletRewardAmounts + (wallet.id to it.filter { ch -> ch.isDigit() || ch == '.' }.take(24)) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text(wallet.wallet_name.ifBlank { "钱包" } + " · 实际奖励数量") },
-                                    singleLine = true,
+                                    placeholder = wallet.wallet_name.ifBlank { "钱包" } + " · 实际奖励数量",
                                     enabled = !isSavingAccounting
                                 )
                             }
@@ -581,23 +576,19 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     if (accountingRewardKind == ManualRewardKind.TOKEN ||
                         accountingRewardKind == ManualRewardKind.POINTS ||
                         accountingRewardKind == ManualRewardKind.UNISSUED) {
-                        OutlinedTextField(
+                        AppTextField(
                             value = accountingRewardUnit,
                             onValueChange = { accountingRewardUnit = it.take(32) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("代币/积分名称") },
-                            singleLine = true,
+                            placeholder = "代币/积分名称",
                             enabled = !isSavingAccounting
                         )
                     }
                     if (accountingAllocationMode == ManualRewardAllocationMode.EVEN_SPLIT_TOTAL &&
                         accountingRewardKind != ManualRewardKind.UNKNOWN) {
-                        OutlinedTextField(
+                        AppTextField(
                             value = accountingRewardAmount,
                             onValueChange = { accountingRewardAmount = it.filter { ch -> ch.isDigit() || ch == '.' }.take(24) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("本次活动总奖励数量") },
-                            singleLine = true,
+                            placeholder = "本次活动总奖励数量",
                             enabled = !isSavingAccounting
                         )
                     }
@@ -660,12 +651,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         }
                         if (!project.communityDelisted && project.communityOfficialId != null &&
                             ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)) {
-                            OutlinedTextField(
+                            AppTextField(
                                 value = accountingTxHashes[wallet.id].orEmpty(),
                                 onValueChange = { value -> accountingTxHashes = accountingTxHashes + (wallet.id to value.trim()) },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(wallet.wallet_name.ifBlank { "钱包" } + " · Tx Hash") },
-                                singleLine = true,
+                                placeholder = wallet.wallet_name.ifBlank { "钱包" } + " · Tx Hash",
                                 enabled = !isSavingAccounting
                             )
                         }
@@ -752,12 +741,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
             containerColor = AppColors.Surface,
             title = { Text("编辑任务", color = AppColors.TextPrimary) },
             text = {
-                OutlinedTextField(
+                AppTextField(
                     value = editedTaskName,
                     onValueChange = { if (it.length <= 240) editedTaskName = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("任务名称") }
+                    placeholder = "任务名称"
                 )
             },
             confirmButton = {
