@@ -2999,3 +2999,11 @@ Implementation status: requirement approved; existing coordinator already has a 
 
 - Implementation checkpoint: `DappProviderBridge.isMatchingExternalWalletResponse` now rejects a missing or blank response chain ID and accepts only an exact chain match. `DappProviderBridgeTest` covers exact match, mismatched chain, missing chain and blank chain. Code commits: `6694a62a1c217da18d40c22094fcb8a7eb388daf` and `ad8afc7cca0e76f81f7eae248d82be5dc99577f8`.
 - Static source verification confirms the fail-closed predicate and both regression cases are present. Gradle compilation, unit-test execution, CI, APK build and physical-device acceptance have **not** been run for this checkpoint; they remain pending.
+
+
+### 2026-11-13 — stale external-wallet launch callback isolation
+
+- A delayed AppKit.request launch exception from an earlier page/request must never clear or mutate a newer pending external-wallet request.
+- Before handling a launch failure, verify that the active pending request still matches the original DApp request ID, origin and WalletConnect session topic. Only that matching request may be timed out, replied to, and cleared.
+- Keep any already-created Web3 draft recoverable; do not infer that a wallet broadcast did not happen solely because the UI launch callback arrived late.
+- Implementation: BrowserActivity now scopes the AppKit.request failure handler to the still-active request identity (commit 236f8f18248ddb83375df9198124dab3d3c5460f). Static source check only; Gradle, unit tests, CI and device validation remain pending.
