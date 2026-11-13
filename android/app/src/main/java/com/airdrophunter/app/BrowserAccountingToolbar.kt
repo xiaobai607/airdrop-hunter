@@ -46,6 +46,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
 import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.animation.core.VectorConverter
@@ -287,7 +289,7 @@ fun BrowserAccountingToolbar(
         val maxVerticalDrag = with(androidx.compose.ui.platform.LocalDensity.current) {
             (maxHeight - 124.dp).coerceAtLeast(0.dp).toPx()
         }
-        val dockShape = RoundedCornerShape(50)
+        val dockShape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp)
         val leftSnap = -maxHorizontalDrag
         val rightSnap = maxHorizontalDrag
 
@@ -313,12 +315,12 @@ fun BrowserAccountingToolbar(
                 .padding(bottom = 24.dp)
                 .fillMaxWidth(0.94f)
                 .widthIn(max = 420.dp)
-                .height(100.dp)
+                .height(88.dp)
                 .shadow(
-                    elevation = 12.dp,
+                    elevation = 8.dp,
                     shape = dockShape,
-                    ambientColor = Color.Black.copy(alpha = 0.20f),
-                    spotColor = Color.Black.copy(alpha = 0.24f)
+                    ambientColor = Color.Black.copy(alpha = 0.06f),
+                    spotColor = Color.Black.copy(alpha = 0.06f)
                 )
                 .offset {
                     val position = if (dockIsDragging) dockDragPosition else dockOffset.value
@@ -385,8 +387,8 @@ fun BrowserAccountingToolbar(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(dockShape)
-                    .background(Color.White.copy(alpha = 0.35f))
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)), dockShape)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
+                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), dockShape)
             ) {
                 androidx.compose.foundation.lazy.LazyRow(
                     modifier = Modifier.fillMaxSize(),
@@ -404,14 +406,7 @@ fun BrowserAccountingToolbar(
                             "copy_url" -> Icons.Filled.Link
                             else -> Icons.Filled.OpenInNew
                         }
-                        val iconBackground = when (id) {
-                            "new_accounting" -> Color(0xFF0F766E)
-                            "copy_address" -> Color(0xFF2563EB)
-                            "pending_bills" -> Color(0xFF7C3AED)
-                            "refresh_page" -> Color(0xFF0891B2)
-                            "copy_url" -> Color(0xFF059669)
-                            else -> Color(0xFFEA580C)
-                        }
+                        val iconBackground = MaterialTheme.colorScheme.secondaryContainer
                         val action: () -> Unit = when (id) {
                             "new_accounting" -> { { createManualAccountingEntry() } }
                             "copy_address" -> { { onCopyAddress() } }
@@ -420,12 +415,9 @@ fun BrowserAccountingToolbar(
                             "copy_url" -> { { onCopyPageUrl() } }
                             else -> { { onOpenPageExternally() } }
                         }
-                        Surface(
-                            onClick = action,
-                            enabled = true,
-                            modifier = Modifier.size(width = 68.dp, height = 78.dp),
-                            shape = RoundedCornerShape(18.dp),
-                            color = Color.Transparent
+                        Box(
+                            modifier = Modifier.size(width = 68.dp, height = 78.dp)
+                                .appPressFeedback(onClick = action, scale = 0.94f)
                         ) {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -433,15 +425,15 @@ fun BrowserAccountingToolbar(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(16.dp))
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp))
                                         .background(iconBackground),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = icon,
                                         contentDescription = null,
-                                        tint = Color.White,
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
