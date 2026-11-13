@@ -22,6 +22,8 @@ import androidx.compose.runtime.*
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -262,9 +264,9 @@ fun CommunitySquareScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("空投库", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                Text("微社区广场", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "浏览公开项目目录与真实参与数据",
+                    "发现值得关注的 Web3 项目，查看社区真实参与数据与口碑",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )

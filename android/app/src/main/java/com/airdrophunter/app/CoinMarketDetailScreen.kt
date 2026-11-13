@@ -6,6 +6,8 @@ import com.airdrophunter.app.ui.components.AppButtonStyle
 import com.airdrophunter.app.ui.components.AppButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.ApiClient
@@ -64,7 +68,8 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
         }
     }
     Column(
-        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(16.dp),
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -143,8 +148,9 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
 @Composable
 private fun MarketMetricRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-        Text(value, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f), textAlign = TextAlign.End, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

@@ -885,3 +885,12 @@
 - `ProfileDestinations.kt` 为“应用偏好”“数据与诊断”增加 Compose heading 语义，方便 TalkBack/辅助技术按章节导航；视觉排版不变。
 - 依据 Android 官方 Compose 无障碍建议，交互目标至少 48dp，并为内容分区提供语义信息。源码静态检查已完成；待 Android CI、TalkBack 和真机验收。
 - 不涉及浏览器、悬浮工具栏、钱包页面或业务逻辑；未构建 APK。
+
+
+### 2026-11-14 — 主页面标题语义与窄屏滚动收口（代码已落地待验收）
+
+- `CommunitySquareScreen.kt`：将内容标题纠正为“微社区广场”，副标题明确页面用于发现 Web3 项目及查看社区真实参与数据；标题增加无障碍 heading 语义，避免页面名称与底部“空投库”导航目的地内容标题混淆。
+- `ProjectsScreen.kt`、`HomeScreen.kt`：主标题增加 Compose heading 语义，方便 TalkBack 按页面章节导航。
+- `TronEnergyAssistantScreen.kt`：外层内容增加垂直滚动，窄屏、小字体或系统显示缩放下，安全提示与提交按钮不会被固定视口裁切。
+- `CoinMarketDetailScreen.kt`：详情页增加垂直滚动；行情指标行的标签和值均分配弹性宽度，长数值单行省略并右对齐，避免窄屏横向溢出。
+- 不修改项目数据、行情刷新限流、TRON 地址校验或导航行为。尚未进行真机/字体缩放验收；本次代码需等待 Android CI 验证。

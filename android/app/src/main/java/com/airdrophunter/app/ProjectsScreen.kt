@@ -21,6 +21,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
@@ -149,7 +151,7 @@ fun ProjectsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("项目管理", color = MaterialTheme.colorScheme.onSurface,
+                Text("项目管理", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                 Text("跟踪参与进度与真实净盈亏", color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
