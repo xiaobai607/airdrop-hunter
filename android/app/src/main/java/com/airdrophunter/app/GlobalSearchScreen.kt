@@ -197,7 +197,7 @@ fun GlobalSearchScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
-                Modifier.weight(1f).clip(RoundedCornerShape(999.dp))
+                Modifier.weight(1f).clip(RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(start = 12.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -415,7 +415,7 @@ private fun MarketCoinRow(coin: MarketCoin, onClick: () -> Unit) {
 private fun DappResultRow(project: CommunityProjectCatalogDto, onClick: () -> Unit) {
     val validUrl = Uri.parse(project.website_url).let { it.scheme.equals("https", true) && !it.host.isNullOrBlank() }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface)
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).background(MaterialTheme.colorScheme.surface)
             .appPressFeedback(onClick = onClick, scale = 1f, enabled = validUrl).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
