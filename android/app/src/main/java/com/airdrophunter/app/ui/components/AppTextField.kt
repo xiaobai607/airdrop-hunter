@@ -86,7 +86,7 @@ fun AppTextField(
                 ) else Modifier
             )
             .onFocusChanged { focused = it.isFocused }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         enabled = enabled,
         singleLine = singleLine,
         keyboardOptions = keyboardOptions,
