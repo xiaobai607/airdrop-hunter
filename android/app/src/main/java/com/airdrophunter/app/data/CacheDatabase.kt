@@ -1263,9 +1263,8 @@ object CacheStore {
             }
             if (web3DraftId != null) {
                 check(
-                    db.web3TransactionDraftDao().setStatus(
-                        web3DraftId, scope, Web3DraftStatus.ACCOUNTED,
-                        null, System.currentTimeMillis()
+                    db.web3TransactionDraftDao().markAccounted(
+                        web3DraftId, scope, System.currentTimeMillis()
                     ) == 1
                 ) { "Web3 transaction draft could not be marked accounted" }
             }
