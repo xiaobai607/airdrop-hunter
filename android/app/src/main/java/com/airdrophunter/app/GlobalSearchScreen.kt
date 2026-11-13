@@ -36,6 +36,7 @@ import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppTextField
 import kotlinx.coroutines.Dispatchers
@@ -219,7 +220,7 @@ fun GlobalSearchScreen(
                     Icon(Icons.Default.History, null, tint = AppColors.TextSecondary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(7.dp))
                     Text("搜索历史", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { scope.launch { CacheStore.clearSearchHistory() } }) {
+                    AppTextButton(onClick = { scope.launch { CacheStore.clearSearchHistory() } }) {
                         Text("清空", color = AppColors.TextHelper)
                     }
                 }
