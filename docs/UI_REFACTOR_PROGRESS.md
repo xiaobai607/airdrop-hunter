@@ -755,3 +755,11 @@
 - `AirdropAnnouncementHtml.kt`：保留公告原始 HTML 内容与既有 CSP 安全限制，增加 `color-scheme: light dark` 与系统深色模式 CSS；只调整正文背景/文字、链接、引用块和表格边框颜色，不改写公告条款、不启用脚本或额外网络能力。
 - Commits：`752f75a7c9bf76b5a937c19baeb8fb5198f8bbc9`、`0d804b15652899c138374a183ae8aff8dde4783c`（后者修正 meta 标签换行）。
 - 仍需在真实 Android WebView 上确认系统深色模式媒体查询表现；当前仅源码检查。
+
+
+### 2026-11-13 — 公共组件圆角令牌最后一轮统一
+
+- `AppBottomBar.kt`：底部导航选中指示条使用 Radius.Full 令牌。
+- `AirdropSourceHealthPanel.kt`：来源状态胶囊统一使用 Radius.Full 令牌。
+- 公共组件其余检查项（AppChip、AppIconButton、BaseCard）未发现需要额外调整的圆角硬编码。
+- Commits：`f9363bf2e8526819f4a043ccfe17bb75ae0521c4`、`7efefaa6a368ae179120b780367a16e5d17a308a`。
