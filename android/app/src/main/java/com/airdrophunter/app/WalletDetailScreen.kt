@@ -1,6 +1,10 @@
 package com.airdrophunter.app
 
 import androidx.compose.foundation.background
+import com.airdrophunter.app.ui.components.AppDesignTokens
+import com.airdrophunter.app.ui.components.AppIconButton
+import com.airdrophunter.app.ui.components.AppButton
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,12 +19,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
-import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.components.AppTextButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -35,15 +39,14 @@ fun WalletDetailScreen(
     isGuest: Boolean = false
 ) {
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     var showAssetDialog by remember(wallet.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, "返回", tint = MaterialTheme.colorScheme.onSurface)
-            }
+            AppIconButton(Icons.Default.ArrowBack, "返回", onBack)
             Column(Modifier.weight(1f)) {
                 Text(
                     wallet.wallet_name.ifBlank { "钱包详情" },
@@ -57,9 +60,10 @@ fun WalletDetailScreen(
                 )
             }
             AppTextButton(onClick = { showAssetDialog = true }) { Text("资产", color = MaterialTheme.colorScheme.primary) }
-            IconButton(onClick = { clipboard.setText(AnnotatedString(wallet.address)) }) {
-                Icon(Icons.Default.ContentCopy, "复制地址", tint = MaterialTheme.colorScheme.primary)
-            }
+            AppIconButton(Icons.Default.ContentCopy, "复制地址", onClick = {
+                clipboard.setText(AnnotatedString(wallet.address))
+                android.widget.Toast.makeText(context = LocalContext.current, "已复制钱包地址", android.widget.Toast.LENGTH_SHORT).show()
+            })
         }
         WalletActivityPanel(wallet, Modifier.weight(1f), isGuest)
     }
@@ -165,8 +169,10 @@ private fun WalletActivityPanel(
                     val suggestedGas = WalletTransactionAccountingPolicy.suggestedGasCostUsd(tx)
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         Column(
                             Modifier.fillMaxWidth().padding(13.dp),
@@ -221,9 +227,14 @@ private fun WalletActivityPanel(
                                     Text("付款归属待核对", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
-                            Button(
+                            AppButton(
+                                text = when {
+                                    alreadyPending -> "已在待确认账单"
+                                    tx.status.equals("pending", true) -> "等待链上确认"
+                                    else -> "加入待确认账单"
+                                },
                                 onClick = {
-                                    if (addingHash != null || alreadyPending || tx.status.equals("pending", true)) return@Button
+                                    if (addingHash != null || alreadyPending || tx.status.equals("pending", true)) return@AppButton
                                     addingHash = tx.hash
                                     scope.launch {
                                         try {
@@ -279,18 +290,9 @@ private fun WalletActivityPanel(
                                     }
                                 },
                                 enabled = !alreadyPending && !tx.status.equals("pending", true) && addingHash == null,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Text(
-                                    when {
-                                        alreadyPending -> "已在待确认账单"
-                                        tx.status.equals("pending", true) -> "等待链上确认"
-                                        addingHash == tx.hash -> "添加中…"
-                                        else -> "加入待确认账单"
-                                    }
-                                )
-                            }
+                                loading = addingHash == tx.hash,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                             if (suggestedGas.isBlank()) {
                                 Text(
                                     "系统无法确认该钱包是否承担完整费用，Gas 不会自动填入；入账时请人工核对。",
