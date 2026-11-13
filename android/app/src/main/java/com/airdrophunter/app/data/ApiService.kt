@@ -29,6 +29,7 @@ interface ApiService {
     @GET("api/airdrops/hub") suspend fun getAirdropHub(@Query("chain") chain: String? = null): List<AirdropHubDto>
     @GET("api/airdrops/hub/{itemId}") suspend fun getAirdropHubDetail(@Path("itemId") itemId: String): AirdropHubDetailDto
     @GET("api/airdrops/hub/status") suspend fun getAirdropHubStatus(): AirdropHubSyncStatusDto
+    @GET("api/airdrops/hub/sources/status") suspend fun getAirdropHubSourceStatuses(): List<AirdropHubSourceStatusDto>
     @POST("api/airdrops/sync") suspend fun syncAirdrops(): AirdropHubRefreshResponse
     @POST("api/airdrops/hub/refresh") suspend fun refreshAirdropHub(): AirdropHubRefreshResponse
     @POST("api/airdrops") suspend fun createAirdrop(@Body request: AirdropWriteRequest): AirdropDto
