@@ -850,6 +850,11 @@ def test_latest_activities_and_missing_binance_article_body_are_not_promoted():
 
     record["catalog_id"] = 128
     record["catalog_name"] = "Crypto Airdrop"
+    detail["catalog_name"] = "Latest Activities"
+    assert asyncio.run(_upsert_binance_airdrop_campaign(
+        db, record=record, detail=detail, now=datetime.now(timezone.utc)
+    )) is False
+    detail["catalog_name"] = "Crypto Airdrop"
     detail["content_html"] = ""
     assert asyncio.run(_upsert_binance_airdrop_campaign(
         db, record=record, detail=detail, now=datetime.now(timezone.utc)
@@ -857,7 +862,8 @@ def test_latest_activities_and_missing_binance_article_body_are_not_promoted():
 
 
 def test_binance_campaign_description_is_plain_text_not_html():
-    text = _binance_article_plain_text("<h2>Reward</h2><p>Stake BNB &amp; earn.</p>")
+    text = _binance_article_plain_text("<h2>Reward</h2><p>Stake BNB &amp; earn.</p><script>doNotDisplay()</script>")
     assert "<h2>" not in text
+    assert "doNotDisplay" not in text
     assert "Reward" in text
     assert "Stake BNB & earn." in text
