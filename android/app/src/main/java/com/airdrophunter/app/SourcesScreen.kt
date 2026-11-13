@@ -65,7 +65,7 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Surface(Modifier.size(42.dp), shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Surface(Modifier.size(42.dp), shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                         SubcomposeAsyncImage(
                             model = "https://www.google.com/s2/favicons?domain=${source.domain}&sz=128",
                             contentDescription = source.name,
