@@ -26,6 +26,8 @@ import java.util.concurrent.TimeUnit
  */
 private const val AIRDROP_HUB_REFRESH_KEY = "airdrop_hub_last_success"
 private const val AIRDROP_HUB_REFRESH_INTERVAL_MILLIS = 6 * 60 * 60 * 1000L
+private const val AIRDROP_CAMPAIGN_SNAPSHOT_KEY = "airdrop_campaign_snapshot_last_success"
+private const val AIRDROP_CAMPAIGN_SNAPSHOT_INTERVAL_MILLIS = 6 * 60 * 60 * 1000L
 
 class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
@@ -76,6 +78,7 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
             hadFailure = true
             // Keep last-known-good campaign rows available if the public API is down.
         }
+        var sourceRefreshSucceeded = false
         try {
             val preferences = applicationContext.getSharedPreferences("global_sync_cadence_v1", Context.MODE_PRIVATE)
             val now = System.currentTimeMillis()
@@ -88,6 +91,7 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
                     throw IllegalStateException(response.status.error ?: "Airdrop hub refresh was not successful")
                 }
                 preferences.edit().putLong(AIRDROP_HUB_REFRESH_KEY, now).apply()
+                sourceRefreshSucceeded = true
                 succeeded++
             } else {
                 succeeded++
@@ -97,6 +101,31 @@ class DynamicCatalogWarmupWorker(appContext: Context, params: WorkerParameters) 
         } catch (_: Exception) {
             // Keep cached public announcements usable, but let WorkManager retry the failed refresh.
             hadFailure = true
+        }
+
+        val campaignPreferences = applicationContext.getSharedPreferences(
+            "global_sync_cadence_v1", Context.MODE_PRIVATE
+        )
+        val campaignNow = System.currentTimeMillis()
+        val lastCampaignSnapshot = campaignPreferences.getLong(AIRDROP_CAMPAIGN_SNAPSHOT_KEY, 0L)
+        val campaignSnapshotDue = lastCampaignSnapshot <= 0L ||
+            campaignNow < lastCampaignSnapshot ||
+            campaignNow - lastCampaignSnapshot >= AIRDROP_CAMPAIGN_SNAPSHOT_INTERVAL_MILLIS
+        if (sourceRefreshSucceeded || campaignSnapshotDue) {
+            try {
+                val snapshot = AirdropCampaignRepository(ApiClient.service).refreshPublishedSnapshot()
+                if (!shouldMarkSyncCadenceSuccess(snapshot.stale, snapshot.errorMessage, throttled = false)) {
+                    hadFailure = true
+                } else {
+                    campaignPreferences.edit().putLong(AIRDROP_CAMPAIGN_SNAPSHOT_KEY, campaignNow).apply()
+                    succeeded++
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Retain the previous Room snapshot; a later worker run retries only this GET.
+                hadFailure = true
+            }
         }
         return if (hadFailure || succeeded == 0) Result.retry() else Result.success()
     }
