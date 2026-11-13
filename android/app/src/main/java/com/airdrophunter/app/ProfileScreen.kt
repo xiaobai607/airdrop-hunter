@@ -339,9 +339,14 @@ private fun SettingRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
-    Row(Modifier.fillMaxWidth().height(54.dp).clickable(onClick = onClick),
+    Row(Modifier.fillMaxWidth().height(58.dp).clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
-        Icon(icon, null, tint = AppColors.TextSecondary, modifier = Modifier.size(21.dp))
+        Box(
+            Modifier.size(38.dp).background(AppColors.TealTint, RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = AppColors.Primary, modifier = Modifier.size(20.dp))
+        }
         Text(title, Modifier.weight(1f), color = AppColors.TextPrimary,
             style = MaterialTheme.typography.bodyMedium)
         Icon(Icons.Default.ChevronRight, null, tint = AppColors.TextHelper)
