@@ -72,7 +72,7 @@ fun AppBottomBar(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             items.forEachIndexed { index, item ->
-                val selected = selectedIndex == index
+                val selected = safeSelectedIndex == index
                 Column(
                     modifier = Modifier.weight(1f).height(AppDesignTokens.Control.TabHeight.dp)
                         .appPressFeedback(
@@ -87,7 +87,7 @@ fun AppBottomBar(
                 ) {
                     Icon(
                         item.icon,
-                        contentDescription = item.label,
+                        contentDescription = null,
                         modifier = Modifier.size(24.dp),
                         tint = if (selected) colors.primary else colors.onSurfaceVariant
                     )

@@ -908,3 +908,10 @@
 - `CoinMarketDetailScreen.kt`：行情指标行改为顶部对齐；标签最多两行并保留省略保护，指标值不再限制单行/省略，允许较长金额、成交量和市值自然换行完整显示。值列略宽于标签列，仍保持右对齐，避免窄屏信息被静默截断。
 - `AirdropCampaignsScreen.kt`：为“活动目录”主标题补充 Compose heading 语义，TalkBack 可按标题导航。
 - 不修改行情数据、格式化规则、刷新策略、活动筛选和列表行为；待本次 Android CI 验证及真机窄屏/大字体验收。未构建 APK。
+
+
+### 2026-11-14 — 底部导航边界状态与 TalkBack 重复朗读修正
+
+- `AppBottomBar.kt`：选中项语义与视觉指示器统一使用安全夹取后的索引；当调用方传入越界索引时，指示器和实际选中 Tab 不再出现不一致。
+- 底部 Tab 图标不再重复播报与旁边文字相同的 contentDescription，保留 Tab 角色、selected 状态和可见文字标签，减少 TalkBack 重复朗读。
+- 不改变四项导航顺序、Tab 高度、玻璃材质、指示器动画和页面切换行为。待 Android CI 与设备 TalkBack 验收。
