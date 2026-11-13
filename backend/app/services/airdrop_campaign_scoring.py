@@ -25,6 +25,8 @@ def _has_verified_official_url(campaign: AirdropCampaign) -> bool:
 def build_campaign_scoring_input(campaign: AirdropCampaign) -> dict:
     """Translate persisted campaign facts into the pure scoring contract."""
     return {
+        "source_name": campaign.source_name,
+        "campaign_type": campaign.campaign_type,
         "temperature": campaign.temperature,
         "opportunity_score": campaign.opportunity_score,
         "trust_status": campaign.trust_status,
