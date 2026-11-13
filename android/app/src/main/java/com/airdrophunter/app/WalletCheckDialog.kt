@@ -66,9 +66,11 @@ fun WalletCheckDialog(
                 if (loading) Text("正在读取项目和钱包…", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("选择项目", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Column {
-                    OutlinedButton(onClick = { projectExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(selectedProject?.name ?: "请选择已添加的项目", color = AppColors.TextPrimary)
-                    }
+                    AppButton(
+                        text = selectedProject?.name ?: "请选择已添加的项目",
+                        onClick = { projectExpanded = true },
+                        style = AppButtonStyle.SECONDARY
+                    )
                     DropdownMenu(expanded = projectExpanded, onDismissRequest = { projectExpanded = false }) {
                         projects.forEach { project ->
                             DropdownMenuItem(text = { Text(project.name) }, onClick = {
@@ -77,12 +79,14 @@ fun WalletCheckDialog(
                         }
                     }
                 }
-                Text("选择钱包", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                Text("选择钱包", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Column {
-                    OutlinedButton(onClick = { walletExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(selectedWallet?.let { "${it.chain} · ${it.wallet_name} (${shortAddress(it.address)})" } ?: "请选择已保存的钱包",
-                            color = AppColors.TextPrimary)
-                    }
+                    AppButton(
+                        text = selectedWallet?.let { "${it.chain} · ${it.wallet_name} (${shortAddress(it.address)})" } ?: "请选择已保存的钱包",
+                        onClick = { walletExpanded = true },
+                        style = AppButtonStyle.SECONDARY,
+                        fontSizeSp = 14
+                    )
                     DropdownMenu(expanded = walletExpanded, onDismissRequest = { walletExpanded = false }) {
                         wallets.forEach { wallet ->
                             DropdownMenuItem(
@@ -93,9 +97,9 @@ fun WalletCheckDialog(
                     }
                 }
                 Text("App 会先请求公链验证地址，再打开项目已保存的 HTTPS 资格入口。资格结果由项目方网页判定。",
-                    color = AppColors.TextSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-                if (projects.isEmpty() && !loading) Text("暂无项目，请先在项目管理中添加项目并填写资格入口。", color = AppColors.TextSecondary)
-                if (wallets.isEmpty() && !loading) Text("暂无钱包，请先添加公开钱包地址。", color = AppColors.TextSecondary)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                if (projects.isEmpty() && !loading) Text("暂无项目，请先在项目管理中添加项目并填写资格入口。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (wallets.isEmpty() && !loading) Text("暂无钱包，请先添加公开钱包地址。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
