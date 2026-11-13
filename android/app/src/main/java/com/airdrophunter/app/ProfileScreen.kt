@@ -31,7 +31,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButton
 import com.airdrophunter.app.ui.components.AppButtonStyle
@@ -185,7 +184,7 @@ fun ProfileScreen(
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("数据迁移", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 AppButton(
-                    text = "备份我的数据",
+                    text = if (backupBusy) "正在处理…" else "备份我的数据",
                     onClick = { showBackupPasswordDialog = true },
                     enabled = !backupBusy,
                     loading = backupBusy
