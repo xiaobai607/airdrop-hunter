@@ -33,7 +33,7 @@ fun AirdropSourceHealthPanel(
 ) {
     val active = statuses.count { it.enabled }
     val failed = statuses.count { it.status == "failed" || it.status == "partial" }
-    val successful = statuses.count { it.status == "success" }
+    val successful = statuses.count { it.status in setOf("success", "empty", "stale") }
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
