@@ -40,6 +40,7 @@ import com.airdrophunter.app.data.ManualRewardKind
 import com.airdrophunter.app.data.ManualRewardAllocationMode
 import kotlinx.coroutines.launch
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppTextButton
 import java.util.Locale
 import java.math.BigDecimal
 import java.util.UUID
@@ -465,11 +466,11 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     Text(task.task_name, Modifier.weight(1f),
                         color = if (task.is_completed) AppColors.TextHelper else AppColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = {
+                    AppTextButton(onClick = {
                         editingTask = task
                         editedTaskName = task.task_name
                     }) { Text("编辑", color = AppColors.Primary) }
-                    TextButton(onClick = { projectDetailViewModel.deleteTask(project.id, task, projectUsesLocalTasks) }) {
+                    AppTextButton(onClick = { projectDetailViewModel.deleteTask(project.id, task, projectUsesLocalTasks) }) {
                         Text("删除", color = AppColors.Danger)
                     }
                 }
@@ -613,7 +614,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 Text("核验网络", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                                 Spacer(Modifier.width(8.dp))
                                 Box {
-                                    TextButton(onClick = { networkMenuExpanded = true }, enabled = !isSavingAccounting) {
+                                    AppTextButton(onClick = { networkMenuExpanded = true }, enabled = !isSavingAccounting) {
                                         Text(
                                             when (selectedNetwork) {
                                                 "ethereum" -> "Ethereum"
@@ -740,7 +741,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 }
             },
             dismissButton = {
-                TextButton(onClick = { if (!isSavingAccounting) showManualAccounting = false }) { Text("取消") }
+                AppTextButton(onClick = { if (!isSavingAccounting) showManualAccounting = false }) { Text("取消") }
             }
         )
     }
@@ -771,7 +772,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
                 ) { Text("保存") }
             },
-            dismissButton = { TextButton(onClick = { editingTask = null }) { Text("取消") } }
+            dismissButton = { AppTextButton(onClick = { editingTask = null }) { Text("取消") } }
         )
     }
 
@@ -808,7 +809,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showClaimWalletPicker = false }) { Text("取消") } }
+            confirmButton = { AppTextButton(onClick = { showClaimWalletPicker = false }) { Text("取消") } }
         )
     }
 
