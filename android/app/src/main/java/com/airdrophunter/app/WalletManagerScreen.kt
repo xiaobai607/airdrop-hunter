@@ -409,28 +409,9 @@ fun WalletManagerScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(shortAddress(wallet.address), color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.labelSmall)
-                    OutlinedTextField(
-                        value = editWalletName,
-                        onValueChange = { editWalletName = it },
-                        label = { Text("钱包名称") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editWalletTags,
-                        onValueChange = { editWalletTags = it },
-                        label = { Text("标签（逗号分隔，最多12个）") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editWalletNotes,
-                        onValueChange = { editWalletNotes = it },
-                        label = { Text("备注") },
-                        minLines = 2,
-                        maxLines = 4,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    AppTextField(editWalletName, { editWalletName = it }, "钱包名称")
+                    AppTextField(editWalletTags, { editWalletTags = it }, "标签（逗号分隔，最多12个）")
+                    AppTextField(editWalletNotes, { editWalletNotes = it }, "备注", singleLine = false)
                     state.error?.let { Text(it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
                 }
             },
@@ -586,12 +567,7 @@ fun WalletManagerScreen(
                     Text(connected.address, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                     Text("来源：${connected.walletLabel} · EVM 链 ${connected.chainId}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     Text("保存只记录公开地址，不授予网站交易或签名权限。每笔交易仍需在外部钱包单独确认。", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(
-                        value = connectedWalletName,
-                        onValueChange = { connectedWalletName = it },
-                        label = { Text("钱包备注名称") },
-                        singleLine = true
-                    )
+                    AppTextField(connectedWalletName, { connectedWalletName = it }, "钱包备注名称")
                 }
             },
             confirmButton = {
