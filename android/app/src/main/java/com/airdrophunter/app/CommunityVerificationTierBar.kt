@@ -78,7 +78,7 @@ fun CommunityVerificationTierBar(
             text = segments.joinToString(" · ") {
                 "${it.label} ${String.format(Locale.US, "$%,.2f", it.amount)}"
             },
-            color = if (compact) Color(0xFF7B858F) else Color(0xFFB9C8C0),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelSmall
         )
     }
