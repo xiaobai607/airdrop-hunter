@@ -901,3 +901,10 @@
 - `AirdropDiscoveryScreen.kt`、`AirdropHubScreen.kt`、`ProfileScreen.kt`、`SourcesScreen.kt`：页面主标题增加 Compose heading 语义，TalkBack 可按标题快速定位页面内容。
 - `ProjectDetailScreen.kt`、`MicroCommunityScreen.kt`：将动态项目名称标记为页面主标题，项目名称较长时仍保留原有自然换行，不截断用户识别项目所需的信息。
 - 仅补充无障碍语义，不改登录状态、项目数据、社区评分、公告刷新或来源打开行为；待 Android CI 与设备辅助功能验收。
+
+
+### 2026-11-14 — 行情指标完整可读与活动目录标题语义收尾
+
+- `CoinMarketDetailScreen.kt`：行情指标行改为顶部对齐；标签最多两行并保留省略保护，指标值不再限制单行/省略，允许较长金额、成交量和市值自然换行完整显示。值列略宽于标签列，仍保持右对齐，避免窄屏信息被静默截断。
+- `AirdropCampaignsScreen.kt`：为“活动目录”主标题补充 Compose heading 语义，TalkBack 可按标题导航。
+- 不修改行情数据、格式化规则、刷新策略、活动筛选和列表行为；待本次 Android CI 验证及真机窄屏/大字体验收。未构建 APK。
