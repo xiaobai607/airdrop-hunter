@@ -46,11 +46,6 @@ fun TronEnergyAssistantScreen(
                 Icon(Icons.Default.Bolt, contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 Text(
-                    "准备租赁 TRON 能量",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
                     "请输入你自己的 TRON 转出地址。打开租赁平台后，可通过底部工具栏一键复制该地址。",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyLarge
