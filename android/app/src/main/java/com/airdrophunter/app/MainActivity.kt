@@ -18,7 +18,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -288,8 +287,18 @@ private fun AirdropHunterApp(
         },
         bottomBar = {
             if (!hasSecondaryDestination) {
-                Box(Modifier.fillMaxWidth().height(80.dp)) {
-                    Box(Modifier.fillMaxSize().blur(20.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(80.dp)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+                    )
                     AppBottomBar(
                         items = destinations.map { AppNavigationItem(stringResource(it.label), it.icon) },
                         selectedIndex = tab,
