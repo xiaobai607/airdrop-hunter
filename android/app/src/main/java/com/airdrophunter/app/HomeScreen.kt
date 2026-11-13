@@ -502,7 +502,7 @@ fun HomeScreen(
                                                 walletRows.firstOrNull()?.let { intent.putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, it.id) }
                                                 context.startActivity(intent)
                                             }
-                                        }.padding(vertical = 10.dp, horizontal = 4.dp),
+                                        }, scale = 0.96f).padding(vertical = 10.dp, horizontal = 4.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(7.dp)
                                 ) {
