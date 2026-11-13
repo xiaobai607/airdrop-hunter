@@ -45,6 +45,7 @@ import com.airdrophunter.app.ui.components.AppHaptic
 import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -372,7 +373,9 @@ fun WalletManagerScreen(
                                             style = MaterialTheme.typography.labelSmall, maxLines = 2)
                                     }
                                 }
-                                IconButton(
+                                AppIconButton(
+                                    icon = Icons.Default.Edit,
+                                    contentDescription = "编辑钱包信息",
                                     onClick = {
                                         editWalletName = wallet.wallet_name
                                         editWalletTags = wallet.tags.orEmpty().joinToString(", ")
@@ -380,19 +383,14 @@ fun WalletManagerScreen(
                                         editingWallet = wallet
                                     },
                                     enabled = !state.isSaving
-                                ) {
-                                    Icon(Icons.Default.Edit, contentDescription = "编辑钱包信息", tint = MaterialTheme.colorScheme.primary)
-                                }
-                                IconButton(
+                                )
+                                AppIconButton(
+                                    icon = Icons.Default.DeleteOutline,
+                                    contentDescription = "删除钱包",
                                     onClick = { walletViewModel.delete(wallet, isGuest) },
-                                    enabled = !state.isSaving
-                                ) {
-                                    Icon(
-                                        Icons.Default.DeleteOutline,
-                                        contentDescription = "删除钱包",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                }
+                                    enabled = !state.isSaving,
+                                    haptic = AppHaptic.WARNING
+                                )
                             }
                         }
                     }
