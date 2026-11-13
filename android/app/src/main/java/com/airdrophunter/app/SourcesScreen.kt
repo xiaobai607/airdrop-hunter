@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.SubcomposeAsyncImage
@@ -26,6 +27,24 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    "官方来源",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "查看已收录的官方活动与公告网站",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
         items(sources, key = { it.id }) { source ->
             Card(
                 modifier = Modifier.fillMaxWidth().appPressFeedback(
@@ -42,7 +61,7 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Row(
-                    Modifier.fillMaxWidth().padding(14.dp),
+                    Modifier.fillMaxWidth().padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -56,9 +75,21 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
                         )
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(source.name, color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(source.url, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            source.name,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            source.domain,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                     Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.headlineSmall)
                 }
