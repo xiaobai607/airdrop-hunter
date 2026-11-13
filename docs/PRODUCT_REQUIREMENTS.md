@@ -1,7 +1,7 @@
 # Airdrop Hunter — Product Requirements & Progress Ledger
 # 2026-11-13 — free airdrop source diagnostics (active)
 
-The user needs to know why the public airdrop catalog is empty or stale without paying for commercial APIs. Keep the existing no-paid-service rule. The importer already records per-source status in the database, but the app currently exposes only an aggregate sync result and does not show which free source succeeded, failed, or is disabled.
+The user needs to know why the public airdrop catalog is empty or stale without paying for commercial APIs. Keep the existing no-paid-service rule. The importer already records per-source status in the database, but the app previously exposed only an aggregate sync result and did not show which free source succeeded, failed, or is disabled. A sanitized public status endpoint, Android DTO/repository/ViewModel path, and expandable source-health panel are now implemented; backend tests cover the public response shape and disabled optional sources. The DexScreener empty-config fallback now matches the documented zero-key terms `SOL,ETH,USDC` instead of broad `airdrop`.
 
 Add a public, privacy-safe source-health summary for the app:
 - expose only source name, last attempt/success timestamps, status, item count, and a short sanitized error label;
