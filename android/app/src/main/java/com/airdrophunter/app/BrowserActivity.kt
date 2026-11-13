@@ -436,7 +436,7 @@ private fun BrowserScreen(
                     ) {
                         Column(
                             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -1068,7 +1068,7 @@ private fun BrowserScreen(
     if (showWalletPicker) {
         Dialog(onDismissRequest = { showWalletPicker = false }) {
             Surface(shape = RoundedCornerShape(22.dp), color = Color.White) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("选择钱包", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     if (wallets.isEmpty()) Text("尚未保存钱包地址", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     wallets.forEach { wallet ->
@@ -1133,7 +1133,7 @@ private fun BrowserPageOverlay(
                     style = MaterialTheme.typography.bodySmall)
             }
         } else {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp),
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Icon(Icons.Default.CloudOff, contentDescription = null,
