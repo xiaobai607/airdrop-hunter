@@ -37,6 +37,7 @@ import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppChip
+import com.airdrophunter.app.ui.components.AppButton
 import com.airdrophunter.app.ui.components.AppTextField
 import java.util.Locale
 
@@ -347,8 +348,8 @@ fun ProjectsScreen(
                 }
             },
             confirmButton = {
-                Button(
-                    enabled = editProjectName.isNotBlank() && !state.isSaving,
+                AppButton(
+                    text = "保存修改",
                     onClick = {
                         projectsViewModel.updateProject(
                             project,
@@ -368,8 +369,9 @@ fun ProjectsScreen(
                         )
                         editingProject = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                ) { Text(if (state.isSaving) "保存中…" else "保存修改") }
+                    enabled = editProjectName.isNotBlank() && !state.isSaving,
+                    loading = state.isSaving
+                )
             },
             dismissButton = {
                 AppTextButton(enabled = !state.isSaving, onClick = { editingProject = null }) { Text("取消") }
@@ -463,7 +465,8 @@ fun ProjectsScreen(
             }
         },
         confirmButton = {
-            Button(enabled = newProjectName.isNotBlank() && !state.isSaving,
+            AppButton(
+                text = "保存项目",
                 onClick = {
                     projectsViewModel.createProject(com.airdrophunter.app.data.ProjectWriteRequest(
                         name = newProjectName.trim(),
@@ -475,7 +478,10 @@ fun ProjectsScreen(
                     ), isGuest)
                     showAddDialog = false
                     newProjectName = ""; newProjectDescription = ""; newProjectOfficialUrl = ""; newProjectClaimUrl = ""; selectedCommunityOfficialId = null
-                }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("保存项目") }
+                },
+                enabled = newProjectName.isNotBlank() && !state.isSaving,
+                loading = state.isSaving
+            )
         },
         dismissButton = { AppTextButton(onClick = { showAddDialog = false }) { Text("取消") } }
     )
