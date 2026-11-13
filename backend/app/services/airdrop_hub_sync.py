@@ -835,6 +835,135 @@ def _candidate_source_key(source_name: str, record_source_key: str) -> str:
     ).hexdigest()
 
 
+class _CampaignHtmlTextParser(HTMLParser):
+    _BLOCK_TAGS = {"br", "div", "p", "li", "h1", "h2", "h3", "h4", "tr"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() in self._BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() in self._BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        if data.strip():
+            self.parts.append(data.strip())
+
+
+def _binance_article_plain_text(content_html: str) -> str:
+    parser = _CampaignHtmlTextParser()
+    parser.feed(content_html[:3_000_000])
+    parser.close()
+    lines = [" ".join(part.split()) for part in "".join(parser.parts).splitlines()]
+    return "\n".join(line for line in lines if line)[:10_000]
+
+
+async def _upsert_binance_airdrop_campaign(
+    db: AsyncSession,
+    *,
+    record: dict[str, Any],
+    detail: dict[str, Any],
+    now: datetime,
+) -> bool:
+    """Persist only detailed articles from Binance's explicit Crypto Airdrop category."""
+    if record.get("catalog_id") != 128 or str(record.get("catalog_name") or "").strip().casefold() != "crypto airdrop":
+        return False
+
+    official_url = _valid_http_url(record.get("link"))
+    parsed_url = urlparse(official_url or "")
+    if parsed_url.hostname not in {"binance.com", "www.binance.com"}:
+        return False
+
+    article_code = str(record.get("source_key") or "").removeprefix("binance:")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,200}", article_code):
+        return False
+
+    content_html = str(detail.get("content_html") or "")
+    description = _binance_article_plain_text(content_html)
+    title = str(detail.get("title") or record.get("name") or "").strip()[:240]
+    if not title or not description:
+        return False
+
+    source_key = f"binance:crypto-airdrop:{article_code}"[:240]
+    campaign = await db.scalar(
+        select(AirdropCampaign).where(AirdropCampaign.source_key == source_key)
+    )
+    is_new = campaign is None
+    if campaign is None:
+        campaign = AirdropCampaign(
+            source_key=source_key,
+            source_name="binance-crypto-airdrop",
+            source_url=official_url,
+            name=title,
+            chain=None,
+            description=description,
+            official_url=official_url,
+            campaign_type="airdrop",
+            campaign_status="unknown",
+            trust_status="verified",
+            tier="observation",
+            is_published=False,
+            last_verified_at=now,
+            last_source_success_at=now,
+        )
+        db.add(campaign)
+        await db.flush()
+        db.add(AirdropCampaignStatusHistory(
+            campaign_id=campaign.id,
+            previous_status=None,
+            new_status="unknown",
+            reason="Binance 官方 Crypto Airdrop 分类文章已核验；原文未提供可可靠解析的活动状态，保留未知",
+            source_name="binance-crypto-airdrop",
+        ))
+    else:
+        campaign.source_name = "binance-crypto-airdrop"
+        campaign.source_url = official_url
+        campaign.name = title
+        campaign.description = description
+        campaign.official_url = official_url
+        campaign.campaign_type = "airdrop"
+        campaign.trust_status = "verified"
+        campaign.last_verified_at = now
+        campaign.last_source_success_at = now
+        campaign.last_seen_at = now
+        if not campaign.campaign_status:
+            campaign.campaign_status = "unknown"
+
+    evidence = {
+        "catalog_id": 128,
+        "catalog_name": "Crypto Airdrop",
+        "article_code": article_code,
+        "title": title,
+        "official_url": official_url,
+        "release_date": detail.get("release_date"),
+        "content_sha256": hashlib.sha256(content_html.encode("utf-8")).hexdigest(),
+        "content_excerpt": description[:2000],
+    }
+    serialized = json.dumps(evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    snapshot_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    existing_snapshot = await db.scalar(
+        select(AirdropCampaignSourceSnapshot.id).where(
+            AirdropCampaignSourceSnapshot.campaign_id == campaign.id,
+            AirdropCampaignSourceSnapshot.source_name == "binance-crypto-airdrop",
+            AirdropCampaignSourceSnapshot.snapshot_hash == snapshot_hash,
+        )
+    )
+    if existing_snapshot is None:
+        db.add(AirdropCampaignSourceSnapshot(
+            campaign_id=campaign.id,
+            source_name="binance-crypto-airdrop",
+            source_url=official_url,
+            snapshot_hash=snapshot_hash,
+            normalized_payload=evidence,
+        ))
+    return is_new
+
+
 async def _upsert_discovery_candidate(
     db: AsyncSession,
     *,
