@@ -62,58 +62,58 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
         }
     }
     Column(
-        modifier.fillMaxSize().background(AppColors.Background).padding(18.dp),
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("$symbol / USDT", color = AppColors.TextSecondary, style = MaterialTheme.typography.titleMedium)
+        Text("$symbol / USDT", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
         when {
             loading && detail == null -> Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = AppColors.Primary)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             error != null && detail == null -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("暂时无法获取行情", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
-                Text(error.orEmpty(), color = AppColors.TextSecondary)
+                Text("暂时无法获取行情", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                Text(error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = { scope.launch { refresh(manual = true) } }) { Text("重新加载") }
             }
             detail != null -> {
                 val value = detail!!
                 val positive = value.change24hPercent >= 0
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(18.dp)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("最新价格", color = AppColors.TextSecondary)
-                        Text("$ " + priceFormat.format(value.lastPrice), color = AppColors.TextPrimary,
+                        Text("最新价格", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("$ " + priceFormat.format(value.lastPrice), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                         Text(String.format(Locale.US, "%+.2f%%（24小时）", value.change24hPercent),
-                            color = if (positive) AppColors.Success else AppColors.Danger,
+                            color = if (positive) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(18.dp)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
                         MarketMetricRow("24小时最高", "$ " + priceFormat.format(value.high24h))
-                        HorizontalDivider(color = AppColors.Border)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         MarketMetricRow("24小时最低", "$ " + priceFormat.format(value.low24h))
-                        HorizontalDivider(color = AppColors.Border)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         MarketMetricRow("24小时成交量", priceFormat.format(value.volume24h) + " $symbol")
-                        HorizontalDivider(color = AppColors.Border)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         MarketMetricRow("24小时成交额", priceFormat.format(value.volumeCurrency24h) + " USDT")
                     }
                 }
                 Text(
                     "数据来源：OKX · " + marketCacheStatusLabel(cacheMetadata),
-                    color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall
                 )
                 OutlinedButton(onClick = { scope.launch { refresh(manual = true) } }, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
                     if (loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                     else Text("刷新行情")
                 }
-                if (error != null) Text(error.orEmpty(), color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                if (error != null) Text(error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -122,8 +122,8 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
 @Composable
 private fun MarketMetricRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = AppColors.TextSecondary, modifier = Modifier.weight(1f))
-        Text(value, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(value, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
     }
 }
 
