@@ -60,7 +60,7 @@ fun AirdropHubScreen(
 
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -99,8 +99,8 @@ fun AirdropHubScreen(
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
                     Text("${state.projects.size} 条空投公告",
@@ -118,14 +118,14 @@ fun AirdropHubScreen(
                     ) {
                         Column(
                             Modifier.fillMaxWidth().padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(9.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(item.name, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold)
                                 Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(999.dp)) {
-                                    Text("Binance", Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                    Text("Binance", Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
@@ -176,7 +176,7 @@ private fun AirdropAnnouncementDetail(
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             com.airdrophunter.app.ui.components.AppIconButton(
@@ -189,14 +189,14 @@ private fun AirdropAnnouncementDetail(
         }
         Text(
             detail?.title ?: item.name,
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
         Text(
             "Binance 官方公告原文",
-            Modifier.padding(horizontal = 18.dp, vertical = 2.dp),
+            Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
             style = MaterialTheme.typography.labelSmall
         )
@@ -217,7 +217,7 @@ private fun AirdropAnnouncementDetail(
                 detail!!.release_date?.let { timestamp ->
                     Text(
                         DateFormat.getDateTimeInstance().format(Date(timestamp)),
-                        Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
+                        Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -278,8 +278,8 @@ private fun AirdropAnnouncementDetail(
         }
 
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AppButton(
                 text = "返回列表",
