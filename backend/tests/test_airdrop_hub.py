@@ -110,6 +110,20 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
         filtered_detail = client.get("/api/airdrops/hub/" + str(filtered_id))
         assert filtered_detail.status_code == 404
         assert client.get("/api/airdrops/hub/status").status_code == 200
+        monkeypatch.delenv("COINGECKO_DEMO_API_KEY", raising=False)
+        monkeypatch.delenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", raising=False)
+        source_status = client.get("/api/airdrops/hub/sources/status")
+        assert source_status.status_code == 200
+        source_rows = {row["source_name"]: row for row in source_status.json()}
+        assert set(source_rows) == {
+            "binance-announcements",
+            "coingecko-airdrop-category",
+            "github-airdrop-lists",
+            "dexscreener-new-pools",
+        }
+        assert source_rows["coingecko-airdrop-category"]["status"] == "disabled"
+        assert source_rows["github-airdrop-lists"]["status"] == "disabled"
+        assert all("source_url" not in row for row in source_rows.values())
 
 def _approved_github_source(**overrides):
     import copy
