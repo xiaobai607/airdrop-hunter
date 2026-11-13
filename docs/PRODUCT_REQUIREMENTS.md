@@ -94,6 +94,13 @@
 - After a successful server-side source sync, force one bounded GET of the published campaign endpoint through the shared cache coordinator and save the new Room snapshot. Do not repeat source sync for this cache read.
 - Keep the initial last-known-good cache warmup. Force-refresh the published campaign snapshot after a successful scheduled source sync, and otherwise revalidate that snapshot on its own six-hour cadence. Map server 429 cooldowns to a user-facing non-retryable message instead of hammering the sync endpoint.
 
+## 2026-11-13 — publication, manual refresh and Room cache wired together
+
+- The public sync endpoint now runs campaign scoring immediately after successful provider ingestion, so eligible official Binance category-128 campaigns can pass the publication gate in the same request.
+- The Airdrop Campaign Library's explicit refresh now calls the same public sync endpoint first, then fetches the filtered published list. Server 429 cooldown is mapped to a non-retryable user message; stale Room rows are retained and the error is surfaced.
+- Background Home warmup retains its initial last-known-good read. After a successful six-hour provider sync it force-refreshes the published campaign GET into Room without repeating provider ingestion; the published snapshot also has its own six-hour revalidation cadence.
+- This closes the source-ingest → scoring/publication → public API → Room cache path in code. Live endpoint behavior, backend tests and Android tests remain pending.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
