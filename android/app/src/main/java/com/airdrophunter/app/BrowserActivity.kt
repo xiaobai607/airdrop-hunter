@@ -184,6 +184,7 @@ private fun BrowserScreen(
     val activeWalletConnectTopic by WalletConnectSessionDelegate.sessionTopic.collectAsState()
     val dappRequestScope = rememberCoroutineScope()
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
+    var pageErrorMessage by remember(url) { mutableStateOf<String?>(null) }
     var loadAttempt by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
@@ -791,12 +792,14 @@ private fun BrowserScreen(
                                     currentPageUrl = it
                                 }
                                 pageState = BrowserPageState.Loading
+                                pageErrorMessage = null
                                 Log.d("AirdropBrowser", "Page started: $pageUrl")
                             }
 
                             override fun onPageFinished(view: WebView?, pageUrl: String?) {
                                 pageUrl?.let { currentPageUrl = it }
                                 pageState = BrowserPageState.Success
+                                pageErrorMessage = null
                                 loadAttempt = 0
                                 view?.settings?.userAgentString = CHROME_MOBILE_USER_AGENT
                                 Log.d("AirdropBrowser", "Page finished: $pageUrl")
@@ -810,6 +813,7 @@ private fun BrowserScreen(
                                 super.onReceivedError(view, request, error)
                                 if (request?.isForMainFrame == true) {
                                     pageState = BrowserPageState.Error
+                                    pageErrorMessage = "网络加载错误（${error?.errorCode ?: "未知"}）：${error?.description ?: "未提供错误详情"}"
                                     Log.e("AirdropBrowser", "Main-frame load error: ${error?.errorCode} ${error?.description}")
                                 }
                             }
@@ -822,6 +826,7 @@ private fun BrowserScreen(
                                 super.onReceivedHttpError(view, request, errorResponse)
                                 if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 200) >= 400) {
                                     pageState = BrowserPageState.Error
+                                    pageErrorMessage = "网站返回 HTTP ${errorResponse?.statusCode ?: "错误"}：${errorResponse?.reasonPhrase ?: "服务器拒绝或无法处理请求"}"
                                     Log.e("AirdropBrowser", "Main-frame HTTP error: ${errorResponse?.statusCode}")
                                 }
                             }
@@ -829,6 +834,8 @@ private fun BrowserScreen(
                             override fun onReceivedSslError(view: WebView?, handler: android.webkit.SslErrorHandler?, error: android.net.http.SslError?) {
                                 // Never allow a WebView page to bypass TLS certificate validation.
                                 handler?.cancel()
+                                pageState = BrowserPageState.Error
+                                pageErrorMessage = "HTTPS 证书验证失败，已阻止连接。请检查设备时间、网络代理或网站证书。"
                                 Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed: $error")
                             }
                         }
@@ -840,10 +847,12 @@ private fun BrowserScreen(
             if (pageState != BrowserPageState.Success) {
                 BrowserPageOverlay(
                     state = pageState,
+                    errorDetail = pageErrorMessage,
                     onBack = onExit,
                     onRetry = {
                         loadAttempt = 0
                         pageState = BrowserPageState.Loading
+                        pageErrorMessage = null
                         browser?.settings?.userAgentString = CHROME_MOBILE_USER_AGENT
                         browser?.reload()
                     }
@@ -1009,6 +1018,7 @@ private const val IOS_SAFARI_USER_AGENT =
 @Composable
 private fun BrowserPageOverlay(
     state: BrowserPageState,
+    errorDetail: String?,
     onBack: () -> Unit,
     onRetry: () -> Unit
 ) {
@@ -1033,7 +1043,7 @@ private fun BrowserPageOverlay(
                 Text("☁️", style = MaterialTheme.typography.displaySmall)
                 Text("网页加载失败", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(
-                    "网页加载失败，可能是网络限制或网站防爬拦截。",
+                    errorDetail ?: "网站未提供具体错误原因。请检查网络后重试。",
                     color = AppColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
