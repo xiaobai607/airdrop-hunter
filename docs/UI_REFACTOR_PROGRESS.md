@@ -815,3 +815,12 @@
 - `Web3TransactionAccountingTest.receiptIdentityMustMatchSavedTransactionHash`：大小写规范化断言失败。当前先不放宽交易哈希/回执校验；需继续追踪 verifier 的真实实现来源后再做最小修复，防止无关回执被错误绑定到账本交易。
 - 修复提交：`5a3d8c8b`。新一轮 CI 将验证文案修复；Web3 identity 测试仍为明确未解决项。
 - 本轮未构建 APK；未更改钱包页面或交易安全边界。
+
+
+## 2026-11-13 Web3 回执哈希大小写校验修复（等待 CI）
+
+- 最新 CI `43454252560`：Kotlin 编译成功，224 项 Android 单元测试中 223 项通过，唯一失败为 `Web3TransactionAccountingTest.receiptIdentityMustMatchSavedTransactionHash`。
+- 根因：`Web3ReceiptIdentityVerifier` 的哈希格式正则限定前缀必须为小写 `0x`；测试传入 `hash.uppercase()` 后前缀变为 `0X`，被格式校验提前拒绝。
+- 已将格式正则改为 `RegexOption.IGNORE_CASE`，不改变 0x + 64 位十六进制格式约束，也不改变 expected/receipt 必须为同一哈希的比较规则。Commit：`e1304d7a210695bbe9bb4b15697825a8292e5d01`。
+- 新 CI：`43454715043` 正在执行 Android 单元测试；尚未得到最终结果。APK job 按既定策略跳过，未构建 APK。
+- PR #135 仍保持 Draft / Open / Unmerged。UI 仍为代码已落地待全面验收，不能标记最终完成。
