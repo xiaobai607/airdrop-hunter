@@ -441,3 +441,13 @@
 - 已定位到 `DynamicChainIcon` 通过 Trust Wallet GitHub raw URL 远程加载 PNG，虽有 Coil 内存/磁盘缓存，但仍依赖网络缓存策略。将钱包链图标改为使用 APK 内置的高分辨率/矢量 drawable，不再因进入钱包页请求网络；不触碰 Reown AppKit SDK 内部第三方钱包目录。
 - Reown AppKit 的 MetaMask/Trust Wallet 等“连接外部钱包”目录图标与本应用链图标属于不同加载路径；需确认用户指的是 SDK 选择器中的第三方钱包品牌图标后，再按 SDK 公开支持的缓存机制处理，禁止直接修改 SDK 内部实现。
 - 不改钱包数据、WalletConnect 会话/权限/交易安全、浏览器、网络 API 或业务流程。验收先做静态检查；设备帧率与断网复用仍需真机验证。
+
+### 2026-11-13 — 全局帧率与钱包链图标优化落地
+
+- 文件：`ui/components/StaggeredListItem.kt`、`ChainIcon.kt`。
+- 列表动效：原先每个 LazyColumn item 最多 6 项分别创建延迟任务和 AnimatedVisibility，并带淡入/位移/离场过渡；现在仅前 3 项保留 40ms 错峰淡入，取消位移与离场动画，其余条目直接绘制；稳定 item key 和滚动后不重复播放的行为保留。减少大量列表项同时参与动画/布局的工作量。
+- 钱包链图标：`DynamicChainIcon` 不再请求 Trust Wallet GitHub raw PNG，也不再为此创建 Coil loader；改为复用 APK 内置的 Ethereum、BNB、TRON、Solana、Bitcoin drawable，钱包管理页进入时不需要联网下载链图标，图标清晰度由本地资源决定。
+- 范围说明：以上改动解决的是钱包列表中的链/生态图标，不等于已解决 Reown AppKit 弹窗内 MetaMask、Trust Wallet 等第三方钱包品牌图标。AppKit 目录由 Reown SDK 自己渲染；本轮未修改 SDK 内部、未擅自复制品牌图标资源。需要按 SDK 公共 API 确认可用缓存扩展点，或由用户提供具体页面截图定位。
+- 静态检查：确认 ChainIcon 不再包含 Coil、远程 URL 或网络图片请求；五类本地 drawable 映射保留；列表动效仅前三项，取消 slide/fadeOut，保留 saveable key。源码检查 9 项通过（不含 Gradle/设备帧率测量）。
+- 未运行 Gradle 编译、自动化测试、CI、APK 构建或真机验收；因此只能确认网络图标依赖已从钱包链图标路径移除，不能承诺实测 FPS 提升数值。建议下一轮在低帧率设备上用系统帧时间/Perfetto 对首页、长列表和 WalletConnect 弹窗分别测量。
+- Commits：计划 `beb911c245de5d7961229e8f9688bdac52a80b16`；本地链图标 `5196bdf4c7fcc90a1a429faeddb7561a95a4c20a`；列表动效优化 `861abc545b660c84941b43ae1b1d94acca7309a4`；导入修复 `12ecdcaea0259ebf531b0cea19bb8fb7aba24234`；动效转场分支修正 `02285698bbc245d51185681dc8e0d44a81c513bc`。
