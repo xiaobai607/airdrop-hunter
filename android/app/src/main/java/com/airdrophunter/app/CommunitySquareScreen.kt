@@ -275,7 +275,7 @@ fun CommunitySquareScreen(
                 )
                 Row(
                     Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(999.dp)).padding(start = 12.dp, end = 4.dp),
+                        RoundedCornerShape(AppDesignTokens.Radius.Full.dp)).padding(start = 12.dp, end = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.Search, contentDescription = "搜索社区项目",
@@ -299,7 +299,7 @@ fun CommunitySquareScreen(
                     )
                     AppChip("我的收藏", favoritesOnly, onClick = { favoritesOnly = !favoritesOnly })
                 }
-                Surface(color = if (useDemoData) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(999.dp)) {
+                Surface(color = if (useDemoData) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                     Text(
                         if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网真实数据 · 脱敏汇总",
                         Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -398,7 +398,7 @@ fun CommunitySquareScreen(
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Surface(
                                 color = when { project.isDemo -> MaterialTheme.colorScheme.surfaceVariant; !project.isActive -> MaterialTheme.colorScheme.errorContainer; else -> MaterialTheme.colorScheme.secondaryContainer },
-                                shape = RoundedCornerShape(999.dp)
+                                shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)
                             ) {
                                 Text(
                                     project.label, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -468,7 +468,7 @@ fun CommunitySquareScreen(
                         }
                         Box(
                             Modifier.fillMaxWidth().height(10.dp)
-                                .background(comparisonBrush, RoundedCornerShape(999.dp))
+                                .background(comparisonBrush, RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
                         )
                     }
                     Row(
