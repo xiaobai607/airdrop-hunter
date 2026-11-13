@@ -49,7 +49,12 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
             is Modal.Model.ApprovedSession.CoinbaseSession -> "Coinbase Wallet"
         }
         applicationContext?.let { context ->
-            WalletUsageStore.recordSuccessfulConnection(context, walletName)
+            WalletUsageStore.recordSuccessfulConnection(
+                context = context,
+                walletName = walletName,
+                walletUrl = (approvedSession as? Modal.Model.ApprovedSession.WalletConnectSession)
+                    ?.metaData?.url
+            )
         }
         _sessionTopic.value = when (approvedSession) {
             is Modal.Model.ApprovedSession.WalletConnectSession -> approvedSession.topic
