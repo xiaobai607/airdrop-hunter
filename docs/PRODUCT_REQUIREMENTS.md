@@ -3190,3 +3190,12 @@ The user reports that the built-in browser cannot reliably open websites, airdro
 - Browser container geometry is fixed to header 56dp, host strip 40dp and floating toolbar 64dp. Keep toolbar horizontal scrolling, whole-dock drag/snap and transient position behavior. Do not sacrifice the 64dp contract to fit oversized tool tiles; compact the icons/labels instead.
 - Migrate primary screens from static light-only `AppColors` aliases to adaptive `MaterialTheme.colorScheme` semantics so the documented dark palette is actually used. Do not change displayed business values or workflow behavior.
 - Main secondary-page title is centered in a 56dp header. Remove the duplicate TRON energy page-level title while preserving its single navigation title and the form's explanatory copy.
+
+
+## UI specification clarifications after component implementation
+
+- Standard `AppTextField` height is 52dp; the global-search field is the documented 44dp compact exception. Keep the shared height override only for this explicit search use case.
+- Pressed-state overlay must darken in both light and dark palettes (never use a white overlay on a dark surface). Text-only actions retain the 44dp hit target and opacity feedback without scale.
+- Search page autofocuses its input and presents local history with a 200ms fade/260ms collapse. Search results enter with an 8dp upward slide and 40ms stagger, capped at six items.
+- Home's platform navigator is a searchable two-column bottom sheet, not a centered dialog. The app-wide search remains a separate single global search entry beneath the market board.
+- Wallet, project, community, official campaign and announcement lists use stable-key first-entry staggered motion; a list row must not replay the animation when the user scrolls away and back.
