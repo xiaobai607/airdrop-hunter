@@ -59,6 +59,7 @@ Binance CMS access does not require an API key. CoinGecko requires the Demo key.
 - `GET /api/airdrops/hub?chain=Solana` — SQL-filtered results; Binance announcements currently use `Unknown` chain unless the source explicitly supplies one.
 - `GET /api/airdrops/hub/{id}` — fetches the original Binance CMS article body and metadata.
 - `GET /api/airdrops/hub/status` — latest in-process sync status.
+- `GET /api/airdrops/hub/sources/status` — public, sanitized status for the four approved source adapters (enabled/disabled, last attempt/success, item count, and a short error class). It never returns source URLs, credentials, provider response bodies, or admin review candidates.
 - `POST /api/airdrops/hub/refresh` and compatibility alias `POST /api/airdrops/sync` — trigger the same four-source sync, subject to rate limits. The scheduled GitHub workflow invokes the importer only when `AIRDROP_DISCOVERY_SYNC_ENABLED=true` and `DATABASE_URL` is configured.
 
 ## Scheduled import
