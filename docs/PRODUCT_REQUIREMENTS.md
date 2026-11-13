@@ -2,7 +2,7 @@
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
-## 2026-11-13 — browser stability investigation (implementation pending)
+## 2026-11-13 — browser stability findings
 
 - Confirmed source-level defect: the browser's loading watchdog currently fires after only 3 seconds, switches the User-Agent, retries once, and reports failure after another 3 seconds. This can misclassify slow DNS/TLS/redirect/server responses as a failed page load and can change the browser identity during an in-flight session.
 - Planned correction: use a bounded 30-second initial-load watchdog with an explicit timeout diagnostic; do not silently change User-Agent or replay a page request. A user retry remains available.
@@ -44,6 +44,12 @@
 - Added a narrow publication rule for the exact `binance-crypto-airdrop` source + `airdrop` type + verified official HTTPS URL. It can publish as ordinary with a null score when no heat score exists; unknown fields remain unknown. Corroborated risk and source conflict still block publication.
 - Added backend tests for category isolation, official-host/body requirements, source snapshot/status history, no fabricated heat, risk gates and scoring source identity. These tests are authored but have **not** been executed yet.
 - Live provider detail responses, exact-head backend tests, campaign API output and Android real-data rendering remain unverified. Scheduled sync remains disabled.
+
+## 2026-11-13 — final static audit for browser and campaign bridge batch
+
+- Browser disposal now guards stop/load/remove/destroy calls so a dead renderer cannot throw while Compose disposes the old WebView instance.
+- Campaign bridge now excludes the provider-only `catalog_name` field from the legacy `AirdropProject` constructor, validates a non-empty detail category when supplied, and strips script/style contents from compact campaign descriptions.
+- Static source assertions and code-path review were completed. Backend unit tests, Gradle compilation, Android unit tests, CI and real-device browser acceptance are deliberately still pending; no APK was built during this batch.
 
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
