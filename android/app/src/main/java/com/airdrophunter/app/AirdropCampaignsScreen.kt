@@ -20,6 +20,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.AirdropCampaignDto
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppChip
 
 @Composable
 fun AirdropCampaignsScreen(
@@ -39,24 +44,14 @@ fun AirdropCampaignsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             listOf("全部" to null, "精选" to "featured", "普通" to "ordinary").forEach { (label, tier) ->
-                val selected = state.selectedTier == tier
-                Surface(
-                    onClick = { vm.selectTier(tier) },
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (selected) AppColors.Primary else AppColors.Surface,
-                    border = if (selected) null else BorderStroke(1.dp, AppColors.Border)
-                ) {
-                    Text(
-                        label,
-                        Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
-                        color = if (selected) AppColors.Surface else AppColors.TextSecondary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                }
+                AppChip(
+                    text = label,
+                    selected = state.selectedTier == tier,
+                    onClick = { vm.selectTier(tier) }
+                )
             }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = vm::refresh, enabled = !state.isRefreshing) {
+            AppTextButton(onClick = vm::refresh, enabled = !state.isRefreshing) {
                 Text(if (state.isRefreshing) "刷新中…" else "刷新", color = AppColors.Primary)
             }
         }
@@ -69,7 +64,7 @@ fun AirdropCampaignsScreen(
             ) {
                 Text("暂时无法加载空投活动", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                 Text(state.error.orEmpty(), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                Button(onClick = vm::load, enabled = !state.isLoading) { Text("重试") }
+                AppButton("重试", onClick = vm::load, enabled = !state.isLoading)
             }
         } else if (state.isLoading && state.items.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -104,9 +99,9 @@ fun AirdropCampaignsScreen(
                 // The Binance entry occupies the first campaign-card slot; no public campaign is removed.
                 item(key = "binance_official_entry") {
                     Card(
-                        onClick = onOpenBinanceOfficial,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                            .appPressFeedback(onClick = onOpenBinanceOfficial, scale = 0.96f),
+                        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                         colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                         border = BorderStroke(1.dp, AppColors.Border),
                         elevation = CardDefaults.cardElevation(0.dp)
@@ -160,8 +155,9 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+        modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = onClick, scale = 0.96f),
+        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, AppColors.Border),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
