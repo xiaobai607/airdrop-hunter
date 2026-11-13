@@ -101,7 +101,7 @@ fun CommunitySquareScreen(
     var statsLoading by remember { mutableStateOf(true) }
     var catalogError by remember { mutableStateOf<String?>(null) }
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
-    var useDemoData by remember { mutableStateOf(BuildConfig.DEBUG) }
+    var useDemoData by remember { mutableStateOf(false) }
     var favoritesOnly by remember { mutableStateOf(false) }
     var showAirdropFilters by remember { mutableStateOf(false) }
     var airdropFilterSelection by remember { mutableStateOf(AirdropFilterSelection()) }
