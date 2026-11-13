@@ -199,10 +199,7 @@ object GlobalSyncScheduler {
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
-        val walletAssets = OneTimeWorkRequestBuilder<WalletAssetSyncWorker>()
-            .setConstraints(network)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
+        // Wallet balance background sync is deferred until its repository/provider contract is implemented.
         // Each source has its own unique queue. A failure in one source retries
         // independently and cannot block unrelated ledger, wallet, or favorite work.
         workManager.enqueueUniqueWork(
@@ -214,11 +211,6 @@ object GlobalSyncScheduler {
             "global-sync-wallet-activity",
             if (forceWalletActivity) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
             walletActivity
-        )
-        workManager.enqueueUniqueWork(
-            "global-sync-wallet-assets",
-            ExistingWorkPolicy.KEEP,
-            walletAssets
         )
         enqueueDynamicCatalogWarmup(context)
 
