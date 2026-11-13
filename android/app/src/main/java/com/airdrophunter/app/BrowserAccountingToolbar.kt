@@ -51,6 +51,7 @@ import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppTextField
 import kotlinx.coroutines.launch
@@ -445,7 +446,7 @@ fun BrowserAccountingToolbar(
                                 Spacer(Modifier.height(2.dp))
                                 Text(
                                     option.second,
-                                    color = AppColors.TextPrimary,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
                                     maxLines = 1
                                 )
@@ -485,7 +486,7 @@ fun BrowserAccountingToolbar(
                                 Spacer(Modifier.height(3.dp))
                                 Text(
                                     "添加",
-                                    color = AppColors.TextPrimary,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.labelSmall,
                                     maxLines = 1
                                 )
@@ -504,19 +505,19 @@ fun BrowserAccountingToolbar(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 420.dp),
-                color = Color.White,
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, AppColors.Border),
-                shadowElevation = 14.dp
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Xl.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shadowElevation = 8.dp
             ) {
                 Column(
-                    Modifier.fillMaxWidth().padding(18.dp),
+                    Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("同步链上交易", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("同步链上交易", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(
                         "粘贴钱包中已提交的 TxHash。App 会通过该草稿对应的链 RPC 核对发送地址、目标地址、金额和调用数据；核对不一致不会绑定。",
-                        color = AppColors.TextHelper,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                         style = MaterialTheme.typography.bodySmall
                     )
                     AppTextField(
@@ -560,7 +561,7 @@ fun BrowserAccountingToolbar(
             title = { Text("管理工具") },
             text = {
                 Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("勾选显示的工具；使用上下箭头调整顺序。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                    Text("勾选显示的工具；使用上下箭头调整顺序。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                     toolOptions.forEach { option ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
@@ -569,7 +570,7 @@ fun BrowserAccountingToolbar(
                                     selectedToolIds = if (checked) selectedToolIds + option.first else selectedToolIds - option.first
                                 }
                             )
-                            Text(option.second, modifier = Modifier.weight(1f), color = AppColors.TextPrimary)
+                            Text(option.second, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
                             AppTextButton(
                                 enabled = option.first in selectedToolIds && selectedToolIds.indexOf(option.first) > 0,
                                 onClick = {
@@ -590,7 +591,7 @@ fun BrowserAccountingToolbar(
                             ) { Text("↓") }
                         }
                     }
-                    if (selectedToolIds.isEmpty()) Text("至少选择一个工具，或稍后通过默认配置恢复。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                    if (selectedToolIds.isEmpty()) Text("至少选择一个工具，或稍后通过默认配置恢复。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                 }
             },
             confirmButton = { AppTextButton(onClick = { showToolManager = false }) { Text("完成") } },
@@ -607,23 +608,25 @@ fun BrowserAccountingToolbar(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 420.dp).heightIn(max = 520.dp),
-                color = Color.White,
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, AppColors.Border),
-                shadowElevation = 14.dp
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Xl.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shadowElevation = 8.dp
             ) {
-                Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("交易记录", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text("选择待确认记录继续填写，或新增一笔记账", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                            Text("交易记录", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text("选择待确认记录继续填写，或新增一笔记账", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                         }
-                        IconButton(onClick = { if (showDock) showBillList = false else onCloseAccounting() }) {
-                            Icon(Icons.Default.Close, contentDescription = "关闭", tint = AppColors.TextSecondary)
-                        }
+                        AppIconButton(
+                            icon = Icons.Default.Close,
+                            contentDescription = "关闭",
+                            onClick = { if (showDock) showBillList = false else onCloseAccounting() }
+                        )
                     }
                     if (visibleWeb3Drafts.isNotEmpty()) {
-                        Text("链上交易", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                        Text("链上交易", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth().heightIn(max = 190.dp),
                             verticalArrangement = Arrangement.spacedBy(7.dp)
@@ -651,11 +654,11 @@ fun BrowserAccountingToolbar(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                            Text(statusLabel, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                                            Text(statusLabel, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                                             Text(
                                                 draft.txHash?.let { it.take(8) + "..." + it.takeLast(6) }
                                                     ?: "Chain ID ${draft.chainId}",
-                                                color = AppColors.TextHelper,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                                                 style = MaterialTheme.typography.labelSmall
                                             )
                                             draft.lastError?.let {
@@ -732,7 +735,7 @@ fun BrowserAccountingToolbar(
                                                         showWeb3HashSync = true
                                                     }) { Text("同步链上记录") }
                                                 } else {
-                                                    Text("该链未配置 RPC，请使用普通手动记账", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                                                    Text("该链未配置 RPC，请使用普通手动记账", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                                                 }
                                             }
                                             else -> Unit
@@ -744,7 +747,7 @@ fun BrowserAccountingToolbar(
                     }
                     if (realPending.isEmpty()) {
                         Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                            Text("暂无其他待确认记录", color = AppColors.TextHelper)
+                            Text("暂无其他待确认记录", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
                         }
                     } else {
                         LazyColumn(
@@ -762,7 +765,7 @@ fun BrowserAccountingToolbar(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(
-                                            Modifier.weight(1f).appPressFeedback(onClick = { openBill(bill) }, scale = 0.98f).padding(vertical = 3.dp),
+                                            Modifier.weight(1f).appPressFeedback(onClick = { openBill(bill) }, scale = 1f).padding(vertical = 3.dp),
                                             verticalArrangement = Arrangement.spacedBy(3.dp)
                                         ) {
                                             Text(
@@ -775,24 +778,32 @@ fun BrowserAccountingToolbar(
                                                 color = Color(0xFF9A5A16),
                                                 fontWeight = FontWeight.Bold
                                             )
-                                            Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账 · " else "待确认交易 · ") + bill.interactionMethod, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                            Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                                            Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账 · " else "待确认交易 · ") + bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                            Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                                         }
-                                        IconButton(onClick = { deleteDraft(bill) }) {
-                                            Icon(Icons.Default.Close, contentDescription = "删除草稿", tint = Color(0xFFD92D20))
-                                        }
+                                        AppIconButton(
+                                            icon = Icons.Default.Close,
+                                            contentDescription = "删除草稿",
+                                            onClick = { deleteDraft(bill) },
+                                            haptic = AppHaptic.WARNING
+                                        )
                                     }
                                 }
                             }
                         }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { createManualAccountingEntry() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
-                            Text("＋ 新增记账")
-                        }
-                        Button(onClick = { if (showDock) showBillList = false else onCloseAccounting() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
-                            Text("完成")
-                        }
+                        AppButton(
+                            text = "＋ 新增记账",
+                            onClick = { createManualAccountingEntry() },
+                            modifier = Modifier.weight(1f),
+                            style = AppButtonStyle.SECONDARY
+                        )
+                        AppButton(
+                            text = "完成",
+                            onClick = { if (showDock) showBillList = false else onCloseAccounting() },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
@@ -818,26 +829,26 @@ fun BrowserAccountingToolbar(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 420.dp).heightIn(max = 620.dp),
-                color = Color.White,
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, AppColors.Border),
-                shadowElevation = 14.dp
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Xl.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shadowElevation = 8.dp
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(18.dp),
+                    modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("确认本次记账", modifier = Modifier.weight(1f), color = AppColors.TextPrimary,
+                        Text("确认本次记账", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        IconButton(
+                        AppIconButton(
+                            icon = Icons.Default.Close,
+                            contentDescription = "关闭确认弹窗",
                             enabled = !saving,
                             onClick = { activeBill?.let(::discardManualDraft); showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() }
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = "关闭确认弹窗", tint = AppColors.TextSecondary)
-                        }
+                        )
                     }
-                    Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账（非链上交易）" else "待确认交易：") + if (bill.txHash.startsWith("MANUAL-")) "" else bill.txHash.take(8) + "..." + bill.txHash.takeLast(6), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账（非链上交易）" else "待确认交易：") + if (bill.txHash.startsWith("MANUAL-")) "" else bill.txHash.take(8) + "..." + bill.txHash.takeLast(6), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                     if (bill.id.startsWith("WEB3-") && bill.interactionMethod.contains("手动核验")) {
                         Text(
                             "自动回执核验未完成。请先在区块浏览器确认交易状态，再填写真实 Gas 和收益；不要把预估费用当成实际费用。",
@@ -852,18 +863,18 @@ fun BrowserAccountingToolbar(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("链上费用明细（原生币）", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                                Text("链上费用明细（原生币）", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                                 if (gasL2Native.isNotBlank()) Text(
                                     "$gasExecutionLabel：$gasL2Native $gasSplitSymbol" + (gasL2Usd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
-                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                                 )
                                 if (gasL1Native.isNotBlank()) Text(
                                     "L1 数据费：$gasL1Native $gasSplitSymbol" + (gasL1Usd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
-                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                                 )
                                 if (gasOperatorNative.isNotBlank()) Text(
                                     "运营商费用：$gasOperatorNative $gasSplitSymbol" + (gasOperatorUsd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
-                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }
@@ -875,14 +886,14 @@ fun BrowserAccountingToolbar(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("归属项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                        Text("归属项目", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                         val selectedProject = projects.firstOrNull { it.id == selectedProjectLocalId }
                         OutlinedButton(onClick = { showProjectPicker = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
                             Text(selectedProject?.name ?: "选择项目", modifier = Modifier.weight(1f), maxLines = 1)
-                            Text("选择", color = AppColors.Primary)
+                            Text("选择", color = MaterialTheme.colorScheme.primary)
                         }
                         if (selectedProject == null) {
-                            Text("请先选择项目，或新建一个本地项目。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                            Text("请先选择项目，或新建一个本地项目。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                     AppTextField(
@@ -891,20 +902,20 @@ fun BrowserAccountingToolbar(
                         placeholder = "实际收益（USD估值）",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                     )
-                    Text("请手动填写最终实际收益；如果实际为零，也请明确输入 0。未填写不能确认入账。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    Text("请手动填写最终实际收益；如果实际为零，也请明确输入 0。未填写不能确认入账。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                     if (ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
                             selectedProject?.communityOfficialId, contributionNetwork, bill.txHash
                         )) {
                         Text("该项目属于社区目录，符合条件的记录会自动参与脱敏统计；未提供 Tx Hash 按用户自报计入，提供后须通过链上核验。个人账单明细不会公开。",
-                            color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                            color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                     } else if (selectedProject?.communityOfficialId == null) {
                         Text("这是私人自建项目，仅保存到个人账本，不参与社区统计。",
-                            color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                     } else {
                         Text("当前交易暂不满足社区核验条件；个人账本仍可正常保存。",
-                            color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                     }
-                    Text("原生币种明细（不同币种分别记录，不相加）", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
+                    Text("原生币种明细（不同币种分别记录，不相加）", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AppTextField(
                             value = gasNative, onValueChange = { gasNative = it; gasValuationTimestamp = null; gasValuationSource = null },
@@ -1084,20 +1095,22 @@ fun BrowserAccountingToolbar(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 420.dp).heightIn(max = 560.dp),
-                color = Color.White,
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, AppColors.Border),
-                shadowElevation = 14.dp
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Xl.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shadowElevation = 8.dp
             ) {
-                Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("选择归属项目", modifier = Modifier.weight(1f), color = AppColors.TextPrimary,
+                        Text("选择归属项目", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        IconButton(onClick = { showProjectPicker = false }) {
-                            Icon(Icons.Default.Close, contentDescription = "关闭项目选择", tint = AppColors.TextSecondary)
-                        }
+                        AppIconButton(
+                            icon = Icons.Default.Close,
+                            contentDescription = "关闭项目选择",
+                            onClick = { showProjectPicker = false }
+                        )
                     }
-                    Text("新建本地项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    Text("新建本地项目", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                     AppTextField(
                         value = newProjectName,
                         onValueChange = { newProjectName = it },
@@ -1105,10 +1118,10 @@ fun BrowserAccountingToolbar(
                     )
                     AppButton("+ 新建并选中", onClick = ::createAndSelectProject,
                         enabled = newProjectName.isNotBlank())
-                    HorizontalDivider(color = AppColors.Border)
-                    Text("已有项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Text("已有项目", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                     if (projects.isEmpty()) {
-                        Text("暂无项目，请先新建。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                        Text("暂无项目，请先新建。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                     } else {
                         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 230.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                             items(projects, key = { it.id }) { project ->
@@ -1120,12 +1133,12 @@ fun BrowserAccountingToolbar(
                                     }, scale = 0.96f),
                                     color = if (selected) Color(0xFFE8F3F1) else Color(0xFFF8FAFC),
                                     shape = RoundedCornerShape(12.dp),
-                                    border = BorderStroke(1.dp, if (selected) AppColors.Primary else AppColors.Border)
+                                    border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
                                         verticalAlignment = Alignment.CenterVertically) {
-                                        Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                                        if (selected) Text("已选择", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                                        Text(project.name, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                                        if (selected) Text("已选择", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
                             }
@@ -1151,12 +1164,12 @@ fun AccountingCenterScreen(
     onClose: () -> Unit = {}
 ) {
     Column(
-        modifier = modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(18.dp),
+        modifier = modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("记账", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge,
+        Text("记账", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold)
-        Text("选择一条待确认交易，手动填写最终 Gas 与实际收益。", color = AppColors.TextSecondary,
+        Text("选择一条待确认交易，手动填写最终 Gas 与实际收益。", color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall)
         BrowserAccountingToolbar(
             walletAddress = "",
