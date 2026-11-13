@@ -101,7 +101,7 @@
 | 微社区 `MicroCommunityScreen.kt` / `CommunitySquareScreen.kt` | 加入/评价动作已接入共享按钮；星级目标有即时按压反馈 | 进行中：榜单胶囊、标签、卡片密度和图标系统统一 |
 | 社区验证等级 `CommunityVerificationTierBar.kt` | 文字颜色已改为主题语义色 | 代码已落地待验收 |
 | 我的/个人中心 `ProfileScreen.kt` | 设置行、图标容器、备份/导入按钮已有统一风格改动 | 进行中：统计区、列表分组、底部滚动/insets、空态和暗色模式 |
-| 行情详情 `CoinMarketDetailScreen.kt` | 已接入共享按钮/卡片等部分组件 | 进行中：价格等宽数字、涨跌符号、图表信息层级 |
+| 行情详情 `CoinMarketDetailScreen.kt` | 已统一页面左右边距、标题/交易对两级层次和指标卡片密度 | 代码已落地待验收：数字排版、涨跌语义、浅深色与加载/缓存状态待设备验收 |
 | 官方公告/活动 `AirdropHubScreen.kt`、`AirdropDiscoveryScreen.kt`、`AirdropCampaignsScreen.kt` | 已接入共享组件；活动卡片标签与描述有过适配；来源健康面板已接入 | 进行中：统一列表密度、空/错/加载态、筛选胶囊与详情层级 |
 | 登录/注册 `AuthScreen.kt` | 未按本轮 UI 范围改动 | 按当前产品决策暂不重开登录/注册功能；仅在明确批准后处理其 UI |
 
@@ -559,3 +559,13 @@
 - 保留原有 TRON Base58 地址校验、错误提示时机、有效地址才触发 `onOpenBrowser(normalized)` 的行为；未改租赁平台、浏览器、地址处理或业务流程。清理未使用的 Color 导入。
 - 静态核对：地址正则、attempted 状态重置、无效地址阻止跳转、有效地址传递及主题语义色均保留。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色/窄屏/触感验收。
 - Commit：`2acbfc8c1394055e141de7499e302cae483edff1`。
+
+
+### 2026-11-13 — 行情详情页信息层级与卡片密度收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/CoinMarketDetailScreen.kt`。
+- 页面左右边距由 18dp 统一为 16dp；顶部新增“行情详情”主标题，并将交易对作为次级说明，建立清楚的标题层级。
+- 24 小时指标卡片内边距由 18dp 收敛为 16dp，指标行间距由 15dp 调整为 12dp，保持信息可读同时减少纵向冗余。
+- 保留 OKX 行情 repository、缓存优先展示、刷新节流、错误/缓存状态文案、价格与涨跌计算及手动刷新行为；未改接口、缓存策略或行情数据。
+- 静态核对：只调整布局/文字层级参数，行情字段和 refresh 调用保持原样。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机数字可读性/浅深色验收。
+- Commit：`9b2f7ccbd916b302b7d495bc521e3d8a2c6b02b0`。
