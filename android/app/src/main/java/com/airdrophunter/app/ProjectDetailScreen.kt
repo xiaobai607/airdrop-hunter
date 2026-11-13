@@ -142,8 +142,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
 
     LazyColumn(
         modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(15.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Card(modifier = Modifier.fillMaxWidth(),
@@ -151,9 +151,11 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 elevation = CardDefaults.cardElevation(0.dp)) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("项目概览", color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                         Text(project.name, color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                         if (project.communityDelisted) {
                             Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(999.dp)) {
                                 Text("社区已下架 · 私人模式", Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -256,10 +258,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text("项目关联钱包", color = MaterialTheme.colorScheme.onSurface,
@@ -351,10 +353,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("个人项目账本", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -418,9 +420,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         item {
             Card(modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 elevation = CardDefaults.cardElevation(0.dp)) {
-                Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text("任务清单", color = MaterialTheme.colorScheme.onSurface,
