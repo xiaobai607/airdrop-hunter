@@ -46,6 +46,13 @@ def evaluate_campaign(
     corroborated_risk = item.get("corroborated_risk") is True
     source_conflict = item.get("source_conflict") is True
     official_verified = item.get("official_url_verified") is True
+    source_name = str(item.get("source_name") or "").strip()
+    campaign_type = str(item.get("campaign_type") or "").strip().lower()
+    official_binance_airdrop = (
+        source_name == "binance-crypto-airdrop"
+        and campaign_type == "airdrop"
+        and official_verified
+    )
     low_heat_count = int(item.get("low_heat_success_count") or 0)
 
     market_qualified = None
@@ -66,6 +73,7 @@ def evaluate_campaign(
         "market_signal": "not_applicable" if not token_address else ("qualified" if market_qualified else "insufficient_or_unknown"),
         "trust_status": trust,
         "gecko_trending": item.get("gecko_trending"),
+        "official_binance_airdrop_evidence": official_binance_airdrop,
         "bonuses": {},
     }
     if source_heat is not None:
@@ -103,6 +111,9 @@ def evaluate_campaign(
     ):
         tier = "observation"
         reasons.append("KYC 与高难度或高成本同时存在")
+    elif official_binance_airdrop:
+        tier = "ordinary"
+        reasons.append("Binance 官方 Crypto Airdrop 分类及原始公告正文已核验；未明确的活动状态、链、奖励与资格字段保持未知")
     elif source_heat is not None and source_heat >= 70:
         kyc_clear = is_kyc_free is True or requires_kyc is False
         market_clear = not token_address or market_qualified is True
