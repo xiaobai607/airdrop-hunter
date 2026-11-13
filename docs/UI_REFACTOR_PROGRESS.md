@@ -195,6 +195,16 @@
 - 若全仓引用检查确认无其他业务依赖，则删除这条不可达的 Android 资产总览 UI/数据适配代码和专用 API 声明。
 - 不删除共享 UnifiedAsset 数据类型或公共缓存通用基础设施，避免误伤其他仍在使用的功能；不擅自移除后端路由。
 
+### 2026-11-13 — 清理钱包资产总览不可达 Android 代码
+
+- 前置变更：钱包详情页已移除“资产”按钮与弹窗调用（`b4ef5ead`）。
+- 删除仅服务于已取消资产总览的 `WalletAssetDetailDialog.kt`、`data/WalletAssetRepository.kt`、`data/WalletAssetDto.kt`。
+- 从 `ApiService.kt` 删除专用 `api/wallet-assets/{chain}/{address}` 声明，避免 Android 客户端继续暴露不可用的旧入口。
+- 保留共享 `UnifiedAsset` 类型、Room/cache 通用结构与后端路由，未确认其他用途前不扩大删除范围；钱包交易活动、地址管理和真实记账链路未改。
+- 已确认 `/api/wallet/check` 在项目详情 VM/测试中仍有引用，因此没有连带删除该 API 或钱包核验数据类型。
+- 变更 commits：`1c14ae41`、`7098f0ac`、`40ac11b6`、`a0e811da`。
+- 当前只做 GitHub 源码级引用核对；尚未运行 Gradle 编译、Android 单元测试或设备验收，必须通过后续构建验证是否存在遗漏引用。
+
 ## 6. 变更记录
 
 ### 2026-11-13 — P0 浏览器容器与钱包页面专项核对（已执行首轮）
