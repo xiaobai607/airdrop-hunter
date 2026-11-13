@@ -144,11 +144,15 @@ fun ProjectsScreen(
 
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 16.dp),
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("库管理", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("项目管理", color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                Text("跟踪参与进度与真实净盈亏", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall)
+            }
             AppIconButton(
                 icon = Icons.Default.FolderOpen,
                 contentDescription = "筛选项目",
@@ -171,7 +175,7 @@ fun ProjectsScreen(
         }
 
         state.error?.takeIf { visibleProjects.isNotEmpty() }?.let { error ->
-            Text(error, Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            Text(error, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
 
@@ -191,7 +195,7 @@ fun ProjectsScreen(
             )
             else -> LazyColumn(
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 32.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(filtered, key = { _, project -> project.id }) { index, project ->
