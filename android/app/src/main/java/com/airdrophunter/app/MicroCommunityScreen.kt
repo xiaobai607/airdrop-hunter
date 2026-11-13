@@ -194,7 +194,7 @@ fun MicroCommunityScreen(
                 }
                 overallProject?.website_url?.takeIf { it.startsWith("https://", true) }?.let { url ->
                     AppTextButton(onClick = { runCatching { uriHandler.openUri(url) } }) {
-                        Text("官方网站：$url", maxLines = 1)
+                        Text("官方网站：$url", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                 }
 
@@ -373,14 +373,14 @@ private fun CommunitySnapshotPeriodMetric(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("🔥 Gas 支出", color = gasColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text("Gas 支出", color = gasColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 Text(formatCompactUsd(gas), color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(tokenHint(gasTokens), color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall, maxLines = 1)
             }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("🎁 收益", color = rewardColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text("奖励收益", color = rewardColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 Text(formatCompactUsd(reward), color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(tokenHint(rewardTokens), color = MaterialTheme.colorScheme.onSurfaceVariant,
