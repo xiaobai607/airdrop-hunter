@@ -461,6 +461,30 @@ fun CommunitySquareScreen(
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
+                    val hasContributionData = project.gas > 0.0 || project.reward > 0.0
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("收益概况 · 含预估", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                if (hasContributionData) String.format(Locale.US, "$%.2f", project.reward.coerceAtLeast(0.0)) else "暂无数据",
+                                color = if (hasContributionData) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Gas 支出", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                if (hasContributionData) String.format(Locale.US, "$%.2f", project.gas.coerceAtLeast(0.0)) else "暂无数据",
+                                color = if (hasContributionData) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                     val totalGasReward = project.gas.coerceAtLeast(0.0) + project.reward.coerceAtLeast(0.0)
                     if (totalGasReward > 0.0) {
                         val gasShare = (project.gas.coerceAtLeast(0.0) / totalGasReward).toFloat().coerceIn(0f, 1f)
