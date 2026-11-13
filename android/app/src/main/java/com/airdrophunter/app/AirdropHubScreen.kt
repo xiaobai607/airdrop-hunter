@@ -160,7 +160,7 @@ fun AirdropHubScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(999.dp)) {
+                                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                                     Text("Binance", Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                                 }
