@@ -567,7 +567,7 @@ fun HomeScreen(
     if (showNotifications) AlertDialog(
         onDismissRequest = { showNotifications = false }, containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("消息通知", color = MaterialTheme.colorScheme.onSurface) },
-        text = { Text("通知功能正在开发中。", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        text = { Text("当前还没有站内通知，未读 0 条。真实通知服务接入前，不会生成测试通知或擅自开启推送。", color = MaterialTheme.colorScheme.onSurfaceVariant) },
         confirmButton = { AppTextButton(onClick = { showNotifications = false }) { Text("关闭") } }
     )
 }
