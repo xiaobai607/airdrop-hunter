@@ -399,12 +399,12 @@ fun BrowserAccountingToolbar(
                     items(selectedToolIds, key = { it }) { id ->
                         val option = toolOptions.firstOrNull { it.first == id } ?: return@items
                         val icon = when (id) {
-                            "new_accounting" -> Icons.Filled.ReceiptLong
-                            "copy_address" -> Icons.Filled.ContentCopy
-                            "pending_bills" -> Icons.Filled.ReceiptLong
-                            "refresh_page" -> Icons.Filled.Refresh
-                            "copy_url" -> Icons.Filled.Link
-                            else -> Icons.Filled.OpenInNew
+                            "new_accounting" -> Icons.Outlined.ReceiptLong
+                            "copy_address" -> Icons.Outlined.ContentCopy
+                            "pending_bills" -> Icons.Outlined.ReceiptLong
+                            "refresh_page" -> Icons.Outlined.Refresh
+                            "copy_url" -> Icons.Outlined.Link
+                            else -> Icons.Outlined.OpenInNew
                         }
                         val iconBackground = MaterialTheme.colorScheme.secondaryContainer
                         val action: () -> Unit = when (id) {
