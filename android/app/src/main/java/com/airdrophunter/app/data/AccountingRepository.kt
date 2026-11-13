@@ -108,6 +108,16 @@ class AccountingRepository(
 
     fun observePendingBills(): Flow<List<PendingBillEntity>> = local.observePendingBills()
 
+    /** Reads only the active guest/account local ledger; no network refresh or cross-scope lookup. */
+    suspend fun loadPersonalLedger(): List<PersonalLedgerWriteRequest> {
+        val raw = local.readLocal("personal_ledger") ?: return emptyList()
+        val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+        return runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }
+            .getOrNull().orEmpty()
+            .filterNot(::isDemoPersonalLedgerEntry)
+            .sortedByDescending { it.occurred_at }
+    }
+
     suspend fun loadProjects(): List<ProjectDto> {
         syncAndScheduleIfNeeded()
         val repository = projectsRepository
