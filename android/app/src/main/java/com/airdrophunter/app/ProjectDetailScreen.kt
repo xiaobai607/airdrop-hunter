@@ -366,9 +366,9 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ProjectMetric(Modifier.weight(1f), "累计 Gas", userProject?.totalGasCostUsd ?: 0.0)
                         ProjectMetric(Modifier.weight(1f), "实际收益",
-                            userProject?.let { if (it.usdProfitComplete) it.totalActualRewardUsd else null } ?: 0.0)
+                            userProject?.let { if (it.usdProfitComplete) it.totalActualRewardUsd else null })
                         ProjectMetric(Modifier.weight(1f), "净利润",
-                            userProject?.let { if (it.usdProfitComplete) it.netProfitUsd else null } ?: 0.0)
+                            userProject?.let { if (it.usdProfitComplete) it.netProfitUsd else null })
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         LedgerPeriod.values().forEach { option ->
@@ -956,11 +956,11 @@ private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double?
 }
 
 @Composable
-private fun ProjectMetric(modifier: Modifier = Modifier, label: String, value: Double) {
+private fun ProjectMetric(modifier: Modifier = Modifier, label: String, value: Double?) {
     Column(modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
-        Text(String.format(Locale.US, "$%.2f", value), color = MaterialTheme.colorScheme.onPrimaryContainer,
-            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+        Text(label, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 2)
+        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: "估值未完整", color = MaterialTheme.colorScheme.onPrimaryContainer,
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
     }
 }
