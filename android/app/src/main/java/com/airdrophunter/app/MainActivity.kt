@@ -229,8 +229,16 @@ private fun AirdropHunterApp(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             if (showTopBar) {
-                TopAppBar(
-                    title = { Text(secondaryTitle, color = AppColors.TextPrimary) },
+                CenterAlignedTopAppBar(
+                    modifier = Modifier.height(56.dp),
+                    title = {
+                        Text(
+                            secondaryTitle,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 1
+                        )
+                    },
                     navigationIcon = {
                         com.airdrophunter.app.ui.components.AppIconButton(
                             icon = Icons.Default.ArrowBack,
@@ -242,14 +250,17 @@ private fun AirdropHunterApp(
                             }
                         )
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.onBackground)
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground
+                    )
                 )
             }
         },
         bottomBar = {
             if (!hasSecondaryDestination) {
                 Box(Modifier.fillMaxWidth().height(80.dp)) {
-                    Box(Modifier.fillMaxSize().blur(12.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)))
+                    Box(Modifier.fillMaxSize().blur(20.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)))
                     AppBottomBar(
                         items = destinations.map { AppNavigationItem(stringResource(it.label), it.icon) },
                         selectedIndex = tab,
