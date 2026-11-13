@@ -31,6 +31,7 @@ class ProfileRepository(
 interface AirdropHubRemoteDataSource {
     suspend fun getProjects(chain: String?): List<AirdropHubDto>
     suspend fun getStatus(): AirdropHubSyncStatusDto
+    suspend fun getSourceStatuses(): List<AirdropHubSourceStatusDto>
     suspend fun sync(): AirdropHubRefreshResponse
 }
 
@@ -39,6 +40,7 @@ class RetrofitAirdropHubRemoteDataSource(
 ) : AirdropHubRemoteDataSource {
     override suspend fun getProjects(chain: String?): List<AirdropHubDto> = api.getAirdropHub(chain)
     override suspend fun getStatus(): AirdropHubSyncStatusDto = api.getAirdropHubStatus()
+    override suspend fun getSourceStatuses(): List<AirdropHubSourceStatusDto> = api.getAirdropHubSourceStatuses()
     override suspend fun sync(): AirdropHubRefreshResponse = api.syncAirdrops()
 }
 
@@ -116,6 +118,8 @@ class AirdropHubRepository(
             refreshDue
         )
     }
+
+    suspend fun loadSourceStatuses(): List<AirdropHubSourceStatusDto> = remote.getSourceStatuses()
 
     suspend fun refresh(chain: String?, manual: Boolean = true): List<AirdropHubDto> {
         val key = cacheKey(chain)
