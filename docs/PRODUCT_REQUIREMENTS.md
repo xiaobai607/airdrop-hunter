@@ -3036,3 +3036,12 @@ The user reports that the built-in browser cannot reliably open websites, airdro
 ### Evidence discipline
 - A source file being present is not proof that a website opens or that airdrop campaigns are being captured. Capture concrete WebView error codes/descriptions and provider-level fetch outcomes.
 - Static inspection is not a build, automated test, live provider check or physical-device acceptance.
+
+
+### 2026-11-13 — browser diagnostics and discovery blocker confirmed
+
+- Branch audit confirms the campaign provider adapters are still explicitly unchecked. The Android Airdrop Library has a campaign client/list and Binance announcement feed/detail foundation, but the approved four-source campaign pipeline is not yet end-to-end enabled. The current empty real-campaign state is therefore not evidence of a broken list renderer alone: there is no configured approved free provider publishing confirmed campaign records. Implement the four adapters only after validating free-use terms and zero-cost constraints; do not fabricate data or promote market leads to campaigns.
+- BrowserActivity previously reduced main-frame WebView failures to a generic “network restriction or anti-bot” message. Updated it to retain and display the actual main-frame network error code/description, HTTP status/reason, or TLS validation failure, and to clear the diagnostic on a fresh navigation/success/retry. TLS validation remains strict; no certificate bypass or weakened wallet origin validation was introduced. Commit: a1772ecd470068366e6e88bbd94b09095150c96f.
+- This diagnostic patch improves the next reproduction but does not prove the reported site now loads. A device run is still needed to capture the exact failing URL/provider/error. Third-party cookies and website-specific login compatibility remain a separate compatibility audit, not silently enabled.
+- Priority reset recorded in commit 539acc1f16b743015c600c79d7a05a2a08d00e78: browser usability, free campaign discovery, complete UI pass, then remaining Web3 edge cases. No paid APIs, paid scraping/proxies, commercial fallbacks or new recurring cost are permitted without explicit approval.
+- Static checks only; no Gradle build, tests, CI, APK build or physical-device acceptance was run in this batch.
