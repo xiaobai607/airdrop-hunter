@@ -306,3 +306,12 @@
 - 本轮代码已写入工作分支 feature/mobile-browser-home-dock-batch。提交：Repository 本地历史读取 a30d5f4ec6cc562f4eb52a0e324075d4a79f7e10；Repository 测试 999e812ea9254fbfb6d682e6ca7c90fc388d2161；记账中心/历史/统计 UI 794cd4ca73f6269e87492bf40ee61b4bdc63b5ff；刷新协程与周期筛选修正 927487d207582d4a6f8ac12ec2c66cb9341052e8、c4ca9c1cdc482bfc423f876f39b8878343cdc7dd；AppChip import 修正 e41a8d6f7027fceada16061304563ef14705408d；关闭待确认窗口后刷新历史 c6b9e08b38e69429e167216f310e99f39cd1a788；按真实时间排序 4db296d4fd770673f4f5a8bcb597e38853d7c8b2；实际收益汇总模型及测试 bd8a7ee1728010365070b1b5f0bb907ee2b50e2b、e45fd3f84a0caff47c1c79f507d13538706bb483、06d0505259290a34e378f5b85328265aff9482fc；状态文案修正 1be2756bb94b6ba914f71fb314ef007e80962311。尚未运行 Gradle、单元测试、Android tests、Room tests、CI、APK 或真机验收，状态为代码已落地待构建验收。
 - 继续遵守：理论金额与实际金额分离；收益实际金额必须人工确认；待确认/失败状态不得自动变成已完成。
 
+
+
+## 2026-11-13 — 浏览器登录与新窗口兼容性实施计划
+
+- 在现有 Chrome-compatible UA 基础上，补齐普通网页登录常见的跨站 Cookie 与用户主动打开新窗口/弹窗场景。
+- 第三方 Cookie 仅在应用内该 WebView 实例启用，不修改系统浏览器或其他应用的 Cookie 策略；需明确这是兼容性与跨站跟踪风险之间的折中。
+- 开启多窗口支持，但只接受用户手势触发的新窗口；弹窗导航仍限制为 HTTP/HTTPS，HTTP 升级 HTTPS，跨 Origin 必须经过现有顶部确认横幅。
+- 不启用自动弹窗、不允许任意 scheme 弹窗、不改变 TLS 失败即取消、Safe Browsing、文件/地理位置/摄像头权限拒绝、DApp Origin 授权及交易确认规则。
+- 对新窗口子 WebView 做生命周期管理，避免 Activity 退出后残留渲染实例；本轮不处理绕过验证码、反机器人挑战或网站访问控制。
