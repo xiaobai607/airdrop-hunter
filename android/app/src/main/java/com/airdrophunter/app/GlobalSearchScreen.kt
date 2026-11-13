@@ -2,7 +2,6 @@ package com.airdrophunter.app
 
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -34,6 +33,11 @@ import com.airdrophunter.app.data.MarketCoin
 import com.airdrophunter.app.data.MarketSearchRepository
 import com.airdrophunter.app.data.normalizeSearchText
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppChip
+import com.airdrophunter.app.ui.components.AppTextField
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -177,38 +181,34 @@ fun GlobalSearchScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
-                Modifier.weight(1f).clip(RoundedCornerShape(999.dp)).background(Color(0xFFF0F2F5)).padding(start = 14.dp, end = 4.dp),
+                Modifier.weight(1f).clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(start = 12.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.TextHelper)
-                OutlinedTextField(
+                Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppTextField(
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text(if (category == SearchCategory.COIN) "搜索币种名称或代号" else "搜索 DApp 名称、链或标签") },
+                    placeholder = if (category == SearchCategory.COIN) "搜索币种名称或代号" else "搜索 DApp 名称、链或标签",
                     singleLine = true,
-                    shape = RoundedCornerShape(999.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent
-                    )
+                    heightDp = 44
                 )
                 if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
-                    Icon(Icons.Default.Clear, contentDescription = "清空输入", tint = AppColors.TextHelper)
+                    Icon(Icons.Default.Clear, contentDescription = "清空输入", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            TextButton(onClick = onCancel, contentPadding = PaddingValues(horizontal = 2.dp)) {
-                Text("取消", color = AppColors.TextPrimary)
-            }
+            AppButton("取消", onClick = onCancel, style = AppButtonStyle.TEXT,
+                fullWidth = false, heightDp = 44, fontSizeSp = 14)
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SearchCategory.values().forEach { option ->
-                FilterChip(
+                AppChip(
+                    text = option.label,
                     selected = category == option,
-                    onClick = { category = option; query = "" },
-                    label = { Text(option.label) },
-                    shape = RoundedCornerShape(999.dp)
+                    onClick = { category = option; query = "" }
                 )
             }
         }
@@ -226,10 +226,10 @@ fun GlobalSearchScreen(
                 history.take(10).forEach { item ->
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(AppColors.Surface)
-                            .clickable {
+                            .appPressFeedback(onClick = {
                                 category = if (item.category == SearchCategory.DAPP.key) SearchCategory.DAPP else SearchCategory.COIN
                                 query = item.query
-                            }.padding(horizontal = 13.dp, vertical = 11.dp),
+                            }, scale = 0.96f).padding(horizontal = 13.dp, vertical = 11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(if (item.category == SearchCategory.DAPP.key) "DApp" else "币种", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
