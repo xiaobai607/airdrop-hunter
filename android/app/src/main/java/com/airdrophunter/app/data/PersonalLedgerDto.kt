@@ -20,6 +20,32 @@ data class PersonalLedgerWriteRequest(
     val extra: Map<String, String> = emptyMap()
 )
 
+data class PersonalLedgerActualSummary(
+    val recordCount: Int,
+    val actualGasUsd: Double,
+    val valuedActualRewardUsd: Double,
+    val incompleteRewardCount: Int,
+    val completeNetProfitUsd: Double?
+)
+
+/**
+ * Sums confirmed USD values only. A row marked incomplete is not treated as a zero-dollar reward.
+ */
+fun summarizePersonalLedgerRows(rows: List<PersonalLedgerWriteRequest>): PersonalLedgerActualSummary {
+    val incomplete = rows.count { it.extra["usd_profit_complete"] == "false" }
+    val gas = rows.sumOf { it.actual_gas_cost_usd.takeIf { value -> value.isFinite() && value >= 0.0 } ?: 0.0 }
+    val valuedReward = rows.asSequence()
+        .filter { it.extra["usd_profit_complete"] != "false" }
+        .sumOf { it.actual_reward_usd.takeIf { value -> value.isFinite() && value >= 0.0 } ?: 0.0 }
+    return PersonalLedgerActualSummary(
+        recordCount = rows.size,
+        actualGasUsd = gas,
+        valuedActualRewardUsd = valuedReward,
+        incompleteRewardCount = incomplete,
+        completeNetProfitUsd = (valuedReward - gas).takeIf { incomplete == 0 }
+    )
+}
+
 data class PersonalLedgerEntryDto(
     val id: String,
     val client_record_id: String,
