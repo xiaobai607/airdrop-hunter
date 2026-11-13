@@ -234,7 +234,8 @@ fun ProjectsScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(project.name, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
-                                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                     val statusLabel = when (project.status) { "tracking" -> "进行中"; "completed" -> "已完成"; else -> "待开始" }
                                     Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                                         Text(statusLabel, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -515,7 +516,7 @@ fun ProjectsScreen(
                 selectedCommunityOfficialId = null
                 showAddDialog = true
             },
-            modifier = Modifier.padding(end = 20.dp, bottom = 20.dp).size(58.dp),
+            modifier = Modifier.padding(end = 16.dp, bottom = 16.dp).size(56.dp),
             shape = RoundedCornerShape(50),
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.surface
