@@ -104,7 +104,7 @@ fun AppBottomBar(
         Box(
             Modifier.offset(x = indicatorOffset, y = 52.dp)
                 .size(width = 16.dp, height = 4.dp)
-                .background(colors.primary, RoundedCornerShape(999.dp))
+                .background(colors.primary, RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
         )
     }
 }
