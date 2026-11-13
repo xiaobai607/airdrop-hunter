@@ -67,6 +67,11 @@ fun ProfileScreen(
     var pendingBackup by remember { mutableStateOf<LocalBackupSnapshot?>(null) }
     var backupBusy by remember { mutableStateOf(false) }
     var activeProfileDestination by remember { mutableStateOf<ProfileDestination?>(null) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    val appVersion = remember(context) {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
+            .getOrNull() ?: "未知"
+    }
 
     val createBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -107,15 +112,17 @@ fun ProfileScreen(
             .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Text("我的", color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
         Row(
-            Modifier,
+            Modifier.fillMaxWidth().padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(52.dp)) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(60.dp)) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(if (isGuest) "G" else "U", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text(if (isGuest) "G" else "U", color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -134,20 +141,23 @@ fun ProfileScreen(
             }
         }
 
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("数据概览", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 4.dp))
         Card(
             modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column {
-                Row(Modifier.fillMaxWidth().height(96.dp)) {
+                Row(Modifier.fillMaxWidth().height(80.dp)) {
                     StatCell("跟踪项目", stats.tracked_projects.toString(), Modifier.weight(1f))
                     Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
                     StatCell(if (stats.usd_profit_complete) "胜率" else "已估值胜率",
                         String.format(Locale.US, "%.1f%%", stats.win_rate), Modifier.weight(1f))
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Row(Modifier.fillMaxWidth().height(96.dp)) {
+                Row(Modifier.fillMaxWidth().height(80.dp)) {
                     StatCell("累计 Gas", String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost),
                         Modifier.weight(1f), "USD")
                     Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
@@ -157,11 +167,12 @@ fun ProfileScreen(
                 }
                 Text(
                     "参与项目 ${stats.ledger_project_count} · 净收益 ${if (stats.usd_profit_complete) String.format(Locale.US, "%.2f", stats.ledger_net_profit) + " USD" else "估值未完整"} · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
-                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.labelSmall
                 )
             }
+        }
         }
 
         Card(
@@ -206,17 +217,47 @@ fun ProfileScreen(
                 style = MaterialTheme.typography.bodySmall)
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("设置", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
-            SettingRow("设置", Icons.Default.Settings) { activeProfileDestination = ProfileDestination.SETTINGS }
-            SettingRow("安全中心", Icons.Default.Security) { activeProfileDestination = ProfileDestination.SECURITY }
-            SettingRow("消息通知", Icons.Default.NotificationsNone) { activeProfileDestination = ProfileDestination.NOTIFICATIONS }
-            SettingRow("钱包管理", Icons.Default.Wallet, onManageWallets)
-            SettingRow("关于", Icons.Default.Info) {
-                Toast.makeText(context, "关于页面正在开发中", Toast.LENGTH_SHORT).show()
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("设置与管理", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 4.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    SettingRow("设置", Icons.Default.Settings) { activeProfileDestination = ProfileDestination.SETTINGS }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingRow("安全中心", Icons.Default.Security) { activeProfileDestination = ProfileDestination.SECURITY }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingRow("消息通知", Icons.Default.NotificationsNone) { activeProfileDestination = ProfileDestination.NOTIFICATIONS }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingRow("钱包管理", Icons.Default.Wallet, onManageWallets)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingRow("关于", Icons.Default.Info) { showAboutDialog = true }
+                }
             }
         }
+        if (showAboutDialog) {
+            AlertDialog(
+                onDismissRequest = { showAboutDialog = false },
+                title = { Text("关于 Airdrop Hunter") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("面向空投项目管理、钱包追踪与个人记账的工具。",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("版本 $appVersion", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelMedium)
+                    }
+                },
+                confirmButton = {
+                    AppTextButton(onClick = { showAboutDialog = false }) { Text("知道了") }
+                }
+            )
+        }
+
         if (showBackupPasswordDialog) {
             AlertDialog(
                 onDismissRequest = { showBackupPasswordDialog = false; backupPassword = ""; backupPasswordConfirm = "" },
@@ -324,7 +365,7 @@ fun ProfileScreen(
 
 @Composable
 private fun StatCell(label: String, value: String, modifier: Modifier, suffix: String = "") {
-    Column(modifier.fillMaxHeight().padding(horizontal = 12.dp, vertical = 16.dp),
+    Column(modifier.fillMaxHeight().padding(horizontal = 12.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.Center) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
