@@ -160,7 +160,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                         if (project.communityDelisted) {
                             Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
-                                Text("社区已下架 · 私人模式", Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                Text("社区已下架 · 私人模式", Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold)
                             }
@@ -437,7 +437,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     }
                     LinearProgressIndicator(progress = { progress },
-                        modifier = Modifier.fillMaxWidth().height(7.dp), color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth().height(6.dp), color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.outlineVariant,
                         strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
                     AppTextField(taskName, { taskName = it }, "添加一个待办任务…")
@@ -450,7 +450,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
             }
         }
         if (state.isLoading && state.tasks.isEmpty()) item {
-            Box(Modifier.fillMaxWidth().padding(18.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
@@ -503,7 +503,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
             text = {
                 Column(
                     Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text("项目已锁定：" + project.name, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelMedium)
@@ -891,7 +891,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                     Modifier.weight(1f).background(
                         MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f),
                         RoundedCornerShape(AppDesignTokens.Radius.Md.dp)
-                    ).padding(horizontal = 10.dp, vertical = 9.dp),
+                    ).padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     Text("实际 Gas · USD估值", color = MaterialTheme.colorScheme.onSurfaceVariant,

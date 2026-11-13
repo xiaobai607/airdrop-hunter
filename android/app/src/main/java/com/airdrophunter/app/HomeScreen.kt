@@ -315,7 +315,7 @@ fun HomeScreen(
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("行情看板", color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

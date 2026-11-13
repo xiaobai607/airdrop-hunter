@@ -187,7 +187,7 @@ fun MicroCommunityScreen(
                     }
                     overallProject?.logo?.takeIf { it.isNotBlank() }?.let { logo ->
                         Surface(shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp), color = MaterialTheme.colorScheme.surface) {
-                            Text(logo, Modifier.padding(10.dp), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            Text(logo, Modifier.padding(8.dp), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

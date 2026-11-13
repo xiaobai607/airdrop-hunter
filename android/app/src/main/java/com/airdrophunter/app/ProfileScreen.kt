@@ -182,7 +182,7 @@ fun ProfileScreen(
                 }
                 Text(
                     "参与项目 ${stats.ledger_project_count} · 净收益 ${if (stats.usd_profit_complete) String.format(Locale.US, "%.2f", stats.ledger_net_profit) + " USD" else "估值未完整"} · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.labelSmall
                 )

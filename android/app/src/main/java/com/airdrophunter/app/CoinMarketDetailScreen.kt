@@ -89,7 +89,7 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
             loading && detail == null -> Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
-            error != null && detail == null -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            error != null && detail == null -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("暂时无法获取行情", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 Text(error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 AppButton("重新加载", onClick = { scope.launch { refresh(manual = true) } })

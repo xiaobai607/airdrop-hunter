@@ -477,13 +477,13 @@ fun CommunitySquareScreen(
                             )
                         }
                         Box(
-                            Modifier.fillMaxWidth().height(10.dp)
+                            Modifier.fillMaxWidth().height(6.dp)
                                 .background(comparisonBrush, RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
                         )
                     }
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         project.tags.forEach { tag ->
                             Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)) {

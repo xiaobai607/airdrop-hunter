@@ -97,7 +97,7 @@ fun AirdropDiscoveryScreen(
                 shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
-                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(if (state.error != null) "暂时无法读取空投记录" else "还没有空投记录", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Text(if (state.error != null) "请检查网络后重试；已保存的记录不会因此被删除。" else "添加你找到的项目和官方来源链接，集中管理参与条件与奖励信息。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (state.error != null) AppButton("重新加载", onClick = { airdropsViewModel.loadAirdrops() }, fullWidth = false)
