@@ -981,13 +981,15 @@ fun BrowserAccountingToolbar(
                         placeholder = "收益精度（可选）",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-                    Button(
+                    AppButton(
+                        text = if (saving) "入账中…" else "确认入账",
                         enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null && nativeAssetsValid,
+                        loading = saving,
                         onClick = {
-                            val project = projects.firstOrNull { it.id == selectedProjectLocalId } ?: return@Button
-                            val safeGas = gasValue ?: return@Button
-                            val safeReward = rewardValue ?: return@Button
-                            if (saving) return@Button
+                            val project = projects.firstOrNull { it.id == selectedProjectLocalId } ?: return@AppButton
+                            val safeGas = gasValue ?: return@AppButton
+                            val safeReward = rewardValue ?: return@AppButton
+                            if (saving) return@AppButton
                             val now = Instant.now().toString()
                             val assets = buildList {
                                 if (gasNative.isNotBlank()) add(
@@ -1064,16 +1066,8 @@ fun BrowserAccountingToolbar(
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(13.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                    ) {
-                        if (saving) {
-                            CircularProgressIndicator(Modifier.size(17.dp), color = Color.White, strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                        }
-                        Text(if (saving) "入账中…" else "确认入账")
-                    }
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     TextButton(onClick = { if (!saving) { activeBill?.let(::discardManualDraft); showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() } }, enabled = !saving,
                         modifier = Modifier.align(Alignment.End)) { Text("取消") }
                 }
@@ -1107,10 +1101,8 @@ fun BrowserAccountingToolbar(
                         onValueChange = { newProjectName = it },
                         placeholder = "输入项目名称"
                     )
-                    Button(onClick = ::createAndSelectProject, enabled = newProjectName.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
-                        Text("+ 新建并选中")
-                    }
+                    AppButton("+ 新建并选中", onClick = ::createAndSelectProject,
+                        enabled = newProjectName.isNotBlank())
                     HorizontalDivider(color = AppColors.Border)
                     Text("已有项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                     if (projects.isEmpty()) {
