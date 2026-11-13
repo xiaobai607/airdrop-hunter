@@ -9,7 +9,6 @@ import kotlinx.coroutines.launch
 import com.airdrophunter.app.data.LocalBackupRepository
 import com.airdrophunter.app.data.LocalBackupSnapshot
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
 import java.util.Locale
 
 @Composable
@@ -97,10 +98,10 @@ fun ProfileScreen(
     val stats = state.stats
 
     Column(
-        modifier.fillMaxSize().background(AppColors.Background)
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(
             Modifier,
@@ -130,19 +131,19 @@ fun ProfileScreen(
         }
 
         Card(
-            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
             colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
             border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column {
-                Row(Modifier.fillMaxWidth().height(100.dp)) {
+                Row(Modifier.fillMaxWidth().height(96.dp)) {
                     StatCell("跟踪项目", stats.tracked_projects.toString(), Modifier.weight(1f))
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
                     StatCell(if (stats.usd_profit_complete) "胜率" else "已估值胜率",
                         String.format(Locale.US, "%.1f%%", stats.win_rate), Modifier.weight(1f))
                 }
                 HorizontalDivider(color = AppColors.Border)
-                Row(Modifier.fillMaxWidth().height(100.dp)) {
+                Row(Modifier.fillMaxWidth().height(96.dp)) {
                     StatCell("累计 Gas", String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost),
                         Modifier.weight(1f), "USD")
                     Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
@@ -161,8 +162,8 @@ fun ProfileScreen(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+            shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, AppColors.Border),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
@@ -339,7 +340,8 @@ private fun SettingRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
-    Row(Modifier.fillMaxWidth().height(58.dp).clickable(onClick = onClick),
+    Row(Modifier.fillMaxWidth().height(56.dp)
+        .appPressFeedback(onClick = onClick, scale = 0.98f),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
         Box(
             Modifier.size(38.dp).background(AppColors.TealTint, RoundedCornerShape(12.dp)),
