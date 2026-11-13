@@ -139,10 +139,17 @@ fun HomeScreen(
                     marketSymbolDraft = marketSymbols.toSet()
                     showMarketEditor = true
                 }) { Text("编辑", color = MaterialTheme.colorScheme.primary) }
-                Text(if (state.isRefreshing) "更新中" else "刷新",
-                    modifier = Modifier.appPressFeedback(onClick = { homeViewModel.refresh(isGuest) }, scale = 0.94f)
-                        .padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
-                    color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                AppTextButton(
+                    onClick = { homeViewModel.refresh(isGuest) },
+                    enabled = !state.isRefreshing,
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        if (state.isRefreshing) "更新中" else "刷新",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -211,7 +218,7 @@ fun HomeScreen(
                             Row(Modifier.fillMaxWidth().appPressFeedback(onClick = {
                                 marketSymbolDraft = if (symbol in marketSymbolDraft) marketSymbolDraft - symbol
                                     else marketSymbolDraft + symbol
-                            }, scale = 0.98f).padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            }, scale = 1f).padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Checkbox(checked = symbol in marketSymbolDraft, onCheckedChange = { checked ->
                                     marketSymbolDraft = if (checked) marketSymbolDraft + symbol else marketSymbolDraft - symbol
                                 })
