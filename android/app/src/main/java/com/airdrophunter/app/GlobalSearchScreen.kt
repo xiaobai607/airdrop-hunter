@@ -176,7 +176,7 @@ fun GlobalSearchScreen(
     }
 
     Column(
-        modifier.fillMaxSize().background(AppColors.Background)
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -217,26 +217,26 @@ fun GlobalSearchScreen(
         if (query.isBlank() && history.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.History, null, tint = AppColors.TextSecondary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(7.dp))
-                    Text("搜索历史", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text("搜索历史", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     AppTextButton(onClick = { scope.launch { CacheStore.clearSearchHistory() } }) {
-                        Text("清空", color = AppColors.TextHelper)
+                        Text("清空", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
                     }
                 }
                 history.take(10).forEach { item ->
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(AppColors.Surface)
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface)
                             .appPressFeedback(onClick = {
                                 category = if (item.category == SearchCategory.DAPP.key) SearchCategory.DAPP else SearchCategory.COIN
                                 query = item.query
                             }, scale = 0.96f).padding(horizontal = 13.dp, vertical = 11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(if (item.category == SearchCategory.DAPP.key) "DApp" else "币种", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                        Text(if (item.category == SearchCategory.DAPP.key) "DApp" else "币种", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                         Spacer(Modifier.width(10.dp))
-                        Text(item.query, color = AppColors.TextPrimary, modifier = Modifier.weight(1f), maxLines = 1)
-                        Icon(Icons.Default.History, null, tint = AppColors.TextHelper, modifier = Modifier.size(16.dp))
+                        Text(item.query, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f), maxLines = 1)
+                        Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -244,35 +244,35 @@ fun GlobalSearchScreen(
 
         if (query.isBlank() && category == SearchCategory.COIN) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("热门币种", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text("热门币种", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                 cacheStatusLabel(hotCoinMetadata)?.let {
-                    Text(it, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                    Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                 }
                 hotCoins.forEach { coin -> HotCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
-                if (hotCoins.isEmpty()) Text("热门行情暂不可用，输入币种名称仍可搜索", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                if (hotCoins.isEmpty()) Text("热门行情暂不可用，输入币种名称仍可搜索", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
         }
 
         if (query.isNotBlank()) {
             Text(
                 if (category == SearchCategory.COIN) "币种搜索结果" else "DApp 搜索结果",
-                color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
+                color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
             )
             cacheStatusLabel(if (category == SearchCategory.COIN) coinCacheMetadata else dappCacheMetadata)?.let {
-                Text(it, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
             when (category) {
                 SearchCategory.COIN -> if (coinResults.isEmpty()) {
-                    Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的币种", color = AppColors.TextHelper)
+                    Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的币种", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
                 } else coinResults.forEach { coin -> MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
                 SearchCategory.DAPP -> if (dappResults.isEmpty()) {
-                    Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的 DApp", color = AppColors.TextHelper)
+                    Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的 DApp", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
                 } else dappResults.forEach { project ->
                     DappResultRow(project) { recordAndOpenDapp(project) }
                 }
             }
             if (searchError != null && (coinResults.isNotEmpty() || dappResults.isNotEmpty())) {
-                Text(searchError.orEmpty(), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                Text(searchError.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -281,22 +281,22 @@ fun GlobalSearchScreen(
 @Composable
 private fun HotCoinRow(coin: HotCoin, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(AppColors.Surface)
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF0F2F5)), contentAlignment = Alignment.Center) {
-            Text(coin.symbol.take(1), color = AppColors.Primary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(coin.symbol.take(1), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
-            Text(coin.symbol, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-            Text(coin.name, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            Text(coin.symbol, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+            Text(coin.name, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text("$ " + formatSearchPrice(coin.lastPrice), color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+            Text("$ " + formatSearchPrice(coin.lastPrice), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
             Text(String.format(Locale.US, "%+.2f%%", coin.change24hPercent),
-                color = if (coin.change24hPercent >= 0) AppColors.Success else AppColors.Danger,
+                color = if (coin.change24hPercent >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelSmall)
         }
     }
@@ -305,23 +305,23 @@ private fun HotCoinRow(coin: HotCoin, onClick: () -> Unit) {
 @Composable
 private fun MarketCoinRow(coin: MarketCoin, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(AppColors.Surface)
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF0F2F5)), contentAlignment = Alignment.Center) {
-            Text(coin.symbol.take(1), color = AppColors.Primary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(coin.symbol.take(1), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("${coin.symbol} · ${coin.name}", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+            Text("${coin.symbol} · ${coin.name}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
             val context = listOfNotNull(coin.network, coin.contractAddress).joinToString(" · ")
-            if (context.isNotBlank()) Text(context, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            if (context.isNotBlank()) Text(context, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(coin.priceUsd?.let { "$ " + formatSearchPrice(it) } ?: "价格暂缺", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+            Text(coin.priceUsd?.let { "$ " + formatSearchPrice(it) } ?: "价格暂缺", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
             coin.change24hPercent?.let { change ->
-                Text(String.format(Locale.US, "%+.2f%%", change), color = if (change >= 0) AppColors.Success else AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                Text(String.format(Locale.US, "%+.2f%%", change), color = if (change >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -331,7 +331,7 @@ private fun MarketCoinRow(coin: MarketCoin, onClick: () -> Unit) {
 private fun DappResultRow(project: CommunityProjectCatalogDto, onClick: () -> Unit) {
     val validUrl = Uri.parse(project.website_url).let { it.scheme.equals("https", true) && !it.host.isNullOrBlank() }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(AppColors.Surface)
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface)
             .clickable(enabled = validUrl, onClick = onClick).padding(horizontal = 13.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -340,11 +340,11 @@ private fun DappResultRow(project: CommunityProjectCatalogDto, onClick: () -> Un
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(project.name, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-            Text(project.chain, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-            Text(if (validUrl) project.website_url else "链接待补充", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            Text(project.name, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+            Text(project.chain, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
+            Text(if (validUrl) project.website_url else "链接待补充", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
-        Text(if (validUrl) "打开" else "暂无链接", color = if (validUrl) AppColors.Primary else AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+        Text(if (validUrl) "打开" else "暂无链接", color = if (validUrl) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
     }
 }
 
