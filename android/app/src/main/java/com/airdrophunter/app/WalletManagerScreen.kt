@@ -208,7 +208,6 @@ fun WalletManagerScreen(
         return
     }
 
-    AppKitTheme(mode = AppKitTheme.Mode.LIGHT) {
     ModalBottomSheetLayout(
         bottomSheetNavigator = walletSheetNavigator,
         sheetShape = RoundedCornerShape(topStart = AppDesignTokens.Radius.Xl.dp, topEnd = AppDesignTokens.Radius.Xl.dp)
@@ -599,10 +598,11 @@ fun WalletManagerScreen(
         )
     }
 
-    NavHost(walletNavController, startDestination = "wallet_manager_host") {
-        composable("wallet_manager_host") { }
-        appKitGraph(walletNavController)
-    }
+    AppKitTheme(mode = AppKitTheme.Mode.LIGHT) {
+        NavHost(walletNavController, startDestination = "wallet_manager_host") {
+            composable("wallet_manager_host") { }
+            appKitGraph(walletNavController)
+        }
     }
     }
 }
