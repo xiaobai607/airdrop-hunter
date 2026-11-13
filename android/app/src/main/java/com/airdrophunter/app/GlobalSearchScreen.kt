@@ -1,6 +1,15 @@
 package com.airdrophunter.app
 
 import android.net.Uri
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -65,6 +74,12 @@ fun GlobalSearchScreen(
     val application = context.applicationContext as AirdropHunterApplication
     val repository = remember(application) { MarketSearchRepository(application.appContainer.okxMarketRepository) }
     val scope = rememberCoroutineScope()
+    val searchFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    LaunchedEffect(Unit) {
+        searchFocusRequester.requestFocus()
+        keyboardController?.show()
+    }
     val history by CacheStore.observeSearchHistory().collectAsStateWithLifecycle(initialValue = emptyList())
     var category by remember { mutableStateOf(SearchCategory.COIN) }
     var query by remember { mutableStateOf("") }
@@ -193,7 +208,7 @@ fun GlobalSearchScreen(
                 AppTextField(
                     value = query,
                     onValueChange = { query = it },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).focusRequester(searchFocusRequester),
                     placeholder = if (category == SearchCategory.COIN) "搜索币种名称或代号" else "搜索 DApp 名称、链或标签",
                     singleLine = true,
                     heightDp = 44
@@ -218,7 +233,11 @@ fun GlobalSearchScreen(
             }
         }
 
-        if (query.isBlank() && history.isNotEmpty()) {
+        AnimatedVisibility(
+            visible = query.isBlank() && history.isNotEmpty(),
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200)) + shrinkVertically(tween(260))
+        ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
@@ -268,11 +287,29 @@ fun GlobalSearchScreen(
             when (category) {
                 SearchCategory.COIN -> if (coinResults.isEmpty()) {
                     Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的币种", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
-                } else coinResults.forEach { coin -> MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
+                } else coinResults.forEachIndexed { index, coin ->
+                    val delay = index.coerceAtMost(AppDesignTokens.Motion.MaxStaggerItems - 1) *
+                        AppDesignTokens.Motion.StaggerMs
+                    key(coin.symbol) {
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(tween(200, delayMillis = delay)) +
+                                slideInVertically(tween(200, delayMillis = delay)) { 8 }
+                        ) { MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
+                    }
+                }
                 SearchCategory.DAPP -> if (dappResults.isEmpty()) {
                     Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的 DApp", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
-                } else dappResults.forEach { project ->
-                    DappResultRow(project) { recordAndOpenDapp(project) }
+                } else dappResults.forEachIndexed { index, project ->
+                    val delay = index.coerceAtMost(AppDesignTokens.Motion.MaxStaggerItems - 1) *
+                        AppDesignTokens.Motion.StaggerMs
+                    key(project.id) {
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(tween(200, delayMillis = delay)) +
+                                slideInVertically(tween(200, delayMillis = delay)) { 8 }
+                        ) { DappResultRow(project) { recordAndOpenDapp(project) } }
+                    }
                 }
             }
             if (searchError != null && (coinResults.isNotEmpty() || dappResults.isNotEmpty())) {
