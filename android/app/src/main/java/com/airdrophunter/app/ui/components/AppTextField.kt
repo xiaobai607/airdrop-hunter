@@ -40,7 +40,8 @@ fun AppTextField(
     singleLine: Boolean = true,
     isError: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    trailingClear: Boolean = false
+    trailingClear: Boolean = false,
+    heightDp: Int = AppDesignTokens.Control.InputHeight
 ) {
     var focused by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
@@ -55,7 +56,7 @@ fun AppTextField(
         onValueChange = onValueChange,
         modifier = modifier
             .fillMaxWidth()
-            .height(AppDesignTokens.Control.InputHeight.dp)
+            .height(heightDp.dp)
             .background(colors.surfaceVariant, shape)
             .then(if (borderColor != Color.Transparent) Modifier.border(if (focused) 1.5.dp else 1.dp, borderColor, shape) else Modifier)
             .onFocusChanged { focused = it.isFocused }
