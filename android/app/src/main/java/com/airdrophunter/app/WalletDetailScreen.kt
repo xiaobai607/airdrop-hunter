@@ -4,10 +4,12 @@ import androidx.compose.foundation.background
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppHaptic
+import com.airdrophunter.app.ui.components.StaggeredListItem
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -56,7 +58,7 @@ fun WalletDetailScreen(
                     style = MaterialTheme.typography.labelSmall
                 )
             }
-            AppIconButton(Icons.Default.ContentCopy, "复制地址", onClick = {
+            AppIconButton(Icons.Default.ContentCopy, "复制地址", haptic = AppHaptic.MEDIUM, onClick = {
                 clipboard.setText(AnnotatedString(wallet.address))
                 android.widget.Toast.makeText(context, "已复制钱包地址", android.widget.Toast.LENGTH_SHORT).show()
             })
@@ -145,9 +147,45 @@ private fun WalletActivityPanel(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
-        } else if (!isLoading && transactions.isEmpty() && errorMessage == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("暂无链上交易记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else if (transactions.isEmpty() && errorMessage != null) {
+            Column(
+                Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("暂时无法读取交易记录", color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(8.dp))
+                Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(16.dp))
+                AppButton(
+                    text = "重试",
+                    onClick = { if (!isLoading) refreshNonce++ },
+                    enabled = !isLoading,
+                    loading = isLoading,
+                    modifier = Modifier.widthIn(min = 132.dp)
+                )
+            }
+        } else if (transactions.isEmpty()) {
+            Column(
+                Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("暂无链上交易记录", color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(8.dp))
+                Text("当前地址还没有可展示的交易，稍后可再次刷新。", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(16.dp))
+                AppButton(
+                    text = "刷新交易",
+                    onClick = { if (!isLoading) refreshNonce++ },
+                    enabled = !isLoading,
+                    loading = isLoading,
+                    modifier = Modifier.widthIn(min = 132.dp)
+                )
             }
         } else {
             LazyColumn(
@@ -155,7 +193,8 @@ private fun WalletActivityPanel(
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(transactions, key = { "${it.chain}:${it.hash}" }) { tx ->
+                itemsIndexed(transactions, key = { _, tx -> "${tx.chain}:${tx.hash}" }) { index, tx ->
+                    StaggeredListItem("${tx.chain}:${tx.hash}", index) {
                     val normalizedHash = normalizeWalletActivityHash(tx.chain, tx.hash)
                     val txKey = "${tx.chain.lowercase()}:$normalizedHash"
                     val alreadyPending = txKey in pendingKeys
@@ -294,6 +333,7 @@ private fun WalletActivityPanel(
                                 )
                             }
                         }
+                    }
                     }
                 }
             }
