@@ -321,15 +321,15 @@ private fun AirdropHunterApp(
                             slideInHorizontally(tween(AppDesignTokens.Motion.PageMs)) { it } +
                                 fadeIn(tween(AppDesignTokens.Motion.PageMs))
                         ) togetherWith (
-                            slideOutHorizontally(tween(AppDesignTokens.Motion.PageMs)) { -it / 5 } +
-                                fadeOut(tween(AppDesignTokens.Motion.PageMs), targetAlpha = 0.92f)
+                            slideOutHorizontally(tween(AppDesignTokens.Motion.PageMs)) { -it } +
+                                fadeOut(tween(AppDesignTokens.Motion.PageMs), targetAlpha = 0f)
                         )
                         !initialIsTab && targetIsTab -> (
                             slideInHorizontally(tween(AppDesignTokens.Motion.PageMs)) { -it } +
                                 fadeIn(tween(AppDesignTokens.Motion.PageMs))
                         ) togetherWith (
-                            slideOutHorizontally(tween(AppDesignTokens.Motion.PageMs)) { it / 5 } +
-                                fadeOut(tween(AppDesignTokens.Motion.PageMs), targetAlpha = 0.92f)
+                            slideOutHorizontally(tween(AppDesignTokens.Motion.PageMs)) { it } +
+                                fadeOut(tween(AppDesignTokens.Motion.PageMs), targetAlpha = 0f)
                         )
                         initialIsTab && targetIsTab -> fadeIn(tween(AppDesignTokens.Motion.TabMs)) togetherWith
                             fadeOut(tween(AppDesignTokens.Motion.TabMs))
@@ -431,6 +431,10 @@ private fun AirdropHunterApp(
                             onOpenSources = { activeOverlay = AppOverlay.SOURCES },
                             onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
                             onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
+                            onOpenMarketDetail = { symbol ->
+                                selectedMarketSymbol = symbol
+                                activeOverlay = AppOverlay.MARKET_DETAIL
+                            },
                             onOpenProjects = { tab = 2 },
                             onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
                             onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },

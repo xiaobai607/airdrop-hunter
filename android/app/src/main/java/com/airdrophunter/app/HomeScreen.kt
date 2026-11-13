@@ -69,6 +69,7 @@ fun HomeScreen(
     onOpenSources: () -> Unit,
     onOpenWallet: () -> Unit,
     onOpenGlobalSearch: () -> Unit,
+    onOpenMarketDetail: (String) -> Unit = {},
     onOpenProjects: () -> Unit,
     onOpenAirdropCampaigns: () -> Unit = {},
     onOpenTronEnergy: () -> Unit = {},
@@ -126,15 +127,10 @@ fun HomeScreen(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("首页", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
-                Text("Web3 机会与资产管理", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text("空投发现 · 项目任务 · 行情追踪", color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                com.airdrophunter.app.ui.components.AppIconButton(
-                    icon = Icons.Default.Search,
-                    contentDescription = "搜索",
-                    onClick = onOpenGlobalSearch
-                )
                 com.airdrophunter.app.ui.components.AppIconButton(
                     icon = Icons.Default.NotificationsNone,
                     contentDescription = "通知",
@@ -323,17 +319,32 @@ fun HomeScreen(
                 AppTextButton(onClick = {
                     marketSymbolDraft = marketSymbols.toSet()
                     showMarketEditor = true
-                }) { Text("编辑", color = MaterialTheme.colorScheme.primary) }
+                }) { Text("编辑", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium) }
                 AppTextButton(
                     onClick = { homeViewModel.refresh(isGuest) },
                     enabled = !state.isRefreshing,
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                 ) {
                     Text(
                         if (state.isRefreshing) "更新中" else "刷新",
                         color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelSmall
+                        style = MaterialTheme.typography.labelMedium
                     )
+                }
+            }
+            Surface(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
+                    .appPressFeedback(onClick = onOpenGlobalSearch, scale = 1f),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("搜索币种名称或代号", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Card(
@@ -367,7 +378,7 @@ fun HomeScreen(
                             Text("所选币种暂无行情数据", modifier = Modifier.padding(16.dp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                         } else visibleMarket.forEachIndexed { index, ticker ->
-                            MarketRow(ticker)
+                            MarketRow(ticker) { symbol -> onOpenMarketDetail(symbol) }
                             if (index != visibleMarket.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
@@ -601,14 +612,16 @@ private fun FaviconLetter(site: AirdropSite) {
 }
 
 @Composable
-private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker) {
+private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker, onClick: (String) -> Unit) {
     val price = NumberFormat.getNumberInstance(Locale.US).apply {
         minimumFractionDigits = 2
         maximumFractionDigits = 2
     }.format(ticker.lastPrice)
     val change = String.format(Locale.US, "%+.2f%%", ticker.change24hPercent)
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().heightIn(min = 64.dp)
+            .appPressFeedback(onClick = { onClick(ticker.symbol.substringBefore("-").uppercase(Locale.US)) }, scale = 1f)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -682,7 +695,7 @@ private data class HomeDashboardCardSpec(
 private object HomeDashboardLayoutStore {
     private val cardSpecs = mapOf(
         "airdrop_navigation" to HomeDashboardCardSpec(widthFraction = 1f, heightDp = 76),
-        "wallet_management" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
+        "wallet_management" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 120),
         "tron_energy" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "accounting" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
         "project_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104)
