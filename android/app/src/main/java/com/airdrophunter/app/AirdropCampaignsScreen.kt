@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +25,7 @@ import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.StaggeredListItem
 import com.airdrophunter.app.ui.components.AppChip
 
 @Composable
@@ -126,8 +128,9 @@ fun AirdropCampaignsScreen(
                         }
                     }
                 }
-                items(state.items, key = { it.id }) { campaign ->
-                    CampaignCard(campaign) {
+                itemsIndexed(state.items, key = { _, item -> item.id }) { index, campaign ->
+                    StaggeredListItem(campaign.id, index) {
+                        CampaignCard(campaign) {
                         val url = campaign.official_url
                         if (url.isNullOrBlank()) {
                             Toast.makeText(context, "该活动暂未提供已核验的官方链接", Toast.LENGTH_SHORT).show()
@@ -141,6 +144,7 @@ fun AirdropCampaignsScreen(
                             }.onFailure {
                                 Toast.makeText(context, "无法打开活动链接", Toast.LENGTH_SHORT).show()
                             }
+                        }
                         }
                     }
                 }
