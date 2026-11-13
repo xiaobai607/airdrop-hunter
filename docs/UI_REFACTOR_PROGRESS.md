@@ -400,3 +400,15 @@
 - 不修改演示数据来源、真实社区数据、评分统计、Gas/奖励数值与比例、筛选条件、收藏、提交/加入流程和 API。
 - 微社区本机评分的金色星级属于明确的评分符号色，本批不将其错误改成警告/错误色；后续只在设计系统确认统一星级色后再收口。
 - 完成后做静态检查并记录；编译、测试和真机深色验收仍未执行。
+
+
+### 2026-11-13 — 微社区广场主题语义与数据状态区分（代码已落地待验收）
+
+- 文件：`CommunitySquareScreen.kt`。
+- “测试演示数据”徽标改用 `tertiaryContainer/onTertiaryContainer`；“全网真实数据”徽标改用 `secondaryContainer/onSecondaryContainer`，使演示与真实来源有明确但符合主题的视觉区分。
+- 真实评分文字改用主题 `tertiary`；Gas/奖励比例条保留原 gasShare 数值与区间断点，颜色改用主题 `error`（Gas）与 `secondary`（奖励）；标签底板改用 `surfaceVariant`。
+- 已移除本页固定颜色值与不再需要的 Color 导入；保留 AppChip 筛选、StaggeredListItem 错峰、收藏/筛选/项目数据逻辑。
+- 静态核对：无 `Color(0x...)` 硬编码；演示/真实数据徽标、评分、Gas/奖励条和标签均使用 Material 语义色；比例断点和 gasShare 计算保持不变。
+- 微社区个人评分的金色星级暂保留，属于评分符号色而非数据状态色；本批未改该颜色。
+- commits：计划 `0715f751`；广场主题改造 `b8f070e0`。
+- 尚未运行 Gradle 编译、Android 单元测试、CI、APK 或真机深色模式验收；状态保持“代码已落地待验收”。
