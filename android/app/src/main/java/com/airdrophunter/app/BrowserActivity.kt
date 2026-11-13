@@ -21,6 +21,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebChromeClient
+import android.webkit.ConsoleMessage
 import android.webkit.PermissionRequest
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -103,6 +104,10 @@ class BrowserActivity : ComponentActivity() {
         ApiClient.initialize(applicationContext)
         val receivedUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
         Log.d(TAG, "BrowserActivity received host: ${displayHost(receivedUrl)}")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val provider = WebView.getCurrentWebViewPackage()
+            Log.i(TAG, "WebView provider: ${provider?.packageName ?: "unknown"} version=${provider?.versionName ?: "unknown"}")
+        }
         val url = normalizeHttpsUrl(receivedUrl)
         val site = intent.getStringExtra(EXTRA_TITLE).orEmpty()
         if (url == null) {
@@ -809,6 +814,22 @@ private fun BrowserScreen(
                         // Keep third-party cookies disabled by default; do not weaken cross-site privacy globally.
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
                         webChromeClient = object : WebChromeClient() {
+                            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                                val message = consoleMessage ?: return false
+                                if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR ||
+                                    message.messageLevel() == ConsoleMessage.MessageLevel.WARNING
+                                ) {
+                                    // Never log console text or full source URLs: either may contain secrets.
+                                    val sourceHost = runCatching {
+                                        Uri.parse(message.sourceId()).host
+                                    }.getOrNull().orEmpty().ifBlank { "unknown" }
+                                    Log.w(
+                                        "AirdropBrowser",
+                                        "Page console: level=${message.messageLevel()} host=$sourceHost line=${message.lineNumber()}"
+                                    )
+                                }
+                                return false
+                            }
                             override fun onPermissionRequest(request: PermissionRequest?) {
                                 request?.deny()
                             }
@@ -1119,7 +1140,7 @@ private fun BrowserScreen(
 
     if (showWalletPicker) {
         Dialog(onDismissRequest = { showWalletPicker = false }) {
-            Surface(shape = RoundedCornerShape(22.dp), color = Color.White) {
+            Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("选择钱包", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     if (wallets.isEmpty()) Text("尚未保存钱包地址", color = MaterialTheme.colorScheme.onSurfaceVariant)
