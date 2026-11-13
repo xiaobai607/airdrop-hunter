@@ -1,7 +1,7 @@
 package com.airdrophunter.app
 
 import androidx.compose.foundation.background
-import com.airdrophunter.app.ui.components.AppDesignTokens
+import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppButton
 import androidx.compose.foundation.BorderStroke
@@ -18,7 +18,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
