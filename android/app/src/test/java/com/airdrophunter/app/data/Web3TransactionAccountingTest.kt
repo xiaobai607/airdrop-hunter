@@ -125,6 +125,8 @@ class Web3TransactionAccountingTest {
         assertFalse(Web3DraftStatus.canConfirmAccounting(Web3DraftStatus.WAITING_RECEIPT))
         assertTrue(Web3DraftStatus.canConfirmAccounting(Web3DraftStatus.CONFIRMED))
         assertTrue(Web3DraftStatus.canConfirmAccounting(Web3DraftStatus.CONFIRMED_FAILED))
+        assertFalse(Web3DraftStatus.canConfirmAccounting(Web3DraftStatus.ACCOUNTED))
+        assertFalse(Web3DraftStatus.canConfirmAccounting(Web3DraftStatus.CANCELLED))
     }
 
     @Test
