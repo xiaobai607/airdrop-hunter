@@ -162,9 +162,20 @@
 - 保留 HTTPS 强制升级、TLS 证书失败即取消、Safe Browsing、文件/地理位置权限拒绝、第三方 Cookie 默认关闭。
 - 静态检查回调状态与敏感信息边界；本轮不运行最终 APK 构建。浏览器真实站点能否打开仍须设备验收，诊断日志需用户复现后才能确认根因。
 
+### 2026-11-13 — 浏览器诊断与宿主弹窗主题收口
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/BrowserActivity.kt`
+- 新增 WebView provider 包名/版本诊断，便于区分系统 WebView 实现版本；只记录运行环境，不包含网页地址参数或用户数据。
+- 新增网页 Console WARNING/ERROR 级别诊断；只记录日志级别、来源主机和行号，不记录 Console 原文或完整来源 URL，避免泄露页面令牌、查询参数等敏感内容。
+- 钱包选择弹窗改用 Material 主题 Surface，修正此前固定白色导致的深色模式不协调；网页画布白底保留，避免擅自改变第三方网页默认渲染。
+- 安全静态核对：第三方 Cookie 仍关闭、Safe Browsing 仍开启、TLS 证书错误仍直接取消；未放宽文件访问、权限或 DApp origin 规则。
+- 针对性静态检查结果：`{"providerVersionLog":true,"consoleWarningErrorOnly":true,"consoleTextNeverLogged":true,"sourceUrlReducedToHost":true,"thirdPartyCookiesStillOff":true,"tlsStillFailClosed":true,"safeBrowsingStillOn":true,"walletPickerThemeAware":true,"whiteWebCanvasRetained":true}`。
+- 尚未执行 Gradle 编译、自动化测试、APK 构建或真机验收；因此本次仅为诊断能力和宿主主题修正，不能据此宣称网页打不开的问题已解决。需要在设备上复现一次失败站点并读取过滤后的诊断日志，才能继续锁定根因。
+- Commit：`62f3b2763496ded1f3b90e69cfb56b168c6deec8`
+
 ## 6. 变更记录
 
-### 2026-11-13 — P0 浏览器容器与钱包页面专项核对（计划）
+### 2026-11-13 — P0 浏览器容器与钱包页面专项核对（已执行首轮）
 
 - 复核发现 BrowserActivity 的状态栏/导航栏颜色被硬编码为浅色，和系统深色主题不一致；本轮只修复浏览器宿主系统栏的主题适配，不改变网页自身配色、安全策略或钱包交互。
 - 钱包管理和钱包详情已大量接入共享组件，暂不重复包裹现有按钮；本轮以审计现有组件覆盖和发现的真实缺口为主。
