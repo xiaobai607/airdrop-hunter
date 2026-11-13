@@ -103,7 +103,7 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("最新价格", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("$ " + priceFormat.format(value.lastPrice), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)

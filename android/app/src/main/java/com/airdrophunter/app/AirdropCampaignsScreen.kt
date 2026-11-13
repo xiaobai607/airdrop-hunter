@@ -86,7 +86,7 @@ fun AirdropCampaignsScreen(
                     shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
+                    Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("活动目录暂时不可用", color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -122,7 +122,7 @@ fun AirdropCampaignsScreen(
             LazyColumn(
                 Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (state.error != null && state.sourceStatuses.isEmpty()) {
                     item {

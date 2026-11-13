@@ -108,7 +108,7 @@ fun AirdropDiscoveryScreen(
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(state.items, key = { it.id }) { item ->
                     Card(
@@ -185,7 +185,7 @@ private fun AddAirdropDialog(
         text = {
             Column(
                 Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 AppTextField(name, { name = it }, placeholder = "项目名称 *")
                 AppTextField(description, { description = it }, placeholder = "项目简介", singleLine = false)

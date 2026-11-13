@@ -1036,3 +1036,9 @@
 ### 2026-11-14 — 我的页身份区比例微调
 
 - `ProfileScreen.kt`：游客/账户头像由 64dp 收敛到设计规格 56dp；身份名称提升至 Title-2 对应字阶，增强身份区层级，说明文字与数据统计卡片不变。
+
+
+### 2026-11-14 — 10dp 区块间距余项清理
+
+- 复查发现前批有多处文件只替换了首个 10dp 间距；本次补齐 `AirdropCampaignsScreen.kt`、`CoinMarketDetailScreen.kt`、`AirdropDiscoveryScreen.kt` 中所有剩余的 10dp 区块间距，统一为 12dp。
+- 本轮对其余已检查页面再次检索，未发现剩余 9dp/14dp 布局间距；18dp/22dp 命中均为图标或拖拽阴影尺寸，不属于间距栅格。
