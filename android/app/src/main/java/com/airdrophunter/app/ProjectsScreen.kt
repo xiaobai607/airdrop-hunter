@@ -38,6 +38,7 @@ import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppTextField
 import java.util.Locale
 
@@ -146,9 +147,11 @@ fun ProjectsScreen(
         ) {
             Text("库管理", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { selectedFilter = if (selectedFilter == "全部") "进行中" else "全部" }) {
-                Icon(Icons.Default.FolderOpen, "筛选项目", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            AppIconButton(
+                icon = Icons.Default.FolderOpen,
+                contentDescription = "筛选项目",
+                onClick = { selectedFilter = if (selectedFilter == "全部") "进行中" else "全部" }
+            )
         }
 
         Row(
