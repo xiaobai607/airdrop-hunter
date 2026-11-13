@@ -34,7 +34,14 @@ fun ProfileDestinationDialog(destination: ProfileDestination, onDismiss: () -> U
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize()) {
                 TopAppBar(
-                    title = { Text(destination.title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold) },
+                    title = {
+                        Text(
+                            destination.title,
+                            modifier = Modifier.semantics { heading() },
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = onDismiss) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = MaterialTheme.colorScheme.onSurface)
