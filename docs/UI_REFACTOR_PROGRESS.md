@@ -478,3 +478,14 @@
 - Commit：`6dbb876811111b91569735123d7be3adc55a0e86`。
 
 - 后续静态复核补齐 `selected` 语义属性导入并清理该组件未使用的描边导入；修正提交：`5437c78581edfc377c346b404b8538d471e2d742`。这仍是源码检查，不替代 Gradle 编译。
+
+
+### 2026-11-13 — 底部导航边界与无障碍状态补齐（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ui/components/AppBottomBar.kt`。
+- 空导航项列表时直接不渲染，避免 `maxWidth / items.size` 的除零风险。
+- 对外部传入的 `selectedIndex` 做范围约束，避免越界时指示器位置异常；点击回调仍返回用户实际点击的索引。
+- 每个 Tab 增加 TalkBack 可读取的 `selected` 选中语义，保留原有 Tab 角色、56dp 高度、24dp 图标、玻璃底栏、顶部发丝线和 250ms 指示器动画。
+- 未改变导航目的地、Tab 顺序、业务状态或页面层级。
+- 静态核对：空列表提前返回、选中索引约束、选中语义导入和应用、点击索引回调及原动画参数均已检查。尚未运行 Gradle 编译、Android 测试、CI、APK 或真机 TalkBack/窄屏验收。
+- 代码 commit：`e34560584e2a093d6b3cb2c395db7dc723d8273a`。
