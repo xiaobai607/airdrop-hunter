@@ -39,7 +39,6 @@ import com.airdrophunter.app.data.ManualRewardInput
 import com.airdrophunter.app.data.ManualRewardKind
 import com.airdrophunter.app.data.ManualRewardAllocationMode
 import kotlinx.coroutines.launch
-import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
@@ -149,16 +148,16 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         item {
             Card(modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 elevation = CardDefaults.cardElevation(0.dp)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(project.name, color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         if (project.communityDelisted) {
-                            Surface(color = Color(0xFFFFE8E8), shape = RoundedCornerShape(999.dp)) {
+                            Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(999.dp)) {
                                 Text("社区已下架 · 私人模式", Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    color = Color(0xFFB42318), style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold)
                             }
                         }
@@ -613,7 +612,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     Text(
                         if (project.communityDelisted) "该项目已被社区目录明确标记为下架。仍可正常记账、编辑和查看历史；本次及后续新记录只保存在本机，不再贡献公共统计。"
                         else "社区目录项目默认参与脱敏统计；未填写 Tx Hash 的记录按用户自报计入，填写后必须通过链上核验。私人项目只进入个人账本。",
-                        color = if (project.communityDelisted) Color(0xFFB42318) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                        color = if (project.communityDelisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                         style = MaterialTheme.typography.bodySmall)
                     selectedWallets.forEach { wallet ->
                         val selectedNetwork = accountingWalletNetworks[wallet.id].orEmpty()
@@ -931,10 +930,10 @@ private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double?
 
 @Composable
 private fun ProjectMetric(modifier: Modifier = Modifier, label: String, value: Double) {
-    Column(modifier.background(Color(0xFFF1F8F5), RoundedCornerShape(14.dp)).padding(horizontal = 9.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-        Text(String.format(Locale.US, "$%.2f", value), color = Color(0xFF16845B),
+    Column(modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        Text(String.format(Locale.US, "$%.2f", value), color = MaterialTheme.colorScheme.onPrimaryContainer,
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, maxLines = 1)
     }
 }
