@@ -93,7 +93,7 @@ fun AirdropSourceHealthPanel(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Surface(color = chipBackground, shape = RoundedCornerShape(999.dp)) {
+                            Surface(color = chipBackground, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                                 Text(statusLabel, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     color = chipForeground, style = MaterialTheme.typography.labelSmall)
                             }
