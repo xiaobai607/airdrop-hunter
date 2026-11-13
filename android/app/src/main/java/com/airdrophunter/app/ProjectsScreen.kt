@@ -264,14 +264,21 @@ fun ProjectsScreen(
                                 }
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Surface(onClick = {
-                                    when {
-                                        project.communityDelisted -> Toast.makeText(context, "社区已下架，项目仍保留在本地私人模式", Toast.LENGTH_SHORT).show()
-                                        project.communityOfficialId != null -> onOpenCommunity(project)
-                                        else -> Toast.makeText(context, "这是纯本地项目，尚未关联社区标准项目", Toast.LENGTH_SHORT).show()
-                                    }
-                                }, shape = RoundedCornerShape(999.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                                Surface(
+                                    modifier = Modifier.appPressFeedback(
+                                        onClick = {
+                                            when {
+                                                project.communityDelisted -> Toast.makeText(context, "社区已下架，项目仍保留在本地私人模式", Toast.LENGTH_SHORT).show()
+                                                project.communityOfficialId != null -> onOpenCommunity(project)
+                                                else -> Toast.makeText(context, "这是纯本地项目，尚未关联社区标准项目", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        scale = 0.94f
+                                    ),
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                ) {
                                     Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(if (project.communityDelisted) "私人模式" else if (project.communityOfficialId != null) "微社区" else "本地项目", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
