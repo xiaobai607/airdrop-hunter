@@ -50,6 +50,7 @@ import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppTextField
 import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
@@ -523,7 +524,7 @@ fun BrowserAccountingToolbar(
                         placeholder = "TxHash"
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(
+                        AppTextButton(
                             onClick = { showWeb3HashSync = false },
                             modifier = Modifier.weight(1f)
                         ) { Text("取消") }
@@ -568,7 +569,7 @@ fun BrowserAccountingToolbar(
                                 }
                             )
                             Text(option.second, modifier = Modifier.weight(1f), color = AppColors.TextPrimary)
-                            TextButton(
+                            AppTextButton(
                                 enabled = option.first in selectedToolIds && selectedToolIds.indexOf(option.first) > 0,
                                 onClick = {
                                     val index = selectedToolIds.indexOf(option.first)
@@ -577,7 +578,7 @@ fun BrowserAccountingToolbar(
                                     }
                                 }
                             ) { Text("↑") }
-                            TextButton(
+                            AppTextButton(
                                 enabled = option.first in selectedToolIds && selectedToolIds.indexOf(option.first) < selectedToolIds.lastIndex,
                                 onClick = {
                                     val index = selectedToolIds.indexOf(option.first)
@@ -591,9 +592,9 @@ fun BrowserAccountingToolbar(
                     if (selectedToolIds.isEmpty()) Text("至少选择一个工具，或稍后通过默认配置恢复。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
                 }
             },
-            confirmButton = { TextButton(onClick = { showToolManager = false }) { Text("完成") } },
+            confirmButton = { AppTextButton(onClick = { showToolManager = false }) { Text("完成") } },
             dismissButton = {
-                TextButton(onClick = { selectedToolIds = toolOptions.map { it.first } }) { Text("恢复默认") }
+                AppTextButton(onClick = { selectedToolIds = toolOptions.map { it.first } }) { Text("恢复默认") }
             }
         )
     }
@@ -662,7 +663,7 @@ fun BrowserAccountingToolbar(
                                         }
                                         when (draft.status) {
                                             Web3DraftStatus.CONFIRMED, Web3DraftStatus.CONFIRMED_FAILED -> {
-                                                TextButton(onClick = {
+                                                AppTextButton(onClick = {
                                                     scope.launch {
                                                         val bill = runCatching {
                                                             web3Repository.createPendingAccountingBill(draft.id)
@@ -674,10 +675,10 @@ fun BrowserAccountingToolbar(
                                             }
                                             Web3DraftStatus.WAITING_L1_FEE -> {
                                                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                                    TextButton(onClick = {
+                                                    AppTextButton(onClick = {
                                                         com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
                                                     }) { Text("重试核实") }
-                                                    TextButton(onClick = {
+                                                    AppTextButton(onClick = {
                                                         scope.launch {
                                                             val bill = runCatching {
                                                                 web3Repository.createManualReviewBillFromDraft(draft.id)
@@ -690,10 +691,10 @@ fun BrowserAccountingToolbar(
                                             }
                                             Web3DraftStatus.WAITING_OPERATOR_FEE -> {
                                                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                                    TextButton(onClick = {
+                                                    AppTextButton(onClick = {
                                                         com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
                                                     }) { Text("重试核实") }
-                                                    TextButton(onClick = {
+                                                    AppTextButton(onClick = {
                                                         scope.launch {
                                                             val bill = runCatching {
                                                                 web3Repository.createManualReviewBillFromDraft(draft.id)
@@ -707,11 +708,11 @@ fun BrowserAccountingToolbar(
                                             Web3DraftStatus.RECEIPT_NEEDS_SYNC -> {
                                                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                                                     if (com.airdrophunter.app.data.Web3RpcRegistry.endpoint(draft.chainId) != null) {
-                                                        TextButton(onClick = {
+                                                        AppTextButton(onClick = {
                                                             com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
                                                         }) { Text("重试核实") }
                                                     }
-                                                    TextButton(onClick = {
+                                                    AppTextButton(onClick = {
                                                         scope.launch {
                                                             val bill = runCatching {
                                                                 web3Repository.createManualReviewBillFromDraft(draft.id)
@@ -724,7 +725,7 @@ fun BrowserAccountingToolbar(
                                             }
                                             Web3DraftStatus.TIMED_OUT_NEEDS_SYNC -> {
                                                 if (com.airdrophunter.app.data.Web3RpcRegistry.endpoint(draft.chainId) != null) {
-                                                    TextButton(onClick = {
+                                                    AppTextButton(onClick = {
                                                         web3HashSyncDraftId = draft.id
                                                         web3HashSyncInput = ""
                                                         showWeb3HashSync = true
@@ -1068,7 +1069,7 @@ fun BrowserAccountingToolbar(
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    TextButton(onClick = { if (!saving) { activeBill?.let(::discardManualDraft); showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() } }, enabled = !saving,
+                    AppTextButton(onClick = { if (!saving) { activeBill?.let(::discardManualDraft); showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() } }, enabled = !saving,
                         modifier = Modifier.align(Alignment.End)) { Text("取消") }
                 }
             }
