@@ -39,6 +39,9 @@ import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppChip
+import com.airdrophunter.app.ui.components.AppTextField
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppButtonStyle
 import java.time.Instant
 import java.util.Locale
 
@@ -257,29 +260,27 @@ fun CommunitySquareScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("空投库", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                OutlinedButton(
+                AppButton(
+                    text = "提交新空投项目",
                     onClick = { showSubmissionDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("＋ 提交新空投项目")
-                }
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    placeholder = { Text("搜索项目名称、链或标签") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "搜索社区项目") },
-                    trailingIcon = {
-                        if (searchQuery.isNotBlank()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "清除搜索")
-                            }
-                        }
-                    }
+                    style = AppButtonStyle.SECONDARY
                 )
+                Row(
+                    Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant,
+                        RoundedCornerShape(999.dp)).padding(start = 12.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = "搜索社区项目",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = "搜索项目名称、链或标签",
+                        heightDp = 44,
+                        trailingClear = true
+                    )
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedButton(
                         onClick = { showAirdropFilters = true },
@@ -514,20 +515,16 @@ fun CommunitySquareScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("只需填写项目名称和链接。可以是官网，也可以是第三方空投平台的项目详情页。", style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(
+                    AppTextField(
                         value = submissionName,
                         onValueChange = { submissionName = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("项目名称") },
+                        placeholder = "项目名称",
                         enabled = !submittingProject
                     )
-                    OutlinedTextField(
+                    AppTextField(
                         value = submissionUrl,
                         onValueChange = { submissionUrl = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("项目链接（HTTPS）") },
+                        placeholder = "项目链接（HTTPS）",
                         enabled = !submittingProject
                     )
                 }
