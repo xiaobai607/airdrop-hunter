@@ -75,7 +75,7 @@ fun AppBottomBar(
                             scale = AppDesignTokens.Motion.PressButtonScale,
                             role = Role.Tab
                         )
-                        .padding(top = 6.dp),
+                        .padding(top = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top
                 ) {
