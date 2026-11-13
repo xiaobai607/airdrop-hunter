@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
@@ -123,12 +124,19 @@ class MainActivity : ComponentActivity() {
             startupTokenState.value = token
             startupReady = true
         }
-        window.statusBarColor = android.graphics.Color.rgb(248, 249, 250)
-        window.navigationBarColor = android.graphics.Color.rgb(248, 249, 250)
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         setContent {
             AirdropHunterTheme {
+                val darkSystem = isSystemInDarkTheme()
+                SideEffect {
+                    val barColor = if (darkSystem) android.graphics.Color.rgb(18, 18, 20)
+                        else android.graphics.Color.rgb(248, 248, 250)
+                    window.statusBarColor = barColor
+                    window.navigationBarColor = barColor
+                    @Suppress("DEPRECATION")
+                    window.decorView.systemUiVisibility = if (darkSystem) 0 else
+                        android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+                        android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                }
                 val initialToken by remember { startupTokenState }
                 val token by TokenStore.observeToken(applicationContext).collectAsStateWithLifecycle(initialValue = initialToken)
                 // Keep a legacy local namespace stable without treating it as a login session.
@@ -217,8 +225,8 @@ private fun AirdropHunterApp(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize().background(AppColors.Background),
-        containerColor = AppColors.Background,
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             if (showTopBar) {
                 TopAppBar(
@@ -234,14 +242,14 @@ private fun AirdropHunterApp(
                             }
                         )
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background, titleContentColor = AppColors.TextPrimary)
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.onBackground)
                 )
             }
         },
         bottomBar = {
             if (!hasSecondaryDestination) {
                 Box(Modifier.fillMaxWidth().height(80.dp)) {
-                    Box(Modifier.fillMaxSize().blur(12.dp).background(AppColors.Navigation))
+                    Box(Modifier.fillMaxSize().blur(12.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)))
                     AppBottomBar(
                         items = destinations.map { AppNavigationItem(stringResource(it.label), it.icon) },
                         selectedIndex = tab,
@@ -252,7 +260,7 @@ private fun AirdropHunterApp(
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().background(AppColors.Background).padding(padding)) {
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(padding)) {
             when {
                 activeOverlay == AppOverlay.SOURCES -> SourcesScreen(Modifier.fillMaxSize())
                 activeOverlay == AppOverlay.AIRDROP_HUB -> AirdropHubScreen(Modifier.fillMaxSize())
