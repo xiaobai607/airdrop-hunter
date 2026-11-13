@@ -2,8 +2,6 @@ package com.airdrophunter.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,8 +13,9 @@ import kotlinx.coroutines.delay
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 
 /**
- * First-entry list motion: 8dp upward settle + fade, 40ms stagger, capped at six items.
- * Saveable per stable item key so scrolling away and back does not replay the entrance.
+ * Low-cost first-entry motion for lazy lists.
+ * Only the first three visible-order items animate; the rest draw immediately.
+ * Stable saveable keys prevent entrance motion from replaying during ordinary scrolling.
  */
 @Composable
 fun StaggeredListItem(
@@ -24,21 +23,22 @@ fun StaggeredListItem(
     index: Int,
     content: @Composable () -> Unit
 ) {
-    var hasEntered by rememberSaveable(itemKey) { mutableStateOf(false) }
-    LaunchedEffect(itemKey) {
-        if (!hasEntered) {
-            val stagger = index.coerceAtMost(AppDesignTokens.Motion.MaxStaggerItems - 1) *
-                AppDesignTokens.Motion.StaggerMs
+    val shouldAnimate = index in 0 until 3
+    var hasEntered by rememberSaveable(itemKey) { mutableStateOf(!shouldAnimate) }
+
+    if (shouldAnimate && !hasEntered) {
+        LaunchedEffect(itemKey) {
+            val stagger = index.coerceAtMost(2) * AppDesignTokens.Motion.StaggerMs
             delay(stagger.toLong())
             hasEntered = true
         }
-    }
-    AnimatedVisibility(
-        visible = hasEntered,
-        enter = fadeIn(tween(AppDesignTokens.Motion.StandardMs)) +
-            slideInVertically(tween(AppDesignTokens.Motion.StandardMs)) { 8 },
-        exit = fadeOut(tween(AppDesignTokens.Motion.FastMs))
-    ) {
+        AnimatedVisibility(
+            visible = hasEntered,
+            enter = fadeIn(tween(AppDesignTokens.Motion.FastMs))
+        ) {
+            content()
+        }
+    } else {
         content()
     }
 }
