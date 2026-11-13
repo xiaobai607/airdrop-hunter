@@ -19,6 +19,11 @@ def test_binance_is_not_promoted_to_trusted_catalog_provider():
     )
 
 
+def test_dexscreener_default_queries_match_documented_zero_key_config(monkeypatch):
+    monkeypatch.delenv("DEXSCREENER_SEARCH_QUERIES", raising=False)
+    assert airdrop_hub_sync._configured_dexscreener_search_queries() == ["SOL", "ETH", "USDC"]
+
+
 def test_dexscreener_keeps_successful_queries_when_one_term_fails(monkeypatch):
     import asyncio
 
