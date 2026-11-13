@@ -122,7 +122,7 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 snapshot?.coverageNote?.let {
-                    Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
                 if (distribution.isNotEmpty() && selectedNetwork != "bitcoin") {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -156,23 +156,23 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
                 if (displayed.isEmpty() && !loading) {
                     Text(
                         if (allAssets.isEmpty()) "该网络暂未读取到余额" else "没有符合展示条件的资产",
-                        color = AppColors.TextSecondary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 displayed.forEach { asset ->
                     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(asset.symbol, color = AppColors.TextPrimary, modifier = Modifier.weight(1f))
-                            Text(asset.formattedQuantity, color = AppColors.TextPrimary)
+                            Text(asset.symbol, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                            Text(asset.formattedQuantity, color = MaterialTheme.colorScheme.onSurface)
                         }
-                        Text(asset.name, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text(asset.name, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 asset.usdValue?.let { "$" + "%.2f".format(it) } ?: "暂无可靠 USD 报价",
-                                color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.weight(1f)
                             )
-                            if (!asset.isVerified) Text("未核验", color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                            if (!asset.isVerified) Text("未核验", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                             else if (asset.priceUsd == null) Text("未定价", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                         }
                     }
@@ -182,7 +182,7 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
                         "数据来源：" + it.provider + " · " + (if (it.stale) "缓存" else "已更新") +
                             " · " + java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault())
                                 .format(java.util.Date(it.fetchedAt)),
-                        color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
                     )
                 }
             }
