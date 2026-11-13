@@ -263,3 +263,22 @@
 - 现有规则不变：链上回执确认后才进入待确认账单；必须由用户手动输入实际 Gas/收益后才能确认入账；取消链上核验提醒不会改变链上交易状态。
 - 已知限制：当前 `PendingBillEntity` 没有独立保存未确认表单中的实际收益输入字段。因此进程被系统杀死时，手动草稿记录可保留，但尚未确认的表单输入值未保证恢复；本轮未扩展 Room schema，避免未经迁移设计引入数据风险。下一步需设计草稿字段的持久化及迁移测试。
 - 代码 commit：`3df10041`。静态检查已完成；未运行 Gradle、Android tests、backend tests、APK 或真机验收。
+
+
+### 2026-11-13 — 真实记账草稿持久化闭环（模块批次）
+
+- 本批按完整记账模块处理：Room 数据结构、24→25 非破坏性迁移、DAO、当前账户范围保护、repository、表单自动保存/恢复和确认后清理。
+- PendingBillEntity 新增可空 draftFormJson；旧记录迁移后默认为 NULL，不改写既有 Gas、交易哈希、钱包地址或资产拆分数据。
+- 新增 MIGRATION_24_25：仅执行 ALTER TABLE pending_bills ADD COLUMN draftFormJson TEXT；数据库版本从 24 升到 25，保留完整历史迁移链，不启用 destructive migration。
+- 草稿写入通过 accountScope + id 条件更新，只写当前本地 Room 数据；JSON 长度限制 32 KiB。草稿字段包括所选项目、Gas/实际收益输入、原生币数量/币种/精度、L1/L2/运营商费用拆分与估值元数据。
+- 表单字段变更后延迟 400ms 自动保存；重新打开待确认账单时优先恢复用户未确认输入，缺少草稿时回退到已有链上资产拆分/账单 Gas 信息。
+- 个人账本云端同步 payload 不包含 pending 表单草稿；此数据仅在本地 pending_bills 中保存。现有备份快照会随 PendingBillEntity 一并包含该字段，供用户本地备份恢复。
+- 确认入账仍走原有原子 Room transaction：写入正式账本后删除 pending bill，因此草稿字段随待确认记录一起清理；未更改手动输入实际收益（包括必须明确输入 0）、Gas/收益分开记录、社区贡献资格和 Web3 状态规则。
+- 静态核对：本轮修改目标均显式指定工作分支 feature/mobile-browser-home-dock-batch；未运行 Gradle 编译、Room migration instrumentation test、Android tests、backend tests、CI、APK 或真机验收。当前状态为代码已提交、待构建和迁移实测；不能宣称迁移已通过。
+- Commit：本批提交后补录完整 SHA。
+
+## 下一完整模块批次
+
+- 继续推进记账中心页面整体改版与账单历史模块，不重复重做本批草稿持久化。
+- 重点审计：正式账本列表/筛选与日周月统计、实际金额与理论金额区分、Gas/收益原生资产明细、待确认/已确认/失败状态、空/加载/错误态，以及浅深色/窄屏/触感反馈。
+- 仍禁止自动结算、自动确认或用估算结果替代用户输入的实际最终金额。
