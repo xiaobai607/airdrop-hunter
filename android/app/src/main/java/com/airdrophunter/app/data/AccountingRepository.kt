@@ -115,7 +115,10 @@ class AccountingRepository(
         return runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }
             .getOrNull().orEmpty()
             .filterNot(::isDemoPersonalLedgerEntry)
-            .sortedByDescending { it.occurred_at }
+            .distinctBy { it.client_record_id }
+            .sortedByDescending { row ->
+                runCatching { java.time.Instant.parse(row.occurred_at).toEpochMilli() }.getOrDefault(Long.MIN_VALUE)
+            }
     }
 
     suspend fun loadProjects(): List<ProjectDto> {
