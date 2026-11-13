@@ -248,6 +248,10 @@ fun BrowserAccountingToolbar(
     }
 
     fun createManualAccountingEntry() {
+        if (walletAddress.isBlank()) {
+            Toast.makeText(context, "请先在记账中心选择一个钱包，再新增手动账单", Toast.LENGTH_LONG).show()
+            return
+        }
         scope.launch {
             try {
                 val bill = PendingBillEntity(
@@ -1158,19 +1162,65 @@ private fun isValidNativeAssetInput(amount: String, symbol: String, decimals: St
 @Composable
 fun AccountingCenterScreen(
     modifier: Modifier = Modifier,
+    isGuest: Boolean = true,
     onClose: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    var wallets by remember { mutableStateOf<List<WalletDto>>(emptyList()) }
+    var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
+    var isLoadingWallets by remember { mutableStateOf(true) }
+    var walletMenuExpanded by remember { mutableStateOf(false) }
+    var walletLoadError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(application, isGuest) {
+        isLoadingWallets = true
+        walletLoadError = null
+        try {
+            wallets = application.appContainer.walletRepository.load(isGuest)
+            selectedWallet = wallets.firstOrNull()
+        } catch (_: Exception) {
+            wallets = emptyList()
+            selectedWallet = null
+            walletLoadError = "读取钱包失败，请稍后重试"
+        } finally {
+            isLoadingWallets = false
+        }
+    }
+
     Column(
         modifier = modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text("记账", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold)
-        Text("选择一条待确认交易，手动填写最终 Gas 与实际收益。", color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall)
+        Text("选择一条待确认交易，手动填写最终 Gas 与实际收益。新增手动记录前请先选择归属钱包。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        Box {
+            AppButton(
+                text = selectedWallet?.let { "${it.wallet_name} · ${it.chain} · ${shortAddress(it.address)}" }
+                    ?: if (isLoadingWallets) "正在读取钱包…" else "选择记账钱包",
+                onClick = { if (!isLoadingWallets && wallets.isNotEmpty()) walletMenuExpanded = true },
+                enabled = !isLoadingWallets && wallets.isNotEmpty(),
+                style = AppButtonStyle.SECONDARY
+            )
+            DropdownMenu(expanded = walletMenuExpanded, onDismissRequest = { walletMenuExpanded = false }) {
+                wallets.forEach { wallet ->
+                    DropdownMenuItem(
+                        text = { Text("${wallet.wallet_name} · ${wallet.chain} · ${shortAddress(wallet.address)}") },
+                        onClick = { selectedWallet = wallet; walletMenuExpanded = false }
+                    )
+                }
+            }
+        }
+        walletLoadError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        if (!isLoadingWallets && wallets.isEmpty()) {
+            Text("暂无可用钱包。请先到钱包管理添加公开地址；已有待确认记录仍可查看。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        }
         BrowserAccountingToolbar(
-            walletAddress = "",
-            chainName = "unknown",
+            walletAddress = selectedWallet?.address.orEmpty(),
+            chainName = selectedWallet?.chain ?: "unknown",
             onCopyAddress = {},
             onRefreshPage = {},
             onCopyPageUrl = {},
