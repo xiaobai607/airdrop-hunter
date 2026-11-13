@@ -771,3 +771,10 @@
 - `AppBottomBar.kt`、`AirdropSourceHealthPanel.kt`：全圆角指示条/状态胶囊统一使用 Full 令牌。Commits：`f9363bf2e8526819f4a043ccfe17bb75ae0521c4`、`7efefaa6a368ae179120b780367a16e5d17a308a`。
 - `.github/workflows/android-build.yml`：发现原工作流会在每次 Android 源码 push 时自动执行 `assembleDebug`，与“UI 全面完成后再统一构建 APK”的验收顺序冲突。现已拆分为：普通 push/PR 只跑 Android 单元测试；只有手动 workflow_dispatch 才执行 APK 打包。原有自动后端测试保留。Commit：`12670652a695e146a9aa841ffcc0450357ef211a`。
 - 工作流改动之前已启动的一次旧版自动打包任务（run 43448872646）当时仍处于运行中；后续新版本工作流已排队。此任务不由本次手动构建触发，需再核对其最终状态。未来不会因普通 Android 源码 push 自动打包。
+
+
+### 2026-11-13 — 主页面布局编译阻断修复
+
+- CI 的 Android 单元测试任务已启动并实际进入 Kotlin 编译阶段；发现 `MainActivity.kt` 中 AnimatedContent/Scaffold 内容区多余一层右花括号，导致后续记账弹窗声明被解析为顶层代码。
+- 已删除多余闭合括号，保留页面路由、底部导航和记账弹窗原有逻辑。Commit：`99e96a991095daef14e6eec2b398c4815f01f05d`。
+- 首轮检查 run `43449051114` 因该语法错误失败；已提交修复，等待新一轮 CI 验证。APK 打包 job 按策略跳过，没有构建 APK。
