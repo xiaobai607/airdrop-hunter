@@ -131,3 +131,17 @@ def test_recalculation_is_idempotent_when_decision_has_not_changed():
     assert result == {"evaluated": 1, "updated": 0, "publishable": 0, "held": 0}
     assert db.added == []
     assert db.committed is True
+
+
+def test_scoring_input_carries_explicit_official_campaign_source_identity():
+    campaign = _campaign(
+        source_name="binance-crypto-airdrop",
+        campaign_type="airdrop",
+        temperature=None,
+        opportunity_score=None,
+        campaign_status="unknown",
+    )
+    payload = build_campaign_scoring_input(campaign)
+    assert payload["source_name"] == "binance-crypto-airdrop"
+    assert payload["campaign_type"] == "airdrop"
+    assert payload["official_url_verified"] is True
