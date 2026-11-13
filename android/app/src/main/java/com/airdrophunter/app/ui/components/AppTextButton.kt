@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -19,16 +21,18 @@ fun AppTextButton(
     contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
     content: @Composable RowScope.() -> Unit
 ) {
-    Row(
-        modifier = modifier.defaultMinSize(minWidth = 44.dp, minHeight = 44.dp)
-            .appPressFeedback(
-                onClick = onClick,
-                scale = 1f,
-                enabled = enabled,
-                pressedAlpha = 0.6f,
-                role = Role.Button
-            )
-            .padding(contentPadding),
-        content = content
-    )
+    CompositionLocalProvider(LocalContentColor provides androidx.compose.material3.MaterialTheme.colorScheme.primary) {
+        Row(
+            modifier = modifier.defaultMinSize(minWidth = 44.dp, minHeight = 44.dp)
+                .appPressFeedback(
+                    onClick = onClick,
+                    scale = 1f,
+                    enabled = enabled,
+                    pressedAlpha = 0.6f,
+                    role = Role.Button
+                )
+                .padding(contentPadding),
+            content = content
+        )
+    }
 }
