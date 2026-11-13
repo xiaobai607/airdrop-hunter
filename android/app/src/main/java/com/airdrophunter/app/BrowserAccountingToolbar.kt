@@ -1113,10 +1113,10 @@ fun BrowserAccountingToolbar(
                             items(projects, key = { it.id }) { project ->
                                 val selected = selectedProjectLocalId == project.id
                                 Surface(
-                                    modifier = Modifier.fillMaxWidth().clickable {
+                                    modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = {
                                         selectedProjectLocalId = project.id
                                         showProjectPicker = false
-                                    },
+                                    }, scale = 0.96f),
                                     color = if (selected) Color(0xFFE8F3F1) else Color(0xFFF8FAFC),
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(1.dp, if (selected) AppColors.Primary else AppColors.Border)
