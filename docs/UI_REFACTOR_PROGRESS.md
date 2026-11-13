@@ -881,7 +881,7 @@
 
 - `AppDesignTokens.Control.IconHitTarget` 从 44dp 调整为 48dp，`AppIconButton` 统一使用该令牌；图标视觉尺寸保持 24dp 不变，只扩大可点击区域。
 - `AppChip` 最小交互高度从 44dp 提升至 48dp，胶囊本身的视觉高度、圆角、选中颜色和按压反馈不变。
-- `AppButton` 文本样式默认高度从 44dp 提升至 48dp；主按钮仍使用既定 52dp 高度，按钮文字与业务点击逻辑不变。
+- `AppButton` 文本样式默认高度从 44dp 提升至 48dp；主按钮仍使用既定 52dp 高度。`AppTextButton` 的最小宽高也统一为 48dp，避免刷新/清空等轻量操作仍保留 44dp 点击区。按钮文字与业务点击逻辑不变。
 - `ProfileDestinations.kt` 为“应用偏好”“数据与诊断”增加 Compose heading 语义，方便 TalkBack/辅助技术按章节导航；视觉排版不变。
 - 依据 Android 官方 Compose 无障碍建议，交互目标至少 48dp，并为内容分区提供语义信息。源码静态检查已完成；待 Android CI、TalkBack 和真机验收。
 - 不涉及浏览器、悬浮工具栏、钱包页面或业务逻辑；未构建 APK。

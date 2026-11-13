@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
-/** Text-only action with the shared 44dp target, immediate opacity feedback and light haptic. */
+/** Text-only action with the shared 48dp target, immediate opacity feedback and light haptic. */
 @Composable
 fun AppTextButton(
     onClick: () -> Unit,
@@ -25,7 +25,7 @@ fun AppTextButton(
     val actionColor = MaterialTheme.colorScheme.primary
     CompositionLocalProvider(LocalContentColor provides if (enabled) actionColor else actionColor.copy(alpha = 0.42f)) {
         Row(
-            modifier = modifier.defaultMinSize(minWidth = 44.dp, minHeight = 44.dp)
+            modifier = modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                 .appPressFeedback(
                     onClick = onClick,
                     scale = 1f,
