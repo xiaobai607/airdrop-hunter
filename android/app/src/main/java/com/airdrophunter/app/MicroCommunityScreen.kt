@@ -145,8 +145,8 @@ fun MicroCommunityScreen(
     }
 
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(projectName, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("Steam 式真实参与者评价 · 仅星级评分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
@@ -178,7 +178,7 @@ fun MicroCommunityScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(projectName, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("项目数据概览", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text(overallProject?.chain ?: if (isDemoProject) "测试演示项目" else "全网公开统计", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
                     overallProject?.logo?.takeIf { it.isNotBlank() }?.let { logo ->
@@ -199,9 +199,10 @@ fun MicroCommunityScreen(
                 }
 
                 Card(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(
@@ -211,13 +212,13 @@ fun MicroCommunityScreen(
                             listOf("overall" to "总览", "3d" to "近3天", "1h" to "近1小时").forEach { (window, label) ->
                                 val selected = selectedPeriod == window
                                 Surface(
-                                    modifier = Modifier.weight(1f).clickable { selectedPeriod = window },
-                                    color = if (selected) MaterialTheme.colorScheme.tertiary else Color.Transparent,
+                                    modifier = Modifier.weight(1f).heightIn(min = 40.dp).clickable { selectedPeriod = window },
+                                    color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                                     shape = CircleShape
                                 ) {
                                     Box(Modifier.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
-                                        Text(label, color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                        Text(label, color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                                             style = MaterialTheme.typography.labelLarge)
                                     }
                                 }
@@ -274,8 +275,13 @@ fun MicroCommunityScreen(
                         }
                     }
                 }
-            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+            Card(
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("本机已保存的评分", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(
                         if (ratings.isEmpty()) "暂无本机评分记录。当前版本不提交全网评分。"
@@ -291,8 +297,13 @@ fun MicroCommunityScreen(
                     }
                 }
             }
-            Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
+            Card(
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("为这个项目打分", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
