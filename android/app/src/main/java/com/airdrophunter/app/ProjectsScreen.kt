@@ -36,6 +36,7 @@ import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppChip
+import com.airdrophunter.app.ui.components.AppTextField
 import java.util.Locale
 
 @Composable
@@ -326,14 +327,8 @@ fun ProjectsScreen(
             title = { Text("编辑项目", color = AppColors.TextPrimary) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = editProjectName, onValueChange = { editProjectName = it },
-                        label = { Text("项目名称") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editProjectDescription, onValueChange = { editProjectDescription = it },
-                        label = { Text("项目说明") }, modifier = Modifier.fillMaxWidth()
-                    )
+                    AppTextField(editProjectName, { editProjectName = it }, "项目名称")
+                    AppTextField(editProjectDescription, { editProjectDescription = it }, "项目说明", singleLine = false)
                     Text("项目状态", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("tracking" to "进行中", "upcoming" to "待开始", "completed" to "已完成").forEach { (value, label) ->
@@ -344,18 +339,9 @@ fun ProjectsScreen(
                             )
                         }
                     }
-                    OutlinedTextField(
-                        value = editProjectOfficialUrl, onValueChange = { editProjectOfficialUrl = it },
-                        label = { Text("项目官网 HTTPS 链接") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editProjectClaimUrl, onValueChange = { editProjectClaimUrl = it },
-                        label = { Text("资格查询 HTTPS 链接") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editProjectTwitterUrl, onValueChange = { editProjectTwitterUrl = it },
-                        label = { Text("社交链接 HTTPS") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                    )
+                    AppTextField(editProjectOfficialUrl, { editProjectOfficialUrl = it }, "项目官网 HTTPS 链接")
+                    AppTextField(editProjectClaimUrl, { editProjectClaimUrl = it }, "资格查询 HTTPS 链接")
+                    AppTextField(editProjectTwitterUrl, { editProjectTwitterUrl = it }, "社交链接 HTTPS")
                     state.error?.let { Text(it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
                 }
             },
@@ -416,11 +402,7 @@ fun ProjectsScreen(
             title = { Text("选择社区项目", color = AppColors.TextPrimary) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = communitySearchQuery, onValueChange = { communitySearchQuery = it },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        label = { Text("搜索项目名称、链或标签") }
-                    )
+                    AppTextField(communitySearchQuery, { communitySearchQuery = it }, "搜索项目名称、链或标签")
                     if (selectableProjects.isEmpty()) {
                         Text(
                             if (communityDirectory.isEmpty()) "社区目录正在后台准备；联网后会自动更新。你也可以先取消并创建私人项目。"
@@ -466,17 +448,14 @@ fun ProjectsScreen(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = newProjectName, onValueChange = { newProjectName = it },
-                        label = { Text("项目名称") }, singleLine = true, modifier = Modifier.weight(1f)
-                    )
+                    AppTextField(newProjectName, { newProjectName = it }, "项目名称", modifier = Modifier.weight(1f))
                     TextButton(onClick = { communitySearchQuery = ""; showCommunityPicker = true }) {
                         Text(if (selectedCommunityOfficialId == null) "从社区中选择" else "已关联 · 更换")
                     }
                 }
-                OutlinedTextField(newProjectDescription, { newProjectDescription = it }, label = { Text("项目简介") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(newProjectOfficialUrl, { newProjectOfficialUrl = it }, label = { Text("项目官网 HTTPS 链接") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(newProjectClaimUrl, { newProjectClaimUrl = it }, label = { Text("官方资格查询 HTTPS 链接（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                AppTextField(newProjectDescription, { newProjectDescription = it }, "项目简介", singleLine = false)
+                AppTextField(newProjectOfficialUrl, { newProjectOfficialUrl = it }, "项目官网 HTTPS 链接")
+                AppTextField(newProjectClaimUrl, { newProjectClaimUrl = it }, "官方资格查询 HTTPS 链接（可选）")
                 Text("资格查询链接请填写项目方官方页面，不要填写来历不明的第三方链接。",
                     color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 state.error?.let { Text(it, color = AppColors.Danger) }
