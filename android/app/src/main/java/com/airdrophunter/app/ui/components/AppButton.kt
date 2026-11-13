@@ -46,15 +46,15 @@ fun AppButton(
     val shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)
     val active = enabled && !loading
     val background = when (style) {
-        AppButtonStyle.PRIMARY -> if (active) colors.primary else colors.primary.copy(alpha = 0.15f)
+        AppButtonStyle.PRIMARY -> if (active) colors.primary else colors.primary.copy(alpha = 0.18f)
         AppButtonStyle.SECONDARY -> Color.Transparent
         AppButtonStyle.TEXT -> Color.Transparent
-        AppButtonStyle.DANGER -> if (active) colors.error else colors.error.copy(alpha = 0.15f)
+        AppButtonStyle.DANGER -> if (active) colors.error else colors.error.copy(alpha = 0.16f)
     }
     val foreground = when (style) {
-        AppButtonStyle.PRIMARY -> if (active) colors.onPrimary else colors.onSurfaceVariant
+        AppButtonStyle.PRIMARY -> if (active) colors.onPrimary else colors.primary.copy(alpha = 0.82f)
         AppButtonStyle.SECONDARY, AppButtonStyle.TEXT -> if (active) colors.primary else colors.onSurfaceVariant
-        AppButtonStyle.DANGER -> if (active) colors.onError else colors.onSurfaceVariant
+        AppButtonStyle.DANGER -> if (active) colors.onError else colors.error.copy(alpha = 0.82f)
     }
     val border = if (style == AppButtonStyle.SECONDARY && active) colors.primary.copy(alpha = 0.7f) else Color.Transparent
     Box(
