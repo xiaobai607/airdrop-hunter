@@ -56,6 +56,8 @@ import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.GlobalSyncScheduler
 import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
@@ -120,14 +122,14 @@ fun HomeScreen(
 
     Box(Modifier.fillMaxSize()) {
     Column(
-        modifier.fillMaxSize().background(AppColors.Background)
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(13.dp)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("首页", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
-                color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
+            Text("首页", Modifier.weight(1f), style = MaterialTheme.typography.displayLarge,
+                color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
             IconButton(onClick = { showNotifications = true }) {
                 Icon(Icons.Default.NotificationsNone, "通知", tint = AppColors.TextSecondary)
             }
@@ -143,7 +145,8 @@ fun HomeScreen(
                     showMarketEditor = true
                 }) { Text("编辑", color = AppColors.Primary) }
                 Text(if (state.isRefreshing) "更新中" else "刷新",
-                    modifier = Modifier.clickable { homeViewModel.refresh(isGuest) }.padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
+                    modifier = Modifier.appPressFeedback(onClick = { homeViewModel.refresh(isGuest) }, scale = 0.94f)
+                        .padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
                     color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
             }
             Card(
@@ -329,7 +332,6 @@ fun HomeScreen(
                         else -> AppColors.Primary
                     }
                     Card(
-                        onClick = { if (!editingDashboard) openDashboardCard(card.id) },
                         modifier = Modifier
                             .fillMaxWidth(layout.widthFraction)
                             .height(layout.heightDp.dp)
@@ -346,6 +348,11 @@ fun HomeScreen(
                                 }
                             }
                             .zIndex(if (activeDragCard == card.id) 1f else 0f)
+                            .appPressFeedback(
+                                onClick = { if (!editingDashboard) openDashboardCard(card.id) },
+                                scale = 0.96f,
+                                enabled = !editingDashboard
+                            )
                             .then(if (editingDashboard) Modifier.pointerInput(card.id, editingDashboard, dashboardCards) {
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { activeDragCard = card.id; dashboardDragOffset = Offset.Zero },
@@ -376,10 +383,10 @@ fun HomeScreen(
                                     onDragCancel = { activeDragCard = null; dashboardDragOffset = Offset.Zero }
                                 )
                             } else Modifier),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                        border = BorderStroke(1.dp, AppColors.Border),
-                        elevation = CardDefaults.cardElevation(if (activeDragCard == card.id) 5.dp else 1.dp)
+                        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         if (card.id == "airdrop_navigation") {
                             Row(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 10.dp),
@@ -646,7 +653,7 @@ private object HomeDashboardLayoutStore {
         "airdrop_navigation" -> "空投导航"
         "accounting" -> "记账"
         "wallet_management" -> "钱包管理"
-        "tron_energy" -> "⚡ TRON 能量租赁"
+        "tron_energy" -> "TRON 能量租赁"
         "project_library" -> "库管理"
         else -> "快捷入口"
     }
