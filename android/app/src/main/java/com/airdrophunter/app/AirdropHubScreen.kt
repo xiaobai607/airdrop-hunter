@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -31,6 +32,7 @@ import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.StaggeredListItem
 import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import java.text.DateFormat
@@ -106,7 +108,8 @@ fun AirdropHubScreen(
                     Text("${state.projects.size} 条空投公告",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                 }
-                items(state.projects, key = { it.id }) { item ->
+                itemsIndexed(state.projects, key = { _, item -> item.id }) { index, item ->
+                    StaggeredListItem(item.id, index) {
                     Card(
                         modifier = Modifier.fillMaxWidth().appPressFeedback(
                             onClick = { selectedAnnouncement = item }, scale = 0.96f
@@ -144,6 +147,7 @@ fun AirdropHubScreen(
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold)
                         }
+                    }
                     }
                 }
             }
