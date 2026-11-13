@@ -739,3 +739,12 @@
 - 与上一轮一起完成的 `ProjectDetailScreen.kt`、`CommunitySquareScreen.kt`、`MicroCommunityScreen.kt` 已统一引用相同令牌。
 - Commits：`327cd93cf11486447a43f77ac80b31ddbbd93bba`、`f25de47c1daa56762d6b4e31e04b8b5bec395fef`、`b34441e69d2da5a880b8733d81e5da5a8f977de5`、`6cedcbfeba91506073d529f4e8f14e04376b3a43`、`ebd8ff94277dde665c05d2f2b1defc33af5690ca`、`55151dbcd54d3fc1834dfc2caa73fe2ad146dfb2`。
 - 本轮仍未构建 APK 或执行编译/设备验收。
+
+
+### 2026-11-13 — 主导航页面 UI 静态巡检第二轮
+
+- 对 Home、项目管理、项目详情、空投库、官方公告、官方来源、全局搜索、行情详情、微社区、个人中心、能量助手等主要 Compose 页面再次检查。
+- 将全局搜索和官方来源卡片剩余的 14/12/999dp 圆角硬编码统一到 Md/Full 令牌；微型比例条保留 5dp 圆角作为图表细节，不强行套用卡片令牌。
+- 当前上述主要页面未发现残留的 `AppColors` 固定浅色兼容色引用；主要卡片圆角已统一使用 `AppDesignTokens.Radius`。
+- Commits：`da1e83ccdc8b5923e58a1d0187224fe997ab92d3`、`b29cda04bc2d2e46a96c702eca315cdc3d83856d`。
+- 此轮为代码静态巡检，不等同于构建/设备验收。
