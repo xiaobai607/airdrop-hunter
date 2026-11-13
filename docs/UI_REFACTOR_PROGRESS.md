@@ -721,3 +721,12 @@
 - `ProfileScreen.kt`：个人中心用户名限制单行并省略；账户辅助信息最多两行，避免超长用户名/UID 文案破坏顶部身份区布局。
 - Commits：`cb0351c3677f94eddfa6272a867dc44f0332aa03`、`896b76bc9d831641688258d52819826490d40ee1`。
 - 未运行 Gradle、Android tests、CI、APK 或真机检查；此处仅为源码 UI 适配提交。
+
+
+### 2026-11-13 — 项目详情与社区页面圆角令牌统一
+
+- `ProjectDetailScreen.kt`：任务子卡片、账本周期指标及全圆角标签统一引用 `AppDesignTokens.Radius`，移除零散的 15dp/12dp/999dp 形状常量。
+- `CommunitySquareScreen.kt`：全圆角筛选/标签统一引用 Full 令牌，避免页面内重复硬编码。
+- `MicroCommunityScreen.kt`：项目标识容器和全圆角标签改用 Md/Full 令牌。
+- Commits：`eb2242923a44cd150337d301d89ed41a87ea149b`、`f2f595de491736805dbd28b55622305bb82ade05`、`4042250beacf236118328b355334438e4244e9a9`。
+- 这是视觉令牌统一，不改变卡片内容、项目数据、筛选、账本或社区交互。
