@@ -189,7 +189,7 @@ private fun BrowserScreen(
     var webViewGeneration by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
-    var showSecurityBanner by remember(url) { mutableStateOf(true) }
+    var showSecurityBanner by remember(url) { mutableStateOf(shouldShowBrowserSecurityBanner(context)) }
     var approvedOrigin by remember(url) { mutableStateOf(DappProviderBridge.origin(Uri.parse(url))) }
     var pendingNavigationUrl by remember { mutableStateOf<String?>(null) }
     val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
@@ -213,6 +213,7 @@ private fun BrowserScreen(
     LaunchedEffect(showSecurityBanner) {
         if (showSecurityBanner) {
             kotlinx.coroutines.delay(3_000)
+            markBrowserSecurityBannerShown(context)
             showSecurityBanner = false
         }
     }
@@ -1071,6 +1072,24 @@ private fun BrowserScreen(
     }
 }
 
+
+private const val BROWSER_SECURITY_PREFS = "browser_security_notice_v1"
+private const val BROWSER_SECURITY_DATE_KEY = "last_banner_date"
+private const val BROWSER_SECURITY_COUNT_KEY = "banner_show_count"
+
+private fun shouldShowBrowserSecurityBanner(context: Context): Boolean {
+    val preferences = context.getSharedPreferences(BROWSER_SECURITY_PREFS, Context.MODE_PRIVATE)
+    val lastShown = preferences.getString(BROWSER_SECURITY_DATE_KEY, null)
+    return lastShown != LocalDate.now().toString()
+}
+
+private fun markBrowserSecurityBannerShown(context: Context) {
+    val preferences = context.getSharedPreferences(BROWSER_SECURITY_PREFS, Context.MODE_PRIVATE)
+    preferences.edit()
+        .putString(BROWSER_SECURITY_DATE_KEY, LocalDate.now().toString())
+        .putInt(BROWSER_SECURITY_COUNT_KEY, preferences.getInt(BROWSER_SECURITY_COUNT_KEY, 0) + 1)
+        .apply()
+}
 
 private fun displayHost(rawUrl: String): String {
     return runCatching {
