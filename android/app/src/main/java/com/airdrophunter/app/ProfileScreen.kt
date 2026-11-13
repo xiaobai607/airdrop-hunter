@@ -211,7 +211,7 @@ fun ProfileScreen(
 
         if (isGuest) {
             Text(
-                "当前版本暂不开放注册/登录。钱包、项目、任务和个人账本均保存在本机；请定期使用上方备份功能保存数据。",
+                "当前版本暂不开放注册/登录。个人数据同步能力仍在完善中；为避免换机或设备故障造成数据丢失，请定期使用上方加密备份功能保存数据。",
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.bodySmall
             )
