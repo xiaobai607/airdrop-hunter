@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
