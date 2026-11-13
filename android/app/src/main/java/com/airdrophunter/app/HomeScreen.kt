@@ -310,8 +310,22 @@ fun HomeScreen(
                         "wallet_management" -> Icons.Default.AccountBalanceWallet
                         "tron_energy" -> Icons.Default.Shield
                         "accounting" -> Icons.Default.ReceiptLong
-                        "project_library" -> Icons.Default.Search
+                        "project_library" -> Icons.Default.FolderOpen
                         else -> Icons.Default.Search
+                    }
+                    val iconBackground = when (card.id) {
+                        "wallet_management" -> Color(0xFFEAF0FF)
+                        "tron_energy" -> Color(0xFFFFF1E5)
+                        "accounting" -> Color(0xFFF1ECFF)
+                        "project_library" -> Color(0xFFEAF6ED)
+                        else -> Color(0xFFE7F3F2)
+                    }
+                    val iconTint = when (card.id) {
+                        "wallet_management" -> Color(0xFF4267B2)
+                        "tron_energy" -> Color(0xFFCE7B2C)
+                        "accounting" -> Color(0xFF7956B8)
+                        "project_library" -> Color(0xFF38865A)
+                        else -> AppColors.Primary
                     }
                     Card(
                         onClick = { if (!editingDashboard) openDashboardCard(card.id) },
@@ -370,7 +384,7 @@ fun HomeScreen(
                             Row(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(30.dp))
+                                DashboardIconTile(icon, iconBackground, iconTint, 44.dp)
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.SemiBold)
@@ -385,7 +399,7 @@ fun HomeScreen(
                             Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 9.dp),
                                 verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(26.dp))
+                                    DashboardIconTile(icon, iconBackground, iconTint, 42.dp)
                                     Spacer(Modifier.weight(1f))
                                     if (editingDashboard) TextButton(
                                         onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
@@ -576,6 +590,22 @@ private fun ShortcutCard(
             Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
+    }
+}
+
+
+@Composable
+private fun DashboardIconTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    backgroundColor: Color,
+    iconColor: Color,
+    size: androidx.compose.ui.unit.Dp
+) {
+    Box(
+        Modifier.size(size).clip(RoundedCornerShape(14.dp)).background(backgroundColor),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(size * 0.52f))
     }
 }
 
