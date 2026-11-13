@@ -1184,7 +1184,7 @@ private fun BrowserPageOverlay(
                 Icon(Icons.Default.CloudOff, contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(64.dp))
                 Text(
-                    if (errorDetail?.contains("15 秒") == true) "网页加载超时" else "网页无法打开",
+                    if (errorDetail?.contains("30 秒") == true) "网页加载超时" else "网页无法打开",
                     color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.titleLarge
                 )
