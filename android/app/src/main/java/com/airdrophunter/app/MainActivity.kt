@@ -1,6 +1,12 @@
 package com.airdrophunter.app
 
 import android.content.Intent
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.Crossfade
 import android.os.Bundle
@@ -215,6 +221,18 @@ private fun AirdropHunterApp(
         Destination(R.string.tab_projects, Icons.Default.GridView),
         Destination(R.string.tab_profile, Icons.Default.Person)
     )
+    val currentRouteKey = when {
+        activeOverlay == AppOverlay.SOURCES -> "sources"
+        activeOverlay == AppOverlay.AIRDROP_HUB -> "airdrop-hub"
+        activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> "airdrop-campaigns"
+        activeOverlay == AppOverlay.TRON_ENERGY -> "tron-energy"
+        activeOverlay == AppOverlay.GLOBAL_SEARCH -> "global-search"
+        activeOverlay == AppOverlay.MARKET_DETAIL -> "market-detail"
+        activeOverlay == AppOverlay.WALLET_MANAGER -> "wallet-manager"
+        selectedCommunityProject != null -> "community:${selectedCommunityProject!!.id}"
+        selectedProject != null -> "project:${selectedProject!!.id}"
+        else -> "tab:$tab"
+    }
     val secondaryTitle = when {
         activeOverlay == AppOverlay.SOURCES -> stringResource(R.string.sources_title)
         activeOverlay == AppOverlay.AIRDROP_HUB -> "空投发现"
@@ -275,125 +293,151 @@ private fun AirdropHunterApp(
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(padding)) {
-            when {
-                activeOverlay == AppOverlay.SOURCES -> SourcesScreen(Modifier.fillMaxSize())
-                activeOverlay == AppOverlay.AIRDROP_HUB -> AirdropHubScreen(Modifier.fillMaxSize())
-                activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> AirdropCampaignsScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    onOpenBinanceOfficial = { activeOverlay = AppOverlay.AIRDROP_HUB }
-                )
-                activeOverlay == AppOverlay.TRON_ENERGY -> TronEnergyAssistantScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    onBack = { activeOverlay = AppOverlay.NONE },
-                    onOpenBrowser = { address ->
-                        activeOverlay = AppOverlay.NONE
-                        context.startActivity(Intent(context, BrowserActivity::class.java)
-                            .putExtra(BrowserActivity.EXTRA_URL, "https://feee.io/")
-                            .putExtra(BrowserActivity.EXTRA_TITLE, "TRON 能量租赁")
-                            .putExtra(BrowserActivity.EXTRA_QUICK_COPY_ADDRESS, address))
-                    }
-                )
-                activeOverlay == AppOverlay.GLOBAL_SEARCH -> GlobalSearchScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    onCancel = { activeOverlay = AppOverlay.NONE },
-                    onCoinSelected = { symbol ->
-                        selectedMarketSymbol = symbol
-                        activeOverlay = AppOverlay.MARKET_DETAIL
-                    },
-                    onDappSelected = { name, url ->
-                        activeOverlay = AppOverlay.NONE
-                        context.startActivity(
-                            Intent(context, BrowserActivity::class.java)
-                                .putExtra(BrowserActivity.EXTRA_URL, url)
-                                .putExtra(BrowserActivity.EXTRA_TITLE, name)
+            AnimatedContent(
+                targetState = currentRouteKey,
+                transitionSpec = {
+                    val initialIsTab = initialState.startsWith("tab:")
+                    val targetIsTab = targetState.startsWith("tab:")
+                    when {
+                        initialIsTab && !targetIsTab -> (
+                            slideInHorizontally(tween(AppDesignTokens.Motion.PageMs)) { it / 3 } +
+                                fadeIn(tween(AppDesignTokens.Motion.PageMs))
+                        ) togetherWith (
+                            slideOutHorizontally(tween(AppDesignTokens.Motion.ExitMs)) { -it / 8 } +
+                                fadeOut(tween(AppDesignTokens.Motion.ExitMs))
                         )
+                        !initialIsTab && targetIsTab -> (
+                            slideInHorizontally(tween(AppDesignTokens.Motion.PageMs)) { -it / 3 } +
+                                fadeIn(tween(AppDesignTokens.Motion.PageMs))
+                        ) togetherWith (
+                            slideOutHorizontally(tween(AppDesignTokens.Motion.ExitMs)) { it / 8 } +
+                                fadeOut(tween(AppDesignTokens.Motion.ExitMs))
+                        )
+                        else -> fadeIn(tween(AppDesignTokens.Motion.StandardMs)) togetherWith
+                            fadeOut(tween(AppDesignTokens.Motion.StandardMs))
                     }
-                )
-                activeOverlay == AppOverlay.MARKET_DETAIL -> CoinMarketDetailScreen(
-                    symbol = selectedMarketSymbol,
-                    modifier = Modifier.fillMaxSize()
-                )
-                activeOverlay == AppOverlay.WALLET_MANAGER -> WalletManagerScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    isGuest = isGuest,
-                    sessionScopeKey = sessionScopeKey,
-                    onOpenBrowser = { url, selectedWallet, wallets, title ->
-                        val walletJson = JSONArray().apply {
-                            wallets.forEach { wallet ->
-                                put(JSONObject()
-                                    .put("id", wallet.id)
-                                    .put("chain", wallet.chain)
-                                    .put("network_icon", wallet.network_icon)
-                                    .put("wallet_name", wallet.wallet_name)
-                                    .put("address", wallet.address))
-                            }
-                        }.toString()
-                        context.startActivity(Intent(context, BrowserActivity::class.java)
-                            .putExtra(BrowserActivity.EXTRA_URL, url)
-                            .putExtra(BrowserActivity.EXTRA_TITLE, title)
-                            .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, walletJson)
-                            .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, selectedWallet.id))
-                    }
-                )
-                selectedCommunityProject != null -> MicroCommunityScreen(
-                    projectOfficialId = selectedCommunityProject!!.officialIdentifier(),
-                    projectName = selectedCommunityProject!!.name,
-                    modifier = Modifier.fillMaxSize(),
-                    isGuest = isGuest,
-                    sessionScopeKey = sessionScopeKey
-                )
-                selectedProject != null -> ProjectDetailScreen(
-                    selectedProject!!,
-                    Modifier.fillMaxSize(),
-                    isGuest,
-                    onOpenCommunity = { selectedCommunityProject = it },
-                    sessionScopeKey = sessionScopeKey
-                )
-                else -> Crossfade(
-                    targetState = tab,
-                    animationSpec = tween(AppDesignTokens.Motion.StandardMs),
-                    label = "main-tab-crossfade"
-                ) { targetTab ->
-                    tabStateHolder.SaveableStateProvider("bottom-tab-$targetTab") {
-                        when (targetTab) {
-                            0 -> HomeScreen(
-                                modifier = Modifier.fillMaxSize(),
-                                onOpenSources = { activeOverlay = AppOverlay.SOURCES },
-                                onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
-                                onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
-                                onOpenProjects = { tab = 2 },
-                                onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
-                                onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
-                                onOpenAccounting = { showAccountingSheet = true },
-                                isGuest = isGuest,
-                                onRequireAuth = onRequireAuth,
-                                sessionScopeKey = sessionScopeKey
-                            )
-                            1 -> CommunitySquareScreen(
-                                modifier = Modifier.fillMaxSize(),
-                                onProjectSelected = { id, name, description ->
-                                    selectedCommunityProject = ProjectDto("community:$id", name, description, "tracking", communityOfficialId = id)
-                                }
-                            )
-                            2 -> ProjectsScreen(
-                                Modifier.fillMaxSize(),
-                                { selectedProject = it },
-                                isGuest,
-                                onRequireAuth,
-                                onOpenCommunity = { selectedCommunityProject = it },
-                                sessionScopeKey = sessionScopeKey
-                            )
-                            else -> ProfileScreen(
-                                Modifier.fillMaxSize(),
-                                onLogout,
-                                isGuest,
-                                onRequireAuth,
-                                onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER },
-                                sessionScopeKey = sessionScopeKey
+                },
+                label = "app-page-transition"
+            ) { route ->
+                when {
+                    route == "sources" -> SourcesScreen(Modifier.fillMaxSize())
+                    route == "airdrop-hub" -> AirdropHubScreen(Modifier.fillMaxSize())
+                    route == "airdrop-campaigns" -> AirdropCampaignsScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onOpenBinanceOfficial = { activeOverlay = AppOverlay.AIRDROP_HUB }
+                    )
+                    route == "tron-energy" -> TronEnergyAssistantScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onBack = { activeOverlay = AppOverlay.NONE },
+                        onOpenBrowser = { address ->
+                            activeOverlay = AppOverlay.NONE
+                            context.startActivity(Intent(context, BrowserActivity::class.java)
+                                .putExtra(BrowserActivity.EXTRA_URL, "https://feee.io/")
+                                .putExtra(BrowserActivity.EXTRA_TITLE, "TRON 能量租赁")
+                                .putExtra(BrowserActivity.EXTRA_QUICK_COPY_ADDRESS, address))
+                        }
+                    )
+                    route == "global-search" -> GlobalSearchScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onCancel = { activeOverlay = AppOverlay.NONE },
+                        onCoinSelected = { symbol ->
+                            selectedMarketSymbol = symbol
+                            activeOverlay = AppOverlay.MARKET_DETAIL
+                        },
+                        onDappSelected = { name, url ->
+                            activeOverlay = AppOverlay.NONE
+                            context.startActivity(
+                                Intent(context, BrowserActivity::class.java)
+                                    .putExtra(BrowserActivity.EXTRA_URL, url)
+                                    .putExtra(BrowserActivity.EXTRA_TITLE, name)
                             )
                         }
+                    )
+                    route == "market-detail" -> CoinMarketDetailScreen(
+                        symbol = selectedMarketSymbol,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    route == "wallet-manager" -> WalletManagerScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        isGuest = isGuest,
+                        sessionScopeKey = sessionScopeKey,
+                        onOpenBrowser = { url, selectedWallet, wallets, title ->
+                            val walletJson = JSONArray().apply {
+                                wallets.forEach { wallet ->
+                                    put(JSONObject()
+                                        .put("id", wallet.id)
+                                        .put("chain", wallet.chain)
+                                        .put("network_icon", wallet.network_icon)
+                                        .put("wallet_name", wallet.wallet_name)
+                                        .put("address", wallet.address))
+                                }
+                            }.toString()
+                            context.startActivity(Intent(context, BrowserActivity::class.java)
+                                .putExtra(BrowserActivity.EXTRA_URL, url)
+                                .putExtra(BrowserActivity.EXTRA_TITLE, title)
+                                .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, walletJson)
+                                .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, selectedWallet.id))
+                        }
+                    )
+                    route.startsWith("community:") -> MicroCommunityScreen(
+                        projectOfficialId = selectedCommunityProject!!.officialIdentifier(),
+                        projectName = selectedCommunityProject!!.name,
+                        modifier = Modifier.fillMaxSize(),
+                        isGuest = isGuest,
+                        sessionScopeKey = sessionScopeKey
+                    )
+                    route.startsWith("project:") -> ProjectDetailScreen(
+                        selectedProject!!,
+                        Modifier.fillMaxSize(),
+                        isGuest,
+                        onOpenCommunity = { selectedCommunityProject = it },
+                        sessionScopeKey = sessionScopeKey
+                    )
+                    route == "tab:0" -> tabStateHolder.SaveableStateProvider("bottom-tab-0") {
+                        HomeScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            onOpenSources = { activeOverlay = AppOverlay.SOURCES },
+                            onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
+                            onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
+                            onOpenProjects = { tab = 2 },
+                            onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
+                            onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
+                            onOpenAccounting = { showAccountingSheet = true },
+                            isGuest = isGuest,
+                            onRequireAuth = onRequireAuth,
+                            sessionScopeKey = sessionScopeKey
+                        )
+                    }
+                    route == "tab:1" -> tabStateHolder.SaveableStateProvider("bottom-tab-1") {
+                        CommunitySquareScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            onProjectSelected = { id, name, description ->
+                                selectedCommunityProject = ProjectDto("community:$id", name, description, "tracking", communityOfficialId = id)
+                            }
+                        )
+                    }
+                    route == "tab:2" -> tabStateHolder.SaveableStateProvider("bottom-tab-2") {
+                        ProjectsScreen(
+                            Modifier.fillMaxSize(),
+                            { selectedProject = it },
+                            isGuest,
+                            onRequireAuth,
+                            onOpenCommunity = { selectedCommunityProject = it },
+                            sessionScopeKey = sessionScopeKey
+                        )
+                    }
+                    else -> tabStateHolder.SaveableStateProvider("bottom-tab-3") {
+                        ProfileScreen(
+                            Modifier.fillMaxSize(),
+                            onLogout,
+                            isGuest,
+                            onRequireAuth,
+                            onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER },
+                            sessionScopeKey = sessionScopeKey
+                        )
                     }
                 }
+            }
             }
         }
     }
