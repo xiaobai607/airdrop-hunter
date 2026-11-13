@@ -24,7 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
-import com.airdrophunter.app.ui.components.AppTextButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -39,7 +38,6 @@ fun WalletDetailScreen(
 ) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
-    var showAssetDialog by remember(wallet.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -58,7 +56,6 @@ fun WalletDetailScreen(
                     style = MaterialTheme.typography.labelSmall
                 )
             }
-            AppTextButton(onClick = { showAssetDialog = true }) { Text("资产", color = MaterialTheme.colorScheme.primary) }
             AppIconButton(Icons.Default.ContentCopy, "复制地址", onClick = {
                 clipboard.setText(AnnotatedString(wallet.address))
                 android.widget.Toast.makeText(context, "已复制钱包地址", android.widget.Toast.LENGTH_SHORT).show()
@@ -66,7 +63,6 @@ fun WalletDetailScreen(
         }
         WalletActivityPanel(wallet, Modifier.weight(1f), isGuest)
     }
-    if (showAssetDialog) WalletAssetDetailDialog(wallet = wallet, onDismiss = { showAssetDialog = false })
 }
 
 @Composable
