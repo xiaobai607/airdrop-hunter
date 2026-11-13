@@ -288,12 +288,7 @@ fun CommunitySquareScreen(
                     ) {
                         Text(if (airdropFilterSelection.selectedCount == 0) "筛选空投条件" else "筛选空投条件 · ${airdropFilterSelection.selectedCount}")
                     }
-                    FilterChip(
-                        selected = favoritesOnly,
-                        onClick = { favoritesOnly = !favoritesOnly },
-                        label = { Text("我的收藏") },
-                        shape = RoundedCornerShape(999.dp)
-                    )
+                    AppChip("我的收藏", favoritesOnly, onClick = { favoritesOnly = !favoritesOnly })
                 }
                 Surface(color = if (useDemoData) Color(0xFFFFF4E5) else Color(0xFFE8F7EF), shape = RoundedCornerShape(999.dp)) {
                     Text(
@@ -305,9 +300,9 @@ fun CommunitySquareScreen(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (BuildConfig.DEBUG) {
-                        FilterChip(selected = useDemoData, onClick = { useDemoData = true }, label = { Text("测试演示") })
+                        AppChip("测试演示", useDemoData, onClick = { useDemoData = true })
                     }
-                    FilterChip(selected = !useDemoData, onClick = { useDemoData = false }, label = { Text("全网真实") })
+                    AppChip("全网真实", !useDemoData, onClick = { useDemoData = false })
                 }
             }
         }
@@ -491,10 +486,10 @@ fun CommunitySquareScreen(
                                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     optionRow.forEach { option ->
                                         val selected = option.value in airdropFilterSelection.values[group.key].orEmpty()
-                                        FilterChip(
+                                        AppChip(
+                                            text = option.label,
                                             selected = selected,
-                                            onClick = { airdropFilterSelection = airdropFilterSelection.toggle(group.key, option.value) },
-                                            label = { Text(option.label, maxLines = 1, style = MaterialTheme.typography.labelSmall) }
+                                            onClick = { airdropFilterSelection = airdropFilterSelection.toggle(group.key, option.value) }
                                         )
                                     }
                                 }
