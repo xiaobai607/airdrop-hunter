@@ -587,7 +587,7 @@ private fun FaviconTile(site: AirdropSite, modifier: Modifier = Modifier) {
     SubcomposeAsyncImage(
         model = if (useFallback) fallbackUrl else primaryUrl,
         contentDescription = site.name,
-        modifier = modifier.clip(RoundedCornerShape(8.dp)),
+        modifier = modifier.clip(RoundedCornerShape(AppDesignTokens.Radius.Sm.dp)),
         contentScale = ContentScale.Fit,
         loading = { FaviconLetter(site) },
         error = {
@@ -601,7 +601,7 @@ private fun FaviconTile(site: AirdropSite, modifier: Modifier = Modifier) {
 
 @Composable
 private fun FaviconLetter(site: AirdropSite) {
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp)),
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Sm.dp)),
         contentAlignment = Alignment.Center) {
         Text(site.name.take(1).uppercase(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
     }
@@ -666,7 +666,7 @@ private fun DashboardIconTile(
     size: androidx.compose.ui.unit.Dp
 ) {
     Box(
-        Modifier.size(size).clip(RoundedCornerShape(14.dp)).background(backgroundColor),
+        Modifier.size(size).clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(size * 0.52f))
