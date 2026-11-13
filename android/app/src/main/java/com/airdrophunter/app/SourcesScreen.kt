@@ -13,10 +13,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.Color
 import coil.compose.SubcomposeAsyncImage
 import com.airdrophunter.app.data.AirdropSiteStore
-import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
 
 @Composable
 fun SourcesScreen(modifier: Modifier = Modifier) {
@@ -29,13 +28,15 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
     ) {
         items(sources, key = { it.id }) { source ->
             Card(
-                onClick = {
-                    context.startActivity(Intent(context, BrowserActivity::class.java)
-                        .putExtra(BrowserActivity.EXTRA_URL, source.url)
-                        .putExtra(BrowserActivity.EXTRA_TITLE, source.name))
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().appPressFeedback(
+                    onClick = {
+                        context.startActivity(Intent(context, BrowserActivity::class.java)
+                            .putExtra(BrowserActivity.EXTRA_URL, source.url)
+                            .putExtra(BrowserActivity.EXTRA_TITLE, source.name))
+                    },
+                    scale = 0.96f
+                ),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(0.dp)
@@ -45,7 +46,7 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Surface(Modifier.size(42.dp), shape = RoundedCornerShape(12.dp), color = Color(0xFFF3F5F7)) {
+                    Surface(Modifier.size(42.dp), shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                         SubcomposeAsyncImage(
                             model = "https://www.google.com/s2/favicons?domain=${source.domain}&sz=128",
                             contentDescription = source.name,
