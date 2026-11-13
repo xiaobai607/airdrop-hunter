@@ -324,6 +324,7 @@ async def _fetch_binance_article_detail_with_client(
     response = await client.get(
         BINANCE_CMS_DETAIL_SOURCE,
         params={"articleCode": safe_code},
+        timeout=httpx.Timeout(8.0),
         headers={
             "Origin": "https://www.binance.com",
             "clienttype": "web",
@@ -1061,13 +1062,16 @@ async def _upsert_source_records(db: AsyncSession, source_name: str, source_url:
             status = "stale"
             error_code = "source_payload_stale_or_timestamp_invalid"
             raise RuntimeError("source payload contains generatedAt/updatedAt older than 7 days")
+        campaign_detail_attempts = 0
         for record in records:
             campaign_detail = None
             if (
                 source_name == "binance-announcements"
                 and record.get("catalog_id") == 128
                 and str(record.get("catalog_name") or "").strip().casefold() == "crypto airdrop"
+                and campaign_detail_attempts < 12
             ):
+                campaign_detail_attempts += 1
                 article_code = str(record.get("source_key") or "").removeprefix("binance:")
                 try:
                     campaign_detail = await _fetch_binance_article_detail_with_client(
