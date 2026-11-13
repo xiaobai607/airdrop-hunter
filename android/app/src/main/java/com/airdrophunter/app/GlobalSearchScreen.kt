@@ -284,7 +284,11 @@ fun GlobalSearchScreen(
             }
             when (category) {
                 SearchCategory.COIN -> if (coinResults.isEmpty()) {
-                    Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的币种", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
+                    SearchResultPlaceholder(
+                        loading = isSearching,
+                        title = if (isSearching) "正在查找币种" else if (searchError != null) "币种目录暂时不可用" else "没有找到匹配的币种",
+                        description = if (isSearching) "正在合并本地缓存与远程搜索结果…" else searchError ?: "试试更短的名称、代号或合约地址。"
+                    )
                 } else coinResults.forEachIndexed { index, coin ->
                     val delay = index.coerceAtMost(AppDesignTokens.Motion.MaxStaggerItems - 1) *
                         AppDesignTokens.Motion.StaggerMs
@@ -297,7 +301,11 @@ fun GlobalSearchScreen(
                     }
                 }
                 SearchCategory.DAPP -> if (dappResults.isEmpty()) {
-                    Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的 DApp", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
+                    SearchResultPlaceholder(
+                        loading = isSearching,
+                        title = if (isSearching) "正在查找 DApp" else if (searchError != null) "DApp 目录暂时不可用" else "没有找到匹配的 DApp",
+                        description = if (isSearching) "正在检索本地目录与已缓存的项目数据…" else searchError ?: "试试项目名称、所属链或相关标签。"
+                    )
                 } else dappResults.forEachIndexed { index, project ->
                     val delay = index.coerceAtMost(AppDesignTokens.Motion.MaxStaggerItems - 1) *
                         AppDesignTokens.Motion.StaggerMs
@@ -312,6 +320,43 @@ fun GlobalSearchScreen(
             }
             if (searchError != null && (coinResults.isNotEmpty() || dappResults.isNotEmpty())) {
                 Text(searchError.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultPlaceholder(
+    loading: Boolean,
+    title: String,
+    description: String
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(Icons.Default.Search, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall)
             }
         }
     }
