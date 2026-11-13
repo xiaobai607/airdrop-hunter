@@ -234,16 +234,16 @@ fun ProjectsScreen(
                                 if (project.communityDelisted || showAccountingReminder) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                         if (project.communityDelisted) {
-                                            Surface(color = Color(0xFFFFE8E8), shape = RoundedCornerShape(999.dp)) {
+                                            Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(999.dp)) {
                                                 Text("社区已下架", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                                    color = Color(0xFFB42318), style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.SemiBold)
                                             }
                                         }
                                         if (showAccountingReminder) {
-                                            Surface(color = Color(0xFFFFF4E5), shape = RoundedCornerShape(999.dp)) {
+                                            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = RoundedCornerShape(999.dp)) {
                                                 Text("待记账", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                                    color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.SemiBold)
                                             }
                                         }
@@ -271,18 +271,18 @@ fun ProjectsScreen(
                                         else -> Toast.makeText(context, "这是纯本地项目，尚未关联社区标准项目", Toast.LENGTH_SHORT).show()
                                     }
                                 }, shape = RoundedCornerShape(999.dp),
-                                    color = Color(0xFFFFF4E5), border = BorderStroke(1.dp, Color(0xFFFFD9A8))) {
+                                    color = MaterialTheme.colorScheme.surfaceVariant, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                                     Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(if (project.communityDelisted) "私人模式" else if (project.communityOfficialId != null) "微社区" else "本地项目", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        Text(if (project.communityDelisted) "私人模式" else if (project.communityOfficialId != null) "微社区" else "本地项目", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         if (!project.communityDelisted && project.communityOfficialId != null && communityAverage != null) {
-                                            Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
-                                            Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12),
+                                            Icon(Icons.Default.Star, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(13.dp))
+                                            Text(String.format(Locale.US, "%.1f", communityAverage), color = MaterialTheme.colorScheme.tertiary,
                                                 style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
-                                Text(communityLabel, color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
+                                Text(communityLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                             }
                             if (state.projects.any { it.id == project.id }) {
                                 Box {
