@@ -467,7 +467,6 @@ private fun AirdropHunterApp(
                     }
                 }
             }
-            }
         }
     }
     if (showAccountingSheet) {
