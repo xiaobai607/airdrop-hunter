@@ -25,6 +25,21 @@ class FeatureRepositoryTest {
     }
 
     @Test
+    fun hubRepositoryLoadsPublicSourceHealth() = runBlocking {
+        val expected = listOf(
+            AirdropHubSourceStatusDto(
+                source_name = "binance-announcements",
+                label = "Binance 官方公告",
+                enabled = true,
+                status = "success",
+                last_item_count = 12
+            )
+        )
+        val remote = FakeHubRemote().apply { sourceStatuses = expected }
+        assertEquals(expected, AirdropHubRepository(remote).loadSourceStatuses())
+    }
+
+    @Test
     fun hubRepositorySchedulesInitialSyncAfterReturningServerList() = runBlocking {
         val remote = FakeHubRemote()
         val repository = AirdropHubRepository(
@@ -138,6 +153,7 @@ private class FakeHubRemote : AirdropHubRemoteDataSource {
     var syncCalls = 0
     var lastChain: String? = null
     var status = AirdropHubSyncStatusDto()
+    var sourceStatuses = emptyList<AirdropHubSourceStatusDto>()
     private val items = listOf(AirdropHubDto("1", "Example", "Base", "desc", "active", "https://example.org"))
     override suspend fun getProjects(chain: String?): List<AirdropHubDto> {
         lastChain = chain
@@ -145,6 +161,7 @@ private class FakeHubRemote : AirdropHubRemoteDataSource {
         return if (chain == null) items else items.filter { it.chain == chain }
     }
     override suspend fun getStatus() = status
+    override suspend fun getSourceStatuses() = sourceStatuses
     override suspend fun sync(): AirdropHubRefreshResponse {
         syncCalls++
         return AirdropHubRefreshResponse(true, items.size, status)
