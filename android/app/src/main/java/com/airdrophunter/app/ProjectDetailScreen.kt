@@ -559,16 +559,20 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     }
                     var rewardMenuExpanded by remember { mutableStateOf(false) }
                     Box {
-                        OutlinedButton(onClick = { rewardMenuExpanded = true }, enabled = !isSavingAccounting) {
-                            Text("奖励类型：" + when (accountingRewardKind) {
+                        AppButton(
+                            text = "奖励类型：" + when (accountingRewardKind) {
                                 ManualRewardKind.USD -> "USD"
                                 ManualRewardKind.TOKEN -> "代币"
                                 ManualRewardKind.MANUAL_USD_VALUATION -> "手动 USD 估值"
                                 ManualRewardKind.POINTS -> "积分"
                                 ManualRewardKind.UNISSUED -> "未发放"
                                 ManualRewardKind.UNKNOWN -> "未知"
-                            })
-                        }
+                            },
+                            onClick = { rewardMenuExpanded = true },
+                            enabled = !isSavingAccounting,
+                            style = AppButtonStyle.SECONDARY,
+                            fullWidth = false, heightDp = 44, fontSizeSp = 13
+                        )
                         DropdownMenu(expanded = rewardMenuExpanded, onDismissRequest = { rewardMenuExpanded = false }) {
                             ManualRewardKind.values().forEach { kind ->
                                 DropdownMenuItem(
@@ -785,7 +789,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     Text("将使用所选钱包的公开地址打开项目资格页面，不会自动签名或发送交易。",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     claimWallets.forEach { wallet ->
-                        OutlinedButton(modifier = Modifier.fillMaxWidth(), enabled = !state.isClaimLoading, onClick = {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = {
                             showClaimWalletPicker = false
                             if (isGuest) {
                                 val parsed = runCatching { Uri.parse(project.claim_url) }.getOrNull()
@@ -798,8 +803,13 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                         .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取"))
                                 } else Toast.makeText(context, "领取链接无效", Toast.LENGTH_LONG).show()
                             } else projectDetailViewModel.requestClaimUrl(project.id, wallet.id)
-                        }) {
-                            Column(Modifier.fillMaxWidth()) {
+                        }, scale = 0.96f, enabled = !state.isClaimLoading),
+                            shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            elevation = CardDefaults.cardElevation(0.dp)
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp)) {
                                 Text(wallet.wallet_name.ifBlank { "钱包" }, color = MaterialTheme.colorScheme.onSurface)
                                 Text("${wallet.ecosystem} · ${wallet.address.take(8)}…${wallet.address.takeLast(5)}",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
