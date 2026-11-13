@@ -31,6 +31,7 @@ import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppButtonStyle
 import java.text.DateFormat
 import java.time.Instant
 import java.util.Date
@@ -67,7 +68,7 @@ fun AirdropHubScreen(
                 color = AppColors.TextHelper,
                 style = MaterialTheme.typography.bodySmall
             )
-            AppAppTextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
+            AppTextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
                 Text(if (state.isRefreshing) "刷新中…" else "刷新", color = AppColors.Primary)
             }
         }
@@ -207,7 +208,7 @@ private fun AirdropAnnouncementDetail(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(error ?: "公告正文暂不可用", color = AppColors.TextSecondary)
-                OutlinedButton(onClick = { reloadKey += 1 }) { Text("重新加载") }
+                AppButton("重新加载", onClick = { reloadKey += 1 }, style = AppButtonStyle.SECONDARY)
             }
             else -> {
                 detail!!.release_date?.let { timestamp ->
@@ -277,10 +278,14 @@ private fun AirdropAnnouncementDetail(
             Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) {
-                Text("返回列表")
-            }
-            Button(
+            AppButton(
+                text = "返回列表",
+                onClick = onBack,
+                modifier = Modifier.weight(1f),
+                style = AppButtonStyle.SECONDARY
+            )
+            AppButton(
+                text = "在币安打开原文",
                 onClick = {
                     runCatching {
                         context.startActivity(
@@ -292,11 +297,8 @@ private fun AirdropAnnouncementDetail(
                         Toast.makeText(context, "无法打开 Binance 原文", Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-            ) {
-                Text("在币安打开原文")
-            }
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
