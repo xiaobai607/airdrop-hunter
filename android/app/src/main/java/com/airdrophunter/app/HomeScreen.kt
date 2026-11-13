@@ -117,11 +117,15 @@ fun HomeScreen(
         modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("首页", Modifier.weight(1f), style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("首页", color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Text("Web3 机会与资产管理", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium)
+            }
             com.airdrophunter.app.ui.components.AppIconButton(
                 icon = Icons.Default.NotificationsNone,
                 contentDescription = "通知",
@@ -129,7 +133,7 @@ fun HomeScreen(
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("行情看板", color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -249,15 +253,16 @@ fun HomeScreen(
         Row(
             Modifier.fillMaxWidth()
                 .height(54.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp))
                 .background(MaterialTheme.colorScheme.surface)
+                .then(Modifier)
                 .appPressFeedback(onClick = onOpenGlobalSearch, scale = 0.94f)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("搜索币种或 DApp", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+            Text("搜索币种或 DApp", color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         }
 
@@ -462,20 +467,21 @@ fun HomeScreen(
                 Modifier.fillMaxWidth().heightIn(max = 720.dp)
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Column(
                     Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                    horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
                         "空投导航",
                         color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.headlineMedium
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "选择一个平台打开",
+                        "选择一个平台打开 · ${sites.size} 个平台", 
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -483,7 +489,7 @@ fun HomeScreen(
                 AppTextField(
                     value = siteSearchQuery,
                     onValueChange = { siteSearchQuery = it },
-                    placeholder = "搜索平台名称",
+                    placeholder = "搜索平台名称或域名",
                     trailingClear = true
                 )
                 if (filteredSites.isEmpty()) {
@@ -535,12 +541,13 @@ fun HomeScreen(
                                         },
                                         scale = 0.94f
                                     )
+                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f))
                                     .padding(12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Surface(
-                                    modifier = Modifier.size(56.dp),
+                                    modifier = Modifier.size(52.dp),
                                     shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
                                     color = MaterialTheme.colorScheme.surface,
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -550,8 +557,8 @@ fun HomeScreen(
                                 Text(
                                     site.name,
                                     color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Medium,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
