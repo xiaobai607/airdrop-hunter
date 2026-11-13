@@ -66,6 +66,10 @@
 - Profile settings rows now use compact rounded accent tiles for their icons.
 - This is the first visual pass, not the full UI acceptance. Projects, Wallet, browser dock and complete profile/settings scrolling still need review on device. No APK/build/test was run mid-batch.
 
+## 2026-11-13 — bounded official detail fetch
+
+- Limit automatic Binance article-detail enrichment to the newest 12 Crypto Airdrop entries per source sync and use an 8-second per-detail timeout. This bounds provider load and keeps the scheduled job within its existing five-minute ceiling; failed details remain observations and are not promoted.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
