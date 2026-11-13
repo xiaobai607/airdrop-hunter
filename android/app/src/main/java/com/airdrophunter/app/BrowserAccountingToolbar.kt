@@ -1549,7 +1549,10 @@ fun AccountingCenterScreen(
             modifier = Modifier.fillMaxWidth(),
             initialShowBillList = true,
             showDock = false,
-            onCloseAccounting = { showPendingManager = false }
+            onCloseAccounting = {
+                showPendingManager = false
+                scope.launch { reloadLedger() }
+            }
         )
     }
 }
