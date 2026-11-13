@@ -485,7 +485,7 @@ fun HomeScreen(
                             items(sites, key = { it.id }) { site ->
                                 Column(
                                     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                                        .clickable {
+                                        .appPressFeedback(onClick = {
                                             closeNavOverlay()
                                             scope.launch {
                                                 val updated = withContext(Dispatchers.IO) { AirdropSiteStore.recordClick(site) }
