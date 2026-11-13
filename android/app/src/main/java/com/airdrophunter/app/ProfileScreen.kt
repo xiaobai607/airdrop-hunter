@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppTextField
@@ -233,7 +234,7 @@ fun ProfileScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(
+                    AppTextButton(
                         enabled = backupPassword.length >= 8 && backupPassword == backupPasswordConfirm && !backupBusy,
                         onClick = {
                             showBackupPasswordDialog = false
@@ -241,7 +242,7 @@ fun ProfileScreen(
                         }
                     ) { Text("继续") }
                 },
-                dismissButton = { TextButton(onClick = { showBackupPasswordDialog = false; backupPassword = ""; backupPasswordConfirm = "" }) { Text("取消") } }
+                dismissButton = { AppTextButton(onClick = { showBackupPasswordDialog = false; backupPassword = ""; backupPasswordConfirm = "" }) { Text("取消") } }
             )
         }
 
@@ -260,10 +261,10 @@ fun ProfileScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(
+                    AppTextButton(
                         enabled = importPassword.length >= 8 && selectedBackupUri != null && !backupBusy,
                         onClick = {
-                            val uri = selectedBackupUri ?: return@TextButton
+                            val uri = selectedBackupUri ?: return@AppTextButton
                             val password = importPassword
                             showImportPasswordDialog = false
                             coroutineScope.launch {
@@ -277,7 +278,7 @@ fun ProfileScreen(
                         }
                     ) { Text("验证备份") }
                 },
-                dismissButton = { TextButton(onClick = { showImportPasswordDialog = false; importPassword = ""; selectedBackupUri = null }) { Text("取消") } }
+                dismissButton = { AppTextButton(onClick = { showImportPasswordDialog = false; importPassword = ""; selectedBackupUri = null }) { Text("取消") } }
             )
         }
 
@@ -290,7 +291,7 @@ fun ProfileScreen(
                     Text("备份时间：${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(backup.createdAt))}\n包含 ${backup.totalRecords} 条本地记录。导入后将替换当前设备此会话的数据，此操作不能自动撤销。")
                 },
                 confirmButton = {
-                    TextButton(
+                    AppTextButton(
                         enabled = !backupBusy,
                         onClick = {
                             showRestoreConfirmDialog = false
@@ -309,7 +310,7 @@ fun ProfileScreen(
                         }
                     ) { Text("确认导入") }
                 },
-                dismissButton = { TextButton(onClick = { showRestoreConfirmDialog = false; pendingBackup = null; selectedBackupUri = null }) { Text("取消") } }
+                dismissButton = { AppTextButton(onClick = { showRestoreConfirmDialog = false; pendingBackup = null; selectedBackupUri = null }) { Text("取消") } }
             )
         }
     }
