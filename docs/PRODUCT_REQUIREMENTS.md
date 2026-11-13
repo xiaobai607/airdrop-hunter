@@ -2,6 +2,15 @@
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
+## 2026-11-13 — browser stability investigation (implementation pending)
+
+- Confirmed source-level defect: the browser's loading watchdog currently fires after only 3 seconds, switches the User-Agent, retries once, and reports failure after another 3 seconds. This can misclassify slow DNS/TLS/redirect/server responses as a failed page load and can change the browser identity during an in-flight session.
+- Planned correction: use a bounded 30-second initial-load watchdog with an explicit timeout diagnostic; do not silently change User-Agent or replay a page request. A user retry remains available.
+- Planned correction: handle Android WebView renderer-process termination by disposing the dead WebView and recreating the AndroidView instance; preserve existing origin permission revocation and pending wallet-request cleanup.
+- Security invariants: keep TLS errors fail-closed, keep mixed content blocked, keep file/content access disabled, keep wallet deep links gesture-gated, and do not loosen DApp origin authorization or enable third-party cookies globally as a speculative workaround.
+- This is a source inspection finding, not proof of the user's exact device failure. Browser acceptance remains pending a real-device test with the failing URL and visible diagnostic.
+- No Gradle build, test, APK build, or CI run is performed mid-batch; final verification remains deferred until the browser, approved free discovery pipeline, and agreed UI batch are ready.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
