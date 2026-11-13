@@ -60,7 +60,7 @@ fun AppTextField(
         onValueChange = onValueChange,
         modifier = modifier
             .fillMaxWidth()
-            .height(AppDesignTokens.Control.InputHeight.dp)
+            .height(heightDp.dp)
             .then(
                 if (focused && !isError) Modifier.shadow(
                     elevation = 2.dp,
