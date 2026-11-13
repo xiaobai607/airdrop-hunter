@@ -150,7 +150,9 @@ fun WalletManagerScreen(
     onOpenBrowser: (String, WalletDto, List<WalletDto>, String) -> Unit,
     isGuest: Boolean = false,
     sessionScopeKey: String = "guest",
-    vm: WalletManagerViewModel? = null
+    vm: WalletManagerViewModel? = null,
+    launchConnectOnStart: Boolean = false,
+    onConnectLaunchHandled: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -179,6 +181,15 @@ fun WalletManagerScreen(
     val addWalletSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val walletSheetNavigator = remember(walletSheetState) { BottomSheetNavigator(walletSheetState) }
     val walletNavController = rememberNavController(walletSheetNavigator)
+    var didLaunchConnect by remember { mutableStateOf(false) }
+
+    LaunchedEffect(walletConnectReady, launchConnectOnStart) {
+        if (launchConnectOnStart && walletConnectReady && !didLaunchConnect) {
+            didLaunchConnect = true
+            walletNavController.openAppKit()
+            onConnectLaunchHandled()
+        }
+    }
 
     LaunchedEffect(connectedAccounts, state.wallets) {
         val unsaved = connectedAccounts.firstOrNull { connected ->

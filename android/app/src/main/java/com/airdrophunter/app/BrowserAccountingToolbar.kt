@@ -1214,7 +1214,7 @@ fun AccountingCenterScreen(
     modifier: Modifier = Modifier,
     isGuest: Boolean = true,
     onClose: () -> Unit = {},
-    onOpenWalletManager: () -> Unit = {}
+    onConnectWallet: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -1327,7 +1327,7 @@ fun AccountingCenterScreen(
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    AppTextButton(onClick = onOpenWalletManager) { Text("钱包管理") }
+                    AppTextButton(onClick = onConnectWallet) { Text("连接钱包") }
                     Box {
                     AppButton(
                         text = "切换",
@@ -1349,7 +1349,7 @@ fun AccountingCenterScreen(
         }
         walletLoadError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         if (!isLoadingWallets && wallets.isEmpty()) {
-            Text("暂无可用钱包。点击“钱包管理”即可使用现有的钱包连接或添加功能；已有账本和待确认记录仍可查看。",
+            Text("尚未添加钱包。点击“连接钱包”即可打开钱包选择面板；连接后可将公开地址保存到钱包管理。已有账本和待确认记录仍可查看。",
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
 

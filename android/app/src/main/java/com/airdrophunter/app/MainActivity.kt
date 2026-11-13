@@ -197,6 +197,7 @@ private fun AirdropHunterApp(
     var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
     var showAccountingSheet by rememberSaveable { mutableStateOf(false) }
     var reopenAccountingAfterWalletManager by rememberSaveable { mutableStateOf(false) }
+    var launchWalletConnectOnOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(activeOverlay, reopenAccountingAfterWalletManager) {
         if (activeOverlay == AppOverlay.NONE && reopenAccountingAfterWalletManager) {
             reopenAccountingAfterWalletManager = false
@@ -388,6 +389,8 @@ private fun AirdropHunterApp(
                         modifier = Modifier.fillMaxSize(),
                         isGuest = isGuest,
                         sessionScopeKey = sessionScopeKey,
+                        launchConnectOnStart = launchWalletConnectOnOpen,
+                        onConnectLaunchHandled = { launchWalletConnectOnOpen = false },
                         onOpenBrowser = { url, selectedWallet, wallets, title ->
                             val walletJson = JSONArray().apply {
                                 wallets.forEach { wallet ->
@@ -493,8 +496,9 @@ private fun AirdropHunterApp(
                 modifier = Modifier.fillMaxWidth(),
                 isGuest = isGuest,
                 onClose = { showAccountingSheet = false },
-                onOpenWalletManager = {
+                onConnectWallet = {
                     reopenAccountingAfterWalletManager = true
+                    launchWalletConnectOnOpen = true
                     showAccountingSheet = false
                     activeOverlay = AppOverlay.WALLET_MANAGER
                 }
