@@ -1281,11 +1281,11 @@ fun AccountingCenterScreen(
             }
         }
     }
-    val incompleteRewardRows = periodRows.count { it.extra["usd_profit_complete"] == "false" }
-    val actualGasTotal = periodRows.sumOf { it.actual_gas_cost_usd.takeIf(Double::isFinite)?.coerceAtLeast(0.0) ?: 0.0 }
-    val actualRewardTotal = periodRows.filter { it.extra["usd_profit_complete"] != "false" }
-        .sumOf { it.actual_reward_usd.takeIf(Double::isFinite)?.coerceAtLeast(0.0) ?: 0.0 }
-    val completeNetTotal = (actualRewardTotal - actualGasTotal).takeIf { incompleteRewardRows == 0 }
+    val periodSummary = remember(periodRows) { summarizePersonalLedgerRows(periodRows) }
+    val incompleteRewardRows = periodSummary.incompleteRewardCount
+    val actualGasTotal = periodSummary.actualGasUsd
+    val actualRewardTotal = periodSummary.valuedActualRewardUsd
+    val completeNetTotal = periodSummary.completeNetProfitUsd
     val pendingBills = remember(pending) { pending.filterNot { it.txHash.startsWith("MOCK-") } }
 
     Column(
