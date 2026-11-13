@@ -101,11 +101,11 @@ class BrowserActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ApiClient.initialize(applicationContext)
         val receivedUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
-        Log.d(TAG, "BrowserActivity received URL: $receivedUrl")
+        Log.d(TAG, "BrowserActivity received host: ${displayHost(receivedUrl)}")
         val url = normalizeHttpsUrl(receivedUrl)
         val site = intent.getStringExtra(EXTRA_TITLE).orEmpty()
         if (url == null) {
-            Log.e(TAG, "Rejected invalid browser URL: $receivedUrl")
+            Log.e(TAG, "Rejected invalid browser URL host: ${displayHost(receivedUrl)}")
             Toast.makeText(this, "网址无效，请检查链接后重试", Toast.LENGTH_LONG).show()
             finish()
             return
@@ -127,13 +127,15 @@ class BrowserActivity : ComponentActivity() {
     private fun normalizeHttpsUrl(value: String): String? {
         return try {
             val trimmed = value.trim()
-            if (trimmed.isBlank()) null
-            else {
-                val withScheme = if ("://" in trimmed) trimmed else "https://$trimmed"
-                val parsed = Uri.parse(withScheme)
-                if (!parsed.scheme.equals("https", true) || parsed.host.isNullOrBlank() || parsed.userInfo != null) null
-                else parsed.toString()
+            if (trimmed.isBlank()) return null
+            val withScheme = if ("://" in trimmed) trimmed else "https://$trimmed"
+            val parsed = Uri.parse(withScheme)
+            val secure = when {
+                parsed.scheme.equals("https", true) -> parsed
+                parsed.scheme.equals("http", true) -> parsed.buildUpon().scheme("https").build()
+                else -> return null
             }
+            if (secure.host.isNullOrBlank() || secure.userInfo != null) null else secure.toString()
         } catch (_: Exception) { null }
     }
 
@@ -869,10 +871,20 @@ private fun BrowserScreen(
                                     }
                                     return true
                                 }
-                                if (!target.scheme.equals("https", true) || target.host.isNullOrBlank() || target.userInfo != null) return true
-                                val targetOrigin = runCatching { DappProviderBridge.origin(target) }.getOrNull() ?: return true
+                                val secureTarget = when {
+                                    target.scheme.equals("https", true) -> target
+                                    target.scheme.equals("http", true) -> target.buildUpon().scheme("https").build()
+                                    else -> return true
+                                }
+                                if (secureTarget.host.isNullOrBlank() || secureTarget.userInfo != null) return true
+                                val targetOrigin = runCatching { DappProviderBridge.origin(secureTarget) }.getOrNull() ?: return true
+                                val needsHttpsUpgrade = !target.scheme.equals("https", true)
                                 if (targetOrigin != approvedOrigin) {
-                                    pendingNavigationUrl = target.toString()
+                                    pendingNavigationUrl = secureTarget.toString()
+                                    return true
+                                }
+                                if (needsHttpsUpgrade) {
+                                    view?.loadUrl(secureTarget.toString())
                                     return true
                                 }
                                 return false
@@ -905,14 +917,14 @@ private fun BrowserScreen(
                                 }
                                 pageState = BrowserPageState.Loading
                                 pageErrorMessage = null
-                                Log.d("AirdropBrowser", "Page started: $pageUrl")
+                                Log.d("AirdropBrowser", "Page started: ${displayHost(pageUrl.orEmpty())}")
                             }
 
                             override fun onPageFinished(view: WebView?, pageUrl: String?) {
                                 pageUrl?.let { currentPageUrl = it }
                                 pageState = BrowserPageState.Success
                                 pageErrorMessage = null
-                                Log.d("AirdropBrowser", "Page finished: $pageUrl")
+                                Log.d("AirdropBrowser", "Page finished: ${displayHost(pageUrl.orEmpty())}")
                             }
 
                             override fun onReceivedError(
@@ -946,7 +958,7 @@ private fun BrowserScreen(
                                 handler?.cancel()
                                 pageState = BrowserPageState.Error
                                 pageErrorMessage = "HTTPS 证书验证失败，已阻止连接。请检查设备时间、网络代理或网站证书。"
-                                Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed: $error")
+                                Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed; primaryError=${error?.primaryError}")
                             }
 
                             override fun onRenderProcessGone(
