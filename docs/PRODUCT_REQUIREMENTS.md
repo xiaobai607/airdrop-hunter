@@ -3007,3 +3007,10 @@ Implementation status: requirement approved; existing coordinator already has a 
 - Before handling a launch failure, verify that the active pending request still matches the original DApp request ID, origin and WalletConnect session topic. Only that matching request may be timed out, replied to, and cleared.
 - Keep any already-created Web3 draft recoverable; do not infer that a wallet broadcast did not happen solely because the UI launch callback arrived late.
 - Implementation: BrowserActivity now scopes the AppKit.request failure handler to the still-active request identity (commit 236f8f18248ddb83375df9198124dab3d3c5460f). Static source check only; Gradle, unit tests, CI and device validation remain pending.
+
+
+### 2026-11-13 — cold-start WalletConnect response delivery
+
+- A cold-start wallet redirect can deliver the response while the process-level reconciliation collector is attaching. A `MutableSharedFlow` with only `extraBufferCapacity` and zero replay drops emissions when there are no subscribers, so the response/hash could be lost even though the wallet broadcast the transaction.
+- Keep a bounded 32-response replay window in `WalletConnectSessionDelegate`. Existing reconciliation remains strict by request ID, session topic, method and chain ID; repository matching remains unique and idempotent, and accounted drafts are not re-enqueued.
+- Implementation: response flow now uses `replay = 32` plus `extraBufferCapacity = 32` (commit 02f256044d7ac39f6f181cf522cf0429c2604a53). Static source inspection only; Gradle, unit tests, CI and device cold-start verification remain pending.
