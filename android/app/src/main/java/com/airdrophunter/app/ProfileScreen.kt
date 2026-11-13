@@ -130,7 +130,7 @@ fun ProfileScreen(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.size(64.dp)) {
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.size(56.dp)) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(if (isGuest) "G" else "U", color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -138,7 +138,7 @@ fun ProfileScreen(
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(if (isGuest) "游客模式" else (state.profile?.username ?: "账户中心"),
-                    color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold, maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 Text(
