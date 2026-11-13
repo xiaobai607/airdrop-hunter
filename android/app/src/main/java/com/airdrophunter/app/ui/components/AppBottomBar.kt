@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.airdrophunter.app.ui.theme.AppDesignTokens
@@ -39,6 +41,9 @@ fun AppBottomBar(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    if (items.isEmpty()) return
+
+    val safeSelectedIndex = selectedIndex.coerceIn(items.indices)
     val colors = MaterialTheme.colorScheme
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
     val glass = if (dark) AppDesignTokens.Dark.Glass else AppDesignTokens.Light.Glass
@@ -58,7 +63,7 @@ fun AppBottomBar(
     ) {
         val slotWidth = maxWidth / items.size
         val indicatorOffset by animateDpAsState(
-            targetValue = slotWidth * selectedIndex + (slotWidth - 16.dp) / 2,
+            targetValue = slotWidth * safeSelectedIndex + (slotWidth - 16.dp) / 2,
             animationSpec = tween(AppDesignTokens.Motion.StandardMs, easing = CubicBezierEasing(.2f, 0f, 0f, 1f)),
             label = "tab-indicator"
         )
@@ -75,6 +80,7 @@ fun AppBottomBar(
                             scale = AppDesignTokens.Motion.PressButtonScale,
                             role = Role.Tab
                         )
+                        .semantics { this.selected = selected }
                         .padding(top = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top
