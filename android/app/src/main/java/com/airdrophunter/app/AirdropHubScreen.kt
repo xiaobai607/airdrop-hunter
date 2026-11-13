@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -150,9 +151,15 @@ fun AirdropHubScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(item.name, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
+                                Text(
+                                    item.name,
+                                    Modifier.weight(1f),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold)
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                                 Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(999.dp)) {
                                     Text("Binance", Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
