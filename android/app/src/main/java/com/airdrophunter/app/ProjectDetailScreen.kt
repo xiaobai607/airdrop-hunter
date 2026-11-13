@@ -908,10 +908,11 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                     verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     Text("实际收益 · USD估值", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelSmall)
-                    Text("+$%.2f".format(Locale.US, interaction.actualRewardUsd),
-                        color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        style = MaterialTheme.typography.labelSmall, maxLines = 2)
+                    Text(
+                        if (interaction.usdProfitComplete) "+$%.2f".format(Locale.US, interaction.actualRewardUsd) else "估值未完整",
+                        color = if (interaction.usdProfitComplete) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 }
             }
             formatLedgerAssetBreakdown(interaction.assetBreakdownJson).takeIf { it.isNotBlank() }?.let {
@@ -949,9 +950,9 @@ private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double?
         modifier.background(MaterialTheme.colorScheme.background, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 2)
         Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: "估值未完整", color = color,
-            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
     }
 }
 

@@ -243,7 +243,7 @@ fun ProjectsScreen(
                     val showAccountingReminder = savedProjectRecord?.let {
                         shouldShowAccountingReminder(it.createdAt, it.interactionCount, System.currentTimeMillis())
                     } ?: false
-                    val netProfit = pnl?.netProfitUsd ?: 0.0
+                    val netProfit = pnl?.takeIf { it.usdProfitComplete }?.netProfitUsd
                     val projectRatings = allRatings.filter { it.projectOfficialId == project.communityOfficialId }
                     val communityAverage = projectRatings.takeIf { it.isNotEmpty() }?.map { it.score }?.average()
                     val positiveRate = projectRatings.takeIf { it.isNotEmpty() }
@@ -303,9 +303,20 @@ fun ProjectsScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("真实净盈亏", color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                                    Text(String.format(Locale.US, "%s$%.2f",
-                                        if (netProfit >= 0) "+" else "-", kotlin.math.abs(netProfit)),
-                                        color = if (netProfit >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
+                                    Text(
+                                        when {
+                                            pnl == null -> "暂无记账"
+                                            !pnl.usdProfitComplete -> "估值未完整"
+                                            else -> String.format(Locale.US, "%s$%.2f",
+                                                if ((netProfit ?: 0.0) >= 0) "+" else "-",
+                                                kotlin.math.abs(netProfit ?: 0.0))
+                                        },
+                                        color = when {
+                                            pnl == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            !pnl.usdProfitComplete -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            (netProfit ?: 0.0) >= 0 -> MaterialTheme.colorScheme.secondary
+                                            else -> MaterialTheme.colorScheme.error
+                                        },
                                         style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                                 }
                             }
