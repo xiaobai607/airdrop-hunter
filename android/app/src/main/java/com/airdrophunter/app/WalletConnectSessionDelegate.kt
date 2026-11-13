@@ -21,7 +21,13 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
     val sessionGeneration = _sessionGeneration.asStateFlow()
     private val _sessionTopic = MutableStateFlow<String?>(null)
     val sessionTopic = _sessionTopic.asStateFlow()
-    private val _requestResponses = MutableSharedFlow<Modal.Model.SessionRequestResponse>(extraBufferCapacity = 32)
+    // Wallet redirects can cold-start the process. Keep a bounded replay window so a
+    // response emitted while the reconciliation collector is attaching is not lost.
+    // Repository reconciliation is request/topic/chain-bound and idempotent.
+    private val _requestResponses = MutableSharedFlow<Modal.Model.SessionRequestResponse>(
+        replay = 32,
+        extraBufferCapacity = 32
+    )
     val requestResponses = _requestResponses.asSharedFlow()
 
     private fun publishAccounts(accounts: List<WalletConnectAccount>) {
