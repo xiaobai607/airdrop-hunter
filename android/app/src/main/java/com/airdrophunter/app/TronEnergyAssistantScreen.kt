@@ -10,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,49 +33,97 @@ fun TronEnergyAssistantScreen(
     val warningSoft = if (isSystemInDarkTheme()) AppDesignTokens.Dark.WarningSoft else AppDesignTokens.Light.WarningSoft
 
     Column(
-        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+        modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         BaseCard {
             Column(
                 Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(Icons.Default.Bolt, contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.Bolt,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            "TRON 能量租赁",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "先确认转出地址，再前往租赁平台",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
                 Text(
                     "请输入你自己的 TRON 转出地址。打开租赁平台后，可通过底部工具栏一键复制该地址。",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyMedium
                 )
-                AppTextField(
-                    value = address,
-                    onValueChange = { address = it; attempted = false },
-                    placeholder = "请输入 TRON 转出地址（T 开头）",
-                    isError = attempted && !valid
-                )
-                if (attempted && !valid) {
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "地址格式不正确，请输入有效的 TRON Base58 地址。",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
+                        "TRON 转出地址",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
+                    AppTextField(
+                        value = address,
+                        onValueChange = { address = it; attempted = false },
+                        placeholder = "T 开头的 Base58 地址",
+                        isError = attempted && !valid
+                    )
+                    if (attempted && !valid) {
+                        Text(
+                            "地址格式不正确，请输入有效的 TRON Base58 地址。",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
+
                 Surface(
                     color = warningSoft,
                     shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        Modifier.padding(12.dp),
+                        Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.Warning, contentDescription = null,
-                            tint = warning, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = warning,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Text(
-                            "安全提示：仅用于租赁能量，切勿输入对方收款地址。",
+                            "安全提示：仅填写你自己的转出地址，切勿输入对方收款地址。",
                             color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 13.sp,
@@ -84,6 +131,7 @@ fun TronEnergyAssistantScreen(
                         )
                     }
                 }
+
                 AppButton(
                     text = "去租赁能量",
                     onClick = {
