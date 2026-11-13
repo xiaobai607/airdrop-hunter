@@ -157,7 +157,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         Text(project.name, color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                         if (project.communityDelisted) {
-                            Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(999.dp)) {
+                            Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                                 Text("社区已下架 · 私人模式", Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                     color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold)
@@ -374,7 +374,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 selected = ledgerPeriod == option,
                                 onClick = { ledgerPeriod = option },
                                 label = { Text(option.label) },
-                                shape = RoundedCornerShape(999.dp),
+                                shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp),
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                     selectedLabelColor = MaterialTheme.colorScheme.primary,
@@ -468,7 +468,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         }
         items(state.tasks.sortedBy { it.step_order }, key = { it.id }) { task ->
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(15.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
                 elevation = CardDefaults.cardElevation(0.dp)) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically) {
@@ -944,7 +944,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
 @Composable
 private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double?, color: Color) {
     Column(
-        modifier.background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp)).padding(horizontal = 9.dp, vertical = 11.dp),
+        modifier.background(MaterialTheme.colorScheme.background, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 9.dp, vertical = 11.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
