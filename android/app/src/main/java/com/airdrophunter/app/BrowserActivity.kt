@@ -51,6 +51,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
@@ -436,7 +438,25 @@ private fun BrowserScreen(
                     val targetUrl = pendingNavigationUrl
                     val targetHost = targetUrl?.let(::displayHost)
                     Surface(
-                        Modifier.fillMaxWidth(),
+                        Modifier.fillMaxWidth().pointerInput(pendingNavigationUrl, showSecurityBanner) {
+                            var dragDistance = 0f
+                            detectVerticalDragGestures(
+                                onVerticalDrag = { change, amount ->
+                                    dragDistance += amount
+                                    change.consume()
+                                },
+                                onDragEnd = {
+                                    if (dragDistance < -size.height * 0.25f) {
+                                        if (pendingNavigationUrl != null) {
+                                            pendingNavigationUrl = null
+                                        } else {
+                                            markBrowserSecurityBannerShown(context)
+                                            showSecurityBanner = false
+                                        }
+                                    }
+                                }
+                            )
+                        },
                         color = if (androidx.compose.foundation.isSystemInDarkTheme())
                             AppDesignTokens.Dark.WarningSoft else AppDesignTokens.Light.WarningSoft
                     ) {
