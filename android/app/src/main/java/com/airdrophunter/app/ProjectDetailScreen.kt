@@ -868,10 +868,10 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(time, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold)
@@ -884,11 +884,33 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
             interaction.expectedRewardUsd?.let {
                 Text("预估奖励：USD $%.2f".format(Locale.US, it), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("实际 Gas USD估值 $%.2f".format(Locale.US, interaction.gasCostUsd),
-                    color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                Text("实际收益 USD估值 +$%.2f".format(Locale.US, interaction.actualRewardUsd),
-                    color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    Modifier.weight(1f).background(
+                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f),
+                        RoundedCornerShape(AppDesignTokens.Radius.Md.dp)
+                    ).padding(horizontal = 10.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text("实际 Gas · USD估值", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("−$%.2f".format(Locale.US, interaction.gasCostUsd),
+                        color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
+                Column(
+                    Modifier.weight(1f).background(
+                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                        RoundedCornerShape(AppDesignTokens.Radius.Md.dp)
+                    ).padding(horizontal = 10.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text("实际收益 · USD估值", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("+$%.2f".format(Locale.US, interaction.actualRewardUsd),
+                        color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
             }
             formatLedgerAssetBreakdown(interaction.assetBreakdownJson).takeIf { it.isNotBlank() }?.let {
                 Text("币种明细：$it", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
