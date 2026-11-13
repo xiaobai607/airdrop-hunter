@@ -205,6 +205,17 @@
 - 变更 commits：`1c14ae41`、`7098f0ac`、`40ac11b6`、`a0e811da`。
 - 当前只做 GitHub 源码级引用核对；尚未运行 Gradle 编译、Android 单元测试或设备验收，必须通过后续构建验证是否存在遗漏引用。
 
+
+### 2026-11-13 — 浏览器 Chrome 兼容 User-Agent
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/BrowserActivity.kt`
+- WebView 初始化时读取系统 WebView 自带 User-Agent，并移除 Android WebView 常见的 `; wv)` 与 `Version/4.0` 标记；保留运行时 Chromium 的真实版本号，不硬编码过期 Chrome 版本。
+- 目的：让普通网站优先按移动版 Chrome 页面布局/兼容路径返回内容，减少因明显 WebView 标记导致的兼容问题。
+- 说明：这只是 Chrome-compatible UA，不会把 WebView 变成完整 Chrome，也不能保证绕过网站的设备完整性、自动化或反机器人检测；不得用于伪造登录身份或绕过网站访问控制。
+- 本轮没有启用混合内容、没有全局开放第三方 Cookie、没有开放文件/地理位置/摄像头权限；HTTPS 强制升级、TLS 失败即取消、Safe Browsing、DApp origin 授权和钱包用户确认保持不变。
+- 静态核对：UA 从 WebView 默认值动态派生、保留 Chrome 版本号、无硬编码版本、仅在 WebView 初始化设置；未记录完整 UA 或用户数据。尚未运行 Gradle、Android tests、CI 或真机站点验收；网站是否可访问仍待设备验证。
+- Commit：`c21b08ea02c90bc17e285cce9cce5175031f097b`
+
 ## 6. 变更记录
 
 ### 2026-11-13 — P0 浏览器容器与钱包页面专项核对（已执行首轮）
