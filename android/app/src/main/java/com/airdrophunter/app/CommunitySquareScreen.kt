@@ -25,7 +25,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
@@ -295,11 +294,11 @@ fun CommunitySquareScreen(
                     )
                     AppChip("我的收藏", favoritesOnly, onClick = { favoritesOnly = !favoritesOnly })
                 }
-                Surface(color = if (useDemoData) Color(0xFFFFF4E5) else Color(0xFFE8F7EF), shape = RoundedCornerShape(999.dp)) {
+                Surface(color = if (useDemoData) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(999.dp)) {
                     Text(
                         if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网真实数据 · 脱敏汇总",
                         Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        color = if (useDemoData) Color(0xFF9A5B12) else Color(0xFF19764F),
+                        color = if (useDemoData) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
                         style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -431,7 +430,7 @@ fun CommunitySquareScreen(
                             if (project.ratingCount > 0 && project.averageRating != null)
                                 "★ ${String.format(Locale.US, "%.1f", project.averageRating)} · ${project.reputationLabel} · ${project.ratingCount} 个账号评分"
                             else "暂无全网评分",
-                            color = if (project.ratingCount > 0) Color(0xFFB7791F) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                            color = if (project.ratingCount > 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -439,14 +438,14 @@ fun CommunitySquareScreen(
                     if (totalGasReward > 0.0) {
                         val gasShare = (project.gas.coerceAtLeast(0.0) / totalGasReward).toFloat().coerceIn(0f, 1f)
                         val comparisonBrush = when {
-                            gasShare <= 0f -> SolidColor(Color(0xFF31B77D))
-                            gasShare >= 1f -> SolidColor(Color(0xFFE76565))
+                            gasShare <= 0f -> SolidColor(MaterialTheme.colorScheme.secondary)
+                            gasShare >= 1f -> SolidColor(MaterialTheme.colorScheme.error)
                             else -> Brush.horizontalGradient(
                                 colorStops = arrayOf(
-                                    0f to Color(0xFFE76565),
-                                    gasShare to Color(0xFFE76565),
-                                    gasShare to Color(0xFF31B77D),
-                                    1f to Color(0xFF31B77D)
+                                    0f to MaterialTheme.colorScheme.error,
+                                    gasShare to MaterialTheme.colorScheme.error,
+                                    gasShare to MaterialTheme.colorScheme.secondary,
+                                    1f to MaterialTheme.colorScheme.secondary
                                 )
                             )
                         }
@@ -457,7 +456,7 @@ fun CommunitySquareScreen(
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         project.tags.forEach { tag ->
-                            Surface(color = Color(0xFFF1F4F7), shape = RoundedCornerShape(6.dp)) {
+                            Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)) {
                                 Text(tag, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                             }
                         }
