@@ -21,6 +21,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Link
@@ -52,6 +57,7 @@ import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppHaptic
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import com.airdrophunter.app.ui.components.AppButton
 import com.airdrophunter.app.ui.components.AppIconButton
