@@ -294,8 +294,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                     }
                     if (assignedWalletIds != savedAssignedWalletIds) {
-                        Button(
+                        AppButton(
+                            text = "保存钱包关联",
                             enabled = !isSavingAssignments && !isLoadingAssignments,
+                            loading = isSavingAssignments,
                             onClick = {
                                 scope.launch {
                                     isSavingAssignments = true
@@ -313,12 +315,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                         isSavingAssignments = false
                                     }
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Text(if (isSavingAssignments) "保存中…" else "保存钱包关联")
-                        }
+                            }
+                        )
                     }
                 }
             }
@@ -435,12 +433,11 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         trackColor = MaterialTheme.colorScheme.outlineVariant,
                         strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
                     AppTextField(taskName, { taskName = it }, "添加一个待办任务…")
-                    Button(enabled = taskName.isNotBlank() && !state.isBusy,
-                        onClick = { projectDetailViewModel.addTask(project.id, taskName.trim(), projectUsesLocalTasks); taskName = "" },
-                        modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(13.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
-                        Text("＋ 添加任务", fontWeight = FontWeight.SemiBold)
-                    }
+                    AppButton(
+                        text = "＋ 添加任务",
+                        enabled = taskName.isNotBlank() && !state.isBusy,
+                        onClick = { projectDetailViewModel.addTask(project.id, taskName.trim(), projectUsesLocalTasks); taskName = "" }
+                    )
                 }
             }
         }
@@ -761,16 +758,16 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 )
             },
             confirmButton = {
-                Button(
+                AppButton(
+                    text = "保存",
                     enabled = editedTaskName.isNotBlank() && !state.isBusy,
                     onClick = {
                         projectDetailViewModel.renameTask(
                             project.id, taskToEdit, editedTaskName, projectUsesLocalTasks
                         )
                         editingTask = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) { Text("保存") }
+                    }
+                )
             },
             dismissButton = { AppTextButton(onClick = { editingTask = null }) { Text("取消") } }
         )
