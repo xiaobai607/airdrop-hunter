@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +42,7 @@ import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppTextField
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.StaggeredListItem
 import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButtonStyle
@@ -357,7 +359,8 @@ fun CommunitySquareScreen(
                 )
             }
         }
-        items(displayedProjects, key = { it.id }) { project ->
+        itemsIndexed(displayedProjects, key = { _, project -> project.id }) { index, project ->
+            StaggeredListItem(project.id, index) {
             Card(
                 modifier = Modifier.fillMaxWidth().appPressFeedback(
                     onClick = { onProjectSelected(project.id, project.name, project.chain) },
@@ -462,6 +465,7 @@ fun CommunitySquareScreen(
 
 
                 }
+            }
             }
         }
     }
