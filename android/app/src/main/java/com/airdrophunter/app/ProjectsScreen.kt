@@ -139,15 +139,15 @@ fun ProjectsScreen(
         else -> visibleProjects
     }
 
-    Column(modifier.fillMaxSize().background(AppColors.Background)) {
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
             Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("库管理", Modifier.weight(1f), color = AppColors.TextPrimary,
+            Text("库管理", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             IconButton(onClick = { selectedFilter = if (selectedFilter == "全部") "进行中" else "全部" }) {
-                Icon(Icons.Default.FolderOpen, "筛选项目", tint = AppColors.TextSecondary)
+                Icon(Icons.Default.FolderOpen, "筛选项目", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -167,13 +167,13 @@ fun ProjectsScreen(
 
         state.error?.takeIf { visibleProjects.isNotEmpty() }?.let { error ->
             Text(error, Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-                color = AppColors.Danger, style = MaterialTheme.typography.bodySmall)
+                color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
 
         when {
             state.isLoading && visibleProjects.isEmpty() -> Box(
                 Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator(color = AppColors.Primary) }
+            ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
             state.error != null && visibleProjects.isEmpty() -> EmptyProjects(
                 modifier = Modifier.weight(1f),
                 title = "暂时无法加载项目",
@@ -211,8 +211,8 @@ fun ProjectsScreen(
                         modifier = Modifier.fillMaxWidth()
                             .appPressFeedback(onClick = { onProjectSelected(project) }, scale = 0.96f),
                         shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
-                        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                        border = BorderStroke(1.dp, AppColors.Border),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
@@ -220,12 +220,12 @@ fun ProjectsScreen(
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary,
+                                    Text(project.name, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
                                     val statusLabel = when (project.status) { "tracking" -> "进行中"; "completed" -> "已完成"; else -> "待开始" }
-                                    Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
+                                    Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(999.dp)) {
                                         Text(statusLabel, Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                            color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                                            color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                                 if (project.communityDelisted || showAccountingReminder) {
@@ -247,16 +247,16 @@ fun ProjectsScreen(
                                     }
                                 }
                                 if (project.description.isNotBlank()) {
-                                    Text(project.description, color = AppColors.TextSecondary,
+                                    Text(project.description, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.bodySmall, maxLines = 2,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("真实净盈亏", color = AppColors.TextSecondary,
+                                    Text("真实净盈亏", color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
                                     Text(String.format(Locale.US, "%s$%.2f",
                                         if (netProfit >= 0) "+" else "-", kotlin.math.abs(netProfit)),
-                                        color = if (netProfit >= 0) AppColors.Success else AppColors.Danger,
+                                        color = if (netProfit >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                                         style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                                 }
                             }
@@ -285,7 +285,7 @@ fun ProjectsScreen(
                                 Box {
                                     IconButton(onClick = { actionProject = project }) {
                                         Icon(Icons.Default.MoreVert, contentDescription = "项目管理",
-                                            tint = AppColors.TextSecondary)
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     DropdownMenu(
                                         expanded = actionProject?.id == project.id,
@@ -305,7 +305,7 @@ fun ProjectsScreen(
                                             }
                                         )
                                         DropdownMenuItem(
-                                            text = { Text("删除项目", color = AppColors.Danger) },
+                                            text = { Text("删除项目", color = MaterialTheme.colorScheme.error) },
                                             onClick = {
                                                 actionProject = null
                                                 deletingProject = project
@@ -325,13 +325,13 @@ fun ProjectsScreen(
     editingProject?.let { project ->
         AlertDialog(
             onDismissRequest = { if (!state.isSaving) editingProject = null },
-            containerColor = AppColors.Surface,
-            title = { Text("编辑项目", color = AppColors.TextPrimary) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("编辑项目", color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     AppTextField(editProjectName, { editProjectName = it }, "项目名称")
                     AppTextField(editProjectDescription, { editProjectDescription = it }, "项目说明", singleLine = false)
-                    Text("项目状态", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
+                    Text("项目状态", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("tracking" to "进行中", "upcoming" to "待开始", "completed" to "已完成").forEach { (value, label) ->
                             AppChip(
@@ -344,7 +344,7 @@ fun ProjectsScreen(
                     AppTextField(editProjectOfficialUrl, { editProjectOfficialUrl = it }, "项目官网 HTTPS 链接")
                     AppTextField(editProjectClaimUrl, { editProjectClaimUrl = it }, "资格查询 HTTPS 链接")
                     AppTextField(editProjectTwitterUrl, { editProjectTwitterUrl = it }, "社交链接 HTTPS")
-                    state.error?.let { Text(it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
+                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 }
             },
             confirmButton = {
@@ -382,14 +382,14 @@ fun ProjectsScreen(
     deletingProject?.let { project ->
         AlertDialog(
             onDismissRequest = { deletingProject = null },
-            containerColor = AppColors.Surface,
-            title = { Text("删除项目？", color = AppColors.TextPrimary) },
-            text = { Text("将从项目列表中移除“${project.name}”。已确认的 Gas、收益和历史账本不会被删除。", color = AppColors.TextSecondary) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("删除项目？", color = MaterialTheme.colorScheme.onSurface) },
+            text = { Text("将从项目列表中移除“${project.name}”。已确认的 Gas、收益和历史账本不会被删除。", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             confirmButton = {
                 AppTextButton(onClick = {
                     projectsViewModel.deleteProject(project, isGuest)
                     deletingProject = null
-                }) { Text("确认删除", color = AppColors.Danger) }
+                }) { Text("确认删除", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { AppTextButton(onClick = { deletingProject = null }) { Text("取消") } }
         )
@@ -401,8 +401,8 @@ fun ProjectsScreen(
         }
         AlertDialog(
             onDismissRequest = { showCommunityPicker = false },
-            containerColor = AppColors.Surface,
-            title = { Text("选择社区项目", color = AppColors.TextPrimary) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("选择社区项目", color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     AppTextField(communitySearchQuery, { communitySearchQuery = it }, "搜索项目名称、链或标签")
@@ -410,7 +410,7 @@ fun ProjectsScreen(
                         Text(
                             if (communityDirectory.isEmpty()) "社区目录正在后台准备；联网后会自动更新。你也可以先取消并创建私人项目。"
                             else "没有找到匹配的社区项目。",
-                            color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                         )
                     } else {
                         Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
@@ -425,14 +425,14 @@ fun ProjectsScreen(
                                         newProjectClaimUrl = ""
                                         showCommunityPicker = false
                                     },
-                                    color = AppColors.Surface,
+                                    color = MaterialTheme.colorScheme.surface,
                                     shape = RoundedCornerShape(10.dp),
-                                    border = BorderStroke(1.dp, AppColors.Border)
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Text(item.name, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                                        Text(item.chain, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                        if (item.description.isNotBlank()) Text(item.description, color = AppColors.TextSecondary,
+                                        Text(item.name, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                                        Text(item.chain, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                        if (item.description.isNotBlank()) Text(item.description, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             style = MaterialTheme.typography.bodySmall, maxLines = 2)
                                     }
                                 }
@@ -446,8 +446,8 @@ fun ProjectsScreen(
         )
     } else if (showAddDialog) AlertDialog(
         onDismissRequest = { showAddDialog = false },
-        containerColor = AppColors.Surface,
-        title = { Text("添加项目", color = AppColors.TextPrimary) },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("添加项目", color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -460,8 +460,8 @@ fun ProjectsScreen(
                 AppTextField(newProjectOfficialUrl, { newProjectOfficialUrl = it }, "项目官网 HTTPS 链接")
                 AppTextField(newProjectClaimUrl, { newProjectClaimUrl = it }, "官方资格查询 HTTPS 链接（可选）")
                 Text("资格查询链接请填写项目方官方页面，不要填写来历不明的第三方链接。",
-                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                state.error?.let { Text(it, color = AppColors.Danger) }
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
@@ -495,8 +495,8 @@ fun ProjectsScreen(
             },
             modifier = Modifier.padding(end = 20.dp, bottom = 20.dp).size(58.dp),
             shape = RoundedCornerShape(50),
-            containerColor = AppColors.Primary,
-            contentColor = AppColors.Surface
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.surface
         ) { Icon(Icons.Default.Add, "添加项目") }
     }
 }
@@ -509,11 +509,11 @@ private fun EmptyProjects(modifier: Modifier = Modifier, title: String, subtitle
         verticalArrangement = Arrangement.Center
     ) {
         Icon(Icons.Default.FolderOpen, contentDescription = null,
-            tint = AppColors.TextHelper, modifier = Modifier.size(54.dp))
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), modifier = Modifier.size(54.dp))
         Spacer(Modifier.height(12.dp))
-        Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium,
+        Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(5.dp))
-        Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+        Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
     }
 }
