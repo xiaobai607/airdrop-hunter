@@ -405,7 +405,7 @@ private fun BrowserScreen(
                             style = AppButtonStyle.SECONDARY,
                             enabled = walletConnectReady,
                             fullWidth = false,
-                            heightDp = 40,
+                            heightDp = 44,
                             fontSizeSp = 13
                         )
                         if (selectedWallet != null) {
@@ -468,7 +468,10 @@ private fun BrowserScreen(
                                     }
                                 }
                             } else {
-                                AppTextButton(onClick = { showSecurityBanner = false }) {
+                                AppTextButton(onClick = {
+                                    markBrowserSecurityBannerShown(context)
+                                    showSecurityBanner = false
+                                }) {
                                     Text("知道了")
                                 }
                             }
