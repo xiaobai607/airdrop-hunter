@@ -56,6 +56,7 @@ import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.GlobalSyncScheduler
 import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.google.gson.Gson
@@ -142,7 +143,7 @@ fun HomeScreen(
                 Text("行情看板", color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = {
+                AppTextButton(onClick = {
                     marketSymbolDraft = marketSymbols.toSet()
                     showMarketEditor = true
                 }) { Text("编辑", color = AppColors.Primary) }
@@ -170,7 +171,7 @@ fun HomeScreen(
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         Text(state.marketError ?: "请检查网络连接后重试。",
                             color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
+                        AppTextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
                             Text("点击重试", color = AppColors.Primary)
                         }
                     }
@@ -228,7 +229,7 @@ fun HomeScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(enabled = marketSymbolDraft.isNotEmpty(), onClick = {
+                    AppTextButton(enabled = marketSymbolDraft.isNotEmpty(), onClick = {
                         val saved = listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").filter { it in marketSymbolDraft }
                         marketSymbols = saved
                         showMarketEditor = false
@@ -236,7 +237,7 @@ fun HomeScreen(
                     }) { Text("保存") }
                 },
                 dismissButton = {
-                    TextButton(onClick = {
+                    AppTextButton(onClick = {
                         marketSymbolDraft = defaultMarketSymbols.toSet()
                         marketSymbols = defaultMarketSymbols
                         showMarketEditor = false
@@ -288,14 +289,14 @@ fun HomeScreen(
                 Text("快捷入口", color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f))
-                TextButton(onClick = { editingDashboard = !editingDashboard }) {
+                AppTextButton(onClick = { editingDashboard = !editingDashboard }) {
                     Text(if (editingDashboard) "完成" else "编辑", color = AppColors.Primary)
                 }
             }
             if (editingDashboard) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { showAddDashboardCard = true }) { Text("＋ 添加卡片") }
-                    TextButton(onClick = { saveDashboardCards(HomeDashboardLayoutStore.defaults) }) {
+                    AppTextButton(onClick = { showAddDashboardCard = true }) { Text("＋ 添加卡片") }
+                    AppTextButton(onClick = { saveDashboardCards(HomeDashboardLayoutStore.defaults) }) {
                         Text("恢复默认布局")
                     }
                 }
@@ -401,7 +402,7 @@ fun HomeScreen(
                                     Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 if (editingDashboard) {
-                                    TextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
+                                    AppTextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
                                         contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = AppColors.Danger) }
                                 } else Text("打开  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium)
                             }
@@ -411,7 +412,7 @@ fun HomeScreen(
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     DashboardIconTile(icon, iconBackground, iconTint, 42.dp)
                                     Spacer(Modifier.weight(1f))
-                                    if (editingDashboard) TextButton(
+                                    if (editingDashboard) AppTextButton(
                                         onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
                                         contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = AppColors.Danger) }
                                 }
@@ -435,14 +436,14 @@ fun HomeScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (available.isEmpty()) Text("目前没有更多可添加的快捷功能。", color = AppColors.TextSecondary)
                         available.forEach { id ->
-                            TextButton(onClick = {
+                            AppTextButton(onClick = {
                                 saveDashboardCards(dashboardCards + HomeDashboardCard(id))
                                 showAddDashboardCard = false
                             }) { Text(HomeDashboardLayoutStore.title(id), color = AppColors.Primary) }
                         }
                     }
                 },
-                confirmButton = { TextButton(onClick = { showAddDashboardCard = false }) { Text("关闭") } }
+                confirmButton = { AppTextButton(onClick = { showAddDashboardCard = false }) { Text("关闭") } }
             )
         }
 
@@ -470,7 +471,7 @@ fun HomeScreen(
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("空投导航", modifier = Modifier.weight(1f), color = AppColors.TextPrimary,
                                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            TextButton(onClick = { closeNavOverlay() }) { Text("关闭", color = AppColors.Primary) }
+                            AppTextButton(onClick = { closeNavOverlay() }) { Text("关闭", color = AppColors.Primary) }
                         }
                         Text("选择一个平台打开", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(12.dp))
@@ -521,7 +522,7 @@ fun HomeScreen(
         onDismissRequest = { showNotifications = false }, containerColor = AppColors.Surface,
         title = { Text("消息通知", color = AppColors.TextPrimary) },
         text = { Text("通知功能正在开发中。", color = AppColors.TextSecondary) },
-        confirmButton = { TextButton(onClick = { showNotifications = false }) { Text("关闭") } }
+        confirmButton = { AppTextButton(onClick = { showNotifications = false }) { Text("关闭") } }
     )
 }
 
