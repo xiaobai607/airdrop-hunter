@@ -4,13 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -18,7 +15,9 @@ import androidx.compose.ui.unit.dp
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.WalletDto
-import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppTextButton
 import kotlinx.coroutines.launch
 
 @Composable
@@ -60,12 +59,12 @@ fun WalletCheckDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = AppColors.Surface,
-        title = { Text("空投资格查询", color = AppColors.TextPrimary) },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("空投资格查询", color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (loading) Text("正在读取项目和钱包…", color = AppColors.TextSecondary)
-                Text("选择项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                if (loading) Text("正在读取项目和钱包…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("选择项目", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Column {
                     OutlinedButton(onClick = { projectExpanded = true }, modifier = Modifier.fillMaxWidth()) {
                         Text(selectedProject?.name ?: "请选择已添加的项目", color = AppColors.TextPrimary)
@@ -97,15 +96,17 @@ fun WalletCheckDialog(
                     color = AppColors.TextSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 if (projects.isEmpty() && !loading) Text("暂无项目，请先在项目管理中添加项目并填写资格入口。", color = AppColors.TextSecondary)
                 if (wallets.isEmpty() && !loading) Text("暂无钱包，请先添加公开钱包地址。", color = AppColors.TextSecondary)
-                error?.let { Text(it, color = AppColors.Danger) }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
-            Button(
+            AppButton(
+                text = "立即查询",
                 enabled = selectedProject != null && selectedWallet != null && !submitting && !loading,
+                loading = submitting,
                 onClick = {
-                    val project = selectedProject ?: return@Button
-                    val wallet = selectedWallet ?: return@Button
+                    val project = selectedProject ?: return@AppButton
+                    val wallet = selectedWallet ?: return@AppButton
                     scope.launch {
                         submitting = true; error = null
                         try {
@@ -126,10 +127,9 @@ fun WalletCheckDialog(
                             error = "服务器繁忙，请稍后重试"
                         } finally { submitting = false }
                     }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary, disabledContainerColor = AppColors.Border)
-            ) { Text(if (submitting) "正在验证…" else "立即查询") }
+                }
+            )
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = onDismiss) { Text("取消") } }
     )
 }
