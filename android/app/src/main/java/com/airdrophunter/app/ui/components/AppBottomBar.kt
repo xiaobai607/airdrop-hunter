@@ -4,6 +4,8 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -24,6 +26,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,10 +44,21 @@ fun AppBottomBar(
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
+    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    val glass = if (dark) AppDesignTokens.Dark.Glass else AppDesignTokens.Light.Glass
+    val line = if (dark) AppDesignTokens.Dark.Line else AppDesignTokens.Light.Line
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .background(colors.surface.copy(alpha = 0.92f))
+            .background(glass)
+            .drawBehind {
+                drawLine(
+                    color = line,
+                    start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                    end = androidx.compose.ui.geometry.Offset(size.width, 0f),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
     ) {
         val slotWidth = maxWidth / items.size
         val indicatorOffset by animateDpAsState(
