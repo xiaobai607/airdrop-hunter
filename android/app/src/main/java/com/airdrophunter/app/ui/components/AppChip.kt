@@ -31,8 +31,8 @@ fun AppChip(
     val shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)
     Box(
         modifier = modifier
-            // Keep the visible capsule compact while preserving the 44dp accessibility hit target.
-            .heightIn(min = 44.dp)
+            // Keep the visible capsule compact while preserving the 48dp accessibility hit target.
+            .heightIn(min = 48.dp)
             .appPressFeedback(onClick, scale = AppDesignTokens.Motion.PressButtonScale, enabled = enabled, role = Role.Tab)
             .semantics { this.selected = selected },
         contentAlignment = Alignment.Center

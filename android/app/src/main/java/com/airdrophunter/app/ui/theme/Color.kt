@@ -86,7 +86,7 @@ object AppDesignTokens {
     object Control {
         const val ButtonHeight = 52
         const val InputHeight = 52
-        const val IconHitTarget = 44
+        const val IconHitTarget = 48
         const val ListRowHeight = 56
         const val TwoLineRowHeight = 64
         const val TabHeight = 56

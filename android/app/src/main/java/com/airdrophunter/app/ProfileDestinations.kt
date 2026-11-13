@@ -12,6 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,11 +59,11 @@ fun ProfileDestinationDialog(destination: ProfileDestination, onDismiss: () -> U
 
 @Composable
 private fun SettingsDestinationContent() {
-    Text("应用偏好", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Text("应用偏好", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     DestinationInfoRow("外观与主题", "主题和显示偏好设置入口，具体控制项正在开发中")
     DestinationInfoRow("语言", "多语言切换能力正在开发中")
     DestinationInfoRow("浏览器与工具栏", "网页工具栏的显示与排序可在浏览器工具栏的“添加”入口管理")
-    Text("数据与诊断", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Text("数据与诊断", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     DestinationInfoRow("缓存管理", "缓存清理与详细状态控制正在开发中")
     DestinationInfoRow("诊断信息", "诊断导出功能正在开发中；私钥、助记词和签名材料不属于诊断数据")
 }

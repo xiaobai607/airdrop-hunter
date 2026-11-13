@@ -38,7 +38,7 @@ fun AppButton(
     enabled: Boolean = true,
     loading: Boolean = false,
     fullWidth: Boolean = true,
-    heightDp: Int = if (style == AppButtonStyle.TEXT) 44 else AppDesignTokens.Control.ButtonHeight,
+    heightDp: Int = if (style == AppButtonStyle.TEXT) 48 else AppDesignTokens.Control.ButtonHeight,
     leadingIcon: ImageVector? = null,
     fontSizeSp: Int = 17
 ) {
