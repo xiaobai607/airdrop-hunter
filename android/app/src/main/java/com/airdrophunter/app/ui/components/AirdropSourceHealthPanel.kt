@@ -34,7 +34,7 @@ fun AirdropSourceHealthPanel(
 ) {
     val active = statuses.count { it.enabled }
     val failed = statuses.count { it.status == "failed" || it.status == "partial" }
-    val successful = statuses.count { it.status in setOf("success", "empty", "stale") }
+    val available = statuses.count { it.status in setOf("success", "empty", "stale") }
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
@@ -48,7 +48,7 @@ fun AirdropSourceHealthPanel(
                     Text("免费数据源状态", color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "启用 $active · 正常 $successful · 异常 $failed",
+                        "启用 $active · 可用 $available · 异常 $failed",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall
                     )
