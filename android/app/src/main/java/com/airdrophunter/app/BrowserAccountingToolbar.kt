@@ -454,43 +454,35 @@ fun BrowserAccountingToolbar(
                         }
                     }
                     item(key = "add_tool") {
-                        Surface(
-                            onClick = { showToolManager = true },
-                            modifier = Modifier.size(width = 68.dp, height = 78.dp),
-                            shape = RoundedCornerShape(18.dp),
-                            color = Color.Transparent
+                        Column(
+                            modifier = Modifier.size(width = 60.dp, height = 56.dp)
+                                .appPressFeedback(onClick = { showToolManager = true }, scale = 0.94f)
+                                .padding(vertical = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                            Box(
+                                modifier = Modifier.size(32.dp)
+                                    .clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp))
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant,
+                                        RoundedCornerShape(AppDesignTokens.Radius.Md.dp)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(Color.White.copy(alpha = 0.88f))
-                                        .border(
-                                            width = 1.dp,
-                                            color = Color.White.copy(alpha = 0.95f),
-                                            shape = RoundedCornerShape(16.dp)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Add,
-                                        contentDescription = "添加工具",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(26.dp)
-                                    )
-                                }
-                                Spacer(Modifier.height(3.dp))
-                                Text(
-                                    "添加",
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1
+                                Icon(
+                                    imageVector = Icons.Outlined.Add,
+                                    contentDescription = "添加工具",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                "添加",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                                maxLines = 1
+                            )
                         }
                     }
                 }
