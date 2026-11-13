@@ -1349,9 +1349,29 @@ fun AccountingCenterScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             listOf("history" to "账单历史", "stats" to "收支统计", "pending" to "待确认").forEach { (id, label) ->
-                AppChip(text = label, selected = selectedSection == id, onClick = { selectedSection = id })
+                val selected = selectedSection == id
+                Surface(
+                    modifier = Modifier.weight(1f).height(42.dp)
+                        .clip(RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
+                        .clickable { selectedSection = id },
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)
+                ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            label,
+                            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
         }
 
