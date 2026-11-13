@@ -48,6 +48,9 @@ import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppTextField
 import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.animation.core.VectorConverter
@@ -514,12 +517,10 @@ fun BrowserAccountingToolbar(
                         color = AppColors.TextHelper,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    OutlinedTextField(
+                    AppTextField(
                         value = web3HashSyncInput,
                         onValueChange = { web3HashSyncInput = it.trim() },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("TxHash") },
-                        singleLine = true
+                        placeholder = "TxHash"
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(
@@ -865,14 +866,11 @@ fun BrowserAccountingToolbar(
                             }
                         }
                     }
-                    OutlinedTextField(
+                    AppTextField(
                         value = gas,
                         onValueChange = { gas = it; gasValuationTimestamp = Instant.now().toString(); gasValuationSource = "user_input" },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Gas 费（USD估值）") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(13.dp)
+                        placeholder = "Gas 费（USD估值）",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("归属项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
@@ -885,14 +883,11 @@ fun BrowserAccountingToolbar(
                             Text("请先选择项目，或新建一个本地项目。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                         }
                     }
-                    OutlinedTextField(
+                    AppTextField(
                         value = reward,
                         onValueChange = { reward = it; rewardUsdEdited = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("实际收益（USD估值）") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(13.dp)
+                        placeholder = "实际收益（USD估值）",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                     )
                     Text("请手动填写最终实际收益；如果实际为零，也请明确输入 0。未填写不能确认入账。", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
                     if (ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
@@ -909,9 +904,9 @@ fun BrowserAccountingToolbar(
                     }
                     Text("原生币种明细（不同币种分别记录，不相加）", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
+                        AppTextField(
                             value = gasNative, onValueChange = { gasNative = it; gasValuationTimestamp = null; gasValuationSource = null },
-                            label = { Text("Gas 原生金额") }, singleLine = true,
+                            placeholder = "Gas 原生金额",
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1.2f)
                         )
@@ -930,15 +925,14 @@ fun BrowserAccountingToolbar(
                         var gasSymbolCustom by remember { mutableStateOf(gasSymbol.isNotBlank() && gasSymbol !in gasSymbolChoices) }
                         Box(Modifier.weight(0.8f)) {
                             if (gasSymbolCustom) {
-                                OutlinedTextField(
+                                AppTextField(
                                     value = gasSymbol,
                                     onValueChange = { gasSymbol = it.uppercase(Locale.US); gasValuationTimestamp = null; gasValuationSource = null },
-                                    label = { Text("Gas 币种") }, singleLine = true,
+                                    placeholder = "Gas 币种",
                                     modifier = Modifier.fillMaxWidth(),
-                                    trailingIcon = {
-                                        TextButton(onClick = { gasSymbolCustom = false; gasSymbol = gasSymbolChoices.firstOrNull().orEmpty() }) {
-                                            Text("选择")
-                                        }
+                                    trailingContent = {
+                                        AppButton("选择", onClick = { gasSymbolCustom = false; gasSymbol = gasSymbolChoices.firstOrNull().orEmpty() },
+                                            style = AppButtonStyle.TEXT, fullWidth = false, heightDp = 40, fontSizeSp = 12)
                                     }
                                 )
                             } else {
@@ -964,30 +958,28 @@ fun BrowserAccountingToolbar(
                             }
                         }
                     }
-                    OutlinedTextField(
+                    AppTextField(
                         value = gasDecimals, onValueChange = { gasDecimals = it.filter(Char::isDigit).take(2) },
-                        label = { Text("Gas 精度（可选）") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
+                        placeholder = "Gas 精度（可选）",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
+                        AppTextField(
                             value = rewardNative, onValueChange = { rewardNative = it },
-                            label = { Text("收益原生金额") }, singleLine = true,
+                            placeholder = "收益原生金额",
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1.2f)
                         )
-                        OutlinedTextField(
+                        AppTextField(
                             value = rewardSymbol, onValueChange = { rewardSymbol = it.uppercase(Locale.US) },
-                            label = { Text("收益币种") }, singleLine = true,
+                            placeholder = "收益币种",
                             modifier = Modifier.weight(0.8f)
                         )
                     }
-                    OutlinedTextField(
+                    AppTextField(
                         value = rewardDecimals, onValueChange = { rewardDecimals = it.filter(Char::isDigit).take(2) },
-                        label = { Text("收益精度（可选）") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
+                        placeholder = "收益精度（可选）",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                     Button(
                         enabled = !saving && selectedProjectLocalId.isNotBlank() && gasValue != null && rewardValue != null && nativeAssetsValid,
@@ -1110,13 +1102,10 @@ fun BrowserAccountingToolbar(
                         }
                     }
                     Text("新建本地项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                    OutlinedTextField(
+                    AppTextField(
                         value = newProjectName,
                         onValueChange = { newProjectName = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("输入项目名称") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(13.dp)
+                        placeholder = "输入项目名称"
                     )
                     Button(onClick = ::createAndSelectProject, enabled = newProjectName.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
