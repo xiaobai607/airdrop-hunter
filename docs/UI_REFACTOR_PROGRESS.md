@@ -763,3 +763,11 @@
 - `AirdropSourceHealthPanel.kt`：来源状态胶囊统一使用 Radius.Full 令牌。
 - 公共组件其余检查项（AppChip、AppIconButton、BaseCard）未发现需要额外调整的圆角硬编码。
 - Commits：`f9363bf2e8526819f4a043ccfe17bb75ae0521c4`、`7efefaa6a368ae179120b780367a16e5d17a308a`。
+
+
+### 2026-11-13 — 公共组件长文本与 APK 构建时机保护
+
+- `CommunityVerificationTierBar.kt`：核验等级金额汇总说明在紧凑模式最多一行、普通模式最多两行并省略，避免代币/金额组合文案在窄屏横向溢出。Commit：`2518b6d1a5d9cf9a204278a33db442641836b1df`。
+- `AppBottomBar.kt`、`AirdropSourceHealthPanel.kt`：全圆角指示条/状态胶囊统一使用 Full 令牌。Commits：`f9363bf2e8526819f4a043ccfe17bb75ae0521c4`、`7efefaa6a368ae179120b780367a16e5d17a308a`。
+- `.github/workflows/android-build.yml`：发现原工作流会在每次 Android 源码 push 时自动执行 `assembleDebug`，与“UI 全面完成后再统一构建 APK”的验收顺序冲突。现已拆分为：普通 push/PR 只跑 Android 单元测试；只有手动 workflow_dispatch 才执行 APK 打包。原有自动后端测试保留。Commit：`12670652a695e146a9aa841ffcc0450357ef211a`。
+- 工作流改动之前已启动的一次旧版自动打包任务（run 43448872646）当时仍处于运行中；后续新版本工作流已排队。此任务不由本次手动构建触发，需再核对其最终状态。未来不会因普通 Android 源码 push 自动打包。
