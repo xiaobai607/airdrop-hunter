@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import com.airdrophunter.app.ui.theme.AppDesignTokens
-import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppTextField
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButtonStyle
@@ -129,8 +128,11 @@ fun AirdropDiscoveryScreen(
                             }
                             if (item.description.isNotBlank()) Text(item.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                AppChip(text = airdropStatusLabel(item.status), selected = false, onClick = {})
-                                AppChip(text = item.chain.ifBlank { "链未填写" }, selected = false, onClick = {})
+                                listOf(airdropStatusLabel(item.status), item.chain.ifBlank { "链未填写" }).forEach { tag ->
+                                    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(999.dp)) {
+                                        Text(tag, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
                             }
                             if (item.reward_details.isNotBlank()) Text("奖励 · ${item.reward_details}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                             if (item.eligibility.isNotBlank()) Text("参与条件 · ${item.eligibility}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
