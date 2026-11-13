@@ -227,8 +227,12 @@ fun ProjectsScreen(
             )
             filtered.isEmpty() -> EmptyProjects(
                 modifier = Modifier.weight(1f),
-                title = "还没有添加项目",
-                subtitle = if (isGuest) "添加的项目只保存在这台设备上。" else "添加项目后，这里会显示你的项目与任务进度。"
+                title = if (visibleProjects.isEmpty()) "还没有添加项目" else "当前筛选下暂无项目",
+                subtitle = if (visibleProjects.isEmpty()) {
+                    if (isGuest) "添加的项目只保存在这台设备上。" else "添加项目后，这里会显示你的项目与任务进度。"
+                } else {
+                    "「$selectedFilter」分类下暂无项目，切换筛选条件即可查看其他项目。"
+                }
             )
             else -> LazyColumn(
                 state = projectListState,

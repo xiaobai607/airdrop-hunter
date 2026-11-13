@@ -345,9 +345,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 }
             }
             val estimateTotals = remember(periodInteractions) { aggregateLedgerEstimatePeriodTotals(periodInteractions) }
+            val hasPeriodLedger = periodInteractions.isNotEmpty()
             val periodGas = periodInteractions.sumOf { it.gasCostUsd }
             val periodUsdComplete = periodInteractions.all { it.usdProfitComplete }
-            val periodReward = if (periodUsdComplete) periodInteractions.sumOf { it.actualRewardUsd } else null
+            val periodReward = if (hasPeriodLedger && periodUsdComplete) periodInteractions.sumOf { it.actualRewardUsd } else null
             val periodNet = periodReward?.minus(periodGas)
             val gasAssetTotals = remember(periodInteractions) { aggregateLedgerAssetPeriodTotals(periodInteractions, "gas") }
             val rewardAssetTotals = remember(periodInteractions) { aggregateLedgerAssetPeriodTotals(periodInteractions, "reward") }
@@ -363,12 +364,16 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         Text("个人项目账本", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
+                    val hasLedger = (userProject?.interactionCount ?: 0) > 0
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ProjectMetric(Modifier.weight(1f), "累计 Gas", userProject?.totalGasCostUsd ?: 0.0)
+                        ProjectMetric(Modifier.weight(1f), "累计 Gas",
+                            userProject?.totalGasCostUsd.takeIf { hasLedger }, emptyLabel = "暂无记账")
                         ProjectMetric(Modifier.weight(1f), "实际收益",
-                            userProject?.let { if (it.usdProfitComplete) it.totalActualRewardUsd else null })
+                            userProject?.let { if (hasLedger && it.usdProfitComplete) it.totalActualRewardUsd else null },
+                            emptyLabel = if (hasLedger) "估值未完整" else "暂无记账")
                         ProjectMetric(Modifier.weight(1f), "净利润",
-                            userProject?.let { if (it.usdProfitComplete) it.netProfitUsd else null })
+                            userProject?.let { if (hasLedger && it.usdProfitComplete) it.netProfitUsd else null },
+                            emptyLabel = if (hasLedger) "估值未完整" else "暂无记账")
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         LedgerPeriod.values().forEach { option ->
@@ -396,10 +401,20 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LedgerPeriodMetric(Modifier.weight(1f), "实际 Gas", periodGas, MaterialTheme.colorScheme.error)
-                        LedgerPeriodMetric(Modifier.weight(1f), "实际收益", periodReward, MaterialTheme.colorScheme.secondary)
+                        LedgerPeriodMetric(Modifier.weight(1f), "实际 Gas",
+                            periodGas.takeIf { hasPeriodLedger },
+                            if (hasPeriodLedger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            emptyLabel = "暂无记账")
+                        LedgerPeriodMetric(Modifier.weight(1f), "实际收益", periodReward,
+                            if (periodReward != null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            emptyLabel = if (hasPeriodLedger) "估值未完整" else "暂无记账")
                         LedgerPeriodMetric(Modifier.weight(1f), "净盈亏", periodNet,
-                            if ((periodNet ?: 0.0) >= 0.0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error)
+                            when {
+                                periodNet == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                periodNet >= 0.0 -> MaterialTheme.colorScheme.secondary
+                                else -> MaterialTheme.colorScheme.error
+                            },
+                            emptyLabel = if (hasPeriodLedger) "估值未完整" else "暂无记账")
                     }
                     if (gasAssetTotals.isNotEmpty() || rewardAssetTotals.isNotEmpty()) {
                         Text(
@@ -945,19 +960,23 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
 }
 
 @Composable
-private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double?, color: Color) {
+private fun LedgerPeriodMetric(
+    modifier: Modifier, label: String, value: Double?, color: Color, emptyLabel: String = "估值未完整"
+) {
     Column(
         modifier.background(MaterialTheme.colorScheme.background, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 2)
-        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: "估值未完整", color = color,
+        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: emptyLabel, color = color,
             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-private fun ProjectMetric(modifier: Modifier = Modifier, label: String, value: Double?) {
+private fun ProjectMetric(
+    modifier: Modifier = Modifier, label: String, value: Double?, emptyLabel: String = "估值未完整"
+) {
     Column(modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 2)
