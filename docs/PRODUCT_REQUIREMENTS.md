@@ -3,13 +3,7 @@
 
 A source review after the UI pass found the browser still forces a fixed Chrome 131 / Pixel 7 User-Agent at WebView creation, rewrites the same User-Agent again on page-finished and retry, and marks the page failed after a 15-second watchdog. This contradicts the earlier intent to avoid mid-navigation identity changes and can cause compatibility failures with current sites or slow redirects.
 
-Planned correction:
-- Use the Android WebView provider's native User-Agent; do not spoof a fixed, aging browser/device fingerprint.
-- Do not mutate User-Agent after page completion or before retry.
-- Extend the main-frame watchdog to 30 seconds, keep the page in a diagnosable loading state during that bounded window, and preserve a manual retry.
-- Upgrade explicitly supplied `http://` URLs to their `https://` equivalent before loading; never enable cleartext traffic as a fallback. For in-page HTTP links, upgrade same-origin links directly and retain the existing user confirmation for cross-origin navigation.
-- Keep strict TLS failure handling, mixed-content blocking, file/content access disabled, safe browsing, and existing DApp origin/WalletConnect security checks unchanged.
-- Sanitize browser logs to host-only diagnostics; never log full URLs, query strings, cookies, tokens, or form values. Add privacy-safe WebChrome console/error diagnostics only if they materially help identify the blank-page cause.
+Implemented in source: WebView now keeps the provider-native User-Agent without post-load or retry rewrites; the main-frame watchdog now allows 30 seconds while still showing a slow-load state after 5 seconds; initial and in-page HTTP links are upgraded to HTTPS (cross-origin navigation still requires user confirmation); and URL logs are reduced to host-only diagnostics. Manifest INTERNET permission is present and cleartext traffic remains disabled. TLS fail-closed, mixed-content blocking, file/content access restrictions, Safe Browsing, and DApp origin/WalletConnect checks remain unchanged. Runtime behavior still requires real-device acceptance; no browser fix is claimed as device-verified.
 
 # 2026-11-13 — Apple × Xiaomi UI system-wide refactor (active)
 
