@@ -257,7 +257,7 @@ fun WalletManagerScreen(
 
         if (connectedAccounts.isNotEmpty()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
@@ -278,7 +278,7 @@ fun WalletManagerScreen(
         state.error?.let { message ->
             Text(
                 message,
-                modifier = Modifier.padding(horizontal = 18.dp),
+                modifier = Modifier.padding(horizontal = 16.dp),
                 color = MaterialTheme.colorScheme.error
             )
         }
@@ -291,7 +291,7 @@ fun WalletManagerScreen(
             }
             state.wallets.isEmpty() -> {
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
