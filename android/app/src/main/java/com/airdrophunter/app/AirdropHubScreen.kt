@@ -27,6 +27,10 @@ import com.airdrophunter.app.data.AirdropHubDetailDto
 import com.airdrophunter.app.data.AirdropHubDto
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppButton
 import java.text.DateFormat
 import java.time.Instant
 import java.util.Date
@@ -52,7 +56,7 @@ fun AirdropHubScreen(
         return
     }
 
-    Column(modifier.fillMaxSize().background(AppColors.Background)) {
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -63,7 +67,7 @@ fun AirdropHubScreen(
                 color = AppColors.TextHelper,
                 style = MaterialTheme.typography.bodySmall
             )
-            TextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
+            AppTextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
                 Text(if (state.isRefreshing) "刷新中…" else "刷新", color = AppColors.Primary)
             }
         }
@@ -82,10 +86,7 @@ fun AirdropHubScreen(
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text("请检查网络后重试。", color = AppColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall)
-                Button(onClick = hubViewModel::refresh, enabled = !state.isRefreshing,
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
-                    Text("重新加载")
-                }
+                AppButton("重新加载", onClick = hubViewModel::refresh, enabled = !state.isRefreshing)
             }
 
             state.projects.isEmpty() -> Box(
@@ -105,15 +106,16 @@ fun AirdropHubScreen(
                 }
                 items(state.projects, key = { it.id }) { item ->
                     Card(
-                        onClick = { selectedAnnouncement = item },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().appPressFeedback(
+                            onClick = { selectedAnnouncement = item }, scale = 0.96f
+                        ),
+                        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                         colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                         border = BorderStroke(1.dp, AppColors.Border),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         Column(
-                            Modifier.fillMaxWidth().padding(15.dp),
+                            Modifier.fillMaxWidth().padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(9.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
