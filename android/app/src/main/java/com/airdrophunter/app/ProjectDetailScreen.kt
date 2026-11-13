@@ -170,35 +170,49 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall) }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (project.claim_url.startsWith("https://", ignoreCase = true)) {
-                            Button(enabled = !isLoadingClaimWallets && !state.isClaimLoading, onClick = {
-                                scope.launch {
-                                    isLoadingClaimWallets = true
-                                    try {
-                                        val availableWallets = application.appContainer.walletRepository.load(isGuest)
-                                        claimWallets = availableWallets.sortedByDescending { it.id in assignedWalletIds }
-                                        if (claimWallets.isEmpty()) Toast.makeText(context, "请先在钱包管理中添加公开地址", Toast.LENGTH_LONG).show()
-                                        else showClaimWalletPicker = true
-                                    } catch (error: Exception) {
-                                        Toast.makeText(context, error.message ?: "读取钱包失败", Toast.LENGTH_LONG).show()
-                                    } finally { isLoadingClaimWallets = false }
-                                }
-                            }, shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
-                                Text(if (isLoadingClaimWallets || state.isClaimLoading) "准备中…" else "选择钱包并领取")
-                            }
+                            AppButton(
+                                text = "选择钱包并领取",
+                                onClick = {
+                                    scope.launch {
+                                        isLoadingClaimWallets = true
+                                        try {
+                                            val availableWallets = application.appContainer.walletRepository.load(isGuest)
+                                            claimWallets = availableWallets.sortedByDescending { it.id in assignedWalletIds }
+                                            if (claimWallets.isEmpty()) Toast.makeText(context, "请先在钱包管理中添加公开地址", Toast.LENGTH_LONG).show()
+                                            else showClaimWalletPicker = true
+                                        } catch (error: Exception) {
+                                            Toast.makeText(context, error.message ?: "读取钱包失败", Toast.LENGTH_LONG).show()
+                                        } finally { isLoadingClaimWallets = false }
+                                    }
+                                },
+                                enabled = !isLoadingClaimWallets && !state.isClaimLoading,
+                                loading = isLoadingClaimWallets || state.isClaimLoading,
+                                fullWidth = false, heightDp = 44, fontSizeSp = 13
+                            )
                         }
-                        if (project.official_url.startsWith("https://")) OutlinedButton(onClick = {
-                            context.startActivity(Intent(context, BrowserActivity::class.java)
-                                .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
-                                .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
-                        }) { Text(stringResource(R.string.official_website)) }
-                        if (project.twitter_url.startsWith("https://")) OutlinedButton(onClick = {
-                            context.startActivity(Intent(context, BrowserActivity::class.java)
-                                .putExtra(BrowserActivity.EXTRA_URL, project.twitter_url)
-                                .putExtra(BrowserActivity.EXTRA_TITLE, twitterTitle))
-                        }) { Text(stringResource(R.string.twitter)) }
+                        if (project.official_url.startsWith("https://")) AppButton(
+                            text = stringResource(R.string.official_website),
+                            onClick = {
+                                context.startActivity(Intent(context, BrowserActivity::class.java)
+                                    .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
+                                    .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
+                            },
+                            style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 44, fontSizeSp = 13
+                        )
+                        if (project.twitter_url.startsWith("https://")) AppButton(
+                            text = stringResource(R.string.twitter),
+                            onClick = {
+                                context.startActivity(Intent(context, BrowserActivity::class.java)
+                                    .putExtra(BrowserActivity.EXTRA_URL, project.twitter_url)
+                                    .putExtra(BrowserActivity.EXTRA_TITLE, twitterTitle))
+                            },
+                            style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 44, fontSizeSp = 13
+                        )
                     }
-                    OutlinedButton(
+                    AppButton(
+                        text = "＋ 记一笔",
                         enabled = !isLoadingAccountingWallets && !isSavingAccounting,
+                        loading = isLoadingAccountingWallets,
                         onClick = {
                             scope.launch {
                                 isLoadingAccountingWallets = true
@@ -222,14 +236,13 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text(if (isLoadingAccountingWallets) "读取钱包…" else "＋ 记一笔") }
+                    )
                     if (project.communityOfficialId != null && !project.communityDelisted && onOpenCommunity != null) {
-                        OutlinedButton(
+                        AppButton(
+                            text = "查看全网大盘数据",
                             onClick = { onOpenCommunity(project) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("查看全网大盘数据") }
+                            style = AppButtonStyle.SECONDARY
+                        )
                     }
                 }
             }
