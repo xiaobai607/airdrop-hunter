@@ -1,5 +1,6 @@
 import hashlib
 import json
+from html.parser import HTMLParser
 import logging
 import os
 import re
@@ -11,7 +12,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AirdropDiscoveryCandidate, AirdropDiscoveryObservation, AirdropProject
+from app.models import AirdropCampaign, AirdropCampaignSourceSnapshot, AirdropCampaignStatusHistory, AirdropDiscoveryCandidate, AirdropDiscoveryObservation, AirdropProject
 from app.services.discovery_source_status import record_discovery_source_status
 
 logger = logging.getLogger("airdrop_hunter.airdrop_sync")
@@ -276,6 +277,7 @@ def _normalize_binance_announcements(payload: Any, *, catalog_id: int) -> list[d
                 "trust_level": TRUST_LEVEL_0,
                 "publication_status": OBSERVATION,
                 "catalog_id": catalog_id,
+                "catalog_name": str(catalog.get("catalogName") or "")[:120],
                 "_raw_payload": article,
             })
     return records
@@ -309,26 +311,43 @@ def _normalize_binance_article_detail(payload: Any, *, fallback_title: str, fall
     }
 
 
-async def fetch_binance_article_detail(article_code: str, *, fallback_title: str, fallback_url: str) -> dict[str, Any]:
+async def _fetch_binance_article_detail_with_client(
+    client: httpx.AsyncClient,
+    article_code: str,
+    *,
+    fallback_title: str,
+    fallback_url: str,
+) -> dict[str, Any]:
     safe_code = re.sub(r"[^A-Za-z0-9_-]", "", article_code or "")
     if not safe_code or safe_code != article_code:
         raise ValueError("Invalid Binance article code")
+    response = await client.get(
+        BINANCE_CMS_DETAIL_SOURCE,
+        params={"articleCode": safe_code},
+        headers={
+            "Origin": "https://www.binance.com",
+            "clienttype": "web",
+            "lang": "en",
+        },
+    )
+    response.raise_for_status()
+    if len(response.content) > 3_000_000:
+        raise ValueError("Binance article exceeds the 3 MB display limit")
+    return _normalize_binance_article_detail(
+        response.json(), fallback_title=fallback_title, fallback_url=fallback_url
+    )
+
+
+async def fetch_binance_article_detail(article_code: str, *, fallback_title: str, fallback_url: str) -> dict[str, Any]:
     async with httpx.AsyncClient(
         timeout=httpx.Timeout(20.0),
         headers={
             "User-Agent": "AirdropHunter/1.0",
             "Accept": "application/json",
-            "Origin": "https://www.binance.com",
-            "clienttype": "web",
-            "lang": "en",
         },
     ) as client:
-        response = await client.get(BINANCE_CMS_DETAIL_SOURCE, params={"articleCode": safe_code})
-        response.raise_for_status()
-        if len(response.content) > 3_000_000:
-            raise ValueError("Binance article exceeds the 3 MB display limit")
-        return _normalize_binance_article_detail(
-            response.json(), fallback_title=fallback_title, fallback_url=fallback_url
+        return await _fetch_binance_article_detail_with_client(
+            client, article_code, fallback_title=fallback_title, fallback_url=fallback_url
         )
 
 
