@@ -66,7 +66,7 @@ import java.util.Locale
 import java.util.UUID
 import java.time.Instant
 
-private data class AccountingFormDraft(
+internal data class AccountingFormDraft(
     val selectedProjectLocalId: String? = null,
     val gas: String? = null, val reward: String? = null, val rewardUsdEdited: Boolean? = null,
     val gasNative: String? = null, val gasSymbol: String? = null, val gasDecimals: String? = null,
@@ -76,7 +76,7 @@ private data class AccountingFormDraft(
     val gasSplitQuoteTimestamp: String? = null, val gasExecutionLabel: String? = null, val gasSplitSymbol: String? = null,
     val rewardNative: String? = null, val rewardSymbol: String? = null, val rewardDecimals: String? = null
 )
-private object AccountingFormDraftCodec {
+internal object AccountingFormDraftCodec {
     private val gson = Gson()
     fun encode(draft: AccountingFormDraft): String = gson.toJson(draft).takeIf { it.length <= 32_768 } ?: "{}"
     fun decode(json: String?): AccountingFormDraft? {
@@ -248,8 +248,7 @@ fun BrowserAccountingToolbar(
         rewardSymbol = saved?.rewardSymbol ?: rewardAsset?.symbol.orEmpty()
         rewardDecimals = saved?.rewardDecimals ?: rewardAsset?.decimals?.toString().orEmpty()
         selectedProjectLocalId = saved?.selectedProjectLocalId
-            ?.takeIf { id -> projects.any { it.id == id } }
-            ?: selectedProjectLocalId.takeIf { id -> projects.any { it.id == id } }
+            ?: selectedProjectLocalId.takeIf { it.isNotBlank() }
             ?: projects.firstOrNull()?.id.orEmpty()
         showBillList = false
         showConfirm = true
