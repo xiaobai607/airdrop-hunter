@@ -331,7 +331,7 @@ fun MicroCommunityScreen(
                     } else if (saved) {
                         Text("已保存在本机", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelMedium)
                     } else {
-                        Text("评分仅保存在本机；当前版本不会上传个人账本或提交全网评分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text("星级评分暂存在本机，当前版本不会提交全网评分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                     AppButton(
                         text = if (saved) "已评价" else "保存星级评分",

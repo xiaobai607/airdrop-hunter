@@ -740,7 +740,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             if (!saved) error("记账未保存，请检查是否存在重复交易或部分重复提交")
                             showManualAccounting = false
                             Toast.makeText(context,
-                                if (project.communityDelisted) "记账成功；该项目已下架，记录仅保存在本机"
+                                if (project.communityDelisted) "记账成功；该项目已下架，记录仍保留在个人账本"
                                 else if (batch.hasPublicContributionOptIn) "记账成功；符合条件的社区数据已进入脱敏统计流程" else "记账成功",
                                 Toast.LENGTH_LONG).show()
                         } catch (error: Exception) {
