@@ -368,8 +368,8 @@ fun CommunitySquareScreen(
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = RoundedCornerShape(13.dp), color = Color(0xFFEAF2FF), modifier = Modifier.size(45.dp)) {
-                            Box(contentAlignment = Alignment.Center) { Text(project.logo, color = Color(0xFF315A9D), fontWeight = FontWeight.ExtraBold, fontSize = 21.sp) }
+                        Surface(shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(44.dp)) {
+                            Box(contentAlignment = Alignment.Center) { Text(project.logo, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold, fontSize = 21.sp) }
                         }
                         Spacer(Modifier.width(11.dp))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -378,12 +378,12 @@ fun CommunitySquareScreen(
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Surface(
-                                color = when { project.isDemo -> Color(0xFFFFF4E5); !project.isActive -> Color(0xFFFFE8E8); else -> Color(0xFFEAF7EF) },
+                                color = when { project.isDemo -> MaterialTheme.colorScheme.surfaceVariant; !project.isActive -> MaterialTheme.colorScheme.errorContainer; else -> MaterialTheme.colorScheme.secondaryContainer },
                                 shape = RoundedCornerShape(999.dp)
                             ) {
                                 Text(
                                     project.label, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    color = when { project.isDemo -> Color(0xFF9A5B12); !project.isActive -> Color(0xFFC62828); else -> Color(0xFF19764F) },
+                                    color = when { project.isDemo -> MaterialTheme.colorScheme.onSurfaceVariant; !project.isActive -> MaterialTheme.colorScheme.error; else -> MaterialTheme.colorScheme.secondary },
                                     style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -421,7 +421,7 @@ fun CommunitySquareScreen(
                     if (project.isDemo) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("★ ${String.format(Locale.US, "%.1f", project.demoScore)} · ${project.reputationLabel}",
-                                color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                                color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                         }
                     } else {
                         Text(
