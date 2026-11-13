@@ -802,7 +802,7 @@ class Web3TransactionRepository(
             network = network,
             assetBreakdownJson = LedgerAssetBreakdownCodec.encode(assets)
         )
-        CacheStore.addPendingBill(bill)
+        if (!CacheStore.materializeWeb3PendingBill(bill, draft.id, draft.accountScope)) return null
         return bill
     }
 
@@ -832,7 +832,7 @@ class Web3TransactionRepository(
             network = network,
             assetBreakdownJson = null
         )
-        CacheStore.addPendingBill(bill)
+        if (!CacheStore.materializeWeb3PendingBill(bill, draft.id, draft.accountScope)) return null
         return bill
     }
 
