@@ -45,6 +45,7 @@ import com.airdrophunter.app.ui.components.AppHaptic
 import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppTextButton
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CancellationException
@@ -262,7 +263,7 @@ fun WalletManagerScreen(
                     Text("WalletConnect 已连接", color = AppColors.Primary, fontWeight = FontWeight.SemiBold)
                     Text("已读取外部钱包公开地址；连接不代表允许交易", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                 }
-                TextButton(onClick = {
+                AppTextButton(onClick = {
                     AppKit.disconnect(
                         onSuccess = { WalletConnectSessionDelegate.clearSession() },
                         onError = { error ->
@@ -439,7 +440,7 @@ fun WalletManagerScreen(
                 ) { Text("保存修改") }
             },
             dismissButton = {
-                TextButton(enabled = !state.isSaving, onClick = { editingWallet = null }) { Text("取消") }
+                AppTextButton(enabled = !state.isSaving, onClick = { editingWallet = null }) { Text("取消") }
             }
         )
     }
@@ -588,7 +589,7 @@ fun WalletManagerScreen(
                 ) { Text("保存公开地址") }
             },
             dismissButton = {
-                TextButton(onClick = { pendingConnectedAccount = null }) { Text("暂不保存") }
+                AppTextButton(onClick = { pendingConnectedAccount = null }) { Text("暂不保存") }
             }
         )
     }
