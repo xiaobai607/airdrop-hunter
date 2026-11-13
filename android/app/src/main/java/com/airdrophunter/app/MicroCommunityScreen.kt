@@ -1,3 +1,4 @@
+import com.airdrophunter.app.ui.components.AppTextButton
 package com.airdrophunter.app
 
 import androidx.compose.animation.AnimatedContent
@@ -193,7 +194,7 @@ fun MicroCommunityScreen(
                     Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
                 overallProject?.website_url?.takeIf { it.startsWith("https://", true) }?.let { url ->
-                    TextButton(onClick = { runCatching { uriHandler.openUri(url) } }) {
+                    AppTextButton(onClick = { runCatching { uriHandler.openUri(url) } }) {
                         Text("官方网站：$url", maxLines = 1)
                     }
                 }
@@ -226,11 +227,11 @@ fun MicroCommunityScreen(
                         if (BuildConfig.DEBUG) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    TextButton(onClick = { useDemoStats = true }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp)) {
+                                    AppTextButton(onClick = { useDemoStats = true }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp)) {
                                         Text(if (useDemoStats) "✓ 演示" else "演示", color = MaterialTheme.colorScheme.tertiary,
                                             style = MaterialTheme.typography.labelSmall)
                                     }
-                                    TextButton(onClick = { useDemoStats = false }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp)) {
+                                    AppTextButton(onClick = { useDemoStats = false }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp)) {
                                         Text(if (!useDemoStats) "✓ 全网" else "全网", color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             style = MaterialTheme.typography.labelSmall)
                                     }
