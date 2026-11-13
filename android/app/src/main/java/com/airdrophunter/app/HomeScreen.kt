@@ -49,6 +49,7 @@ import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.GlobalSyncScheduler
 import com.airdrophunter.app.data.WalletDto
 import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppTextField
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.google.gson.Gson
