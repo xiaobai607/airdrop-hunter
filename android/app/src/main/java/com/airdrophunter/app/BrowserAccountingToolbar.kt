@@ -761,7 +761,7 @@ fun BrowserAccountingToolbar(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(
-                                            Modifier.weight(1f).clickable { openBill(bill) }.padding(vertical = 3.dp),
+                                            Modifier.weight(1f).appPressFeedback(onClick = { openBill(bill) }, scale = 0.98f).padding(vertical = 3.dp),
                                             verticalArrangement = Arrangement.spacedBy(3.dp)
                                         ) {
                                             Text(
