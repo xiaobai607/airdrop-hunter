@@ -165,23 +165,42 @@ fun ProfileScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column {
+                val hasLedgerEntries = stats.total_interactions > 0 || stats.ledger_project_count > 0
+                val hasWinRateSample = stats.evaluated_projects > 0
                 Row(Modifier.fillMaxWidth().heightIn(min = 76.dp)) {
                     StatCell("跟踪项目", stats.tracked_projects.toString(), Modifier.weight(1f))
                     Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
-                    StatCell(if (stats.usd_profit_complete) "胜率" else "已估值胜率",
-                        String.format(Locale.US, "%.1f%%", stats.win_rate), Modifier.weight(1f))
+                    StatCell(
+                        if (!hasWinRateSample) "胜率样本" else if (stats.usd_profit_complete) "胜率" else "已估值胜率",
+                        if (hasWinRateSample) String.format(Locale.US, "%.1f%%", stats.win_rate) else "暂无样本",
+                        Modifier.weight(1f)
+                    )
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth().heightIn(min = 76.dp)) {
-                    StatCell("累计 Gas", String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost),
-                        Modifier.weight(1f), "USD")
+                    StatCell(
+                        "累计 Gas",
+                        if (hasLedgerEntries) String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost) else "暂无记账",
+                        Modifier.weight(1f), if (hasLedgerEntries) "USD" else ""
+                    )
                     Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
-                    StatCell("实际收益",
-                        if (stats.usd_profit_complete) String.format(Locale.US, "%.2f", stats.ledger_total_actual_reward) else "估值未完整",
-                        Modifier.weight(1f), if (stats.usd_profit_complete) "USD" else "")
+                    StatCell(
+                        "实际收益",
+                        when {
+                            !hasLedgerEntries -> "暂无记账"
+                            stats.usd_profit_complete -> String.format(Locale.US, "%.2f", stats.ledger_total_actual_reward)
+                            else -> "估值未完整"
+                        },
+                        Modifier.weight(1f), if (hasLedgerEntries && stats.usd_profit_complete) "USD" else ""
+                    )
+                }
+                val netProfitLabel = when {
+                    !hasLedgerEntries -> "暂无记账"
+                    stats.usd_profit_complete -> String.format(Locale.US, "%.2f", stats.ledger_net_profit) + " USD"
+                    else -> "估值未完整"
                 }
                 Text(
-                    "参与项目 ${stats.ledger_project_count} · 净收益 ${if (stats.usd_profit_complete) String.format(Locale.US, "%.2f", stats.ledger_net_profit) + " USD" else "估值未完整"} · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
+                    "参与项目 ${stats.ledger_project_count} · 净收益 $netProfitLabel · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.labelSmall
