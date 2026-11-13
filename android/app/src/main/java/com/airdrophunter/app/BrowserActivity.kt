@@ -857,6 +857,7 @@ private fun BrowserScreen(
                                 // Reject scripted popups without a real user gesture.
                                 if (!isUserGesture || view == null || resultMsg == null) return false
                                 val popup = WebView(context)
+                                CookieManager.getInstance().setAcceptThirdPartyCookies(popup, true)
                                 popup.settings.apply {
                                     javaScriptEnabled = true
                                     domStorageEnabled = true
