@@ -1048,3 +1048,9 @@
 
 - `MainActivity.kt`：状态栏与系统导航栏颜色不再在 Activity 内硬编码浅/深色 RGB，直接读取当前 `MaterialTheme.colorScheme.background`，保证浅色/深色模式与页面背景令牌一致。
 - 保留系统栏图标明暗模式判断与现有窗口行为。
+
+### 2026-11-14 — 系统栏主题色编译回归修复
+
+- 修复 `MainActivity.kt` 中主题颜色读取位置不正确导致的 Kotlin 编译失败：`MaterialTheme.colorScheme.background` 在 Composable 上下文内提前读取，再由 `SideEffect` 应用到系统状态栏和导航栏。
+- 保留浅/深色系统栏图标逻辑、系统栏颜色来源及窗口行为；不改页面 UI 或业务流程。
+- 前一版 CI #1914 在 `MainActivity.kt:140` 报错“Composable invocations can only happen from the context of a @Composable function”；本次修复后需以新提交的 Android 单元测试结果为准。未构建 APK。

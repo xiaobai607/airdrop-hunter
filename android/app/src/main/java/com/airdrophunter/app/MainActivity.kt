@@ -136,8 +136,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             AirdropHunterTheme {
                 val darkSystem = isSystemInDarkTheme()
+                val barColor = MaterialTheme.colorScheme.background.toArgb()
                 SideEffect {
-                    val barColor = MaterialTheme.colorScheme.background.toArgb()
                     window.statusBarColor = barColor
                     window.navigationBarColor = barColor
                     @Suppress("DEPRECATION")
