@@ -153,8 +153,6 @@ fun AirdropCampaignsScreen(
 @OptIn(ExperimentalLayoutApi::class)
 private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
     Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
         modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = onClick, scale = 0.96f),
         shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
