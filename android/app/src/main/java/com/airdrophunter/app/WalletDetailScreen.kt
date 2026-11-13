@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppTextButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -55,7 +56,7 @@ fun WalletDetailScreen(
                     style = MaterialTheme.typography.labelSmall
                 )
             }
-            TextButton(onClick = { showAssetDialog = true }) { Text("资产", color = AppColors.Primary) }
+            AppTextButton(onClick = { showAssetDialog = true }) { Text("资产", color = AppColors.Primary) }
             IconButton(onClick = { clipboard.setText(AnnotatedString(wallet.address)) }) {
                 Icon(Icons.Default.ContentCopy, "复制地址", tint = AppColors.Primary)
             }
