@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -27,8 +28,7 @@ fun AppTextButton(
                 pressedAlpha = 0.6f,
                 role = Role.Button
             )
-            .then(Modifier),
-        contentPadding,
+            .padding(contentPadding),
         content = content
     )
 }
