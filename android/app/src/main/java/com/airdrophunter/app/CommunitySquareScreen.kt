@@ -260,7 +260,7 @@ fun CommunitySquareScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("空投库", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 AppButton(
                     text = "提交新空投项目",
@@ -296,7 +296,7 @@ fun CommunitySquareScreen(
                 Surface(color = if (useDemoData) Color(0xFFFFF4E5) else Color(0xFFE8F7EF), shape = RoundedCornerShape(999.dp)) {
                     Text(
                         if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网真实数据 · 脱敏汇总",
-                        Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         color = if (useDemoData) Color(0xFF9A5B12) else Color(0xFF19764F),
                         style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
                     )
@@ -351,7 +351,7 @@ fun CommunitySquareScreen(
                         searchQuery.isNotBlank() -> "没有找到匹配的社区项目"
                         else -> "暂无符合条件的项目"
                     },
-                    Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                    Modifier.fillMaxWidth().padding(vertical = 24.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -372,7 +372,7 @@ fun CommunitySquareScreen(
                             Box(contentAlignment = Alignment.Center) { Text(project.logo, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold, fontSize = 21.sp) }
                         }
                         Spacer(Modifier.width(11.dp))
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(project.name, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Text(project.chain, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                         }
@@ -452,10 +452,10 @@ fun CommunitySquareScreen(
                                 .background(comparisonBrush, RoundedCornerShape(999.dp))
                         )
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         project.tags.forEach { tag ->
                             Surface(color = Color(0xFFF1F4F7), shape = RoundedCornerShape(6.dp)) {
-                                Text(tag, Modifier.padding(horizontal = 7.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                Text(tag, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -473,14 +473,14 @@ fun CommunitySquareScreen(
             text = {
                 Column(
                     Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text("同一组内多选为“满足任一项”，不同组之间为“同时满足”。只按目录中已核验/已录入的信息筛选，未标注条件不会被猜测。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     visibleAirdropFilterGroups.forEach { group ->
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(group.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                             group.options.chunked(3).forEach { optionRow ->
-                                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     optionRow.forEach { option ->
                                         val selected = option.value in airdropFilterSelection.values[group.key].orEmpty()
                                         AppChip(
@@ -509,7 +509,7 @@ fun CommunitySquareScreen(
             onDismissRequest = { if (!submittingProject) showSubmissionDialog = false },
             title = { Text("提交新空投项目") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("只需填写项目名称和链接。可以是官网，也可以是第三方空投平台的项目详情页。", style = MaterialTheme.typography.bodySmall)
                     AppTextField(
                         value = submissionName,
