@@ -30,7 +30,7 @@ data class MarketDashboardPreferenceEntity(
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
 
 @Entity(tableName = "pending_bills", primaryKeys = ["accountScope", "id"])
-data class PendingBillEntity(val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest", @ColumnInfo(defaultValue = "'unknown'") val network: String = "unknown", val assetBreakdownJson: String? = null)
+data class PendingBillEntity(val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest", @ColumnInfo(defaultValue = "'unknown'") val network: String = "unknown", val assetBreakdownJson: String? = null, val draftFormJson: String? = null)
 
 @Entity(
     tableName = "pnl_records",
@@ -222,6 +222,8 @@ interface PendingBillDao {
     fun observeAll(accountScope: String): Flow<List<PendingBillEntity>>
     @Query("SELECT * FROM pending_bills WHERE id = :id AND accountScope = :accountScope LIMIT 1")
     suspend fun findById(id: String, accountScope: String): PendingBillEntity?
+    @Query("UPDATE pending_bills SET draftFormJson = :draftJson WHERE id = :id AND accountScope = :accountScope")
+    suspend fun updateDraftFormJson(id: String, accountScope: String, draftJson: String): Int
     @Query("DELETE FROM pending_bills WHERE id = :id AND accountScope = :accountScope")
     suspend fun delete(id: String, accountScope: String)
 }
@@ -377,7 +379,7 @@ interface LocalBackupDao {
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertWeb3Drafts(rows:List<Web3TransactionDraftEntity>)
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class, MarketDashboardPreferenceEntity::class, Web3TransactionDraftEntity::class], version = 24, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class, MarketDashboardPreferenceEntity::class, Web3TransactionDraftEntity::class], version = 25, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
     abstract fun marketDashboardPreferenceDao(): MarketDashboardPreferenceDao
     abstract fun web3TransactionDraftDao(): Web3TransactionDraftDao
@@ -737,13 +739,18 @@ object CacheStore {
             db.execSQL("CREATE INDEX IF NOT EXISTS index_web3_transaction_drafts_accountScope_walletConnectRequestId_walletConnectSessionTopic ON web3_transaction_drafts(accountScope, walletConnectRequestId, walletConnectSessionTopic)")
         }
     }
+    private val MIGRATION_24_25 = object : Migration(24, 25) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE pending_bills ADD COLUMN draftFormJson TEXT")
+        }
+    }
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25).build()
         }
     }
     fun web3TransactionDraftDao(): Web3TransactionDraftDao? = database?.web3TransactionDraftDao()
@@ -1070,6 +1077,13 @@ object CacheStore {
 
     suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) {
         database?.pendingBillDao()?.insert(bill.copy(accountScope = currentAccountScope()))
+    }
+
+    /** Stores only local, unconfirmed form input; never enters personal-ledger cloud payloads. */
+    suspend fun savePendingBillDraft(id: String, draftJson: String): Boolean = withContext(Dispatchers.IO) {
+        if (id.isBlank() || draftJson.length > 32_768) return@withContext false
+        val db = database ?: return@withContext false
+        db.pendingBillDao().updateDraftFormJson(id, currentAccountScope(), draftJson) == 1
     }
 
     /**
