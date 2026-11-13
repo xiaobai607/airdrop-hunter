@@ -79,10 +79,10 @@ fun AirdropHubScreen(
         }
 
         Column(Modifier.weight(1f)) {
-            if (state.sourceStatuses.isNotEmpty() || state.sourceStatusError != null) {
+            if (state.sourceStatuses.isNotEmpty() || state.sourceStatusError != null || state.sourceError != null) {
                 AirdropSourceHealthCard(
                     statuses = state.sourceStatuses,
-                    error = state.sourceStatusError,
+                    error = state.sourceError ?: state.sourceStatusError,
                     expanded = showSourceDetails,
                     onToggle = { showSourceDetails = !showSourceDetails }
                 )
