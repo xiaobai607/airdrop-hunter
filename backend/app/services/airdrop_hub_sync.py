@@ -693,7 +693,7 @@ def _configured_dexscreener_search_queries() -> list[str]:
     queries = list(dict.fromkeys(
         part.strip() for part in raw.split(",") if part.strip()
     ))[:8]
-    return queries or ["airdrop"]
+    return queries or ["SOL", "ETH", "USDC"]
 
 
 async def _fetch_dexscreener_observations(client: httpx.AsyncClient) -> list[dict[str, Any]]:
