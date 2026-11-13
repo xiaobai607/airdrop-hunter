@@ -1210,6 +1210,7 @@ fun AccountingCenterScreen(
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
+    val scope = rememberCoroutineScope()
     val accountingRepository = remember(application) { application.appContainer.accountingRepository }
     val pending by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
     var wallets by remember { mutableStateOf<List<WalletDto>>(emptyList()) }
@@ -1273,7 +1274,7 @@ fun AccountingCenterScreen(
                 "day" -> date.get(java.util.Calendar.YEAR) == now.get(java.util.Calendar.YEAR) &&
                     date.get(java.util.Calendar.DAY_OF_YEAR) == now.get(java.util.Calendar.DAY_OF_YEAR)
                 "week" -> timestamp >= weekStart.timeInMillis
-                else -> date.get(java.util.Calendar.YEAR) == monthStartYear &&
+                else -> timestamp <= now.timeInMillis && date.get(java.util.Calendar.YEAR) == monthStartYear &&
                     date.get(java.util.Calendar.MONTH) == monthStart
             }
         }
@@ -1352,7 +1353,7 @@ fun AccountingCenterScreen(
                         fontWeight = FontWeight.SemiBold)
                     Text("${ledgerRows.size} 笔", color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall)
-                    AppTextButton(onClick = { kotlinx.coroutines.MainScope().launch { reloadLedger() } }, enabled = !isLoadingLedger) {
+                    AppTextButton(onClick = { scope.launch { reloadLedger() } }, enabled = !isLoadingLedger) {
                         Text(if (isLoadingLedger) "读取中" else "刷新")
                     }
                 }
@@ -1364,7 +1365,7 @@ fun AccountingCenterScreen(
                     Column(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(ledgerLoadError.orEmpty(), color = MaterialTheme.colorScheme.error)
-                        AppButton("重试", onClick = { kotlinx.coroutines.MainScope().launch { reloadLedger() } },
+                        AppButton("重试", onClick = { scope.launch { reloadLedger() } },
                             fullWidth = false, heightDp = 40)
                     }
                 } else if (ledgerRows.isEmpty()) {
