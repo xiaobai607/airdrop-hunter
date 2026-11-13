@@ -469,6 +469,7 @@ private fun AirdropHunterApp(
         ) {
             AccountingCenterScreen(
                 modifier = Modifier.fillMaxWidth(),
+                isGuest = isGuest,
                 onClose = { showAccountingSheet = false }
             )
         }
