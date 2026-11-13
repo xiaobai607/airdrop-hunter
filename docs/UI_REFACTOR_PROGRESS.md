@@ -894,3 +894,10 @@
 - `TronEnergyAssistantScreen.kt`：外层内容增加垂直滚动，窄屏、小字体或系统显示缩放下，安全提示与提交按钮不会被固定视口裁切。
 - `CoinMarketDetailScreen.kt`：详情页增加垂直滚动；行情指标行的标签和值均分配弹性宽度，长数值单行省略并右对齐，避免窄屏横向溢出。
 - 不修改项目数据、行情刷新限流、TRON 地址校验或导航行为。尚未进行真机/字体缩放验收；本次代码需等待 Android CI 验证。
+
+
+### 2026-11-14 — 内容页标题导航语义补齐（代码已落地待验收）
+
+- `AirdropDiscoveryScreen.kt`、`AirdropHubScreen.kt`、`ProfileScreen.kt`、`SourcesScreen.kt`：页面主标题增加 Compose heading 语义，TalkBack 可按标题快速定位页面内容。
+- `ProjectDetailScreen.kt`、`MicroCommunityScreen.kt`：将动态项目名称标记为页面主标题，项目名称较长时仍保留原有自然换行，不截断用户识别项目所需的信息。
+- 仅补充无障碍语义，不改登录状态、项目数据、社区评分、公告刷新或来源打开行为；待 Android CI 与设备辅助功能验收。

@@ -28,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -111,7 +113,7 @@ fun ProfileScreen(
             .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text("我的", color = MaterialTheme.colorScheme.onBackground,
+        Text("我的", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
             style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         Row(
             Modifier.fillMaxWidth().padding(vertical = 4.dp),

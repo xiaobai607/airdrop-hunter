@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -154,7 +156,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("项目概览", color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                        Text(project.name, color = MaterialTheme.colorScheme.onSurface,
+                        Text(project.name, modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                         if (project.communityDelisted) {
                             Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {

@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,7 +71,7 @@ fun AirdropHubScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("官方公告", color = MaterialTheme.colorScheme.onBackground,
+                Text("官方公告", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text("来自官方来源的最新空投动态", color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall)
