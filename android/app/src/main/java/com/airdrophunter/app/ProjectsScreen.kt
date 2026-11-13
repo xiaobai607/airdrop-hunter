@@ -7,6 +7,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.flow.collect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
@@ -85,6 +91,34 @@ fun ProjectsScreen(
     var editProjectClaimUrl by remember { mutableStateOf("") }
     var editProjectTwitterUrl by remember { mutableStateOf("") }
     var editProjectStatus by remember { mutableStateOf("tracking") }
+    val projectListState = rememberLazyListState()
+    var compactFab by remember { mutableStateOf(false) }
+    LaunchedEffect(projectListState) {
+        var previousIndex = projectListState.firstVisibleItemIndex
+        var previousOffset = projectListState.firstVisibleItemScrollOffset
+        snapshotFlow {
+            Triple(
+                projectListState.isScrollInProgress,
+                projectListState.firstVisibleItemIndex,
+                projectListState.firstVisibleItemScrollOffset
+            )
+        }.collect { (scrolling, index, offset) ->
+            val movingDown = index > previousIndex || (index == previousIndex && offset > previousOffset)
+            compactFab = scrolling && movingDown
+            previousIndex = index
+            previousOffset = offset
+        }
+    }
+    val fabScale by animateFloatAsState(
+        targetValue = if (compactFab) 0.88f else 1f,
+        animationSpec = tween(AppDesignTokens.Motion.FastMs),
+        label = "project-fab-scale"
+    )
+    val fabAlpha by animateFloatAsState(
+        targetValue = if (compactFab) 0.6f else 1f,
+        animationSpec = tween(AppDesignTokens.Motion.FastMs),
+        label = "project-fab-alpha"
+    )
 
     LaunchedEffect(Unit) {
         ApiClient.initialize(context)
@@ -197,6 +231,7 @@ fun ProjectsScreen(
                 subtitle = if (isGuest) "添加的项目只保存在这台设备上。" else "添加项目后，这里会显示你的项目与任务进度。"
             )
             else -> LazyColumn(
+                state = projectListState,
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -516,7 +551,8 @@ fun ProjectsScreen(
                 selectedCommunityOfficialId = null
                 showAddDialog = true
             },
-            modifier = Modifier.padding(end = 16.dp, bottom = 16.dp).size(56.dp),
+            modifier = Modifier.padding(end = 16.dp, bottom = 16.dp).size(56.dp)
+                .graphicsLayer { scaleX = fabScale; scaleY = fabScale; alpha = fabAlpha },
             shape = RoundedCornerShape(50),
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.surface
