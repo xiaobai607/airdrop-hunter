@@ -32,7 +32,7 @@ fun AppChip(
             .height(AppDesignTokens.Control.ChipHeight.dp)
             .background(if (selected) colors.primary else colors.surface, shape)
             .then(if (selected) Modifier else Modifier.border(1.dp, colors.outlineVariant, shape))
-            .appPressFeedback(onClick, scale = 0.96f, enabled = enabled, role = Role.Tab)
+            .appPressFeedback(onClick, scale = AppDesignTokens.Motion.PressButtonScale, enabled = enabled, role = Role.Tab)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center
     ) {
