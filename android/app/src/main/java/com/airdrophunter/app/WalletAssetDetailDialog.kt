@@ -84,6 +84,7 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
         Color(0xFF3B82F6), Color(0xFF16A34A), Color(0xFFF59E0B),
         Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFF64748B)
     )
+    val chartCenterColor = MaterialTheme.colorScheme.surface
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -134,7 +135,7 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
                                 drawArc(chartColors[index % chartColors.size], start, sweep, true)
                                 start += sweep
                             }
-                            drawCircle(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), radius = size.minDimension * 0.23f)
+                            drawCircle(chartCenterColor.copy(alpha = 0.92f), radius = size.minDimension * 0.23f)
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             distribution.forEachIndexed { index, slice ->
