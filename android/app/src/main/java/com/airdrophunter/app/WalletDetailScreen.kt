@@ -62,7 +62,7 @@ fun WalletDetailScreen(
             AppTextButton(onClick = { showAssetDialog = true }) { Text("资产", color = MaterialTheme.colorScheme.primary) }
             AppIconButton(Icons.Default.ContentCopy, "复制地址", onClick = {
                 clipboard.setText(AnnotatedString(wallet.address))
-                android.widget.Toast.makeText(context = LocalContext.current, "已复制钱包地址", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, "已复制钱包地址", android.widget.Toast.LENGTH_SHORT).show()
             })
         }
         WalletActivityPanel(wallet, Modifier.weight(1f), isGuest)
@@ -133,9 +133,7 @@ private fun WalletActivityPanel(
                 Text("链上交易", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Text("只读查询，不会发起交易或签名", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
-            IconButton(onClick = { if (!isLoading) refreshNonce++ }, enabled = !isLoading) {
-                Icon(Icons.Default.Refresh, "刷新交易", tint = MaterialTheme.colorScheme.primary)
-            }
+            AppIconButton(Icons.Default.Refresh, "刷新交易", onClick = { if (!isLoading) refreshNonce++ }, enabled = !isLoading)
         }
         if (networksUnavailable.isNotEmpty()) {
             Text(
