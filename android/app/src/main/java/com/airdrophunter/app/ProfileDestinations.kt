@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
 
 enum class ProfileDestination(val title: String) {
     SETTINGS("设置"),
@@ -41,8 +42,8 @@ fun ProfileDestinationDialog(destination: ProfileDestination, onDismiss: () -> U
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Surface)
                 )
                 Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     when (destination) {
                         ProfileDestination.SETTINGS -> SettingsDestinationContent()
@@ -132,7 +133,7 @@ private fun SecurityDestinationContent() {
 private fun NotificationsDestinationContent() {
     DestinationInfoCard {
         Column(
-            Modifier.fillMaxWidth().padding(vertical = 22.dp),
+            Modifier.fillMaxWidth().padding(vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -160,13 +161,13 @@ private fun DestinationInfoRow(title: String, description: String) {
 private fun DestinationInfoCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
         border = BorderStroke(1.dp, AppColors.Border),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(14.dp),
+            Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
             content = content
         )
