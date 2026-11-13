@@ -1,3 +1,4 @@
+import com.airdrophunter.app.ui.components.AppTextButton
 package com.airdrophunter.app
 
 import androidx.compose.foundation.layout.Arrangement
@@ -152,7 +153,7 @@ private fun AddAirdropDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            AppTextButton(
                 enabled = name.isNotBlank() && !saving,
                 onClick = {
                     onSave(
@@ -174,7 +175,7 @@ private fun AddAirdropDialog(
                 }
             ) { Text(if (saving) "保存中…" else "保存") }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = onDismiss, enabled = !saving) { Text("取消") } }
     )
 }
 
