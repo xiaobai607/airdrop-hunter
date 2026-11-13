@@ -27,6 +27,7 @@ fun Modifier.appPressFeedback(
     scale: Float = 0.94f,
     enabled: Boolean = true,
     haptic: AppHaptic = AppHaptic.LIGHT,
+    pressedAlpha: Float = 1f,
     role: Role = Role.Button
 ): Modifier = composed {
     val source = remember { MutableInteractionSource() }
@@ -53,6 +54,7 @@ fun Modifier.appPressFeedback(
     this.graphicsLayer {
         scaleX = animatedScale
         scaleY = animatedScale
+        alpha = if (pressed && enabled) pressedAlpha.coerceIn(0f, 1f) else 1f
     }.clickable(
         interactionSource = source,
         indication = null,
