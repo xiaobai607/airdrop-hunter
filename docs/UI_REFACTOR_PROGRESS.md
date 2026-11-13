@@ -466,3 +466,13 @@
 - 全站 UI 改版阶段暂缓浏览器功能/容器继续修改；浏览器留待用户验收 UI 改版 APK 后再处理。
 - Reown AppKit 第三方钱包品牌图标优化留待用户验收通过后处理；当前不改 SDK 内部目录或钱包品牌资源。
 - UI 全面完成前不构建 APK；本分支 PR #135 保持 Draft / Open / Unmerged。
+
+
+### 2026-11-13 — 全局筛选胶囊触控热区与无障碍状态补齐（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ui/components/AppChip.kt`。
+- 胶囊可视高度继续保持设计令牌 `ChipHeight`（34dp），外层可点击热区增加到至少 44dp，避免紧凑筛选控件难以准确点击；视觉胶囊仍居中，不把整行拉高成大按钮。
+- 增加 TalkBack 可读取的选中状态语义（`selected`），保留 Tab 角色、禁用态、主题色和现有按压/触感反馈。
+- 水平内边距从 14dp 修正为 16dp，回归设计说明书的 4dp 间距栅格。
+- 静态核对：外层 44dp 热区、内层 34dp 胶囊、选中语义、原有点击回调和主题色均保留。尚未运行 Gradle 编译、自动化测试、CI 或真机 TalkBack/触控验收。
+- Commit：`6dbb876811111b91569735123d7be3adc55a0e86`。
