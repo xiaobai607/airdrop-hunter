@@ -22,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,8 @@ import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.TokenStore
 import com.airdrophunter.app.data.GlobalSyncScheduler
 import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.ui.components.AppBottomBar
+import com.airdrophunter.app.ui.components.AppNavigationItem
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
 import kotlinx.coroutines.launch
@@ -237,18 +240,12 @@ private fun AirdropHunterApp(
             if (!hasSecondaryDestination) {
                 Box(Modifier.fillMaxWidth().height(80.dp)) {
                     Box(Modifier.fillMaxSize().blur(12.dp).background(AppColors.Navigation))
-                    NavigationBar(modifier = Modifier.fillMaxSize(), containerColor = Color.Transparent, tonalElevation = 0.dp) {
-                        destinations.forEachIndexed { index, destination ->
-                            val label = stringResource(destination.label)
-                            NavigationBarItem(selected = tab == index, onClick = { tab = index },
-                                icon = { Icon(destination.icon, label) }, label = { Text(label) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = AppColors.Primary, selectedTextColor = AppColors.Primary,
-                                    unselectedIconColor = AppColors.TextHelper, unselectedTextColor = AppColors.TextHelper,
-                                    indicatorColor = AppColors.NavIndicator
-                                ))
-                        }
-                    }
+                    AppBottomBar(
+                        items = destinations.map { AppNavigationItem(stringResource(it.label), it.icon) },
+                        selectedIndex = tab,
+                        onSelect = { tab = it },
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
                 }
             }
         }
