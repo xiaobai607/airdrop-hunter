@@ -73,27 +73,26 @@ fun AppButton(
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                color = foreground,
-                strokeWidth = 2.dp
-            )
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (leadingIcon != null) {
-                    Icon(leadingIcon, contentDescription = null, tint = foreground, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(
-                    text,
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
                     color = foreground,
-                    fontSize = fontSizeSp.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    strokeWidth = 2.dp
                 )
+                Spacer(Modifier.width(8.dp))
+            } else if (leadingIcon != null) {
+                Icon(leadingIcon, contentDescription = null, tint = foreground, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
             }
+            Text(
+                text,
+                color = foreground,
+                fontSize = fontSizeSp.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
