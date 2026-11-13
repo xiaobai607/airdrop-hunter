@@ -75,6 +75,12 @@ class AirdropCampaignRepository(
                 manual = true,
                 readCache = { readCached(filters) },
                 fetch = {
+                    // A manual Library refresh runs the approved free-provider sync,
+                    // then reads only campaigns that passed the server publication gate.
+                    val sync = api.syncAirdrops()
+                    if (!sync.ok) {
+                        throw IllegalStateException(sync.status.error ?: "空投活动同步未成功")
+                    }
                     api.getAirdropCampaigns(
                         tier = filters.tier,
                         chain = filters.chain,
