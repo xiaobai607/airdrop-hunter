@@ -233,7 +233,7 @@ fun ProjectsScreen(
                                     Text(project.name, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
                                     val statusLabel = when (project.status) { "tracking" -> "进行中"; "completed" -> "已完成"; else -> "待开始" }
-                                    Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(999.dp)) {
+                                    Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                                         Text(statusLabel, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                             color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                                     }
@@ -241,14 +241,14 @@ fun ProjectsScreen(
                                 if (project.communityDelisted || showAccountingReminder) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         if (project.communityDelisted) {
-                                            Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(999.dp)) {
+                                            Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                                                 Text("社区已下架", Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                                     color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.SemiBold)
                                             }
                                         }
                                         if (showAccountingReminder) {
-                                            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = RoundedCornerShape(999.dp)) {
+                                            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                                                 Text("待记账", Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                                     color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.SemiBold)
@@ -282,7 +282,7 @@ fun ProjectsScreen(
                                         },
                                         scale = 0.94f
                                     ),
-                                    shape = RoundedCornerShape(999.dp),
+                                    shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp),
                                     color = MaterialTheme.colorScheme.surfaceVariant,
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
@@ -445,7 +445,7 @@ fun ProjectsScreen(
                                         showCommunityPicker = false
                                     },
                                     color = MaterialTheme.colorScheme.surface,
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
