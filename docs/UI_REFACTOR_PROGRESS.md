@@ -451,3 +451,18 @@
 - 静态检查：确认 ChainIcon 不再包含 Coil、远程 URL 或网络图片请求；五类本地 drawable 映射保留；列表动效仅前三项，取消 slide/fadeOut，保留 saveable key。源码检查 9 项通过（不含 Gradle/设备帧率测量）。
 - 未运行 Gradle 编译、自动化测试、CI、APK 构建或真机验收；因此只能确认网络图标依赖已从钱包链图标路径移除，不能承诺实测 FPS 提升数值。建议下一轮在低帧率设备上用系统帧时间/Perfetto 对首页、长列表和 WalletConnect 弹窗分别测量。
 - Commits：计划 `beb911c245de5d7961229e8f9688bdac52a80b16`；本地链图标 `5196bdf4c7fcc90a1a429faeddb7561a95a4c20a`；列表动效优化 `861abc545b660c84941b43ae1b1d94acca7309a4`；导入修复 `12ecdcaea0259ebf531b0cea19bb8fb7aba24234`；动效转场分支修正 `02285698bbc245d51185681dc8e0d44a81c513bc`。
+
+
+### 2026-11-13 — 共享按压反馈响应速度收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ui/components/AppPressFeedback.kt`。
+- 将共享按压缩放动画的弹簧刚度从 `Spring.StiffnessMedium` 提高为显式 `1500f`，阻尼比仍为 `0.9f`；目的是减少连续点击时按压状态显得迟缓的问题，保持设计说明书规定的弹簧式反馈方向。
+- 保留按钮 0.94、卡片调用方 0.96 的缩放约定、按下时触感分级、禁用状态不触发点击/触感的行为；未修改业务点击回调。
+- 本轮仅完成源码级核对，未执行 Gradle 编译、Android 测试、CI、APK 构建或真机触感/帧时间测量；必须在后续全量验收时验证实际手感，不能据此宣称已通过设备验收。
+- Commit：`78741f3fd5eab497fce34abd3648042fcc5daed9`。
+
+### 当前执行顺序补充（遵循用户最新验收安排）
+
+- 全站 UI 改版阶段暂缓浏览器功能/容器继续修改；浏览器留待用户验收 UI 改版 APK 后再处理。
+- Reown AppKit 第三方钱包品牌图标优化留待用户验收通过后处理；当前不改 SDK 内部目录或钱包品牌资源。
+- UI 全面完成前不构建 APK；本分支 PR #135 保持 Draft / Open / Unmerged。
