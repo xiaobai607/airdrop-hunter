@@ -335,12 +335,12 @@ fun ProjectsScreen(
                         label = { Text("项目说明") }, modifier = Modifier.fillMaxWidth()
                     )
                     Text("项目状态", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("tracking" to "进行中", "upcoming" to "待开始", "completed" to "已完成").forEach { (value, label) ->
-                            FilterChip(
+                            AppChip(
+                                text = label,
                                 selected = editProjectStatus == value,
-                                onClick = { editProjectStatus = value },
-                                label = { Text(label) }
+                                onClick = { editProjectStatus = value }
                             )
                         }
                     }
