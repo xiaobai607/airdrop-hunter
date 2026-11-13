@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal, get_db
 from app.routers.auth import limiter
 from app.models import AirdropDiscoverySourceStatus, AirdropProject
-from app.services.airdrop_hub_sync import OBSERVATION, fetch_binance_article_detail, get_sync_status, sync_airdrop_hub
+from app.services.airdrop_hub_sync import OBSERVATION, _configured_github_raw_sources, fetch_binance_article_detail, get_sync_status, sync_airdrop_hub
 from app.services.airdrop_campaign_scoring import recalculate_campaign_scores
 
 # Compatibility alias for existing sync route/tests; this is the approved four-source pipeline.
@@ -115,7 +115,7 @@ async def airdrop_hub_source_status(db: AsyncSession = Depends(get_db)) -> list[
 
     optional_enabled = {
         "coingecko-airdrop-category": bool(os.getenv("COINGECKO_DEMO_API_KEY", "").strip()),
-        "github-airdrop-lists": bool(os.getenv("AIRDROP_GITHUB_RAW_SOURCE_APPROVALS", "").strip()),
+        "github-airdrop-lists": bool(_configured_github_raw_sources()),
     }
     definitions = (
         ("binance-announcements", "Binance 官方公告", True, "未配置 Binance 来源"),
