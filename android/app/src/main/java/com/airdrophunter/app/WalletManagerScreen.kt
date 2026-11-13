@@ -417,11 +417,8 @@ fun WalletManagerScreen(
                 }
             },
             confirmButton = {
-                Button(
-                    enabled = editWalletName.isNotBlank() && !state.isSaving &&
-                        parseWalletTags(editWalletTags).size <= 12 &&
-                        parseWalletTags(editWalletTags).all { it.length <= 24 } &&
-                        editWalletNotes.length <= 500,
+                AppButton(
+                    text = "保存修改",
                     onClick = {
                         walletViewModel.update(
                             wallet,
@@ -436,8 +433,12 @@ fun WalletManagerScreen(
                         )
                         editingWallet = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                ) { Text("保存修改") }
+                    enabled = editWalletName.isNotBlank() && !state.isSaving &&
+                        parseWalletTags(editWalletTags).size <= 12 &&
+                        parseWalletTags(editWalletTags).all { it.length <= 24 } &&
+                        editWalletNotes.length <= 500,
+                    loading = state.isSaving
+                )
             },
             dismissButton = {
                 AppTextButton(enabled = !state.isSaving, onClick = { editingWallet = null }) { Text("取消") }
@@ -572,7 +573,8 @@ fun WalletManagerScreen(
                 }
             },
             confirmButton = {
-                Button(
+                AppButton(
+                    text = "保存公开地址",
                     onClick = {
                         walletViewModel.add(
                             WalletWriteRequest(
@@ -585,8 +587,8 @@ fun WalletManagerScreen(
                         pendingConnectedAccount = null
                     },
                     enabled = !state.isSaving,
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                ) { Text("保存公开地址") }
+                    loading = state.isSaving
+                )
             },
             dismissButton = {
                 AppTextButton(onClick = { pendingConnectedAccount = null }) { Text("暂不保存") }
