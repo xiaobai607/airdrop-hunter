@@ -274,8 +274,8 @@
 - 表单字段变更后延迟 400ms 自动保存；重新打开待确认账单时优先恢复用户未确认输入，缺少草稿时回退到已有链上资产拆分/账单 Gas 信息。
 - 个人账本云端同步 payload 不包含 pending 表单草稿；此数据仅在本地 pending_bills 中保存。现有备份快照会随 PendingBillEntity 一并包含该字段，供用户本地备份恢复。
 - 确认入账仍走原有原子 Room transaction：写入正式账本后删除 pending bill，因此草稿字段随待确认记录一起清理；未更改手动输入实际收益（包括必须明确输入 0）、Gas/收益分开记录、社区贡献资格和 Web3 状态规则。
-- 静态核对：本轮修改目标均显式指定工作分支 feature/mobile-browser-home-dock-batch；未运行 Gradle 编译、Room migration instrumentation test、Android tests、backend tests、CI、APK 或真机验收。当前状态为代码已提交、待构建和迁移实测；不能宣称迁移已通过。
-- Commit：本批提交后补录完整 SHA。
+- 静态核对：本轮修改目标均显式指定工作分支 feature/mobile-browser-home-dock-batch；新增 AccountingFormDraftCodecTest 覆盖完整字段往返与损坏/超长 JSON 拒绝，但尚未运行 Gradle 编译、该单元测试、Room migration instrumentation test、其他 Android tests、backend tests、CI、APK 或真机验收。当前状态为代码已提交、待构建和迁移实测；不能宣称迁移已通过。
+- 代码 commits：CacheDatabase 98def8241d55eca444410419b2b5ce455ebdb1c1；AccountingRepository 829f89d86c8bdd4143a9d12be779388d4af90cc3；BrowserAccountingToolbar 0370b73f62228cc5d86006336bdc720d46e7949f；项目选择恢复修正 ae32f87f46f6d6f81bd54d53db957454c999a1c4；草稿编解码单元测试 74c5ad27e40da09e678e2880aac7c2e1bc82fa44。
 
 ## 下一完整模块批次
 
