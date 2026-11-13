@@ -11,14 +11,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +23,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
-import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppButton
 import kotlinx.coroutines.CancellationException
 
 private val ASSET_NETWORKS = listOf(
@@ -87,8 +87,8 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = AppColors.Surface,
-        title = { Text("钱包资产明细", color = AppColors.TextPrimary) },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("钱包资产明细", color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(
                 Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
@@ -96,9 +96,10 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
             ) {
                 if (wallet.ecosystem == WalletEcosystem.EVM) {
                     Column {
-                        OutlinedButton(onClick = { networkMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                            Text(networkOptions.firstOrNull { it.first == selectedNetwork }?.second ?: "选择网络")
-                        }
+                        AppButton(
+                            text = networkOptions.firstOrNull { it.first == selectedNetwork }?.second ?: "选择网络",
+                            onClick = { networkMenu = true }, style = AppButtonStyle.SECONDARY
+                        )
                         DropdownMenu(expanded = networkMenu, onDismissRequest = { networkMenu = false }) {
                             networkOptions.forEach { pair ->
                                 DropdownMenuItem(text = { Text(pair.second) }, onClick = {
@@ -112,14 +113,14 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
                 }
                 Text(
                     "仅查询当前钱包在所选网络的公开余额，不会连接钱包或发起交易。",
-                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                 )
                 if (loading && snapshot == null) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                        CircularProgressIndicator(color = AppColors.Primary)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
-                error?.let { Text(it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 snapshot?.coverageNote?.let {
                     Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
@@ -133,7 +134,7 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
                                 drawArc(chartColors[index % chartColors.size], start, sweep, true)
                                 start += sweep
                             }
-                            drawCircle(Color.White.copy(alpha = 0.9f), radius = size.minDimension * 0.23f)
+                            drawCircle(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), radius = size.minDimension * 0.23f)
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             distribution.forEachIndexed { index, slice ->
@@ -147,8 +148,8 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("资产列表", color = AppColors.TextPrimary, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { showHidden = !showHidden }, enabled = hidden.isNotEmpty()) {
+                    Text("资产列表", color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                    AppTextButton(onClick = { showHidden = !showHidden }, enabled = hidden.isNotEmpty()) {
                         Text(if (showHidden) "隐藏低可信资产" else "查看隐藏资产")
                     }
                 }
@@ -172,7 +173,7 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
                                 modifier = Modifier.weight(1f)
                             )
                             if (!asset.isVerified) Text("未核验", color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
-                            else if (asset.priceUsd == null) Text("未定价", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                            else if (asset.priceUsd == null) Text("未定价", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -188,10 +189,11 @@ fun WalletAssetDetailDialog(wallet: WalletDto, onDismiss: () -> Unit) {
         },
         confirmButton = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onDismiss) { Text("关闭") }
-                Button(onClick = { if (!loading) reload++ }, enabled = !loading) {
-                    Text(if (loading) "刷新中…" else "刷新")
-                }
+                AppTextButton(onClick = onDismiss) { Text("关闭") }
+                AppButton(
+                    text = "刷新", onClick = { if (!loading) reload++ },
+                    enabled = !loading, loading = loading, fullWidth = false, heightDp = 44
+                )
             }
         }
     )
