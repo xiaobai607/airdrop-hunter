@@ -66,6 +66,11 @@ fun AppButton(
                 onClick = onClick,
                 enabled = active,
                 haptic = if (style == AppButtonStyle.DANGER) AppHaptic.WARNING else AppHaptic.LIGHT,
+                pressedOverlay = when (style) {
+                    AppButtonStyle.PRIMARY -> colors.onPrimary.copy(alpha = 0.08f)
+                    AppButtonStyle.DANGER -> colors.onError.copy(alpha = 0.08f)
+                    else -> colors.primary.copy(alpha = 0.06f)
+                },
                 role = Role.Button
             )
             .padding(horizontal = 16.dp),
