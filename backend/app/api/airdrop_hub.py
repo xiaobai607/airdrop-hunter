@@ -9,6 +9,7 @@ from app.database import AsyncSessionLocal, get_db
 from app.routers.auth import limiter
 from app.models import AirdropProject
 from app.services.airdrop_hub_sync import OBSERVATION, fetch_binance_article_detail, get_sync_status, sync_airdrop_hub
+from app.services.airdrop_campaign_scoring import recalculate_campaign_scores
 
 # Compatibility alias for existing sync route/tests; this is the approved four-source pipeline.
 sync_airdrops = sync_airdrop_hub
@@ -53,8 +54,14 @@ async def _sync_now() -> dict[str, Any]:
     async with AsyncSessionLocal() as db:
         try:
             count = await sync_airdrops(db)
+            campaign_scoring = await recalculate_campaign_scores(db)
             status = get_sync_status()
-            return {"ok": status.get("error") is None, "imported_count": count, "status": status}
+            return {
+                "ok": status.get("error") is None,
+                "imported_count": count,
+                "status": status,
+                "campaign_scoring": campaign_scoring,
+            }
         except Exception as exc:
             raise HTTPException(status_code=503, detail="空投数据源暂时不可用，请稍后重试") from exc
 
