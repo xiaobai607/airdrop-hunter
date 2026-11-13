@@ -64,10 +64,22 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
         }
     }
     Column(
-        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(18.dp),
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("$symbol / USDT", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "行情详情",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "$symbol / USDT",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
         when {
             loading && detail == null -> Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -101,7 +113,7 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         MarketMetricRow("24小时最高", "$ " + priceFormat.format(value.high24h))
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         MarketMetricRow("24小时最低", "$ " + priceFormat.format(value.low24h))
