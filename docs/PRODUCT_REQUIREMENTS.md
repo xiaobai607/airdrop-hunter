@@ -3014,3 +3014,25 @@ Implementation status: requirement approved; existing coordinator already has a 
 - A cold-start wallet redirect can deliver the response while the process-level reconciliation collector is attaching. A `MutableSharedFlow` with only `extraBufferCapacity` and zero replay drops emissions when there are no subscribers, so the response/hash could be lost even though the wallet broadcast the transaction.
 - Keep a bounded 32-response replay window in `WalletConnectSessionDelegate`. Existing reconciliation remains strict by request ID, session topic, method and chain ID; repository matching remains unique and idempotent, and accounted drafts are not re-enqueued.
 - Implementation: response flow now uses `replay = 32` plus `extraBufferCapacity = 32` (commit 02f256044d7ac39f6f181cf522cf0429c2604a53). Static source inspection only; Gradle, unit tests, CI and device cold-start verification remain pending.
+
+
+## 0.0.1 Delivery priority reset — 2026-11-13 (user correction)
+
+The user reports that the built-in browser cannot reliably open websites, airdrop discovery is not producing usable results, the UI redesign is still outstanding, and commercial API pricing is unaffordable before launch with no users. This section supersedes the recent tendency to spend successive batches on low-priority Web3 edge-case hardening.
+
+### Immediate delivery order
+1. **Built-in browser usability first.** Reproduce and isolate initial navigation, WebView provider compatibility, redirect handling, TLS/network errors, page rendering, login/cookie behavior, and navigation between origins. Replace generic failure feedback with actionable diagnostics. Never bypass TLS validation or weaken wallet bridge origin checks. Do not assume a root cause without evidence.
+2. **Free airdrop discovery second.** Use only the already-approved zero-cash-cost sources in Section 0.2 and genuinely public official endpoints/pages. No paid API, paid scraping, paid proxy, metered plan, or new recurring infrastructure cost. Distinguish confirmed campaign evidence from project/market leads. Persist source attribution, timestamps, deduplication and failure reasons; never fabricate campaign rows to make the list look populated. When a provider blocks or changes, expose that source's failure clearly and keep last-known-good data.
+3. **Complete the user-facing UI pass third.** Audit and finish the outstanding agreed UI changes across Home, Airdrop Library, browser, accounting, wallet and profile/settings; fix empty/loading/error states and remove duplicate entry points. Avoid isolated cosmetic tweaks that do not complete a screen/workflow.
+4. **Resume remaining Web3 hardening after the above.** Preserve the existing safety work; do not expand into speculative edge cases while core browser/discovery/UI are incomplete.
+5. **One final verification/build batch.** Do not trigger an intermediate APK build. After the scoped work is complete, run the appropriate checks and produce one APK; report source, tests/CI, build artifact and device acceptance separately.
+
+### Cost and release constraints
+- The project is pre-launch, has no users and cannot carry commercial API costs. Free public sources only; any provider requiring a paid key, subscription, paid proxy, or usage-based billing is out of scope unless the user explicitly approves it later.
+- Do not reactivate user-cancelled automatic public web search. Discovery means fetching the specifically approved public feeds/official announcements, not broad uncontrolled scraping.
+- Do not reintroduce registration, login, account switching or cloud sync without explicit approval.
+- The user wants a usable, finished core app before adding more features. Favor fixing blockers and completing workflows over adding new architecture or repeated micro-patches.
+
+### Evidence discipline
+- A source file being present is not proof that a website opens or that airdrop campaigns are being captured. Capture concrete WebView error codes/descriptions and provider-level fetch outcomes.
+- Static inspection is not a build, automated test, live provider check or physical-device acceptance.
