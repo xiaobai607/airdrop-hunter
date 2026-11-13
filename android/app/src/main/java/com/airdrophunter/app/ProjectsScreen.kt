@@ -286,10 +286,11 @@ fun ProjectsScreen(
                             }
                             if (state.projects.any { it.id == project.id }) {
                                 Box {
-                                    IconButton(onClick = { actionProject = project }) {
-                                        Icon(Icons.Default.MoreVert, contentDescription = "项目管理",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
+                                    AppIconButton(
+                                        icon = Icons.Default.MoreVert,
+                                        contentDescription = "项目管理",
+                                        onClick = { actionProject = project }
+                                    )
                                     DropdownMenu(
                                         expanded = actionProject?.id == project.id,
                                         onDismissRequest = { actionProject = null }
