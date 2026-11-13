@@ -11,6 +11,14 @@
 - This is a source inspection finding, not proof of the user's exact device failure. Browser acceptance remains pending a real-device test with the failing URL and visible diagnostic.
 - No Gradle build, test, APK build, or CI run is performed mid-batch; final verification remains deferred until the browser, approved free discovery pipeline, and agreed UI batch are ready.
 
+## 2026-11-13 — browser stability corrections committed
+
+- Implemented a 30-second loading watchdog with an explicit timeout message. Removed the 3-second User-Agent swap/reload behavior; a slow page is no longer silently re-requested under a different browser identity.
+- Implemented WebView renderer-process recovery: clear bridge proxies, fail pending DApp UI requests safely, mark an in-flight WalletConnect draft for later reconciliation, revoke site-origin permissions, dispose the dead view and recreate the AndroidView instance.
+- Kept TLS certificate failures fail-closed, mixed content blocked, file/content access disabled, and third-party cookies disabled by default. No permission or wallet-origin boundary was relaxed.
+- Static source assertions passed for the new timeout, renderer recovery, view recreation, strict TLS cancellation and retained third-party-cookie restriction. These are source checks only; Gradle compilation, unit tests, CI and physical-device acceptance have not yet been run.
+- This does not establish that the user's reported browser failure is fully resolved. The actual failing URL and on-device diagnostic are still needed to isolate DNS, TLS, HTTP rejection, redirect, login/cookie or WebView-provider-specific failures.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
