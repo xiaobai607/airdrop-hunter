@@ -138,7 +138,7 @@ fun HomeScreen(
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("行情看板", color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -284,7 +284,7 @@ fun HomeScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("快捷入口", color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
@@ -306,8 +306,8 @@ fun HomeScreen(
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 maxItemsInEachRow = 2,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 dashboardCards.forEach { card ->
                     val title = HomeDashboardLayoutStore.title(card.id)
@@ -320,20 +320,8 @@ fun HomeScreen(
                         "project_library" -> Icons.Default.FolderOpen
                         else -> Icons.Default.Search
                     }
-                    val iconBackground = when (card.id) {
-                        "wallet_management" -> Color(0xFFEAF0FF)
-                        "tron_energy" -> Color(0xFFFFF1E5)
-                        "accounting" -> Color(0xFFF1ECFF)
-                        "project_library" -> Color(0xFFEAF6ED)
-                        else -> Color(0xFFE7F3F2)
-                    }
-                    val iconTint = when (card.id) {
-                        "wallet_management" -> Color(0xFF4267B2)
-                        "tron_energy" -> Color(0xFFCE7B2C)
-                        "accounting" -> Color(0xFF7956B8)
-                        "project_library" -> Color(0xFF38865A)
-                        else -> MaterialTheme.colorScheme.primary
-                    }
+                    val iconBackground = MaterialTheme.colorScheme.primaryContainer
+                    val iconTint = MaterialTheme.colorScheme.primary
                     Card(
                         modifier = Modifier
                             .fillMaxWidth(layout.widthFraction)
@@ -392,10 +380,10 @@ fun HomeScreen(
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         if (card.id == "airdrop_navigation") {
-                            Row(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 10.dp),
+                            Row(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                DashboardIconTile(icon, iconBackground, iconTint, 44.dp)
+                                DashboardIconTile(icon, iconBackground, iconTint, 40.dp)
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.SemiBold)
@@ -407,10 +395,10 @@ fun HomeScreen(
                                 } else Text("打开  ›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
                             }
                         } else {
-                            Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 9.dp),
+                            Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    DashboardIconTile(icon, iconBackground, iconTint, 42.dp)
+                                    DashboardIconTile(icon, iconBackground, iconTint, 40.dp)
                                     Spacer(Modifier.weight(1f))
                                     if (editingDashboard) AppTextButton(
                                         onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
@@ -562,7 +550,7 @@ private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker) {
     }.format(ticker.lastPrice)
     val change = String.format(Locale.US, "%+.2f%%", ticker.change24hPercent)
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp),
+        Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
