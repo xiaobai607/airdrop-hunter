@@ -36,8 +36,8 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Row(
@@ -55,11 +55,11 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
                         )
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(source.name, color = AppColors.TextPrimary,
+                        Text(source.name, color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(source.url, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(source.url, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
-                    Text("›", color = AppColors.TextHelper, style = MaterialTheme.typography.headlineSmall)
+                    Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.headlineSmall)
                 }
             }
         }
@@ -69,6 +69,6 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun SourceLetter(name: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(name.take(1).uppercase(), color = AppColors.Primary, fontWeight = FontWeight.Bold)
+        Text(name.take(1).uppercase(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
     }
 }
