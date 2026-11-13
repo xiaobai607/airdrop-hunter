@@ -196,6 +196,13 @@ private fun AirdropHunterApp(
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
     var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
     var showAccountingSheet by rememberSaveable { mutableStateOf(false) }
+    var reopenAccountingAfterWalletManager by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(activeOverlay, reopenAccountingAfterWalletManager) {
+        if (activeOverlay == AppOverlay.NONE && reopenAccountingAfterWalletManager) {
+            reopenAccountingAfterWalletManager = false
+            showAccountingSheet = true
+        }
+    }
     val accountingSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Never leave a previous account's secondary screen or editor alive after a session switch.
@@ -485,7 +492,12 @@ private fun AirdropHunterApp(
             AccountingCenterScreen(
                 modifier = Modifier.fillMaxWidth(),
                 isGuest = isGuest,
-                onClose = { showAccountingSheet = false }
+                onClose = { showAccountingSheet = false },
+                onOpenWalletManager = {
+                    reopenAccountingAfterWalletManager = true
+                    showAccountingSheet = false
+                    activeOverlay = AppOverlay.WALLET_MANAGER
+                }
             )
         }
     }

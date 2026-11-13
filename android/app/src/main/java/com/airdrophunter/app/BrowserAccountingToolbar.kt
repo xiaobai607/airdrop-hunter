@@ -1213,7 +1213,8 @@ private fun isValidNativeAssetInput(amount: String, symbol: String, decimals: St
 fun AccountingCenterScreen(
     modifier: Modifier = Modifier,
     isGuest: Boolean = true,
-    onClose: () -> Unit = {}
+    onClose: () -> Unit = {},
+    onOpenWalletManager: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -1325,7 +1326,9 @@ fun AccountingCenterScreen(
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                Box {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AppTextButton(onClick = onOpenWalletManager) { Text("钱包管理") }
+                    Box {
                     AppButton(
                         text = "切换",
                         onClick = { if (!isLoadingWallets && wallets.isNotEmpty()) walletMenuExpanded = true },
@@ -1340,12 +1343,13 @@ fun AccountingCenterScreen(
                             )
                         }
                     }
+                    }
                 }
             }
         }
         walletLoadError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         if (!isLoadingWallets && wallets.isEmpty()) {
-            Text("暂无可用钱包。请先在钱包管理添加公开地址；已有账本和待确认记录仍可查看。",
+            Text("暂无可用钱包。点击“钱包管理”即可使用现有的钱包连接或添加功能；已有账本和待确认记录仍可查看。",
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
 
