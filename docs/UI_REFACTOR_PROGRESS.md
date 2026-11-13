@@ -91,9 +91,9 @@
 | 浏览器记账工具栏 `BrowserAccountingToolbar.kt` | 已接入共享按钮/输入框的部分控件 | 进行中：全部操作的真实反馈、布局密度、触感与窄屏验收 |
 | 全局搜索 `GlobalSearchScreen.kt` | 共享设计组件已存在于工程 | 未完成页面级对照：焦点/键盘、历史/结果切换、紧凑结果卡 |
 | 钱包管理 `WalletManagerScreen.kt` | 已使用共享输入框、按钮、图标按钮、胶囊和列表组件 | 进行中：页面空态、72dp 行、添加钱包抽屉结构、WalletConnect 外层衔接 |
-| 钱包详情 `WalletDetailScreen.kt` | 已接入共享操作；资产/资格对话框已有语义色和卡片反馈改造 | 进行中：余额/交易列表密度、复制反馈、空态和页面转场 |
-| 钱包资产详情 `WalletAssetDetailDialog.kt` | 已做主题语义色与共享卡片/操作接入 | 代码已落地待验收 |
-| 钱包资格弹窗 `WalletCheckDialog.kt` | 已做主题语义色与共享卡片/操作接入 | 代码已落地待验收 |
+| 钱包详情 `WalletDetailScreen.kt` | 已移除已取消的资产总览入口；保留只读链上交易和待确认记账入口 | 进行中：交易列表密度、复制反馈、空态和页面转场 |
+| 钱包资产详情 `WalletAssetDetailDialog.kt` | 已删除旧资产总览弹窗及专用 Android 适配层 | 已清理；待 Gradle/测试确认无残余引用 |
+| 钱包资格弹窗 `WalletCheckDialog.kt` | 仍保留独立资格查询流程；当前分支未发现调用入口，尚未决定是否删除 | 待产品范围确认；不得误当成资产总览功能 |
 | WalletConnect 外层 | 已限制 SDK 强制浅色主题的影响范围 | 进行中：只调整外层容器/转场，不改 SDK 内部 UI |
 | TRON 能量助手 `TronEnergyAssistantScreen.kt` | 已使用 BaseCard/共享字段/按钮 | 进行中：删除重复标题、警告块语义色、布局与动效逐项验收 |
 | 项目管理 `ProjectsScreen.kt` | 列表卡片已精简；移除虚构评分/好评率；真实净盈亏展示 | 进行中：筛选胶囊、空态、FAB 与 Tab 避让、错峰列表 |
@@ -235,3 +235,12 @@
 - 目前只能确认“代码中存在/已接入共享组件”，不能据此宣称页面完整符合设计稿。
 - 当前尚未完成全量页面视觉验收、完整自动化测试、Gradle 编译、APK 构建和真机验收。
 - 下一步：按 P0 顺序推进浏览器、钱包和记账页面，并在每个页面提交时同步更新本台账。
+
+### 2026-11-13 — 钱包资格查询与真实记账中心静态审计
+
+- `WalletCheckDialog.kt` 已检查：它实现的是“选择项目/钱包 → 调用公开地址校验 → 打开项目官方 HTTPS 资格入口”，并非钱包资产总览。当前分支搜索未发现其调用入口，因此暂列为孤立 UI；本轮不擅自删除资格查询能力，避免把未明确取消的项目资格流程一并删掉。
+- `ProjectDetailViewModel.checkWallet()` / `walletResult` 在项目详情界面未发现实际消费点；但 `/api/wallet/check` 仍由独立 `WalletCheckDialog` 调用。暂不删除 API、响应 DTO 或 repository 合约，以免破坏保留的资格查询流程；后续若确认该弹窗正式废弃，再整体清理。
+- 真实记账中心定位已确认：`MainActivity.kt` 的记账入口打开 `AccountingCenterScreen`，其复用 `BrowserAccountingToolbar` 的待确认账单与手动记账表单，不是模拟账单页面。
+- 已核对关键记账边界：链上草稿仅在回执确认/确认失败后生成待确认账单；旧 `MOCK-*` 记录被过滤；手动记录使用 `MANUAL-*` 标识；确认入账前必须手动填写最终实际收益（明确允许输入 0，空值不能确认）；Gas 与收益原生资产分别保存；确认后才调用 `confirmPendingBill`。
+- **发现待修复项（P0）**：独立 `AccountingCenterScreen` 调用工具栏时传入空钱包地址和 `unknown` 链名；因此从记账中心新建手动账单时，初始账单可能没有关联真实钱包/链。下一轮先为记账中心补充真实钱包选择，再允许创建手动账单；浏览器内工具栏已有钱包上下文，不应被此修复改变。
+- 以上为源码静态审计，未运行 Gradle、Android tests、backend tests、APK 或设备验收；不得标记已验收。
