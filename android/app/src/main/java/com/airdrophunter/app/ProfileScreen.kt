@@ -382,17 +382,17 @@ fun ProfileScreen(
 
 @Composable
 private fun StatCell(label: String, value: String, modifier: Modifier, suffix: String = "") {
-    Column(modifier.fillMaxHeight().padding(horizontal = 12.dp, vertical = 12.dp),
+    Column(modifier.padding(horizontal = 12.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.Center) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium,
-            maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold, maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            if (suffix.isNotBlank()) Text(suffix, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
-        }
+            maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Text(
+            text = if (suffix.isBlank()) value else "$value $suffix",
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            softWrap = true
+        )
     }
 }
 

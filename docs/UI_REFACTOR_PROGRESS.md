@@ -1054,3 +1054,10 @@
 - 修复 `MainActivity.kt` 中主题颜色读取位置不正确导致的 Kotlin 编译失败：`MaterialTheme.colorScheme.background` 在 Composable 上下文内提前读取，再由 `SideEffect` 应用到系统状态栏和导航栏。
 - 保留浅/深色系统栏图标逻辑、系统栏颜色来源及窗口行为；不改页面 UI 或业务流程。
 - 前一版 CI #1914 在 `MainActivity.kt:140` 报错“Composable invocations can only happen from the context of a @Composable function”；本次修复后需以新提交的 Android 单元测试结果为准。未构建 APK。
+
+
+### 2026-11-14 — 个人中心统计数值完整显示修正
+
+- `ProfileScreen.kt`：数据概览的累计 Gas、实际收益等统计值不再强制单行省略；改为允许完整换行显示，并将单位与数值放在同一文本流中，避免窄屏或较大金额被截断。
+- 统计行仍保留最小高度，内容较长时由行高自然扩展；标签最多两行，避免标签挤压数值。
+- 不改统计口径、金额格式、数据来源或钱包页面；待 Android 单元测试与窄屏/大字体真机验收。
