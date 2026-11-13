@@ -28,6 +28,14 @@
 - Next implementation must connect only explicitly supported campaign evidence to the campaign table, preserve unknown fields as null, keep unverified candidates out of the public endpoint, and provide a visible reason when no campaigns qualify. No fabricated/sample records.
 - Scheduled sync remains disabled until this campaign bridge and end-to-end real-data validation are complete.
 
+## 2026-11-13 — approved campaign bridge implementation plan
+
+- Binance catalog IDs are explicitly mapped by the maintained announcement adapter: `128 = Crypto Airdrop`, `93 = Latest Activities`. Only the official Crypto Airdrop category (128) is eligible for campaign-level ingestion; Latest Activities remains an observation/review lead and is never promoted merely because it is a Binance announcement.
+- For category 128, require the official Binance CMS detail response to contain an article body and require the resulting official link to remain HTTPS on the Binance host. Preserve source article code and original body evidence; derive plain text only for the compact campaign description, with no AI rewriting.
+- Campaign records use stable source keys, source snapshots and status history. Fields not reliably present in the official source (chain, eligibility/KYC, start/end dates, reward amounts, current status) remain unknown/null rather than guessed.
+- The publication gate may accept this one explicit official campaign category as an ordinary listing only when the detail body and official URL are present, the source identity is exact, and no corroborated risk/source conflict blocks publication. No heat, reward, KYC or active-status values are fabricated.
+- CoinGecko/GitHub/DexScreener remain leads only. No paid API, proxy, scraper, or new credential is introduced. Scheduled sync remains disabled pending end-to-end verification.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
