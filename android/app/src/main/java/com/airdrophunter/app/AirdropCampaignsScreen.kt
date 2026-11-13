@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -154,6 +155,7 @@ fun AirdropCampaignsScreen(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
     Card(
         onClick = onClick,
@@ -185,9 +187,19 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
                 }
             }
             if (campaign.description.isNotBlank()) {
-                Text(campaign.description, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    campaign.description,
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                CampaignTag("Binance 官方")
                 CampaignTag(campaign.chain ?: "链待确认")
                 CampaignTag(campaignStatusText(campaign.campaign_status))
                 CampaignTag(if (campaign.requires_kyc == true) "需要 KYC" else if (campaign.requires_kyc == false || campaign.is_kyc_free == true) "免 KYC" else "KYC 未知")
