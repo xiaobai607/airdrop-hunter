@@ -21,6 +21,8 @@ class AirdropCampaignRepository(
     private val api: ApiService,
     private val gson: Gson = Gson()
 ) {
+    suspend fun loadSourceStatuses(): List<AirdropHubSourceStatusDto> = api.getAirdropHubSourceStatuses()
+
     suspend fun readCached(filters: AirdropCampaignFilters = AirdropCampaignFilters()): List<AirdropCampaignDto>? =
         withContext(Dispatchers.IO) {
             val raw = CacheStore.readPublic(filters.cacheKey()) ?: return@withContext null
