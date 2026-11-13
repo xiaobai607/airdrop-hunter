@@ -31,6 +31,7 @@ import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import java.text.DateFormat
 import java.time.Instant
@@ -178,9 +179,11 @@ private fun AirdropAnnouncementDetail(
             Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "返回列表", tint = MaterialTheme.colorScheme.onSurface)
-            }
+            com.airdrophunter.app.ui.components.AppIconButton(
+                icon = Icons.Default.ArrowBack,
+                contentDescription = "返回列表",
+                onClick = onBack
+            )
             Text("公告详情", color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
