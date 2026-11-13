@@ -88,7 +88,7 @@ fun AirdropHubScreen(
                     error = state.sourceError ?: state.sourceStatusError,
                     expanded = showSourceDetails,
                     onToggle = { showSourceDetails = !showSourceDetails },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
             when {

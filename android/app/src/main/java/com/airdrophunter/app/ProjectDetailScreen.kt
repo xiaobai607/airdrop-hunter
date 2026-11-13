@@ -153,7 +153,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 elevation = CardDefaults.cardElevation(0.dp)) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("项目概览", color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                         Text(project.name, modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface,
@@ -904,7 +904,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                     Modifier.weight(1f).background(
                         MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
                         RoundedCornerShape(AppDesignTokens.Radius.Md.dp)
-                    ).padding(horizontal = 10.dp, vertical = 9.dp),
+                    ).padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     Text("实际收益 · USD估值", color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -946,7 +946,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
 @Composable
 private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double?, color: Color) {
     Column(
-        modifier.background(MaterialTheme.colorScheme.background, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 9.dp, vertical = 11.dp),
+        modifier.background(MaterialTheme.colorScheme.background, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)

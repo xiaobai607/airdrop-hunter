@@ -1005,3 +1005,11 @@
 - `CommunitySquareScreen.kt`：微社区 Gas/收益比例条高度由 10dp 调整为设计规格 6dp；标签横向间距统一为 8dp。
 - `ProjectDetailScreen.kt`：加载占位边距回归 16dp；账本指标卡片内边距统一为 12×8dp；项目进度条高度统一为 6dp。
 - 本批仅调整视觉栅格，不改页面信息、数值、点击路径或业务逻辑；浏览器与钱包页面按既定暂停/保留范围未触碰。
+
+
+### 2026-11-14 — 间距栅格复查第二轮
+
+- `HomeScreen.kt`、`MicroCommunityScreen.kt`：剩余 14dp 区块间距收敛为 12dp。
+- `AirdropHubScreen.kt`：公告卡片内的 6dp 垂直间距调整为 8dp。
+- `ProjectDetailScreen.kt`：账本指标卡内边距统一为 12×8dp；周期指标卡内边距统一为 8×12dp；任务/流水区块的 6dp 元素间距统一为 8dp。
+- 继续遵守 4、8、12、16、20、24、32dp 间距栅格；图标尺寸、进度条高度和阴影高度不按间距规则误改。

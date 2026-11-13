@@ -460,7 +460,7 @@ fun HomeScreen(
                 Modifier.fillMaxWidth().heightIn(max = 720.dp)
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Column(
                     Modifier.fillMaxWidth(),
