@@ -670,3 +670,12 @@
 - 保留四个 Tab、选中索引、点击切换、二级页面隐藏底栏、底栏 80dp 宿主高度和 AppBottomBar 原有无障碍语义；未修改导航状态或业务路由。
 - 静态核对：已移除 MainActivity 的 blur 调用及对应 import；底栏容器尺寸与 AppBottomBar 调用保持不变。此项只能说明减少了模糊合成负担，实际帧率改善仍需真机 Profiling。
 - Commit：`fb2dfd4bf484f6e89064c903fa3255c6c5a810bc`。尚未运行 Gradle 编译、Android tests、CI、APK 或真机 FPS/视觉验收。
+
+
+### 2026-11-13 — 数据源诊断面板窄屏文本防溢出（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ui/components/AirdropSourceHealthPanel.kt`。
+- 展开诊断列表中的数据源名称限制单行并省略，避免长名称挤压右侧状态胶囊；错误详情最多显示两行并省略，避免异常响应文本无限拉长页面。
+- 保留数据源启用/成功/异常统计、状态映射、最近成功/尝试时间、错误颜色和诊断展开交互；没有修改健康状态判定或数据源请求逻辑。
+- 静态核对：仅增加 TextOverflow 展示约束；窄屏布局和长错误文案仍需真机检查。未运行 Gradle 编译、Android tests、CI、APK 或设备验收。
+- Commit：`5b93c56be2ca8470912a41f2f1be7b09705b7173`。
