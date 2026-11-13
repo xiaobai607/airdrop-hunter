@@ -1166,3 +1166,11 @@
 - `WalletUsageStore` 优先按官网主机名归并同一钱包的不同显示名称，减少品牌名/语言差异造成的重复计数；Coinbase 会话仍按固定名称记录。
 - 仅在 AppKit 成功批准会话时执行；不记录点击、拒绝或失败。尚未实现钱包目录 ID 映射与按次数排序，也未运行 Gradle/CI。
 - 对应代码提交：`aa85de7acc2ac0281ac93b08fddcddb462cd355c`。
+
+### 2026-11-14 — 钱包排序/缓存接入边界复核
+
+- 确认 AppKit 1.3.3 的 `Modal.Params.Init` 支持 `includeWalletIds` 与 `recommendedWalletsIds`；但 `WalletDataSource` 在 include 列表非空时走独立分页分支，不会合并默认推荐/已安装列表。
+- SDK 的目录分页追加直接执行列表拼接，没有按钱包 ID 去重；搜索分页也同样如此。若启用精选目录，仍需对初始页、后续页和搜索结果统一按稳定钱包 ID 去重。
+- 当前应用尚未把成功连接记录映射回 Reown 目录 ID；会话批准回调只提供 peer metadata（名称、URL 等），没有官方目录 ID。因此不能安全地把本地统计直接转换成 `recommendedWalletsIds`。需要先完成钱包目录 ID 的可靠映射/核验，不能按品牌名称臆造 ID。
+- 已有共享缓存引擎用于行情、OKX 热门币、DApp 目录及部分钱包资产数据；但 Reown AppKit 钱包目录本身不在该缓存引擎中。AppKit 当前按用户进入钱包连接流程时才初始化，不能把“已有缓存引擎”误报为“钱包目录已预热”。
+- 本轮未修改 AppKit 初始化或伪造目录 ID；避免破坏 Reown 原生连接流程。待办聚焦：可信目录 ID 获取与映射、SDK 数据层去重接入、连接次数排序验证、钱包图标资源缓存。尚未运行 Gradle/CI。
