@@ -191,6 +191,7 @@ private fun BrowserScreen(
     val dappRequestScope = rememberCoroutineScope()
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var pageErrorMessage by remember(url) { mutableStateOf<String?>(null) }
+    var isSlowLoading by remember(url) { mutableStateOf(false) }
     var webViewGeneration by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
@@ -224,7 +225,12 @@ private fun BrowserScreen(
     }
     LaunchedEffect(pageState, browser) {
         if (pageState == BrowserPageState.Loading) {
-            kotlinx.coroutines.delay(15_000)
+            isSlowLoading = false
+            kotlinx.coroutines.delay(5_000)
+            if (pageState == BrowserPageState.Loading) {
+                isSlowLoading = true
+                kotlinx.coroutines.delay(10_000)
+            }
             if (pageState == BrowserPageState.Loading) {
                 pageState = BrowserPageState.Error
                 pageErrorMessage = "网页在 15 秒内未返回首屏内容。可能是网络连接、网站响应或登录跳转失败；请检查网络后重试。"
@@ -979,9 +985,18 @@ private fun BrowserScreen(
                 BrowserPageOverlay(
                     state = pageState,
                     errorDetail = pageErrorMessage,
+                    isSlowLoading = isSlowLoading,
                     onBack = onExit,
+                    onOpenExternally = {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(currentPageUrl)))
+                        }.onFailure {
+                            Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show()
+                        }
+                    },
                     onRetry = {
                         pageState = BrowserPageState.Loading
+                        isSlowLoading = false
                         pageErrorMessage = null
                         browser?.settings?.userAgentString = CHROME_MOBILE_USER_AGENT
                         browser?.reload()
@@ -1117,7 +1132,9 @@ private const val CHROME_MOBILE_USER_AGENT =
 private fun BrowserPageOverlay(
     state: BrowserPageState,
     errorDetail: String?,
+    isSlowLoading: Boolean,
     onBack: () -> Unit,
+    onOpenExternally: () -> Unit,
     onRetry: () -> Unit
 ) {
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
@@ -1129,8 +1146,11 @@ private fun BrowserPageOverlay(
                     strokeWidth = 3.dp)
                 Text("正在连接网页，请稍候…", color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.titleMedium)
-                Text("正在等待网页返回首屏内容", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall)
+                Text(
+                    if (isSlowLoading) "页面响应较慢，仍在等待首屏内容…" else "正在等待网页返回首屏内容",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
         } else {
             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp),
@@ -1138,12 +1158,16 @@ private fun BrowserPageOverlay(
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Icon(Icons.Default.CloudOff, contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(64.dp))
-                Text("网页加载超时", color = MaterialTheme.colorScheme.onBackground,
-                    style = MaterialTheme.typography.titleLarge)
+                Text(
+                    if (errorDetail?.contains("15 秒") == true) "网页加载超时" else "网页无法打开",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.titleLarge
+                )
                 Text(errorDetail ?: "网站未提供具体错误原因。请检查网络后重试。",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium)
                 AppButton("重新加载", onClick = onRetry)
+                AppButton("用浏览器打开", onClick = onOpenExternally, style = AppButtonStyle.SECONDARY)
                 AppButton("返回", onClick = onBack, style = AppButtonStyle.TEXT)
             }
         }
