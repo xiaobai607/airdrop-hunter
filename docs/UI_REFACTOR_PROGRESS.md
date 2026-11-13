@@ -748,3 +748,10 @@
 - 当前上述主要页面未发现残留的 `AppColors` 固定浅色兼容色引用；主要卡片圆角已统一使用 `AppDesignTokens.Radius`。
 - Commits：`da1e83ccdc8b5923e58a1d0187224fe997ab92d3`、`b29cda04bc2d2e46a96c702eca315cdc3d83856d`。
 - 此轮为代码静态巡检，不等同于构建/设备验收。
+
+
+### 2026-11-13 — 官方公告详情 WebView 深色主题适配
+
+- `AirdropAnnouncementHtml.kt`：保留公告原始 HTML 内容与既有 CSP 安全限制，增加 `color-scheme: light dark` 与系统深色模式 CSS；只调整正文背景/文字、链接、引用块和表格边框颜色，不改写公告条款、不启用脚本或额外网络能力。
+- Commits：`752f75a7c9bf76b5a937c19baeb8fb5198f8bbc9`、`0d804b15652899c138374a183ae8aff8dde4783c`（后者修正 meta 标签换行）。
+- 仍需在真实 Android WebView 上确认系统深色模式媒体查询表现；当前仅源码检查。
