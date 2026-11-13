@@ -12,12 +12,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,7 +36,10 @@ fun AppButton(
     style: AppButtonStyle = AppButtonStyle.PRIMARY,
     enabled: Boolean = true,
     loading: Boolean = false,
-    fullWidth: Boolean = true
+    fullWidth: Boolean = true,
+    heightDp: Int = if (style == AppButtonStyle.TEXT) 44 else AppDesignTokens.Control.ButtonHeight,
+    leadingIcon: ImageVector? = null,
+    fontSizeSp: Int = 17
 ) {
     val colors = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)
@@ -54,7 +59,7 @@ fun AppButton(
     Box(
         modifier = modifier
             .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
-            .height(if (style == AppButtonStyle.TEXT) 44.dp else AppDesignTokens.Control.ButtonHeight.dp)
+            .height(heightDp.dp)
             .background(background, shape)
             .then(if (border != Color.Transparent) Modifier.border(1.dp, border, shape) else Modifier)
             .appPressFeedback(
@@ -73,7 +78,13 @@ fun AppButton(
                 strokeWidth = 2.dp
             )
         } else {
-            Text(text, color = foreground, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (leadingIcon != null) {
+                    Icon(leadingIcon, contentDescription = null, tint = foreground, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(text, color = foreground, fontSize = fontSizeSp.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }
