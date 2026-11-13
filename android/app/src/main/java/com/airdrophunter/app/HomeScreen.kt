@@ -140,17 +140,17 @@ fun HomeScreen(
 
         Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("行情看板", color = AppColors.TextPrimary,
+                Text("行情看板", color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 AppTextButton(onClick = {
                     marketSymbolDraft = marketSymbols.toSet()
                     showMarketEditor = true
-                }) { Text("编辑", color = AppColors.Primary) }
+                }) { Text("编辑", color = MaterialTheme.colorScheme.primary) }
                 Text(if (state.isRefreshing) "更新中" else "刷新",
                     modifier = Modifier.appPressFeedback(onClick = { homeViewModel.refresh(isGuest) }, scale = 0.94f)
                         .padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
-                    color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                    color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
             }
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -162,17 +162,17 @@ fun HomeScreen(
                 when {
                     state.isLoading && state.market.isEmpty() -> Box(
                         Modifier.fillMaxWidth().padding(22.dp), contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator(color = AppColors.Primary) }
+                    ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
                     state.market.isEmpty() -> Column(
                         Modifier.fillMaxWidth().padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("无法获取实时行情", color = AppColors.TextPrimary,
+                        Text("无法获取实时行情", color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         Text(state.marketError ?: "请检查网络连接后重试。",
-                            color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                         AppTextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
-                            Text("点击重试", color = AppColors.Primary)
+                            Text("点击重试", color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     else -> Column {
@@ -181,10 +181,10 @@ fun HomeScreen(
                         }
                         if (visibleMarket.isEmpty()) {
                             Text("所选币种暂无行情数据", modifier = Modifier.padding(18.dp),
-                                color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                         } else visibleMarket.forEachIndexed { index, ticker ->
                             MarketRow(ticker)
-                            if (index != visibleMarket.lastIndex) HorizontalDivider(color = AppColors.Border)
+                            if (index != visibleMarket.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
                 }
@@ -202,18 +202,18 @@ fun HomeScreen(
                     state.marketError != null -> "行情暂不可用"
                     else -> "等待行情数据"
                 },
-                color = AppColors.TextHelper,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.labelSmall
             )
         }
         if (showMarketEditor) {
             AlertDialog(
                 onDismissRequest = { showMarketEditor = false },
-                containerColor = AppColors.Surface,
-                title = { Text("自定义行情看板", color = AppColors.TextPrimary) },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("自定义行情看板", color = MaterialTheme.colorScheme.onSurface) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("选择要在首页显示的币种，至少保留一个。", color = AppColors.TextSecondary,
+                        Text("选择要在首页显示的币种，至少保留一个。", color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall)
                         listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").forEach { symbol ->
                             Row(Modifier.fillMaxWidth().appPressFeedback(onClick = {
@@ -223,7 +223,7 @@ fun HomeScreen(
                                 Checkbox(checked = symbol in marketSymbolDraft, onCheckedChange = { checked ->
                                     marketSymbolDraft = if (checked) marketSymbolDraft + symbol else marketSymbolDraft - symbol
                                 })
-                                Text(symbol, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                                Text(symbol, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -258,8 +258,8 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(11.dp)
         ) {
-            Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.TextSecondary)
-            Text("搜索币种或 DApp", color = AppColors.TextHelper,
+            Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("搜索币种或 DApp", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         }
 
@@ -286,11 +286,11 @@ fun HomeScreen(
 
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("快捷入口", color = AppColors.TextPrimary,
+                Text("快捷入口", color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f))
                 AppTextButton(onClick = { editingDashboard = !editingDashboard }) {
-                    Text(if (editingDashboard) "完成" else "编辑", color = AppColors.Primary)
+                    Text(if (editingDashboard) "完成" else "编辑", color = MaterialTheme.colorScheme.primary)
                 }
             }
             if (editingDashboard) {
@@ -300,7 +300,7 @@ fun HomeScreen(
                         Text("恢复默认布局")
                     }
                 }
-                Text("长按卡片拖动排序；可添加或移除。", color = AppColors.TextHelper,
+                Text("长按卡片拖动排序；可添加或移除。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.labelSmall)
             }
             FlowRow(
@@ -332,7 +332,7 @@ fun HomeScreen(
                         "tron_energy" -> Color(0xFFCE7B2C)
                         "accounting" -> Color(0xFF7956B8)
                         "project_library" -> Color(0xFF38865A)
-                        else -> AppColors.Primary
+                        else -> MaterialTheme.colorScheme.primary
                     }
                     Card(
                         modifier = Modifier
@@ -397,14 +397,14 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 DashboardIconTile(icon, iconBackground, iconTint, 44.dp)
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
+                                    Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.SemiBold)
-                                    Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 if (editingDashboard) {
                                     AppTextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
-                                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = AppColors.Danger) }
-                                } else Text("打开  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium)
+                                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = MaterialTheme.colorScheme.error) }
+                                } else Text("打开  ›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
                             }
                         } else {
                             Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 9.dp),
@@ -414,11 +414,11 @@ fun HomeScreen(
                                     Spacer(Modifier.weight(1f))
                                     if (editingDashboard) AppTextButton(
                                         onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
-                                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = AppColors.Danger) }
+                                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = MaterialTheme.colorScheme.error) }
                                 }
-                                Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall,
+                                Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -430,16 +430,16 @@ fun HomeScreen(
             val available = HomeDashboardLayoutStore.available(dashboardCards.map { it.id }.toSet())
             AlertDialog(
                 onDismissRequest = { showAddDashboardCard = false },
-                containerColor = AppColors.Surface,
-                title = { Text("添加快捷卡片", color = AppColors.TextPrimary) },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("添加快捷卡片", color = MaterialTheme.colorScheme.onSurface) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (available.isEmpty()) Text("目前没有更多可添加的快捷功能。", color = AppColors.TextSecondary)
+                        if (available.isEmpty()) Text("目前没有更多可添加的快捷功能。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         available.forEach { id ->
                             AppTextButton(onClick = {
                                 saveDashboardCards(dashboardCards + HomeDashboardCard(id))
                                 showAddDashboardCard = false
-                            }) { Text(HomeDashboardLayoutStore.title(id), color = AppColors.Primary) }
+                            }) { Text(HomeDashboardLayoutStore.title(id), color = MaterialTheme.colorScheme.primary) }
                         }
                     }
                 },
@@ -469,11 +469,11 @@ fun HomeScreen(
                 ) {
                     Column(Modifier.fillMaxWidth().padding(18.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("空投导航", modifier = Modifier.weight(1f), color = AppColors.TextPrimary,
+                            Text("空投导航", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            AppTextButton(onClick = { closeNavOverlay() }) { Text("关闭", color = AppColors.Primary) }
+                            AppTextButton(onClick = { closeNavOverlay() }) { Text("关闭", color = MaterialTheme.colorScheme.primary) }
                         }
-                        Text("选择一个平台打开", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text("选择一个平台打开", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(12.dp))
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(3),
@@ -507,7 +507,7 @@ fun HomeScreen(
                                     verticalArrangement = Arrangement.spacedBy(7.dp)
                                 ) {
                                     FaviconTile(site, Modifier.size(52.dp))
-                                    Text(site.name, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelMedium,
+                                    Text(site.name, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, maxLines = 2)
                                 }
                             }
@@ -519,9 +519,9 @@ fun HomeScreen(
     }
 
     if (showNotifications) AlertDialog(
-        onDismissRequest = { showNotifications = false }, containerColor = AppColors.Surface,
-        title = { Text("消息通知", color = AppColors.TextPrimary) },
-        text = { Text("通知功能正在开发中。", color = AppColors.TextSecondary) },
+        onDismissRequest = { showNotifications = false }, containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("消息通知", color = MaterialTheme.colorScheme.onSurface) },
+        text = { Text("通知功能正在开发中。", color = MaterialTheme.colorScheme.onSurfaceVariant) },
         confirmButton = { AppTextButton(onClick = { showNotifications = false }) { Text("关闭") } }
     )
 }
@@ -550,7 +550,7 @@ private fun FaviconTile(site: AirdropSite, modifier: Modifier = Modifier) {
 private fun FaviconLetter(site: AirdropSite) {
     Box(Modifier.fillMaxSize().background(Color(0xFFE7F1EF), RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center) {
-        Text(site.name.take(1).uppercase(), color = AppColors.Primary, fontWeight = FontWeight.Bold)
+        Text(site.name.take(1).uppercase(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -566,14 +566,14 @@ private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(ticker.symbol, color = AppColors.TextPrimary,
+            Text(ticker.symbol, color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Text(ticker.displayName, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            Text(ticker.displayName, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text("$ $price", color = AppColors.TextPrimary,
+            Text("$ $price", color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Text(change, color = if (ticker.change24hPercent >= 0) AppColors.Success else AppColors.Danger,
+            Text(change, color = if (ticker.change24hPercent >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelSmall)
         }
     }
@@ -597,9 +597,9 @@ private fun ShortcutCard(
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(34.dp))
-            Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
+            Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
