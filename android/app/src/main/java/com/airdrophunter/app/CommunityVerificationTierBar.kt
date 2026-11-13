@@ -83,7 +83,9 @@ fun CommunityVerificationTierBar(
                 "${it.label} ${String.format(Locale.US, "$%,.2f", it.amount)}"
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelSmall
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = if (compact) 1 else 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
         )
     }
 }
