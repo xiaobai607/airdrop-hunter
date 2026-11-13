@@ -276,18 +276,40 @@ fun WalletManagerScreen(
             }
         }
 
-        state.error?.let { message ->
-            Text(
-                message,
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.error
-            )
+        if (state.wallets.isNotEmpty()) {
+            state.error?.let { message ->
+                Text(
+                    message,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
         }
 
         when {
             state.isLoading && state.wallets.isEmpty() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            state.error != null && state.wallets.isEmpty() -> {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text("钱包列表加载失败", color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(8.dp))
+                    Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(16.dp))
+                    AppButton(
+                        text = "重新加载",
+                        onClick = { walletViewModel.load(isGuest) },
+                        modifier = Modifier.widthIn(min = 132.dp),
+                        enabled = !state.isLoading && !state.isSaving
+                    )
                 }
             }
             state.wallets.isEmpty() -> {
@@ -370,10 +392,6 @@ fun WalletManagerScreen(
                                     if (wallet.tags.orEmpty().isNotEmpty()) {
                                         Text(wallet.tags.orEmpty().joinToString(" · "), color = MaterialTheme.colorScheme.primary,
                                             style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                                    }
-                                    if (wallet.notes.orEmpty().isNotBlank()) {
-                                        Text(wallet.notes, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
-                                            style = MaterialTheme.typography.labelSmall, maxLines = 2)
                                     }
                                 }
                                 AppIconButton(
