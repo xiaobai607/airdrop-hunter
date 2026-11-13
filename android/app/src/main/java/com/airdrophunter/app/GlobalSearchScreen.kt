@@ -290,14 +290,17 @@ fun GlobalSearchScreen(
                         description = if (isSearching) "正在合并本地缓存与远程搜索结果…" else searchError ?: "试试更短的名称、代号或合约地址。"
                     )
                 } else coinResults.forEachIndexed { index, coin ->
-                    val delay = index.coerceAtMost(AppDesignTokens.Motion.MaxStaggerItems - 1) *
-                        AppDesignTokens.Motion.StaggerMs
                     key(coin.symbol) {
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = fadeIn(tween(200, delayMillis = delay)) +
-                                slideInVertically(tween(200, delayMillis = delay)) { 8 }
-                        ) { MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
+                        if (index < AppDesignTokens.Motion.MaxStaggerItems) {
+                            val delay = index * AppDesignTokens.Motion.StaggerMs
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn(tween(200, delayMillis = delay)) +
+                                    slideInVertically(tween(200, delayMillis = delay)) { 8 }
+                            ) { MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
+                        } else {
+                            MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) }
+                        }
                     }
                 }
                 SearchCategory.DAPP -> if (dappResults.isEmpty()) {
@@ -307,14 +310,17 @@ fun GlobalSearchScreen(
                         description = if (isSearching) "正在检索本地目录与已缓存的项目数据…" else searchError ?: "试试项目名称、所属链或相关标签。"
                     )
                 } else dappResults.forEachIndexed { index, project ->
-                    val delay = index.coerceAtMost(AppDesignTokens.Motion.MaxStaggerItems - 1) *
-                        AppDesignTokens.Motion.StaggerMs
                     key(project.project_official_id) {
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = fadeIn(tween(200, delayMillis = delay)) +
-                                slideInVertically(tween(200, delayMillis = delay)) { 8 }
-                        ) { DappResultRow(project) { recordAndOpenDapp(project) } }
+                        if (index < AppDesignTokens.Motion.MaxStaggerItems) {
+                            val delay = index * AppDesignTokens.Motion.StaggerMs
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn(tween(200, delayMillis = delay)) +
+                                    slideInVertically(tween(200, delayMillis = delay)) { 8 }
+                            ) { DappResultRow(project) { recordAndOpenDapp(project) } }
+                        } else {
+                            DappResultRow(project) { recordAndOpenDapp(project) }
+                        }
                     }
                 }
             }
