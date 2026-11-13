@@ -672,7 +672,11 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 }
             },
             confirmButton = {
-                Button(enabled = !isSavingAccounting && selectedWallets.isNotEmpty(), onClick = {
+                AppButton(
+                    text = "保存记账",
+                    enabled = !isSavingAccounting && selectedWallets.isNotEmpty(),
+                    loading = isSavingAccounting,
+                    onClick = {
                     scope.launch {
                         isSavingAccounting = true
                         try {
@@ -735,9 +739,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             isSavingAccounting = false
                         }
                     }
-                }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
-                    Text(if (isSavingAccounting) "保存中…" else "保存记账")
-                }
+                })
             },
             dismissButton = {
                 AppTextButton(onClick = { if (!isSavingAccounting) showManualAccounting = false }) { Text("取消") }
