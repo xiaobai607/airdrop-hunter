@@ -128,7 +128,8 @@ fun ProfileScreen(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(if (isGuest) "本地模式" else (state.profile?.username ?: "账户中心"),
                     color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold)
+                    fontWeight = FontWeight.Bold, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 Text(
                     when {
                         isGuest -> "个人数据仅保存在本机"
@@ -136,7 +137,9 @@ fun ProfileScreen(
                         state.isLoading -> "正在加载账户信息…"
                         else -> "账户信息暂时无法加载"
                     },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                    style = MaterialTheme.typography.bodySmall, maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
         }
