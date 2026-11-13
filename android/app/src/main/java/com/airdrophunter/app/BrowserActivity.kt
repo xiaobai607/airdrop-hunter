@@ -381,21 +381,38 @@ private fun BrowserScreen(
     Box(Modifier.fillMaxSize()) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1) },
-                    navigationIcon = { IconButton(onClick = onExit) { Icon(Icons.Default.ArrowBack, "返回", tint = AppColors.TextPrimary) } },
+                    modifier = Modifier.height(56.dp),
+                    title = { Text(title, color = MaterialTheme.colorScheme.onBackground,
+                        style = MaterialTheme.typography.titleLarge, maxLines = 1) },
+                    navigationIcon = {
+                        AppIconButton(Icons.Default.ArrowBack, "返回", onExit)
+                    },
                     actions = {
-                        TextButton(enabled = walletConnectReady, onClick = { walletNavController.openAppKit() }) {
-                            Text(if (walletConnectReady) "连接外部钱包" else "钱包连接服务初始化中…", color = AppColors.Primary)
-                        }
-                        if (selectedWallet != null) TextButton(onClick = { showWalletPicker = true }) {
-                            Text("钱包 · ${selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }}", color = AppColors.Primary, maxLines = 1)
+                        AppButton(
+                            text = if (walletConnectReady) "连接外部钱包" else "初始化中…",
+                            onClick = { walletNavController.openAppKit() },
+                            style = AppButtonStyle.SECONDARY,
+                            enabled = walletConnectReady,
+                            fullWidth = false,
+                            heightDp = 40,
+                            fontSizeSp = 13
+                        )
+                        if (selectedWallet != null) {
+                            AppButton(
+                                text = "钱包 · ${selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }}",
+                                onClick = { showWalletPicker = true },
+                                style = AppButtonStyle.TEXT,
+                                fullWidth = false,
+                                heightDp = 44,
+                                fontSizeSp = 12
+                            )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background)
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
                 )
                 if (showSecurityBanner) {
                     Surface(
@@ -419,9 +436,8 @@ private fun BrowserScreen(
                                 style = MaterialTheme.typography.labelSmall,
                                 maxLines = 2
                             )
-                            TextButton(onClick = { showSecurityBanner = false }) {
-                                Text("知道了", color = MaterialTheme.colorScheme.primary)
-                            }
+                            AppButton("知道了", onClick = { showSecurityBanner = false },
+                                style = AppButtonStyle.TEXT, fullWidth = false, heightDp = 44, fontSizeSp = 13)
                         }
                     }
                 }
