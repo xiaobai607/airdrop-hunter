@@ -230,12 +230,12 @@ private fun BrowserScreen(
             kotlinx.coroutines.delay(5_000)
             if (pageState == BrowserPageState.Loading) {
                 isSlowLoading = true
-                kotlinx.coroutines.delay(10_000)
+                kotlinx.coroutines.delay(25_000)
             }
             if (pageState == BrowserPageState.Loading) {
                 pageState = BrowserPageState.Error
-                pageErrorMessage = "网页在 15 秒内未返回首屏内容。可能是网络连接、网站响应或登录跳转失败；请检查网络后重试。"
-                Log.w("AirdropBrowser", "Main-frame load timed out after 15 seconds")
+                pageErrorMessage = "网页在 30 秒内未返回首屏内容。可能是网络连接、网站响应或登录跳转失败；请检查网络后重试。"
+                Log.w("AirdropBrowser", "Main-frame load timed out after 30 seconds")
             }
         }
     }
@@ -785,7 +785,6 @@ private fun BrowserScreen(
                             domStorageEnabled = true
                             databaseEnabled = true
                             loadsImagesAutomatically = true
-                            userAgentString = CHROME_MOBILE_USER_AGENT
                             allowFileAccess = false
                             allowContentAccess = false
                             allowUniversalAccessFromFileURLs = false
@@ -913,7 +912,6 @@ private fun BrowserScreen(
                                 pageUrl?.let { currentPageUrl = it }
                                 pageState = BrowserPageState.Success
                                 pageErrorMessage = null
-                                view?.settings?.userAgentString = CHROME_MOBILE_USER_AGENT
                                 Log.d("AirdropBrowser", "Page finished: $pageUrl")
                             }
 
@@ -1017,7 +1015,6 @@ private fun BrowserScreen(
                         pageState = BrowserPageState.Loading
                         isSlowLoading = false
                         pageErrorMessage = null
-                        browser?.settings?.userAgentString = CHROME_MOBILE_USER_AGENT
                         browser?.reload()
                     }
                 )
@@ -1143,9 +1140,6 @@ private fun displayHost(rawUrl: String): String {
 }
 
 private enum class BrowserPageState { Loading, Success, Error }
-
-private const val CHROME_MOBILE_USER_AGENT =
-    "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
 
 @Composable
 private fun BrowserPageOverlay(
