@@ -1,11 +1,6 @@
 package com.airdrophunter.app
 
 import android.content.Intent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,8 +40,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.SubcomposeAsyncImage
@@ -63,12 +56,11 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
@@ -102,8 +94,8 @@ fun HomeScreen(
     var showMarketEditor by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
     var showNavOverlay by remember { mutableStateOf(false) }
-    var navContentVisible by remember { mutableStateOf(false) }
-    fun closeNavOverlay() { scope.launch { navContentVisible = false; delay(180); showNavOverlay = false } }
+    var siteSearchQuery by remember { mutableStateOf("") }
+    val navSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var sites by remember { mutableStateOf(AirdropSiteStore.defaults) }
 
     LaunchedEffect(Unit) {
@@ -276,7 +268,7 @@ fun HomeScreen(
         }
         fun openDashboardCard(id: String) {
             when (id) {
-                "airdrop_navigation" -> { showNavOverlay = true; navContentVisible = true }
+                "airdrop_navigation" -> { siteSearchQuery = ""; showNavOverlay = true }
                 "wallet_management" -> onOpenWallet()
                 "tron_energy" -> onOpenTronEnergy()
                 "accounting" -> onOpenAccounting()
@@ -440,43 +432,85 @@ fun HomeScreen(
     }
 
     if (showNavOverlay) {
-        Dialog(
-            onDismissRequest = { closeNavOverlay() },
-            properties = DialogProperties(usePlatformDefaultWidth = true)
+        ModalBottomSheet(
+            onDismissRequest = {
+                showNavOverlay = false
+                siteSearchQuery = ""
+            },
+            sheetState = navSheetState,
+            shape = RoundedCornerShape(
+                topStart = AppDesignTokens.Radius.Xl.dp,
+                topEnd = AppDesignTokens.Radius.Xl.dp
+            ),
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+            scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
+            dragHandle = { BottomSheetDefaults.DragHandle(width = 36.dp, height = 4.dp) }
         ) {
-            AnimatedVisibility(
-                visible = navContentVisible,
-                enter = fadeIn() + scaleIn(initialScale = 0.88f),
-                exit = fadeOut() + scaleOut(targetScale = 0.92f)
+            val filteredSites = remember(sites, siteSearchQuery) {
+                sites.filter {
+                    it.name.contains(siteSearchQuery, ignoreCase = true) ||
+                        it.domain.contains(siteSearchQuery, ignoreCase = true)
+                }
+            }
+            Column(
+                Modifier.fillMaxWidth().heightIn(max = 720.dp)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(12.dp)
+                Column(
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("空投导航", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            AppTextButton(onClick = { closeNavOverlay() }) { Text("关闭", color = MaterialTheme.colorScheme.primary) }
-                        }
-                        Text("选择一个平台打开", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(12.dp))
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(3),
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp),
-                            contentPadding = PaddingValues(bottom = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(sites, key = { it.id }) { site ->
-                                Column(
-                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                                        .appPressFeedback(onClick = {
-                                            closeNavOverlay()
+                    Text(
+                        "空投导航",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                        "选择一个平台打开",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                AppTextField(
+                    value = siteSearchQuery,
+                    onValueChange = { siteSearchQuery = it },
+                    placeholder = "搜索平台名称",
+                    trailingClear = true
+                )
+                if (filteredSites.isEmpty()) {
+                    Box(
+                        Modifier.fillMaxWidth().height(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            if (sites.isEmpty()) "还没有添加导航平台" else "没有匹配的平台",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp),
+                        contentPadding = PaddingValues(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filteredSites, key = { it.id }) { site ->
+                            Column(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp))
+                                    .appPressFeedback(
+                                        onClick = {
                                             scope.launch {
-                                                val updated = withContext(Dispatchers.IO) { AirdropSiteStore.recordClick(site) }
+                                                navSheetState.hide()
+                                                showNavOverlay = false
+                                                siteSearchQuery = ""
+                                                val updated = withContext(Dispatchers.IO) {
+                                                    AirdropSiteStore.recordClick(site)
+                                                }
                                                 sites = updated
                                                 val walletRows = withContext(Dispatchers.IO) {
                                                     val raw = if (isGuest) CacheStore.readLocal("wallets") else CacheStore.read("wallets")
@@ -487,17 +521,35 @@ fun HomeScreen(
                                                     .putExtra(BrowserActivity.EXTRA_URL, site.url)
                                                     .putExtra(BrowserActivity.EXTRA_TITLE, site.name)
                                                     .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, Gson().toJson(walletRows))
-                                                walletRows.firstOrNull()?.let { intent.putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, it.id) }
+                                                walletRows.firstOrNull()?.let {
+                                                    intent.putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, it.id)
+                                                }
                                                 context.startActivity(intent)
                                             }
-                                        }, scale = 0.96f).padding(vertical = 10.dp, horizontal = 4.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                                        },
+                                        scale = 0.94f
+                                    )
+                                    .padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(56.dp),
+                                    shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
-                                    FaviconTile(site, Modifier.size(52.dp))
-                                    Text(site.name, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, maxLines = 2)
+                                    FaviconTile(site, Modifier.fillMaxSize().padding(8.dp))
                                 }
+                                Text(
+                                    site.name,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
