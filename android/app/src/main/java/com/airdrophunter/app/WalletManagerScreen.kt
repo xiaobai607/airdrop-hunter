@@ -338,7 +338,8 @@ fun WalletManagerScreen(
                                 .appPressFeedback(onClick = { selectedWallet = wallet }, scale = 0.96f),
                             shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Row(
                                 modifier = Modifier
