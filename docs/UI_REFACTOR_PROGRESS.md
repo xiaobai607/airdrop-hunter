@@ -650,3 +650,13 @@
 - 保留默认来源集合、favicon 加载及失败时首字母回退、BrowserActivity 跳转目标和原有点击反馈；未增加或移除来源，也未修改浏览器安全设置。
 - 静态核对：点击仍传入 `source.url`，展示层改为 `source.domain`；名称/域名均设置单行溢出策略。未运行 Gradle 编译、Android 测试、CI、APK 或真机窄屏/网络图标验收。
 - 代码 commit：`592fc05ffb5eaa429fe673314eb05bd2d258673a`。
+
+
+### 2026-11-13 — 个人中心设置/安全/通知弹层间距统一（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ProfileDestinations.kt`。
+- 设置、安全中心、消息通知共用弹层内容区左右内边距统一为 16dp，模块纵向间距统一为 12dp。
+- 信息卡片圆角改为全局 `AppDesignTokens.Radius.Lg`，卡片内边距统一为 16dp；通知空状态的纵向留白调整为 20dp，避免不同弹层卡片密度不一致。
+- 保留外部钱包会话只读展示、网站授权逐项/全部撤销、撤销确认链路、非托管安全说明、开发中功能说明及通知空状态；未新增推送、未伪造设置开关，也未改变授权状态管理。
+- 静态核对：仅调整间距/圆角 token；`revokeAll()`、`revoke(origin)` 和现有状态收集保持原样。未运行 Gradle 编译、Android 测试、CI、APK 或真机浅深色/窄屏验收。
+- 代码 commit：`3c80212cbd3c32a3ec11e9dc15291d92f142d7d7`。
