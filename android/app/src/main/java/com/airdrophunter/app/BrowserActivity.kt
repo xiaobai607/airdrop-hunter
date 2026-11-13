@@ -1,3 +1,8 @@
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.AnimatedVisibility
 package com.airdrophunter.app
 
 import android.content.ClipData
@@ -416,30 +421,57 @@ private fun BrowserScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
                 )
-                if (showSecurityBanner) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showSecurityBanner || pendingNavigationUrl != null,
+                    enter = expandVertically(animationSpec = tween(250)) + fadeIn(tween(250)),
+                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(tween(300))
+                ) {
+                    val targetUrl = pendingNavigationUrl
+                    val targetHost = targetUrl?.let(::displayHost)
                     Surface(
                         Modifier.fillMaxWidth(),
                         color = if (androidx.compose.foundation.isSystemInDarkTheme())
                             AppDesignTokens.Dark.WarningSoft else AppDesignTokens.Light.WarningSoft
                     ) {
-                        Row(
+                        Column(
                             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(Icons.Default.Warning, contentDescription = null,
-                                tint = if (androidx.compose.foundation.isSystemInDarkTheme())
-                                    AppDesignTokens.Dark.Warning else AppDesignTokens.Light.Warning,
-                                modifier = Modifier.size(18.dp))
-                            Text(
-                                "安全提醒：本 App 不保存私钥。签名和交易由外部钱包确认；请核对网站域名。",
-                                Modifier.weight(1f),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 2
-                            )
-                            AppButton("知道了", onClick = { showSecurityBanner = false },
-                                style = AppButtonStyle.TEXT, fullWidth = false, heightDp = 44, fontSizeSp = 13)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = null,
+                                    tint = if (androidx.compose.foundation.isSystemInDarkTheme())
+                                        AppDesignTokens.Dark.Warning else AppDesignTokens.Light.Warning,
+                                    modifier = Modifier.size(18.dp))
+                                Text(
+                                    if (targetHost != null)
+                                        "即将切换网站：$targetHost。请核对域名，不要输入助记词或私钥。"
+                                    else
+                                        "安全提醒：本 App 不保存私钥。签名和交易由外部钱包确认；请核对网站域名。",
+                                    Modifier.weight(1f),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 2
+                                )
+                            }
+                            if (targetUrl != null) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    AppTextButton(onClick = {
+                                        approvedOrigin = DappProviderBridge.origin(Uri.parse(targetUrl))
+                                        pendingNavigationUrl = null
+                                        browser?.loadUrl(targetUrl)
+                                    }) { Text("确认访问") }
+                                    AppTextButton(onClick = { pendingNavigationUrl = null }) {
+                                        Text("留在当前网站")
+                                    }
+                                }
+                            } else {
+                                AppTextButton(onClick = { showSecurityBanner = false }) {
+                                    Text("知道了")
+                                }
+                            }
                         }
                     }
                 }
@@ -983,31 +1015,6 @@ private fun BrowserScreen(
             }
 
         }
-    }
-
-    pendingNavigationUrl?.let { targetUrl ->
-        val targetHost = displayHost(targetUrl)
-        AlertDialog(
-            onDismissRequest = { pendingNavigationUrl = null },
-            title = { Text("⚠️ 即将切换第三方网站", color = Color(0xFFB42318), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("当前网页：${displayHost(currentPageUrl)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("即将访问：$targetHost", color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
-                    Text("这是不同的网站主机。请确认域名完全正确；不要输入助记词、私钥或验证码。", color = MaterialTheme.colorScheme.onSurface)
-                }
-            },
-            confirmButton = {
-                AppTextButton(onClick = {
-                    approvedOrigin = DappProviderBridge.origin(Uri.parse(targetUrl))
-                    pendingNavigationUrl = null
-                    browser?.loadUrl(targetUrl)
-                }) { Text("确认访问", color = Color(0xFFB42318)) }
-            },
-            dismissButton = {
-                AppTextButton(onClick = { pendingNavigationUrl = null }) { Text("留在当前网站") }
-            }
-        )
     }
 
     pendingDappConnection?.takeIf { !waitingDappWalletApproval }?.let { pending ->
