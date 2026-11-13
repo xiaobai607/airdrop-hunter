@@ -292,6 +292,6 @@
 - 统计支持日/周/月；只使用正式账本中的实际 Gas 与实际收益。若任一笔收益 USD 估值不完整（usd_profit_complete=false），显示已估值收益部分并暂停净收益汇总，避免把未知收益误算为 0。
 - 待确认页提供真实待确认条目摘要，并通过原有 BrowserAccountingToolbar 打开完整待确认管理器；链上回执、失败交易 Gas、人工核验、手动草稿删除权限、实际金额确认逻辑均继续复用既有实现，不另造状态或自动结算。
 - 当前 UI 数据来自当前本地账本；刷新只重新读取本地数据，不绕过用户刷新节流、不发起额外 API。
-- 本轮代码已写入工作分支 feature/mobile-browser-home-dock-batch；待补录 commit SHA。尚未运行 Gradle、单元测试、Android tests、Room tests、CI、APK 或真机验收，状态为代码已落地待构建验收。
+- 本轮代码已写入工作分支 feature/mobile-browser-home-dock-batch。提交：Repository 本地历史读取 a30d5f4ec6cc562f4eb52a0e324075d4a79f7e10；Repository 测试 999e812ea9254fbfb6d682e6ca7c90fc388d2161；记账中心/历史/统计 UI 794cd4ca73f6269e87492bf40ee61b4bdc63b5ff；刷新协程与周期筛选修正 927487d207582d4a6f8ac12ec2c66cb9341052e8、c4ca9c1cdc482bfc423f876f39b8878343cdc7dd；AppChip import 修正 e41a8d6f7027fceada16061304563ef14705408d。尚未运行 Gradle、单元测试、Android tests、Room tests、CI、APK 或真机验收，状态为代码已落地待构建验收。
 - 继续遵守：理论金额与实际金额分离；收益实际金额必须人工确认；待确认/失败状态不得自动变成已完成。
 
