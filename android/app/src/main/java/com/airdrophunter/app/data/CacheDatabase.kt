@@ -1071,6 +1071,33 @@ object CacheStore {
     suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) {
         database?.pendingBillDao()?.insert(bill.copy(accountScope = currentAccountScope()))
     }
+
+    /**
+     * Atomically materializes a Web3 ledger candidate in the scope captured by its
+     * transaction draft. Never substitute the currently selected account here:
+     * WorkManager may resume after the user has switched accounts.
+     *
+     * The draft-state check and bill insert share one Room transaction with
+     * confirmPendingBill(), preventing a late worker from resurrecting a bill
+     * after the user has already confirmed it.
+     */
+    suspend fun materializeWeb3PendingBill(
+        bill: PendingBillEntity,
+        draftId: String,
+        accountScope: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (accountScope.isBlank() || draftId.isBlank()) return@withContext false
+        val db = database ?: return@withContext false
+        db.withTransaction {
+            val draft = db.web3TransactionDraftDao().find(draftId, accountScope)
+                ?: return@withTransaction false
+            if (!Web3DraftStatus.canConfirmAccounting(draft.status) ||
+                !draft.txHash.equals(bill.txHash, ignoreCase = true)
+            ) return@withTransaction false
+            db.pendingBillDao().insert(bill.copy(accountScope = accountScope))
+            true
+        }
+    }
     suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean =
         withContext(Dispatchers.IO) {
             database?.userInteractionDao()?.hasTransaction(
