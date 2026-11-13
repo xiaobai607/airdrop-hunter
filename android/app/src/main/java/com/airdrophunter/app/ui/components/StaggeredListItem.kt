@@ -23,7 +23,7 @@ fun StaggeredListItem(
     index: Int,
     content: @Composable () -> Unit
 ) {
-    val shouldAnimate = index in 0 until 3
+    val shouldAnimate = index in 0 until AppDesignTokens.Motion.MaxStaggerItems
     var hasEntered by rememberSaveable(itemKey) { mutableStateOf(!shouldAnimate) }
 
     if (shouldAnimate) {
