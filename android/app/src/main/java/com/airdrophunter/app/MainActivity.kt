@@ -224,13 +224,15 @@ private fun AirdropHunterApp(
                 TopAppBar(
                     title = { Text(secondaryTitle, color = AppColors.TextPrimary) },
                     navigationIcon = {
-                        IconButton(onClick = {
-                            activeOverlay = AppOverlay.NONE
-                            selectedProject = null
-                            selectedCommunityProject = null
-                        }) {
-                            Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = AppColors.TextPrimary)
-                        }
+                        com.airdrophunter.app.ui.components.AppIconButton(
+                            icon = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                            onClick = {
+                                activeOverlay = AppOverlay.NONE
+                                selectedProject = null
+                                selectedCommunityProject = null
+                            }
+                        )
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Background, titleContentColor = AppColors.TextPrimary)
                 )
