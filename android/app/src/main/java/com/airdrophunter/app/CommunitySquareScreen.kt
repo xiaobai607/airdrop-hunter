@@ -53,8 +53,7 @@ import java.util.Locale
 private data class CommunityProject(
     val id: String, val name: String, val chain: String, val logo: String,
     val reward: Double, val gas: Double, val createdAt: String,
-    val tags: List<String>, val isDemo: Boolean = false,
-    val demoScore: Double = 0.0,
+    val tags: List<String>,
     val averageRating: Double? = null, val ratingCount: Long = 0,
     val gasByVerificationTier: Map<String, Double> = emptyMap(),
     val isActive: Boolean = true,
@@ -67,12 +66,12 @@ private data class CommunityProject(
     val riskFlags: List<String> = emptyList(),
     val effortLevel: String = "unknown"
 ) {
-    val label: String get() = when { isDemo -> "测试演示"; !isActive -> "社区已下架"; gas > 0.0 || reward > 0.0 -> "全网数据"; else -> "暂无贡献" }
+    val label: String get() = when {
+        !isActive -> "社区已下架"
+        gas > 0.0 || reward > 0.0 -> "全网数据"
+        else -> "暂无贡献"
+    }
     val reputationLabel: String get() = when {
-        isDemo && demoScore >= 4.5 -> "好评如潮"
-        isDemo && demoScore >= 4.0 -> "整体较好"
-        isDemo && demoScore >= 3.0 -> "褒贬不一"
-        isDemo -> "口碑偏低"
         ratingCount < 5L || averageRating == null -> "评分样本较少"
         averageRating >= 4.5 -> "好评如潮"
         averageRating >= 4.0 -> "整体较好"
@@ -101,7 +100,6 @@ fun CommunitySquareScreen(
     var statsLoading by remember { mutableStateOf(true) }
     var catalogError by remember { mutableStateOf<String?>(null) }
     var ranking by remember { mutableStateOf(CommunityRanking.REWARD) }
-    var useDemoData by remember { mutableStateOf(false) }
     var favoritesOnly by remember { mutableStateOf(false) }
     var showAirdropFilters by remember { mutableStateOf(false) }
     var airdropFilterSelection by remember { mutableStateOf(AirdropFilterSelection()) }
@@ -187,7 +185,6 @@ fun CommunitySquareScreen(
             gas = stats?.total_gas_cost_usd ?: 0.0,
             createdAt = entry.created_at,
             tags = entry.tags,
-            isDemo = false,
             averageRating = stats?.average_rating,
             ratingCount = stats?.rating_count ?: 0L,
             gasByVerificationTier = stats?.gas_by_verification_tier.orEmpty(),
@@ -202,34 +199,9 @@ fun CommunitySquareScreen(
             effortLevel = entry.effort_level.takeUnless { it.isNullOrBlank() } ?: "unknown"
         )
     }
-    // Synthetic projects exist only in the DEBUG test mode. They never enter the catalog,
-    // API, personal project library, ledger, or contribution outbox.
-    val demoProjects = listOf(
-        CommunityProject(id = "demo:novalayer", name = "NovaLayer", chain = "Arbitrum", logo = "N",
-            reward = 184.20, gas = 42.80, createdAt = "2026-11-10T08:00:00Z",
-            tags = listOf("Layer2", "DeFi", "测试网"), isDemo = true, demoScore = 4.8),
-        CommunityProject(id = "demo:orbitfi", name = "OrbitFi", chain = "Base", logo = "O",
-            reward = 128.60, gas = 38.60, createdAt = "2026-11-09T08:00:00Z",
-            tags = listOf("DeFi", "零成本", "生态"), isDemo = true, demoScore = 4.6),
-        CommunityProject(id = "demo:zetabridge", name = "ZetaBridge", chain = "Optimism", logo = "Z",
-            reward = 156.00, gas = 62.00, createdAt = "2026-11-08T08:00:00Z",
-            tags = listOf("跨链", "Layer2"), isDemo = true, demoScore = 4.2),
-        CommunityProject(id = "demo:pixelquest", name = "PixelQuest", chain = "BNB Chain", logo = "P",
-            reward = 98.00, gas = 51.00, createdAt = "2026-11-07T08:00:00Z",
-            tags = listOf("GameFi", "测试网"), isDemo = true, demoScore = 3.8),
-        CommunityProject(id = "demo:aetherrollup", name = "Aether Rollup", chain = "Ethereum", logo = "A",
-            reward = 226.00, gas = 73.00, createdAt = "2026-11-06T08:00:00Z",
-            tags = listOf("Layer2", "空投", "生态"), isDemo = true, demoScore = 4.9),
-        CommunityProject(id = "demo:lumenprotocol", name = "Lumen Protocol", chain = "Polygon", logo = "L",
-            reward = 64.00, gas = 18.50, createdAt = "2026-11-05T08:00:00Z",
-            tags = listOf("DeFi", "零成本"), isDemo = true, demoScore = 4.0)
-    )
-    // Demo and real datasets are mutually exclusive; the mode switch never mixes them.
-    val combinedProjects = if (BuildConfig.DEBUG && useDemoData) demoProjects else realProjects
-    val displayedProjects = combinedProjects.filter { project ->
-        // Real discovery always excludes entries explicitly marked inactive.
+    val displayedProjects = realProjects.filter { project ->
         // Inactive entries remain in the cached directory for the personal library.
-        (useDemoData || project.isActive) &&
+        project.isActive &&
             (!favoritesOnly || project.id in favoriteIds) &&
             matchesCommunityProjectQuery(project.name, project.chain, project.tags, searchQuery) &&
             matchesAirdropFilters(
@@ -309,19 +281,13 @@ fun CommunitySquareScreen(
                     )
                     AppChip("我的收藏", favoritesOnly, onClick = { favoritesOnly = !favoritesOnly })
                 }
-                Surface(color = if (useDemoData) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
+                Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                     Text(
-                        if (useDemoData) "测试演示数据 · 不计入全网统计" else "全网真实数据 · 脱敏汇总",
+                        "社区公开数据 · 脱敏汇总",
                         Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        color = if (useDemoData) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                         style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
                     )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (BuildConfig.DEBUG) {
-                        AppChip("测试演示", useDemoData, onClick = { useDemoData = true })
-                    }
-                    AppChip("全网真实", !useDemoData, onClick = { useDemoData = false })
                 }
             }
         }
@@ -338,10 +304,9 @@ fun CommunitySquareScreen(
                     }
                 }
                 Text(when {
-                    useDemoData -> "按测试演示样本的收益和 Gas 排列"
-                    statsLoading -> "正在读取全网统计…"
-                    ranking == CommunityRanking.REWARD -> "按全网收益概况排列（含预估与实际）"
-                    ranking == CommunityRanking.GAS -> "按全网 Gas 支出排列"
+                    statsLoading -> "正在读取社区统计…"
+                    ranking == CommunityRanking.REWARD -> "按社区收益概况排列（含预估与实际）"
+                    ranking == CommunityRanking.GAS -> "按社区 Gas 支出排列"
                     else -> "按项目收录时间排列"
                 }, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
@@ -407,12 +372,12 @@ fun CommunitySquareScreen(
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Surface(
-                                color = when { project.isDemo -> MaterialTheme.colorScheme.surfaceVariant; !project.isActive -> MaterialTheme.colorScheme.errorContainer; else -> MaterialTheme.colorScheme.secondaryContainer },
+                                color = if (!project.isActive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
                                 shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)
                             ) {
                                 Text(
                                     project.label, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    color = when { project.isDemo -> MaterialTheme.colorScheme.onSurfaceVariant; !project.isActive -> MaterialTheme.colorScheme.error; else -> MaterialTheme.colorScheme.secondary },
+                                    color = if (!project.isActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
                                     style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -420,7 +385,7 @@ fun CommunitySquareScreen(
                         AppIconButton(
                             icon = if (project.id in joinedOfficialIds) Icons.Default.Check else Icons.Default.Add,
                             contentDescription = if (project.id in joinedOfficialIds) "已添加到库管理" else "添加到库管理",
-                            enabled = !project.isDemo && (project.id in joinedOfficialIds || project.id !in addingProjectIds),
+                            enabled = project.id in joinedOfficialIds || project.id !in addingProjectIds,
                             onClick = {
                                 if (project.id !in joinedOfficialIds) scope.launch {
                                     addingProjectIds = addingProjectIds + project.id
@@ -447,20 +412,13 @@ fun CommunitySquareScreen(
                             }
                         )
                     }
-                    if (project.isDemo) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("★ ${String.format(Locale.US, "%.1f", project.demoScore)} · ${project.reputationLabel}",
-                                color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                        }
-                    } else {
-                        Text(
-                            if (project.ratingCount > 0 && project.averageRating != null)
-                                "★ ${String.format(Locale.US, "%.1f", project.averageRating)} · ${project.reputationLabel} · ${project.ratingCount} 个账号评分"
-                            else "暂无全网评分",
-                            color = if (project.ratingCount > 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
+                    Text(
+                        if (project.ratingCount > 0 && project.averageRating != null)
+                            "★ ${String.format(Locale.US, "%.1f", project.averageRating)} · ${project.reputationLabel} · ${project.ratingCount} 个账号评分"
+                        else "暂无全网评分",
+                        color = if (project.ratingCount > 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                        style = MaterialTheme.typography.labelSmall
+                    )
                     val hasContributionData = project.gas > 0.0 || project.reward > 0.0
                     Row(
                         Modifier.fillMaxWidth(),

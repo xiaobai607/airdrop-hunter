@@ -47,13 +47,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 
-private data class CommunityDemoStats(
-    val gas: Double,
-    val reward: Double,
-    val score: Double,
-    val ratingCount: Long
-)
-
 @Composable
 fun MicroCommunityScreen(
     projectOfficialId: String,
@@ -65,17 +58,14 @@ fun MicroCommunityScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    val isDemoProject = projectOfficialId.startsWith("demo:")
     val ratings by CacheStore.observeProjectRatings(projectOfficialId).collectAsStateWithLifecycle(initialValue = emptyList())
     val joinedProjects by CacheStore.observeUserProjects().collectAsStateWithLifecycle(initialValue = emptyList())
     val isJoined = joinedProjects.any { it.projectOfficialId == projectOfficialId }
     val average by CacheStore.observeProjectRatingAverage(projectOfficialId).collectAsStateWithLifecycle(initialValue = null)
-    var communityStats by remember(projectOfficialId) { mutableStateOf<CommunityProjectStatsDto?>(null) }
     var periodSnapshots by remember(projectOfficialId) { mutableStateOf<Map<String, com.airdrophunter.app.data.CommunitySnapshotDto>>(emptyMap()) }
     var statsLoading by remember(projectOfficialId) { mutableStateOf(true) }
     var statsFailed by remember(projectOfficialId) { mutableStateOf(false) }
     var selectedPeriod by remember(projectOfficialId) { mutableStateOf("overall") }
-    var useDemoStats by remember(projectOfficialId) { mutableStateOf(isDemoProject) }
     var wallet by remember(projectOfficialId, sessionScopeKey) { mutableStateOf("") }
     var canRate by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
     var participationChecked by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
@@ -83,30 +73,12 @@ fun MicroCommunityScreen(
     var saved by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
     var saving by remember(projectOfficialId, sessionScopeKey) { mutableStateOf(false) }
     val myRating = ratings.firstOrNull { it.walletAddress == wallet }
-    val demoStats = when (projectOfficialId.lowercase()) {
-        "demo:novalayer" -> CommunityDemoStats(42.80, 184.20, 4.8, 28)
-        "demo:orbitfi" -> CommunityDemoStats(38.60, 128.60, 4.6, 21)
-        "demo:zetabridge" -> CommunityDemoStats(62.00, 156.00, 4.2, 17)
-        "demo:pixelquest" -> CommunityDemoStats(51.00, 98.00, 3.8, 13)
-        "demo:aetherrollup" -> CommunityDemoStats(73.00, 226.00, 4.9, 32)
-        "demo:lumenprotocol" -> CommunityDemoStats(18.50, 64.00, 4.0, 9)
-        "linea" -> CommunityDemoStats(42.80, 184.20, 4.9, 97)
-        "scroll" -> CommunityDemoStats(38.60, 128.60, 4.8, 95)
-        "zksync" -> CommunityDemoStats(62.00, 156.00, 4.7, 93)
-        "starknet" -> CommunityDemoStats(51.00, 98.00, 4.4, 88)
-        "base" -> CommunityDemoStats(73.00, 226.00, 4.9, 96)
-        "arbitrum" -> CommunityDemoStats(84.00, 142.00, 4.2, 82)
-        "optimism" -> CommunityDemoStats(49.00, 117.00, 4.6, 91)
-        else -> CommunityDemoStats(18.50, 64.00, 4.0, 1)
-    }
     val snapshotProjects = remember(periodSnapshots, projectOfficialId) {
         periodSnapshots.mapValues { (_, snapshot) ->
             snapshot.projects.firstOrNull { it.project_official_id == projectOfficialId }
         }
     }
     val overallProject = snapshotProjects["overall"]
-    val displayAverageRating = if (useDemoStats) demoStats.score else communityStats?.average_rating ?: overallProject?.average_rating
-    val displayRatingCount = if (useDemoStats) demoStats.ratingCount else communityStats?.rating_count ?: overallProject?.rating_count ?: 0L
     LaunchedEffect(projectOfficialId, sessionScopeKey) {
         wallet = ""
         canRate = false
@@ -116,14 +88,6 @@ fun MicroCommunityScreen(
         saving = false
         statsLoading = true
         statsFailed = false
-        if (isDemoProject) {
-            // Synthetic project detail is local-only; it never touches API or personal data.
-            periodSnapshots = emptyMap()
-            statsLoading = false
-            participationChecked = true
-            canRate = false
-            return@LaunchedEffect
-        }
         ApiClient.initialize(context)
 
         // Show every available Room snapshot immediately, then silently revalidate the CDN.
@@ -156,15 +120,9 @@ fun MicroCommunityScreen(
                 Text(projectName, modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("Steam 式真实参与者评价 · 仅星级评分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 AppButton(
-                    text = when {
-                        isDemoProject -> "测试项目 · 不会加入库管理"
-                        isJoined -> "已添加到库管理"
-                        else -> "添加到库管理"
-                    },
+                    text = if (isJoined) "已添加到库管理" else "添加到库管理",
                     onClick = {
-                        if (isDemoProject) {
-                            Toast.makeText(context, "测试项目不会写入库管理", Toast.LENGTH_SHORT).show()
-                        } else scope.launch {
+                        scope.launch {
                             val added = runCatching {
                                 CacheStore.joinCommunityProject(projectOfficialId, projectName)
                             }.getOrDefault(false)
@@ -175,7 +133,7 @@ fun MicroCommunityScreen(
                             ).show()
                         }
                     },
-                    enabled = !isJoined && !isDemoProject,
+                    enabled = !isJoined,
                     style = AppButtonStyle.SECONDARY,
                     leadingIcon = if (isJoined) Icons.Default.Check else Icons.Default.Add
                 )
@@ -184,7 +142,7 @@ fun MicroCommunityScreen(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text("项目数据概览", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(overallProject?.chain ?: if (isDemoProject) "测试演示项目" else "全网公开统计", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        Text(overallProject?.chain ?: "社区公开统计", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
                     overallProject?.logo?.takeIf { it.isNotBlank() }?.let { logo ->
                         Surface(shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp), color = MaterialTheme.colorScheme.surface) {
@@ -193,7 +151,6 @@ fun MicroCommunityScreen(
                     }
                 }
                 val detailDescription = overallProject?.description?.takeIf { it.isNotBlank() }
-                    ?: if (isDemoProject) "这是用于界面与流程测试的虚构空投项目，不代表真实项目、真实奖励或真实参与数据。" else null
                 detailDescription?.let {
                     Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
@@ -235,41 +192,23 @@ fun MicroCommunityScreen(
                                 }
                             }
                         }
-                        if (BuildConfig.DEBUG) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    AppTextButton(onClick = { useDemoStats = true }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp)) {
-                                        Text(if (useDemoStats) "✓ 演示" else "演示", color = MaterialTheme.colorScheme.tertiary,
-                                            style = MaterialTheme.typography.labelSmall)
-                                    }
-                                    AppTextButton(onClick = { useDemoStats = false }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp)) {
-                                        Text(if (!useDemoStats) "✓ 全网" else "全网", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            style = MaterialTheme.typography.labelSmall)
-                                    }
-                                }
-                            }
-                        }
-                        if (useDemoStats) {
-                            Text("测试演示数据 · 不计入全网统计", color = MaterialTheme.colorScheme.tertiary,
-                                style = MaterialTheme.typography.labelSmall)
-                        }
                         AnimatedContent(
                             targetState = selectedPeriod,
                             transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
                             label = "community-period-switch"
                         ) { window ->
-                            val demoScale = when (window) { "overall" -> 1.0; "3d" -> 0.18; else -> 0.008 }
                             val projectSnapshot = snapshotProjects[window]
-                            val gas = if (useDemoStats) demoStats.gas * demoScale else projectSnapshot?.gas_cost_usd_valuation ?: 0.0
-                            val reward = if (useDemoStats) demoStats.reward * demoScale else projectSnapshot?.reward_usd_valuation?.takeIf { it > 0.0 } ?: projectSnapshot?.actual_reward_usd_valuation ?: 0.0
-                            val gasTokens = if (useDemoStats) emptyList() else projectSnapshot?.gas_by_token.orEmpty()
-                            val rewardTokens = if (useDemoStats) emptyList() else projectSnapshot?.reward_by_token.orEmpty()
+                            val gas = projectSnapshot?.gas_cost_usd_valuation ?: 0.0
+                            val reward = projectSnapshot?.reward_usd_valuation?.takeIf { it > 0.0 }
+                                ?: projectSnapshot?.actual_reward_usd_valuation ?: 0.0
+                            val gasTokens = projectSnapshot?.gas_by_token.orEmpty()
+                            val rewardTokens = projectSnapshot?.reward_by_token.orEmpty()
                             CommunitySnapshotPeriodMetric(
                                 gas = gas,
                                 reward = reward,
                                 gasTokens = gasTokens,
                                 rewardTokens = rewardTokens,
-                                hasData = useDemoStats || gas > 0.0 || reward > 0.0 ||
+                                hasData = gas > 0.0 || reward > 0.0 ||
                                     gasTokens.isNotEmpty() || rewardTokens.isNotEmpty()
                             )
                         }
@@ -278,7 +217,7 @@ fun MicroCommunityScreen(
                                 when {
                                     statsLoading -> "正在读取快照…"
                                     statsFailed -> "暂无快照缓存"
-                                    else -> "数据更新：" + (if (useDemoStats) "演示样本" else periodSnapshots[selectedPeriod]?.update_time?.replace("T", " ") ?: "暂无")
+                                    else -> "数据更新：" + (periodSnapshots[selectedPeriod]?.update_time?.replace("T", " ") ?: "暂无")
                                 },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall
