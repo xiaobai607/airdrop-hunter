@@ -185,7 +185,7 @@ private fun BrowserScreen(
     val dappRequestScope = rememberCoroutineScope()
     var pageState by remember(url) { mutableStateOf(BrowserPageState.Loading) }
     var pageErrorMessage by remember(url) { mutableStateOf<String?>(null) }
-    var loadAttempt by remember(url) { mutableIntStateOf(0) }
+    var webViewGeneration by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
     var approvedExternalEntry by remember(url) { mutableStateOf(false) }
@@ -204,19 +204,15 @@ private fun BrowserScreen(
         if (approvedExternalEntry) browser?.loadUrl(url)
     }
 
-    LaunchedEffect(pageState, loadAttempt, approvedExternalEntry) {
+    LaunchedEffect(pageState, approvedExternalEntry) {
         if (approvedExternalEntry && pageState == BrowserPageState.Loading) {
-            kotlinx.coroutines.delay(3_000)
+            kotlinx.coroutines.delay(30_000)
             if (pageState == BrowserPageState.Loading) {
-                val web = browser
-                if (loadAttempt == 0 && web != null) {
-                    loadAttempt = 1
-                    web.settings.userAgentString = IOS_SAFARI_USER_AGENT
-                    web.reload()
-                } else if (loadAttempt >= 1) {
-                    pageState = BrowserPageState.Error
-                }
-            }        }
+                pageState = BrowserPageState.Error
+                pageErrorMessage = "网页在 30 秒内未完成加载。可能是网络连接、网站响应或登录跳转较慢；请检查网络后重试。"
+                Log.w("AirdropBrowser", "Main-frame load timed out after 30 seconds")
+            }
+        }
     }
 
     val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
@@ -410,6 +406,7 @@ private fun BrowserScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).background(Color.White)) {
             Box(Modifier.weight(1f).fillMaxWidth().background(Color.White)) {
+            key(webViewGeneration) {
             AndroidView(
                 factory = { ctx ->
                     WebView(ctx).apply {
@@ -684,6 +681,7 @@ private fun BrowserScreen(
                             safeBrowsingEnabled = true
                         }
                         CookieManager.getInstance().setAcceptCookie(true)
+                        // Keep third-party cookies disabled by default; do not weaken cross-site privacy globally.
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
                         webChromeClient = object : WebChromeClient() {
                             override fun onPermissionRequest(request: PermissionRequest?) {
@@ -800,7 +798,6 @@ private fun BrowserScreen(
                                 pageUrl?.let { currentPageUrl = it }
                                 pageState = BrowserPageState.Success
                                 pageErrorMessage = null
-                                loadAttempt = 0
                                 view?.settings?.userAgentString = CHROME_MOBILE_USER_AGENT
                                 Log.d("AirdropBrowser", "Page finished: $pageUrl")
                             }
@@ -838,19 +835,62 @@ private fun BrowserScreen(
                                 pageErrorMessage = "HTTPS 证书验证失败，已阻止连接。请检查设备时间、网络代理或网站证书。"
                                 Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed: $error")
                             }
+
+                            override fun onRenderProcessGone(
+                                view: WebView?,
+                                detail: android.webkit.RenderProcessGoneDetail?
+                            ): Boolean {
+                                Log.e(
+                                    "AirdropBrowser",
+                                    "WebView renderer process exited; crashed=${detail?.didCrash()}, priorityAtExit=${detail?.rendererPriorityAtExit()}"
+                                )
+                                bridgeReplyProxies.clear()
+                                pendingDappConnection?.let { pending ->
+                                    runCatching {
+                                        DappProviderBridge.error(
+                                            pending.replyProxy,
+                                            pending.request.id,
+                                            4001,
+                                            "网页渲染进程已退出，请重新加载页面"
+                                        )
+                                    }
+                                }
+                                pendingDappExternalRequest?.let { pending ->
+                                    pending.web3DraftId?.let { draftId ->
+                                        dappRequestScope.launch { web3Repository.markWalletTimedOut(draftId) }
+                                    }
+                                    runCatching {
+                                        DappProviderBridge.error(
+                                            pending.replyProxy,
+                                            pending.request.id,
+                                            4001,
+                                            "网页渲染进程已退出；交易草稿保留并等待链上同步核对"
+                                        )
+                                    }
+                                }
+                                pendingDappConnection = null
+                                pendingDappExternalRequest = null
+                                waitingDappWalletApproval = false
+                                DappOriginPermissionStore.revokeAll()
+                                browser = null
+                                pageState = BrowserPageState.Error
+                                pageErrorMessage = "网页渲染进程意外退出，已安全重建浏览器页面。请点击重新加载。"
+                                webViewGeneration += 1
+                                return true
+                            }
                         }
                     }
                 },
                 modifier = Modifier.fillMaxSize().background(Color.White).alpha(webAlpha),
                 update = { view -> if (browser !== view) browser = view }
             )
+            }
             if (pageState != BrowserPageState.Success) {
                 BrowserPageOverlay(
                     state = pageState,
                     errorDetail = pageErrorMessage,
                     onBack = onExit,
                     onRetry = {
-                        loadAttempt = 0
                         pageState = BrowserPageState.Loading
                         pageErrorMessage = null
                         browser?.settings?.userAgentString = CHROME_MOBILE_USER_AGENT
@@ -1012,8 +1052,6 @@ private enum class BrowserPageState { Loading, Success, Error }
 
 private const val CHROME_MOBILE_USER_AGENT =
     "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
-private const val IOS_SAFARI_USER_AGENT =
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
 @Composable
 private fun BrowserPageOverlay(
@@ -1032,7 +1070,7 @@ private fun BrowserPageOverlay(
                     Text("⚡", style = MaterialTheme.typography.titleLarge)
                 }
                 Text("正在连接网页，请稍候...", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text("超时后将自动切换浏览器标识重试一次", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Text("正在等待网页响应，最长约 30 秒", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
         } else {
             Column(
