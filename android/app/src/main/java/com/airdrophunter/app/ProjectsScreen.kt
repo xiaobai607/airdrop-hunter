@@ -33,6 +33,7 @@ import com.airdrophunter.app.data.CommunityCatalogRepository
 import com.airdrophunter.app.data.shouldShowAccountingReminder
 import androidx.compose.runtime.collectAsState
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppChip
@@ -371,7 +372,7 @@ fun ProjectsScreen(
                 ) { Text(if (state.isSaving) "保存中…" else "保存修改") }
             },
             dismissButton = {
-                TextButton(enabled = !state.isSaving, onClick = { editingProject = null }) { Text("取消") }
+                AppTextButton(enabled = !state.isSaving, onClick = { editingProject = null }) { Text("取消") }
             }
         )
     }
@@ -383,12 +384,12 @@ fun ProjectsScreen(
             title = { Text("删除项目？", color = AppColors.TextPrimary) },
             text = { Text("将从项目列表中移除“${project.name}”。已确认的 Gas、收益和历史账本不会被删除。", color = AppColors.TextSecondary) },
             confirmButton = {
-                TextButton(onClick = {
+                AppTextButton(onClick = {
                     projectsViewModel.deleteProject(project, isGuest)
                     deletingProject = null
                 }) { Text("确认删除", color = AppColors.Danger) }
             },
-            dismissButton = { TextButton(onClick = { deletingProject = null }) { Text("取消") } }
+            dismissButton = { AppTextButton(onClick = { deletingProject = null }) { Text("取消") } }
         )
     }
 
@@ -438,8 +439,8 @@ fun ProjectsScreen(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showCommunityPicker = false }) { Text("完成") } },
-            dismissButton = { TextButton(onClick = { showCommunityPicker = false }) { Text("取消") } }
+            confirmButton = { AppTextButton(onClick = { showCommunityPicker = false }) { Text("完成") } },
+            dismissButton = { AppTextButton(onClick = { showCommunityPicker = false }) { Text("取消") } }
         )
     } else if (showAddDialog) AlertDialog(
         onDismissRequest = { showAddDialog = false },
@@ -449,7 +450,7 @@ fun ProjectsScreen(
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                     AppTextField(newProjectName, { newProjectName = it }, "项目名称", modifier = Modifier.weight(1f))
-                    TextButton(onClick = { communitySearchQuery = ""; showCommunityPicker = true }) {
+                    AppTextButton(onClick = { communitySearchQuery = ""; showCommunityPicker = true }) {
                         Text(if (selectedCommunityOfficialId == null) "从社区中选择" else "已关联 · 更换")
                     }
                 }
@@ -476,7 +477,7 @@ fun ProjectsScreen(
                     newProjectName = ""; newProjectDescription = ""; newProjectOfficialUrl = ""; newProjectClaimUrl = ""; selectedCommunityOfficialId = null
                 }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("保存项目") }
         },
-        dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = { showAddDialog = false }) { Text("取消") } }
     )
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
