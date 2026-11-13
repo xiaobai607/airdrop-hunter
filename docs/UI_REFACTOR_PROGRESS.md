@@ -857,3 +857,12 @@
 - `MicroCommunityScreen.kt`：评分提示不再把“个人账本不上传”与本地评分混为一谈，明确当前版本星级评分暂存在本机、不会提交全网评分。真实参与资格校验与评分存储行为不变。
 - 其余发现：微社区星级颜色为有意使用的金色强调色；公共主题令牌中的色值属于设计系统定义，不作为页面硬编码缺陷。钱包管理/详情保持原样；AuthScreen 属于已关闭登录流程的遗留代码，不擅自启用或重构；DiscoverScreen 是明确退役的薄封装。
 - 本次仅修正两处容易误导的文案，不改账本同步、社区评分上传、钱包或认证逻辑。待 CI 和设备验收。
+
+
+### 2026-11-13 — Material 3 字阶完整映射收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ui/theme/Theme.kt`。
+- 设计说明书定义了 34/28/22/20/17/15/14/13/12/11sp 字阶；此前 Theme.kt 只显式定义部分 Material 3 Typography slots，未定义的 displayMedium、displaySmall、headlineSmall、titleSmall 会回退到 Material 默认字号，导致使用这些样式的页面可能突然出现过大标题或不一致层级。
+- 现在显式定义全部 15 个 Material 3 Typography slots，并映射到设计字阶；保留原有颜色方案、字体粗细方向和浅/深色主题切换，不改页面业务逻辑。
+- 源码静态核对：15 个 slots 均已显式赋值；未定义的默认字号回退风险已消除。尚未运行 Gradle 编译、Android 单元测试、CI 或真机排版验收。
+- 代码 commit：`dcee8c29b3500c1e83706f3997d2834f983401a8`。状态为代码已落地待验收，不代表 UI 最终完成。
