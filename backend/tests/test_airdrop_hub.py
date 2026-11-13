@@ -75,6 +75,9 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
     monkeypatch.setattr("app.api.airdrop_hub.sync_airdrops", fake_sync)
 
     from app.api import airdrop_hub as hub_api
+    async def fake_campaign_scoring(db):
+        return {"evaluated": 1, "updated": 1, "publishable": 1, "held": 0}
+    monkeypatch.setattr(hub_api, "recalculate_campaign_scores", fake_campaign_scoring)
     async def fake_detail(code, *, fallback_title, fallback_url):
         assert code == "test123"
         return {
@@ -88,6 +91,7 @@ def test_airdrop_hub_chain_filter_and_sync(monkeypatch):
     with TestClient(app) as client:
         refresh = client.post("/api/airdrops/sync")
         assert refresh.status_code == 200
+        assert refresh.json()["campaign_scoring"]["publishable"] == 1
         all_rows = client.get("/api/airdrops/hub")
         solana_rows = client.get("/api/airdrops/hub", params={"chain": "Solana"})
         assert all_rows.status_code == 200
