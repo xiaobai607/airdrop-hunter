@@ -27,6 +27,7 @@ import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButton
 import com.airdrophunter.app.ui.components.StaggeredListItem
 import com.airdrophunter.app.ui.components.AppChip
+import com.airdrophunter.app.ui.components.AirdropSourceHealthPanel
 
 @Composable
 fun AirdropCampaignsScreen(
@@ -39,6 +40,7 @@ fun AirdropCampaignsScreen(
         factory = AirdropCampaignsViewModelFactory(app.appContainer.airdropCampaignRepository)
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    var showSourceDetails by remember { mutableStateOf(false) }
 
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
@@ -58,6 +60,16 @@ fun AirdropCampaignsScreen(
             }
         }
 
+        Column(Modifier.weight(1f)) {
+        if (state.sourceStatuses.isNotEmpty() || state.sourceStatusError != null) {
+            AirdropSourceHealthPanel(
+                statuses = state.sourceStatuses,
+                error = if (state.items.isNotEmpty()) state.error ?: state.sourceStatusError else state.sourceStatusError,
+                expanded = showSourceDetails,
+                onToggle = { showSourceDetails = !showSourceDetails },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
         if (state.error != null && state.items.isEmpty()) {
             Column(
                 Modifier.fillMaxSize().padding(24.dp),
@@ -82,7 +94,7 @@ fun AirdropCampaignsScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (state.error != null) {
+                if (state.error != null && state.sourceStatuses.isEmpty()) {
                     item {
                         Text(
                             state.error.orEmpty(),
@@ -149,6 +161,7 @@ fun AirdropCampaignsScreen(
                     }
                 }
             }
+        }
         }
     }
 }
