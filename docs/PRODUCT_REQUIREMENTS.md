@@ -82,6 +82,12 @@
 - Removed the old synthetic 4.9 rating / 96% positive-rate fallback. When there are no ratings, the card now displays “暂无评价” and no star score. This prevents the list UI from presenting fabricated community metrics.
 - Accounting records, project actions, community linkage and delisting behavior are unchanged. Device review remains pending.
 
+## 2026-11-13 — close the campaign publication and manual-refresh gap
+
+- The read-only campaign API is not itself a sync trigger. The existing Android Home warmup calls `POST /api/airdrops/sync`, but that endpoint previously stopped after candidate ingestion and did not run campaign scoring. Newly ingested Binance campaigns therefore remained unpublished.
+- The Airdrop Campaign Library's refresh button previously performed only a GET through its cache coordinator; it did not request provider sync. This left the list refresh disconnected from the approved free source pipeline.
+- Required correction: run campaign scoring after successful source sync in the API route, and make explicit user refresh invoke the same sync endpoint before re-reading the filtered campaign list. Preserve the existing shared 30-second client throttle and server-side 5-minute sync cooldown; surface cooldown/failure without clearing last-known-good cached rows.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
