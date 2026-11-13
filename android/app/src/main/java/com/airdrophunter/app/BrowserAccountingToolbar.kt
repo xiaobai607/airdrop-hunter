@@ -1,6 +1,7 @@
 package com.airdrophunter.app
 
 import android.widget.Toast
+import com.google.gson.Gson
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,6 +42,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.roundToInt
 import androidx.compose.ui.window.Dialog
@@ -63,6 +65,25 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import java.time.Instant
+
+private data class AccountingFormDraft(
+    val selectedProjectLocalId: String? = null,
+    val gas: String? = null, val reward: String? = null, val rewardUsdEdited: Boolean? = null,
+    val gasNative: String? = null, val gasSymbol: String? = null, val gasDecimals: String? = null,
+    val gasValuationTimestamp: String? = null, val gasValuationSource: String? = null,
+    val gasL1Native: String? = null, val gasL2Native: String? = null, val gasOperatorNative: String? = null,
+    val gasL1Usd: Double? = null, val gasL2Usd: Double? = null, val gasOperatorUsd: Double? = null,
+    val gasSplitQuoteTimestamp: String? = null, val gasExecutionLabel: String? = null, val gasSplitSymbol: String? = null,
+    val rewardNative: String? = null, val rewardSymbol: String? = null, val rewardDecimals: String? = null
+)
+private object AccountingFormDraftCodec {
+    private val gson = Gson()
+    fun encode(draft: AccountingFormDraft): String = gson.toJson(draft).takeIf { it.length <= 32_768 } ?: "{}"
+    fun decode(json: String?): AccountingFormDraft? {
+        if (json.isNullOrBlank() || json.length > 32_768) return null
+        return runCatching { gson.fromJson(json, AccountingFormDraft::class.java) }.getOrNull()
+    }
+}
 
 @Composable
 fun BrowserAccountingToolbar(
@@ -164,7 +185,7 @@ fun BrowserAccountingToolbar(
 
     LaunchedEffect(accountingRepository) {
         projects = accountingRepository.loadProjects()
-        selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
+        if (selectedProjectLocalId.isBlank()) selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
     }
 
     fun saveProjectLocally(project: ProjectDto, onSaved: () -> Unit = {}) {
@@ -195,38 +216,41 @@ fun BrowserAccountingToolbar(
     }
 
     fun openBill(bill: PendingBillEntity) {
-        activeBill = bill
-        reward = ""
-        rewardUsdEdited = false
+        val saved = AccountingFormDraftCodec.decode(bill.draftFormJson)
         val existingAssets = LedgerAssetBreakdownCodec.decode(bill.assetBreakdownJson)
         val gasAsset = existingAssets.firstOrNull { it.kind == "gas" }
         val rewardAsset = existingAssets.firstOrNull { it.kind == "reward" }
-        val initialGasUsd = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 }
-            ?: gasAsset?.usd_valuation?.takeIf { it.isFinite() && it >= 0.0 }
-        gas = initialGasUsd?.let { String.format(Locale.US, "%.2f", it) }.orEmpty()
-        gasNative = gasAsset?.amount_native.orEmpty()
-        gasSymbol = gasAsset?.symbol.orEmpty()
-        gasDecimals = gasAsset?.decimals?.toString().orEmpty()
-        gasValuationTimestamp = gasAsset?.valuation_timestamp
-        gasValuationSource = gasAsset?.valuation_source
         val l1Asset = existingAssets.firstOrNull { it.kind == "l1_fee" }
         val l2Asset = existingAssets.firstOrNull { it.kind == "l2_fee" || it.kind == "execution_fee" }
         val operatorAsset = existingAssets.firstOrNull { it.kind == "operator_fee" }
-        gasExecutionLabel = if (l2Asset?.kind == "l2_fee") "L2 执行费" else "执行费"
-        gasL1Native = l1Asset?.amount_native.orEmpty()
-        gasL2Native = l2Asset?.amount_native.orEmpty()
-        gasOperatorNative = operatorAsset?.amount_native.orEmpty()
-        gasL1Usd = l1Asset?.usd_valuation
-        gasL2Usd = l2Asset?.usd_valuation
-        gasOperatorUsd = operatorAsset?.usd_valuation
-        gasSplitQuoteTimestamp = l1Asset?.valuation_timestamp ?: l2Asset?.valuation_timestamp
-        gasSplitSymbol = l1Asset?.symbol ?: l2Asset?.symbol ?: gasAsset?.symbol.orEmpty()
-        rewardNative = rewardAsset?.amount_native.orEmpty()
-        rewardSymbol = rewardAsset?.symbol.orEmpty()
-        rewardDecimals = rewardAsset?.decimals?.toString().orEmpty()
-        if (selectedProjectLocalId.isBlank()) {
-            selectedProjectLocalId = projects.firstOrNull()?.id.orEmpty()
-        }
+        activeBill = bill
+        gas = saved?.gas ?: bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 }
+            ?.let { String.format(Locale.US, "%.2f", it) }
+            ?: gasAsset?.usd_valuation?.takeIf { it.isFinite() && it >= 0.0 }
+                ?.let { String.format(Locale.US, "%.2f", it) }.orEmpty()
+        reward = saved?.reward.orEmpty()
+        rewardUsdEdited = saved?.rewardUsdEdited ?: false
+        gasNative = saved?.gasNative ?: gasAsset?.amount_native.orEmpty()
+        gasSymbol = saved?.gasSymbol ?: gasAsset?.symbol.orEmpty()
+        gasDecimals = saved?.gasDecimals ?: gasAsset?.decimals?.toString().orEmpty()
+        gasValuationTimestamp = saved?.gasValuationTimestamp ?: gasAsset?.valuation_timestamp
+        gasValuationSource = saved?.gasValuationSource ?: gasAsset?.valuation_source
+        gasExecutionLabel = saved?.gasExecutionLabel ?: if (l2Asset?.kind == "l2_fee") "L2 执行费" else "执行费"
+        gasL1Native = saved?.gasL1Native ?: l1Asset?.amount_native.orEmpty()
+        gasL2Native = saved?.gasL2Native ?: l2Asset?.amount_native.orEmpty()
+        gasOperatorNative = saved?.gasOperatorNative ?: operatorAsset?.amount_native.orEmpty()
+        gasL1Usd = saved?.gasL1Usd ?: l1Asset?.usd_valuation
+        gasL2Usd = saved?.gasL2Usd ?: l2Asset?.usd_valuation
+        gasOperatorUsd = saved?.gasOperatorUsd ?: operatorAsset?.usd_valuation
+        gasSplitQuoteTimestamp = saved?.gasSplitQuoteTimestamp ?: l1Asset?.valuation_timestamp ?: l2Asset?.valuation_timestamp
+        gasSplitSymbol = saved?.gasSplitSymbol ?: l1Asset?.symbol ?: l2Asset?.symbol ?: gasAsset?.symbol.orEmpty()
+        rewardNative = saved?.rewardNative ?: rewardAsset?.amount_native.orEmpty()
+        rewardSymbol = saved?.rewardSymbol ?: rewardAsset?.symbol.orEmpty()
+        rewardDecimals = saved?.rewardDecimals ?: rewardAsset?.decimals?.toString().orEmpty()
+        selectedProjectLocalId = saved?.selectedProjectLocalId
+            ?.takeIf { id -> projects.any { it.id == id } }
+            ?: selectedProjectLocalId.takeIf { id -> projects.any { it.id == id } }
+            ?: projects.firstOrNull()?.id.orEmpty()
         showBillList = false
         showConfirm = true
     }
@@ -281,6 +305,32 @@ fun BrowserAccountingToolbar(
     val nativeAssetsValid =
         isValidNativeAssetInput(gasNative, gasSymbol, gasDecimals) &&
             isValidNativeAssetInput(rewardNative, rewardSymbol, rewardDecimals)
+
+    LaunchedEffect(
+        activeBill?.id, selectedProjectLocalId, gas, reward, rewardUsdEdited,
+        gasNative, gasSymbol, gasDecimals, gasValuationTimestamp, gasValuationSource,
+        gasL1Native, gasL2Native, gasOperatorNative, gasL1Usd, gasL2Usd, gasOperatorUsd,
+        gasSplitQuoteTimestamp, gasExecutionLabel, gasSplitSymbol,
+        rewardNative, rewardSymbol, rewardDecimals
+    ) {
+        val bill = activeBill ?: return@LaunchedEffect
+        val draftJson = AccountingFormDraftCodec.encode(
+            AccountingFormDraft(
+                selectedProjectLocalId = selectedProjectLocalId.take(128),
+                gas = gas.take(128), reward = reward.take(128), rewardUsdEdited = rewardUsdEdited,
+                gasNative = gasNative.take(128), gasSymbol = gasSymbol.take(32), gasDecimals = gasDecimals.take(2),
+                gasValuationTimestamp = gasValuationTimestamp?.take(80), gasValuationSource = gasValuationSource?.take(40),
+                gasL1Native = gasL1Native.take(128), gasL2Native = gasL2Native.take(128),
+                gasOperatorNative = gasOperatorNative.take(128),
+                gasL1Usd = gasL1Usd, gasL2Usd = gasL2Usd, gasOperatorUsd = gasOperatorUsd,
+                gasSplitQuoteTimestamp = gasSplitQuoteTimestamp?.take(80),
+                gasExecutionLabel = gasExecutionLabel.take(32), gasSplitSymbol = gasSplitSymbol.take(32),
+                rewardNative = rewardNative.take(128), rewardSymbol = rewardSymbol.take(32), rewardDecimals = rewardDecimals.take(2)
+            )
+        )
+        delay(400)
+        runCatching { accountingRepository.savePendingBillDraft(bill.id, draftJson) }
+    }
 
     if (showDock) BoxWithConstraints(
         modifier = modifier.fillMaxSize()
