@@ -4,7 +4,6 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +33,9 @@ import com.airdrophunter.app.data.CommunityCatalogRepository
 import com.airdrophunter.app.data.shouldShowAccountingReminder
 import androidx.compose.runtime.collectAsState
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppChip
 import java.util.Locale
 
 @Composable
@@ -147,25 +149,16 @@ fun ProjectsScreen(
         }
 
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(7.dp)
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             filterOptions.forEach { (label, count) ->
-                val selected = selectedFilter == label
-                Surface(
-                    onClick = { selectedFilter = label },
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (selected) AppColors.Primary else AppColors.Surface,
-                    border = if (selected) null else BorderStroke(1.dp, AppColors.Border)
-                ) {
-                    Text(
-                        "$label $count",
-                        Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        color = if (selected) AppColors.Surface else AppColors.TextSecondary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                }
+                AppChip(
+                    text = "$label $count",
+                    selected = selectedFilter == label,
+                    onClick = { selectedFilter = label }
+                )
             }
         }
 
@@ -212,13 +205,14 @@ fun ProjectsScreen(
                         else -> "褒贬不一"
                     }
                     Card(
-                        modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(project) },
-                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.fillMaxWidth()
+                            .appPressFeedback(onClick = { onProjectSelected(project) }, scale = 0.96f),
+                        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                         colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                         border = BorderStroke(1.dp, AppColors.Border),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
-                        Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically,
+                        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically,
