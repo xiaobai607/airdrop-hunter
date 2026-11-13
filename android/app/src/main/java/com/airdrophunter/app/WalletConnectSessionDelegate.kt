@@ -15,7 +15,12 @@ data class WalletConnectAccount(
     val walletLabel: String
 )
 
-object WalletConnectSessionDelegate : AppKit.ModalDelegate {\n    @Volatile private var applicationContext: Context? = null\n\n    fun attachApplicationContext(context: Context) {\n        applicationContext = context.applicationContext\n    }
+object WalletConnectSessionDelegate : AppKit.ModalDelegate {
+    @Volatile private var applicationContext: Context? = null
+
+    fun attachApplicationContext(context: Context) {
+        applicationContext = context.applicationContext
+    }
     private val _accounts = MutableStateFlow<List<WalletConnectAccount>>(emptyList())
     val accounts = _accounts.asStateFlow()
     private val _sessionGeneration = MutableStateFlow(0L)
@@ -38,6 +43,14 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {\n    @Volatile priv
     }
 
     override fun onSessionApproved(approvedSession: Modal.Model.ApprovedSession) {
+        val walletName = when (approvedSession) {
+            is Modal.Model.ApprovedSession.WalletConnectSession ->
+                approvedSession.metaData?.name.orEmpty()
+            is Modal.Model.ApprovedSession.CoinbaseSession -> "Coinbase Wallet"
+        }
+        applicationContext?.let { context ->
+            WalletUsageStore.recordSuccessfulConnection(context, walletName)
+        }
         _sessionTopic.value = when (approvedSession) {
             is Modal.Model.ApprovedSession.WalletConnectSession -> approvedSession.topic
             is Modal.Model.ApprovedSession.CoinbaseSession -> null
