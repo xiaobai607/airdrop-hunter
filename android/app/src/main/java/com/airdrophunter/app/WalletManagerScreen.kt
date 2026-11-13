@@ -213,7 +213,7 @@ fun WalletManagerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(AppColors.Background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Row(
             modifier = Modifier
@@ -224,13 +224,13 @@ fun WalletManagerScreen(
             Column(Modifier.weight(1f)) {
                 Text(
                     "我的钱包",
-                    color = AppColors.TextPrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     "管理公开地址，查看链上交易记录",
-                    color = AppColors.TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -260,8 +260,8 @@ fun WalletManagerScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("WalletConnect 已连接", color = AppColors.Primary, fontWeight = FontWeight.SemiBold)
-                    Text("已读取外部钱包公开地址；连接不代表允许交易", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    Text("WalletConnect 已连接", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                    Text("已读取外部钱包公开地址；连接不代表允许交易", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                 }
                 AppTextButton(onClick = {
                     AppKit.disconnect(
@@ -270,7 +270,7 @@ fun WalletManagerScreen(
                             android.widget.Toast.makeText(context, "断开连接失败", android.widget.Toast.LENGTH_LONG).show()
                         }
                     )
-                }) { Text("断开连接", color = AppColors.Danger) }
+                }) { Text("断开连接", color = MaterialTheme.colorScheme.error) }
             }
         }
 
@@ -278,14 +278,14 @@ fun WalletManagerScreen(
             Text(
                 message,
                 modifier = Modifier.padding(horizontal = 18.dp),
-                color = AppColors.Danger
+                color = MaterialTheme.colorScheme.error
             )
         }
 
         when {
             state.isLoading && state.wallets.isEmpty() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AppColors.Primary)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
             state.wallets.isEmpty() -> {
@@ -336,8 +336,8 @@ fun WalletManagerScreen(
                                 .fillMaxWidth()
                                 .appPressFeedback(onClick = { selectedWallet = wallet }, scale = 0.96f),
                             shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
-                            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                            border = BorderStroke(1.dp, AppColors.Border)
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -350,25 +350,25 @@ fun WalletManagerScreen(
                                 Column(Modifier.weight(1f)) {
                                     Text(
                                         wallet.wallet_name.ifBlank { "钱包" },
-                                        color = AppColors.TextPrimary,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         shortAddress(wallet.address),
-                                        color = AppColors.TextSecondary,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
                                         WalletEcosystem.label(wallet.ecosystem),
-                                        color = AppColors.TextHelper,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                     if (wallet.tags.orEmpty().isNotEmpty()) {
-                                        Text(wallet.tags.orEmpty().joinToString(" · "), color = AppColors.Primary,
+                                        Text(wallet.tags.orEmpty().joinToString(" · "), color = MaterialTheme.colorScheme.primary,
                                             style = MaterialTheme.typography.labelSmall, maxLines = 1)
                                     }
                                     if (wallet.notes.orEmpty().isNotBlank()) {
-                                        Text(wallet.notes, color = AppColors.TextHelper,
+                                        Text(wallet.notes, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                                             style = MaterialTheme.typography.labelSmall, maxLines = 2)
                                     }
                                 }
@@ -381,7 +381,7 @@ fun WalletManagerScreen(
                                     },
                                     enabled = !state.isSaving
                                 ) {
-                                    Icon(Icons.Default.Edit, contentDescription = "编辑钱包信息", tint = AppColors.Primary)
+                                    Icon(Icons.Default.Edit, contentDescription = "编辑钱包信息", tint = MaterialTheme.colorScheme.primary)
                                 }
                                 IconButton(
                                     onClick = { walletViewModel.delete(wallet, isGuest) },
@@ -390,7 +390,7 @@ fun WalletManagerScreen(
                                     Icon(
                                         Icons.Default.DeleteOutline,
                                         contentDescription = "删除钱包",
-                                        tint = AppColors.Danger
+                                        tint = MaterialTheme.colorScheme.error
                                     )
                                 }
                             }
@@ -404,16 +404,16 @@ fun WalletManagerScreen(
     editingWallet?.let { wallet ->
         AlertDialog(
             onDismissRequest = { if (!state.isSaving) editingWallet = null },
-            containerColor = AppColors.Surface,
-            title = { Text("编辑钱包信息", color = AppColors.TextPrimary) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("编辑钱包信息", color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(shortAddress(wallet.address), color = AppColors.TextSecondary,
+                    Text(shortAddress(wallet.address), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall)
                     AppTextField(editWalletName, { editWalletName = it }, "钱包名称")
                     AppTextField(editWalletTags, { editWalletTags = it }, "标签（逗号分隔，最多12个）")
                     AppTextField(editWalletNotes, { editWalletNotes = it }, "备注", singleLine = false)
-                    state.error?.let { Text(it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
+                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 }
             },
             confirmButton = {
@@ -561,14 +561,14 @@ fun WalletManagerScreen(
     pendingConnectedAccount?.let { connected ->
         AlertDialog(
             onDismissRequest = { pendingConnectedAccount = null },
-            containerColor = AppColors.Surface,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("外部钱包连接成功") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("已从 WalletConnect 会话读取公开地址：", color = AppColors.TextSecondary)
-                    Text(connected.address, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                    Text("来源：${connected.walletLabel} · EVM 链 ${connected.chainId}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                    Text("保存只记录公开地址，不授予网站交易或签名权限。每笔交易仍需在外部钱包单独确认。", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text("已从 WalletConnect 会话读取公开地址：", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(connected.address, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                    Text("来源：${connected.walletLabel} · EVM 链 ${connected.chainId}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    Text("保存只记录公开地址，不授予网站交易或签名权限。每笔交易仍需在外部钱包单独确认。", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     AppTextField(connectedWalletName, { connectedWalletName = it }, "钱包备注名称")
                 }
             },
