@@ -660,3 +660,13 @@
 - 保留外部钱包会话只读展示、网站授权逐项/全部撤销、撤销确认链路、非托管安全说明、开发中功能说明及通知空状态；未新增推送、未伪造设置开关，也未改变授权状态管理。
 - 静态核对：仅调整间距/圆角 token；`revokeAll()`、`revoke(origin)` 和现有状态收集保持原样。未运行 Gradle 编译、Android 测试、CI、APK 或真机浅深色/窄屏验收。
 - 代码 commit：`3c80212cbd3c32a3ec11e9dc15291d92f142d7d7`。
+
+
+### 2026-11-13 — 全局底部导航材质与渲染开销收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/MainActivity.kt`。
+- 底部导航背景移除覆盖整个导航区域的实时 20dp 模糊层，改为高不透明度主题 Surface，并增加 1dp 低对比顶部边界线；浅色/深色均由 MaterialTheme 语义色驱动。
+- 目的：保留轻量悬浮分层感，同时避免底栏每帧执行大面积 blur 带来的额外 GPU 合成开销，降低滚动/切页时的掉帧风险。
+- 保留四个 Tab、选中索引、点击切换、二级页面隐藏底栏、底栏 80dp 宿主高度和 AppBottomBar 原有无障碍语义；未修改导航状态或业务路由。
+- 静态核对：已移除 MainActivity 的 blur 调用及对应 import；底栏容器尺寸与 AppBottomBar 调用保持不变。此项只能说明减少了模糊合成负担，实际帧率改善仍需真机 Profiling。
+- Commit：`fb2dfd4bf484f6e89064c903fa3255c6c5a810bc`。尚未运行 Gradle 编译、Android tests、CI、APK 或真机 FPS/视觉验收。
