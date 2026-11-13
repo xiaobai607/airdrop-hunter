@@ -778,3 +778,13 @@
 - CI 的 Android 单元测试任务已启动并实际进入 Kotlin 编译阶段；发现 `MainActivity.kt` 中 AnimatedContent/Scaffold 内容区多余一层右花括号，导致后续记账弹窗声明被解析为顶层代码。
 - 已删除多余闭合括号，保留页面路由、底部导航和记账弹窗原有逻辑。Commit：`99e96a991095daef14e6eec2b398c4815f01f05d`。
 - 首轮检查 run `43449051114` 因该语法错误失败；已提交修复，等待新一轮 CI 验证。APK 打包 job 按策略跳过，没有构建 APK。
+
+
+### 2026-11-13 — Kotlin 编译错误第二轮修复
+
+- 根据 Android CI 编译日志修复多个 Compose 页面缺失的组件/主题导入、窄屏滚动扩展导入、WalletManager Material3 实验 API opt-in，以及 DApp 目录实体错误使用 `id`（正确字段为 `project_official_id`）。
+- WalletConnect 响应中的 session topic 现在先做空值校验，避免将 nullable topic 传入非空数据库字段。
+- Web3 记账完成状态改为 DAO 内带账户作用域及允许状态集合的原子更新（`markAccounted`），不再调用不存在的 `setStatus`；只允许确认/待人工补录等可记账状态进入 accounted。
+- CI 同时暴露出钱包余额后台同步 Worker 引用了仓库中不存在的 `WalletAssetRepository` 与 `RetrofitWalletAssetsRemoteDataSource`，且 API 层没有对应资产余额接口。为避免发布一个永远无法执行的虚假后台任务，已暂时停用该未完成 Worker 的调度并移除其孤立源码；现有钱包页面/手动查询不在本次改动范围。后续需在明确数据源/API 契约后单独实现余额后台同步，不能把它标记为已完成。
+- 相关提交：`416bd358`、`5a7ae962`、`bdff9916`、`1b15d805`、`938fe06e`、`fadc48a4`、`b42478d3`、`96f0f893`、`d73c734a`、`ac86ccfc`、`ecfd03ef`、`5afdc3ef`、`e4cb83fe`。
+- 第二轮检查发现的编译问题已逐项修正，等待新一轮 CI；APK 仍未构建。
