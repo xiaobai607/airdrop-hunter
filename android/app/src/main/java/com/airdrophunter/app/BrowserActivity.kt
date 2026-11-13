@@ -628,14 +628,22 @@ private fun BrowserScreen(
                                                                         }
                                                                     )
                                                                 }.onFailure { error ->
-                                                                    pendingDappExternalRequest?.web3DraftId?.let { id ->
-                                                                        web3Repository.markWalletTimedOut(id)
+                                                                    // AppKit.request can fail after navigation/session changes.
+                                                                    // Never let a stale launch failure clear or mutate a newer request.
+                                                                    val active = pendingDappExternalRequest
+                                                                    if (active?.request?.id == request.id &&
+                                                                        active.sessionTopic == sessionTopic &&
+                                                                        active.origin == origin
+                                                                    ) {
+                                                                        active.web3DraftId?.let { id ->
+                                                                            web3Repository.markWalletTimedOut(id)
+                                                                        }
+                                                                        DappProviderBridge.error(
+                                                                            replyProxy, request.id, 4001,
+                                                                            error.localizedMessage ?: "无法打开外部钱包请求"
+                                                                        )
+                                                                        pendingDappExternalRequest = null
                                                                     }
-                                                                    DappProviderBridge.error(
-                                                                        replyProxy, request.id, 4001,
-                                                                        error.localizedMessage ?: "无法打开外部钱包请求"
-                                                                    )
-                                                                    pendingDappExternalRequest = null
                                                                 }
                                                             }
                                                         }
