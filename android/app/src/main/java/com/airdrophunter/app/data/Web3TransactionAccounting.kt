@@ -353,7 +353,7 @@ object Web3ReceiptFeeCalculator {
 /** Rejects a receipt that does not belong to the exact transaction draft being reconciled. */
 object Web3ReceiptIdentityVerifier {
     fun matches(expectedHash: String?, receiptHash: String?): Boolean {
-        val hashPattern = Regex("^0x[a-fA-F0-9]{64}$")
+        val hashPattern = Regex("^0x[a-fA-F0-9]{64}$", RegexOption.IGNORE_CASE)
         if (expectedHash.isNullOrBlank() || receiptHash.isNullOrBlank()) return false
         if (!hashPattern.matches(expectedHash) || !hashPattern.matches(receiptHash)) return false
         return expectedHash.equals(receiptHash, ignoreCase = true)
