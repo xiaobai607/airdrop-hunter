@@ -215,7 +215,9 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
                     Modifier.weight(1f),
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Surface(
                     color = if (campaign.tier == "featured") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
