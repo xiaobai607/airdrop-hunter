@@ -112,15 +112,15 @@ fun ProfileScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(13.dp)
         ) {
-            Surface(shape = CircleShape, color = AppColors.MutedBackground, modifier = Modifier.size(52.dp)) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(52.dp)) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(if (isGuest) "G" else "U", color = AppColors.TextSecondary,
+                    Text(if (isGuest) "G" else "U", color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(if (isGuest) "本地模式" else (state.profile?.username ?: "账户中心"),
-                    color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold)
                 Text(
                     when {
@@ -129,28 +129,28 @@ fun ProfileScreen(
                         state.isLoading -> "正在加载账户信息…"
                         else -> "账户信息暂时无法加载"
                     },
-                    color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall
                 )
             }
         }
 
         Card(
             modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
-            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-            border = BorderStroke(1.dp, AppColors.Border), elevation = CardDefaults.cardElevation(0.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column {
                 Row(Modifier.fillMaxWidth().height(96.dp)) {
                     StatCell("跟踪项目", stats.tracked_projects.toString(), Modifier.weight(1f))
-                    Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
+                    Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
                     StatCell(if (stats.usd_profit_complete) "胜率" else "已估值胜率",
                         String.format(Locale.US, "%.1f%%", stats.win_rate), Modifier.weight(1f))
                 }
-                HorizontalDivider(color = AppColors.Border)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth().height(96.dp)) {
                     StatCell("累计 Gas", String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost),
                         Modifier.weight(1f), "USD")
-                    Box(Modifier.width(1.dp).fillMaxHeight().background(AppColors.Border))
+                    Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
                     StatCell("实际收益",
                         if (stats.usd_profit_complete) String.format(Locale.US, "%.2f", stats.ledger_total_actual_reward) else "估值未完整",
                         Modifier.weight(1f), if (stats.usd_profit_complete) "USD" else "")
@@ -158,7 +158,7 @@ fun ProfileScreen(
                 Text(
                     "参与项目 ${stats.ledger_project_count} · 净收益 ${if (stats.usd_profit_complete) String.format(Locale.US, "%.2f", stats.ledger_net_profit) + " USD" else "估值未完整"} · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                    color = AppColors.TextHelper,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.labelSmall
                 )
             }
@@ -168,11 +168,11 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, AppColors.Border),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("数据迁移", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                Text("数据迁移", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 AppButton(
                     text = "备份我的数据",
                     onClick = { showBackupPasswordDialog = true },
@@ -187,7 +187,7 @@ fun ProfileScreen(
                 )
                 Text(
                     "支持 .ahbackup 和 .hunter 文件。备份文件经过密码加密；换机时选择文件并输入相同密码即可恢复，请妥善保存文件和密码。",
-                    color = AppColors.TextHelper,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -196,18 +196,18 @@ fun ProfileScreen(
         if (isGuest) {
             Text(
                 "当前版本暂不开放注册/登录。钱包、项目、任务和个人账本均保存在本机；请定期使用上方备份功能保存数据。",
-                color = AppColors.TextHelper,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.bodySmall
             )
         }
 
         if (state.hasError && !isGuest) {
-            Text("账户或统计数据暂时无法加载，服务器繁忙。", color = AppColors.Danger,
+            Text("账户或统计数据暂时无法加载，服务器繁忙。", color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("设置", color = AppColors.TextHelper, style = MaterialTheme.typography.labelMedium,
+            Text("设置", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
             SettingRow("设置", Icons.Default.Settings) { activeProfileDestination = ProfileDestination.SETTINGS }
             SettingRow("安全中心", Icons.Default.Security) { activeProfileDestination = ProfileDestination.SECURITY }
@@ -326,11 +326,11 @@ fun ProfileScreen(
 private fun StatCell(label: String, value: String, modifier: Modifier, suffix: String = "") {
     Column(modifier.fillMaxHeight().padding(horizontal = 14.dp, vertical = 15.dp),
         verticalArrangement = Arrangement.Center) {
-        Text(label, color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(value, color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineMedium,
+            Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold)
-            if (suffix.isNotBlank()) Text(suffix, color = AppColors.TextSecondary,
+            if (suffix.isNotBlank()) Text(suffix, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 5.dp))
         }
     }
@@ -346,13 +346,13 @@ private fun SettingRow(
         .appPressFeedback(onClick = onClick, scale = 0.98f),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
         Box(
-            Modifier.size(38.dp).background(AppColors.TealTint, RoundedCornerShape(12.dp)),
+            Modifier.size(38.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = AppColors.Primary, modifier = Modifier.size(20.dp))
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         }
-        Text(title, Modifier.weight(1f), color = AppColors.TextPrimary,
+        Text(title, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.bodyMedium)
-        Icon(Icons.Default.ChevronRight, null, tint = AppColors.TextHelper)
+        Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
     }
 }
