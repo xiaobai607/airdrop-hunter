@@ -1,4 +1,15 @@
 # Airdrop Hunter — Product Requirements & Progress Ledger
+# 2026-11-13 — free airdrop source diagnostics (active)
+
+The user needs to know why the public airdrop catalog is empty or stale without paying for commercial APIs. Keep the existing no-paid-service rule. The importer already records per-source status in the database, but the app currently exposes only an aggregate sync result and does not show which free source succeeded, failed, or is disabled.
+
+Add a public, privacy-safe source-health summary for the app:
+- expose only source name, last attempt/success timestamps, status, item count, and a short sanitized error label;
+- do not expose source URLs, credentials, response bodies, admin review candidates, or GitHub approval payloads;
+- render the source-health summary in the official airdrop hub so the user can distinguish no new records, a failed provider, an unconfigured optional provider, and a stale last-known-good cache;
+- keep CoinGecko Demo key and GitHub Raw approvals optional; do not require paid plans, proxies, or third-party scraping services;
+- DexScreener remains market-lead evidence only; Binance official announcements remain source evidence, not invented campaign details.
+
 # 2026-11-13 — browser compatibility follow-up (active)
 
 A source review after the UI pass found the browser still forces a fixed Chrome 131 / Pixel 7 User-Agent at WebView creation, rewrites the same User-Agent again on page-finished and retry, and marks the page failed after a 15-second watchdog. This contradicts the earlier intent to avoid mid-navigation identity changes and can cause compatibility failures with current sites or slow redirects.
