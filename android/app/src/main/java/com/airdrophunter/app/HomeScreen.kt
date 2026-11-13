@@ -595,7 +595,7 @@ private fun FaviconTile(site: AirdropSite, modifier: Modifier = Modifier) {
 
 @Composable
 private fun FaviconLetter(site: AirdropSite) {
-    Box(Modifier.fillMaxSize().background(Color(0xFFE7F1EF), RoundedCornerShape(8.dp)),
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center) {
         Text(site.name.take(1).uppercase(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
     }
