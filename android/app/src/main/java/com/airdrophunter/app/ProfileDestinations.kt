@@ -63,7 +63,7 @@ private fun SettingsDestinationContent() {
     DestinationInfoRow("浏览器与工具栏", "网页工具栏的显示与排序可在浏览器工具栏的“添加”入口管理")
     Text("数据与诊断", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     DestinationInfoRow("缓存管理", "缓存清理与详细状态控制正在开发中")
-    DestinationInfoRow("诊断信息", "当前版本不会自动上传个人账本或钱包私密信息；诊断导出功能正在开发中")
+    DestinationInfoRow("诊断信息", "诊断导出功能正在开发中；私钥、助记词和签名材料不属于诊断数据")
 }
 
 @Composable

@@ -42,7 +42,7 @@ fun AirdropSourceHealthPanel(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("免费数据源状态", color = MaterialTheme.colorScheme.onSurface,
@@ -56,7 +56,7 @@ fun AirdropSourceHealthPanel(
                 AppTextButton(onClick = onToggle) { Text(if (expanded) "收起" else "诊断") }
             }
             if (error != null) {
-                Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             if (expanded) {
                 statuses.forEach { source ->
