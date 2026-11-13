@@ -41,6 +41,7 @@ import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppTextField
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import java.time.Instant
 import java.util.Locale
@@ -500,10 +501,10 @@ fun CommunitySquareScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showAirdropFilters = false }) { Text("完成 · ${displayedProjects.size} 个结果") }
+                AppTextButton(onClick = { showAirdropFilters = false }) { Text("完成 · ${displayedProjects.size} 个结果") }
             },
             dismissButton = {
-                TextButton(onClick = { airdropFilterSelection = AirdropFilterSelection() }) { Text("重置条件") }
+                AppTextButton(onClick = { airdropFilterSelection = AirdropFilterSelection() }) { Text("重置条件") }
             }
         )
     }
@@ -530,7 +531,7 @@ fun CommunitySquareScreen(
                 }
             },
             confirmButton = {
-                TextButton(
+                AppTextButton(
                     enabled = !submittingProject && submissionName.isNotBlank() && submissionUrl.isNotBlank(),
                     onClick = {
                         scope.launch {
@@ -569,7 +570,7 @@ fun CommunitySquareScreen(
                 }
             },
             dismissButton = {
-                TextButton(
+                AppTextButton(
                     onClick = { showSubmissionDialog = false },
                     enabled = !submittingProject
                 ) { Text("取消") }
