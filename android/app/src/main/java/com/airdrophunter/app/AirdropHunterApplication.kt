@@ -75,7 +75,8 @@ class AirdropHunterApplication : Application() {
 
         // One coordinator serializes all background sync pipelines. Individual
         // tasks keep their own cadence, account boundary, and retry semantics.
-        WalletConnectSessionDelegate.attachApplicationContext(this)\n        ApiClient.initialize(this)
+        WalletConnectSessionDelegate.attachApplicationContext(this)
+        ApiClient.initialize(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
                 override fun onStart(owner: LifecycleOwner) {
