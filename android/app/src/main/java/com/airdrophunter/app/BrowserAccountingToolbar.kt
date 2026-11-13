@@ -1210,11 +1210,32 @@ fun AccountingCenterScreen(
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
+    val accountingRepository = remember(application) { application.appContainer.accountingRepository }
+    val pending by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
     var wallets by remember { mutableStateOf<List<WalletDto>>(emptyList()) }
     var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
     var isLoadingWallets by remember { mutableStateOf(true) }
     var walletMenuExpanded by remember { mutableStateOf(false) }
     var walletLoadError by remember { mutableStateOf<String?>(null) }
+    var ledgerRows by remember { mutableStateOf<List<PersonalLedgerWriteRequest>>(emptyList()) }
+    var isLoadingLedger by remember { mutableStateOf(true) }
+    var ledgerLoadError by remember { mutableStateOf<String?>(null) }
+    var selectedSection by remember { mutableStateOf("history") }
+    var selectedPeriod by remember { mutableStateOf("month") }
+    var expandedRecordId by remember { mutableStateOf<String?>(null) }
+    var showPendingManager by remember { mutableStateOf(false) }
+
+    suspend fun reloadLedger() {
+        isLoadingLedger = true
+        ledgerLoadError = null
+        try {
+            ledgerRows = accountingRepository.loadPersonalLedger()
+        } catch (_: Exception) {
+            ledgerLoadError = "读取本地账本失败，请稍后重试"
+        } finally {
+            isLoadingLedger = false
+        }
+    }
 
     LaunchedEffect(application, isGuest) {
         isLoadingWallets = true
@@ -1230,48 +1251,301 @@ fun AccountingCenterScreen(
             isLoadingWallets = false
         }
     }
+    LaunchedEffect(accountingRepository) { reloadLedger() }
+
+    val realPendingCount = remember(pending) { pending.count { !it.txHash.startsWith("MOCK-") } }
+    val periodRows = remember(ledgerRows, selectedPeriod) {
+        val now = java.util.Calendar.getInstance()
+        val weekStart = (now.clone() as java.util.Calendar).apply {
+            set(java.util.Calendar.DAY_OF_WEEK, firstDayOfWeek)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val monthStartYear = now.get(java.util.Calendar.YEAR)
+        val monthStart = now.get(java.util.Calendar.MONTH)
+        ledgerRows.filter { row ->
+            val timestamp = runCatching { Instant.parse(row.occurred_at).toEpochMilli() }.getOrNull()
+                ?: return@filter false
+            val date = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
+            when (selectedPeriod) {
+                "day" -> date.get(java.util.Calendar.YEAR) == now.get(java.util.Calendar.YEAR) &&
+                    date.get(java.util.Calendar.DAY_OF_YEAR) == now.get(java.util.Calendar.DAY_OF_YEAR)
+                "week" -> timestamp >= weekStart.timeInMillis
+                else -> date.get(java.util.Calendar.YEAR) == monthStartYear &&
+                    date.get(java.util.Calendar.MONTH) == monthStart
+            }
+        }
+    }
+    val incompleteRewardRows = periodRows.count { it.extra["usd_profit_complete"] == "false" }
+    val actualGasTotal = periodRows.sumOf { it.actual_gas_cost_usd.takeIf(Double::isFinite)?.coerceAtLeast(0.0) ?: 0.0 }
+    val actualRewardTotal = periodRows.sumOf { it.actual_reward_usd.takeIf(Double::isFinite)?.coerceAtLeast(0.0) ?: 0.0 }
+    val completeNetTotal = (actualRewardTotal - actualGasTotal).takeIf { incompleteRewardRows == 0 }
+    val pendingBills = remember(pending) { pending.filterNot { it.txHash.startsWith("MOCK-") } }
 
     Column(
-        modifier = modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = modifier.fillMaxWidth().heightIn(max = 760.dp)
+            .navigationBarsPadding().imePadding().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("记账", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold)
-        Text("选择一条待确认交易，手动填写最终 Gas 与实际收益。新增手动记录前请先选择归属钱包。",
-            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-        Box {
-            AppButton(
-                text = selectedWallet?.let { "${it.wallet_name} · ${it.chain} · ${shortAddress(it.address)}" }
-                    ?: if (isLoadingWallets) "正在读取钱包…" else "选择记账钱包",
-                onClick = { if (!isLoadingWallets && wallets.isNotEmpty()) walletMenuExpanded = true },
-                enabled = !isLoadingWallets && wallets.isNotEmpty(),
-                style = AppButtonStyle.SECONDARY
-            )
-            DropdownMenu(expanded = walletMenuExpanded, onDismissRequest = { walletMenuExpanded = false }) {
-                wallets.forEach { wallet ->
-                    DropdownMenuItem(
-                        text = { Text("${wallet.wallet_name} · ${wallet.chain} · ${shortAddress(wallet.address)}") },
-                        onClick = { selectedWallet = wallet; walletMenuExpanded = false }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("记账中心", color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("真实支出、实际收益与待确认记录统一管理",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            }
+            AppIconButton(icon = Icons.Default.Close, contentDescription = "关闭记账中心", onClick = onClose)
+        }
+
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("当前记账钱包", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        selectedWallet?.let { "${it.wallet_name} · ${it.chain} · ${shortAddress(it.address)}" }
+                            ?: if (isLoadingWallets) "正在读取钱包…" else "尚未选择钱包",
+                        color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.bodyMedium
                     )
+                }
+                Box {
+                    AppButton(
+                        text = "切换",
+                        onClick = { if (!isLoadingWallets && wallets.isNotEmpty()) walletMenuExpanded = true },
+                        enabled = !isLoadingWallets && wallets.isNotEmpty(),
+                        style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 38, fontSizeSp = 13
+                    )
+                    DropdownMenu(expanded = walletMenuExpanded, onDismissRequest = { walletMenuExpanded = false }) {
+                        wallets.forEach { wallet ->
+                            DropdownMenuItem(
+                                text = { Text("${wallet.wallet_name} · ${wallet.chain} · ${shortAddress(wallet.address)}") },
+                                onClick = { selectedWallet = wallet; walletMenuExpanded = false }
+                            )
+                        }
+                    }
                 }
             }
         }
         walletLoadError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         if (!isLoadingWallets && wallets.isEmpty()) {
-            Text("暂无可用钱包。请先到钱包管理添加公开地址；已有待确认记录仍可查看。",
+            Text("暂无可用钱包。请先在钱包管理添加公开地址；已有账本和待确认记录仍可查看。",
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("history" to "账单历史", "stats" to "收支统计", "pending" to "待确认").forEach { (id, label) ->
+                AppChip(text = label, selected = selectedSection == id, onClick = { selectedSection = id })
+            }
+        }
+
+        when (selectedSection) {
+            "history" -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("已确认账单", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold)
+                    Text("${ledgerRows.size} 笔", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall)
+                    AppTextButton(onClick = { kotlinx.coroutines.MainScope().launch { reloadLedger() } }, enabled = !isLoadingLedger) {
+                        Text(if (isLoadingLedger) "读取中" else "刷新")
+                    }
+                }
+                if (isLoadingLedger && ledgerRows.isEmpty()) {
+                    Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else if (ledgerLoadError != null && ledgerRows.isEmpty()) {
+                    Column(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(ledgerLoadError.orEmpty(), color = MaterialTheme.colorScheme.error)
+                        AppButton("重试", onClick = { kotlinx.coroutines.MainScope().launch { reloadLedger() } },
+                            fullWidth = false, heightDp = 40)
+                    }
+                } else if (ledgerRows.isEmpty()) {
+                    Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.ReceiptLong, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(36.dp))
+                            Text("还没有已确认账单", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("完成一笔真实记账后，会在这里保留历史记录。",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            AppButton("查看待确认记录", onClick = { selectedSection = "pending" },
+                                style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 40)
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(bottom = 8.dp)
+                    ) {
+                        items(ledgerRows, key = { it.client_record_id }) { row ->
+                            val expanded = expandedRecordId == row.client_record_id
+                            val incomplete = row.extra["usd_profit_complete"] == "false"
+                            Surface(
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.fillMaxWidth().appPressFeedback(
+                                    onClick = { expandedRecordId = if (expanded) null else row.client_record_id },
+                                    scale = 0.98f
+                                )
+                            ) {
+                                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(row.project_name.ifBlank { "未命名项目" }, color = MaterialTheme.colorScheme.onSurface,
+                                                fontWeight = FontWeight.SemiBold)
+                                            Text(
+                                                runCatching { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date.from(Instant.parse(row.occurred_at))) }
+                                                    .getOrDefault(row.occurred_at),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                        Surface(color = MaterialTheme.colorScheme.secondaryContainer,
+                                            shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
+                                            Text("已确认", modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                    Text(
+                                        "实际 Gas  $%.2f".format(Locale.US, row.actual_gas_cost_usd) +
+                                            if (incomplete) "  ·  收益 USD估值未完成"
+                                            else "  ·  实际收益  $%.2f".format(Locale.US, row.actual_reward_usd),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
+                                    )
+                                    if (!incomplete) {
+                                        Text("实际净收益  $%.2f".format(Locale.US, row.actual_reward_usd - row.actual_gas_cost_usd),
+                                            color = if (row.actual_reward_usd - row.actual_gas_cost_usd >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                            fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                    if (expanded) {
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        Text("链：${row.chain}    钱包：${shortAddress(row.wallet_address)}",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                        Text("交易：${row.tx_hash.take(10)}…${row.tx_hash.takeLast(6)}",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                        Text(
+                                            "理论 Gas：${row.expected_gas_cost_usd?.let { "$%.2f".format(Locale.US, it) } ?: "未记录"}  ·  理论收益：${row.expected_reward_usd?.let { "$%.2f".format(Locale.US, it) } ?: "未记录"}",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
+                                        )
+                                        val assets = formatLedgerAssetBreakdown(row.extra["asset_breakdown"])
+                                        if (assets.isNotBlank()) Text(assets, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MaterialTheme.typography.labelSmall)
+                                        Text("记账方式：${row.interaction_method}",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            "stats" -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("day" to "日", "week" to "周", "month" to "月").forEach { (id, label) ->
+                        AppChip(text = label, selected = selectedPeriod == id, onClick = { selectedPeriod = id })
+                    }
+                }
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(when (selectedPeriod) { "day" -> "今日收支"; "week" -> "本周收支"; else -> "本月收支" },
+                            color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                        Text("${periodRows.size} 笔已确认记录", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text("实际 Gas", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                Text("$%.2f".format(Locale.US, actualGasTotal), color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.SemiBold)
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text(if (incompleteRewardRows > 0) "已估值收益部分" else "实际收益",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                Text("$%.2f".format(Locale.US, actualRewardTotal), color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("实际净收益", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                            Text(completeNetTotal?.let { "$%.2f".format(Locale.US, it) } ?: "暂不可完整计算",
+                                color = completeNetTotal?.let { if (it >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error }
+                                    ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            if (incompleteRewardRows > 0) {
+                                Text("${incompleteRewardRows} 笔记录的收益 USD 估值不完整，净收益暂不汇总，避免把未估值金额当作 0。",
+                                    color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+                if (periodRows.isEmpty()) {
+                    Text("该周期暂无已确认账单。", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                Text("预计金额只在单笔记录详情中单独展示；本统计只汇总实际记账数据。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            }
+            else -> {
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("待确认记录", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                        Text("${realPendingCount} 笔待确认账单。链上回执、手动记录与失败交易的费用核对均在这里继续处理；不会自动算作已完成。",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        AppButton("打开待确认与链上记录", onClick = { showPendingManager = true })
+                    }
+                }
+                if (pendingBills.isNotEmpty()) {
+                    Text("最近待确认", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                    LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(pendingBills.take(5), key = { it.id }) { bill ->
+                            Surface(color = MaterialTheme.colorScheme.tertiaryContainer,
+                                shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)) {
+                                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(if (bill.txHash.startsWith("MANUAL-")) "手动记账" else "待确认交易",
+                                        color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                                    Text(bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.labelSmall)
+                                    Text(SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Text("目前没有待确认账单。", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
+
+    if (showPendingManager) {
         BrowserAccountingToolbar(
             walletAddress = selectedWallet?.address.orEmpty(),
             chainName = selectedWallet?.chain ?: "unknown",
-            onCopyAddress = {},
-            onRefreshPage = {},
-            onCopyPageUrl = {},
-            onOpenPageExternally = {},
+            onCopyAddress = {}, onRefreshPage = {}, onCopyPageUrl = {}, onOpenPageExternally = {},
             modifier = Modifier.fillMaxWidth(),
             initialShowBillList = true,
             showDock = false,
-            onCloseAccounting = onClose
+            onCloseAccounting = { showPendingManager = false }
         )
     }
 }
