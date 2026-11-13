@@ -26,11 +26,13 @@ fun StaggeredListItem(
     val shouldAnimate = index in 0 until 3
     var hasEntered by rememberSaveable(itemKey) { mutableStateOf(!shouldAnimate) }
 
-    if (shouldAnimate && !hasEntered) {
-        LaunchedEffect(itemKey) {
-            val stagger = index.coerceAtMost(2) * AppDesignTokens.Motion.StaggerMs
-            delay(stagger.toLong())
-            hasEntered = true
+    if (shouldAnimate) {
+        if (!hasEntered) {
+            LaunchedEffect(itemKey) {
+                val stagger = index.coerceAtMost(2) * AppDesignTokens.Motion.StaggerMs
+                delay(stagger.toLong())
+                hasEntered = true
+            }
         }
         AnimatedVisibility(
             visible = hasEntered,
