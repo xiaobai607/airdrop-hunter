@@ -19,6 +19,15 @@
 - Static source assertions passed for the new timeout, renderer recovery, view recreation, strict TLS cancellation and retained third-party-cookie restriction. These are source checks only; Gradle compilation, unit tests, CI and physical-device acceptance have not yet been run.
 - This does not establish that the user's reported browser failure is fully resolved. The actual failing URL and on-device diagnostic are still needed to isolate DNS, TLS, HTTP rejection, redirect, login/cookie or WebView-provider-specific failures.
 
+## 2026-11-13 — critical gap found in the free discovery-to-library path
+
+- The approved provider adapters in `airdrop_hub_sync.py` currently normalize provider responses into `AirdropProject`, `AirdropDiscoveryCandidate` and append-only discovery observations. They do **not** create or update `AirdropCampaign` rows.
+- The Android Airdrop Library reads `/api/airdrop-campaigns`, and that endpoint returns only `AirdropCampaign` rows that have already passed publication gates. Campaign scoring and market-enrichment jobs operate on that separate table, but the current scheduled importer does not bridge approved source evidence into it.
+- Therefore, successful provider smoke tests or a populated candidate queue do not prove that the user's Airdrop Library can display those records. The missing link is campaign-level ingestion/promotion with evidence, stable identity, source snapshots, status history and publication gates.
+- Keep all source leads as leads. DexScreener and CoinGecko cannot become confirmed airdrops from token/pool presence. GitHub lists remain manually approved, commit-pinned and license-attributed. Binance announcements need official article detail and explicit campaign evidence; do not turn every announcement headline into a campaign.
+- Next implementation must connect only explicitly supported campaign evidence to the campaign table, preserve unknown fields as null, keep unverified candidates out of the public endpoint, and provide a visible reason when no campaigns qualify. No fabricated/sample records.
+- Scheduled sync remains disabled until this campaign bridge and end-to-end real-data validation are complete.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
