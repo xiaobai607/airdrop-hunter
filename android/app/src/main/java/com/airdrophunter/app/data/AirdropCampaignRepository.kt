@@ -108,7 +108,8 @@ class AirdropCampaignRepository(
                 }
             )
             if (result.throttled) throw IllegalStateException("刚刚刷新过，请30秒后再试")
-            result.data ?: throw IllegalStateException(result.errorMessage ?: "空投活动暂不可用")
+            if (result.errorMessage != null) throw IllegalStateException(result.errorMessage)
+            result.data ?: throw IllegalStateException("空投活动暂不可用")
         }
 
     /**
