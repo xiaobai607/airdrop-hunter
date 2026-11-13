@@ -36,6 +36,15 @@
 - The publication gate may accept this one explicit official campaign category as an ordinary listing only when the detail body and official URL are present, the source identity is exact, and no corroborated risk/source conflict blocks publication. No heat, reward, KYC or active-status values are fabricated.
 - CoinGecko/GitHub/DexScreener remain leads only. No paid API, proxy, scraper, or new credential is introduced. Scheduled sync remains disabled pending end-to-end verification.
 
+## 2026-11-13 — Binance campaign bridge implementation committed
+
+- Added a campaign ingestion path for Binance catalog 128 only (`Crypto Airdrop`). Catalog 93 (`Latest Activities`) and all other provider records remain discovery observations; they are not promoted by this bridge.
+- The bridge fetches the official CMS article detail using the existing public Binance endpoint, requires a non-empty article body and a valid HTTPS Binance-host URL, and writes a stable `AirdropCampaign` source key.
+- Each new campaign records an initial `unknown` status history entry and a deduplicated source snapshot with the article code, source date, content hash and text excerpt. The compact description is extracted from the original HTML; no AI rewriting or invented reward/chain/KYC/date/status values are used.
+- Added a narrow publication rule for the exact `binance-crypto-airdrop` source + `airdrop` type + verified official HTTPS URL. It can publish as ordinary with a null score when no heat score exists; unknown fields remain unknown. Corroborated risk and source conflict still block publication.
+- Added backend tests for category isolation, official-host/body requirements, source snapshot/status history, no fabricated heat, risk gates and scoring source identity. These tests are authored but have **not** been executed yet.
+- Live provider detail responses, exact-head backend tests, campaign API output and Android real-data rendering remain unverified. Scheduled sync remains disabled.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
@@ -59,7 +68,7 @@
 - The public Binance detail API now applies the same central-filter visibility rule as the list API. Filtered Binance records remain stored as provenance but cannot be opened through the public detail route.
 - The pending review queue excludes records already rejected by the central filter. The explicit `status=all` view still includes them for audit/provenance; they are not deleted.
 - Review-queue title search (`q`) and stable `limit`/`offset` pagination are implemented. This is backend support only; the separate review APP remains deferred.
-- The four approved source adapters and central filtering/identity pipeline exist in code. Real provider configuration, live-data verification, campaign publication and device rendering remain incomplete; scheduled production sync stays disabled.
+- The four approved source adapters and central filtering/identity pipeline write candidate observations. A new, unverified bridge now promotes only detailed Binance Crypto Airdrop catalog (128) articles into AirdropCampaign; CoinGecko/GitHub/DexScreener remain leads. Real provider configuration, exact-head tests, live detail verification, public API output and device rendering remain incomplete; scheduled production sync stays disabled.
 - The branch includes the current Airdrop Library, browser dock, community/accounting, campaign discovery and Binance announcement changes. None of these branch changes are part of `main` until PR #135 is reviewed and explicitly merged.
 - CI success does not imply physical-device acceptance, production live-sync, or backup/recovery verification.
 
@@ -68,7 +77,7 @@
 - Public discovery destination and page heading: **“空投库”**. Do not display “微社区广场” or the Steam-style discovery subtitle. The personal project destination remains **“库管理”**.
 - The Airdrop Library's primary purpose is to discover and display actual airdrop campaigns, not to act as a token screener, source-monitoring console, or moderation dashboard.
 - The only currently approved discovery sources are the four zero-cash-cost sources in Section 0.2: CoinGecko Demo API, GitHub Raw Content, DexScreener public API, and Binance public announcements. CoinMarketCal, DropsTab, Airdrops.io, paid APIs, paid scraping, paid proxies, and metered services are excluded.
-- CoinGecko/GitHub/DexScreener results are project/market leads only. They must not be displayed as confirmed campaigns without explicit campaign evidence. The primary visible campaign feed currently accepts explicit Binance announcement evidence.
+- CoinGecko/GitHub/DexScreener results are project/market leads only. They must not be displayed as confirmed campaigns without explicit campaign evidence. The campaign feed's only current auto-publication exception is a detailed article from Binance's official Crypto Airdrop catalog (128); Latest Activities (93) remains a lead.
 - The in-app Binance detail page must show the official CMS body without AI rewriting or invented terms. JavaScript stays disabled; do not weaken WebView security or guess image lazy-loading behavior.
 - Current-release personal wallets, personal ledger, personal project/task records and personal P&L remain local-only. Only eligible anonymous/de-identified aggregate contribution data may reach the public community service. Registration/login and private cloud restore are not current-release features.
 - Demo data must remain isolated from real data and public statistics. No mock record may enter real mode, publication APIs, or community aggregates.
@@ -89,7 +98,7 @@
 - [ ] Validate real source data end to end, including outages, malformed/empty responses, retries, idempotency, last-known-good cache and no false publication.
 - [ ] Keep scheduled production sync disabled until source rights, zero-cost hosting, database migrations, exact-head CI and real-data APP rendering are verified.
 
-Current evidence: campaign models, migrations, scoring/persistence foundations, publication API, Android campaign client/list and Binance announcement feed/detail code exist on PR #135. The campaign UI has shown an honest empty state because there is not yet a configured approved free campaign provider publishing real campaigns. The trusted-provider refactor explicitly leaves sync fail-closed when no eligible provider is configured. Therefore this feature is **not end-to-end complete**.
+Current evidence: campaign models, migrations, scoring/persistence foundations, publication API, Android campaign client/list, Binance announcement feed/detail code and a category-128 campaign bridge exist on PR #135. The bridge has not yet been tested against a live CMS detail response or run through the public API, and scheduled sync is disabled. The campaign UI may therefore still show an honest empty state. The trusted-provider refactor remains fail-closed when no eligible evidence is configured. This feature is **not end-to-end complete**.
 
 #### B. Existing core app features — **CODE FOUNDATION LARGELY COMPLETE; DEVICE ACCEPTANCE PENDING**
 
