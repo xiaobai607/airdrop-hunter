@@ -309,7 +309,7 @@ fun GlobalSearchScreen(
                 } else dappResults.forEachIndexed { index, project ->
                     val delay = index.coerceAtMost(AppDesignTokens.Motion.MaxStaggerItems - 1) *
                         AppDesignTokens.Motion.StaggerMs
-                    key(project.id) {
+                    key(project.project_official_id) {
                         AnimatedVisibility(
                             visible = true,
                             enter = fadeIn(tween(200, delayMillis = delay)) +
