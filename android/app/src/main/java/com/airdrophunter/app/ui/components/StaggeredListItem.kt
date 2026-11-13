@@ -14,7 +14,7 @@ import com.airdrophunter.app.ui.theme.AppDesignTokens
 
 /**
  * Low-cost first-entry motion for lazy lists.
- * Only the first three visible-order items animate; the rest draw immediately.
+ * Only the first two visible-order items animate; the rest draw immediately.
  * Stable saveable keys prevent entrance motion from replaying during ordinary scrolling.
  */
 @Composable
@@ -29,7 +29,7 @@ fun StaggeredListItem(
     if (shouldAnimate) {
         if (!hasEntered) {
             LaunchedEffect(itemKey) {
-                val stagger = index.coerceAtMost(2) * AppDesignTokens.Motion.StaggerMs
+                val stagger = index * AppDesignTokens.Motion.StaggerMs
                 delay(stagger.toLong())
                 hasEntered = true
             }

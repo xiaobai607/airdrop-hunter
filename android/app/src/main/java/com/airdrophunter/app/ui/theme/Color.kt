@@ -72,6 +72,7 @@ object AppDesignTokens {
     object Motion {
         const val FastMs = 150
         const val StandardMs = 250
+        const val TabMs = 200
         const val PageMs = 320
         const val SheetMs = 380
         const val DialogMs = 240

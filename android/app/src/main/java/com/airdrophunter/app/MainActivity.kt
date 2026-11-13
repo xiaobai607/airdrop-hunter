@@ -316,19 +316,21 @@ private fun AirdropHunterApp(
                     val targetIsTab = targetState.startsWith("tab:")
                     when {
                         initialIsTab && !targetIsTab -> (
-                            slideInHorizontally(tween(AppDesignTokens.Motion.PageMs)) { it / 3 } +
+                            slideInHorizontally(tween(AppDesignTokens.Motion.PageMs)) { it } +
                                 fadeIn(tween(AppDesignTokens.Motion.PageMs))
                         ) togetherWith (
-                            slideOutHorizontally(tween(AppDesignTokens.Motion.ExitMs)) { -it / 8 } +
-                                fadeOut(tween(AppDesignTokens.Motion.ExitMs))
+                            slideOutHorizontally(tween(AppDesignTokens.Motion.PageMs)) { -it / 5 } +
+                                fadeOut(tween(AppDesignTokens.Motion.PageMs), targetAlpha = 0.92f)
                         )
                         !initialIsTab && targetIsTab -> (
-                            slideInHorizontally(tween(AppDesignTokens.Motion.PageMs)) { -it / 3 } +
+                            slideInHorizontally(tween(AppDesignTokens.Motion.PageMs)) { -it } +
                                 fadeIn(tween(AppDesignTokens.Motion.PageMs))
                         ) togetherWith (
-                            slideOutHorizontally(tween(AppDesignTokens.Motion.ExitMs)) { it / 8 } +
-                                fadeOut(tween(AppDesignTokens.Motion.ExitMs))
+                            slideOutHorizontally(tween(AppDesignTokens.Motion.PageMs)) { it / 5 } +
+                                fadeOut(tween(AppDesignTokens.Motion.PageMs), targetAlpha = 0.92f)
                         )
+                        initialIsTab && targetIsTab -> fadeIn(tween(AppDesignTokens.Motion.TabMs)) togetherWith
+                            fadeOut(tween(AppDesignTokens.Motion.TabMs))
                         else -> fadeIn(tween(AppDesignTokens.Motion.StandardMs)) togetherWith
                             fadeOut(tween(AppDesignTokens.Motion.StandardMs))
                     }
