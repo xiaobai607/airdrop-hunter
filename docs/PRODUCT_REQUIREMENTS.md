@@ -76,6 +76,12 @@
 - Move detailed Gas/reward breakdown and direct interaction entry out of the list card; selecting a project should open its detail page, where full information and the website action belong.
 - Preserve all accounting values and project actions; this is a presentation-only change. Keep private/community project contribution and delisting rules unchanged.
 
+## 2026-11-13 — project library visual simplification committed
+
+- Project list cards now prioritize project name/status, optional short description, one actual net-P&L value and the local/community binding state. Gas and reward totals plus the direct “go interact” action are no longer crowded into the list card; tapping the card opens the detail page.
+- Removed the old synthetic 4.9 rating / 96% positive-rate fallback. When there are no ratings, the card now displays “暂无评价” and no star score. This prevents the list UI from presenting fabricated community metrics.
+- Accounting records, project actions, community linkage and delisting behavior are unchanged. Device review remains pending.
+
 ## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
 
 > This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
