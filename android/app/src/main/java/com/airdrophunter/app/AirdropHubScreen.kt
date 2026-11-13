@@ -64,15 +64,15 @@ fun AirdropHubScreen(
 
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "查看最新官方空投公告",
-                Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
-                style = MaterialTheme.typography.bodySmall
-            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("官方公告", color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("来自官方来源的最新空投动态", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall)
+            }
             AppTextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
                 Text(if (state.isRefreshing) "刷新中…" else "刷新", color = MaterialTheme.colorScheme.primary)
             }
@@ -106,15 +106,29 @@ fun AirdropHubScreen(
             }
 
             state.projects.isEmpty() -> Box(
-                Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center
+                Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center
             ) {
-                Text("暂时没有新的空投公告", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                    elevation = CardDefaults.cardElevation(0.dp)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("暂时没有新的公告", color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("官方公告目录暂时没有可展示的新内容。可以稍后刷新查看。",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        AppButton("刷新公告", onClick = hubViewModel::refresh, enabled = !state.isRefreshing, fullWidth = false)
+                    }
+                }
             }
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 item {
                     Text("${state.projects.size} 条空投公告",
