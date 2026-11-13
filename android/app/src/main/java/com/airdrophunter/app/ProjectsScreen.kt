@@ -1,7 +1,6 @@
 package com.airdrophunter.app
 
 import android.widget.Toast
-import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -202,9 +201,11 @@ fun ProjectsScreen(
                     } ?: false
                     val netProfit = pnl?.netProfitUsd ?: 0.0
                     val projectRatings = allRatings.filter { it.projectOfficialId == project.communityOfficialId }
-                    val communityAverage = if (projectRatings.isEmpty()) 4.9 else projectRatings.map { it.score }.average()
-                    val positiveRate = if (projectRatings.isEmpty()) 96 else projectRatings.count { it.score >= 4 } * 100 / projectRatings.size
+                    val communityAverage = projectRatings.takeIf { it.isNotEmpty() }?.map { it.score }?.average()
+                    val positiveRate = projectRatings.takeIf { it.isNotEmpty() }
+                        ?.let { ratings -> ratings.count { it.score >= 4 } * 100 / ratings.size }
                     val communityLabel = when {
+                        positiveRate == null -> "暂无评价"
                         positiveRate >= 95 -> "好评如潮"
                         positiveRate >= 85 -> "特别好评"
                         positiveRate >= 75 -> "多半好评"
@@ -274,7 +275,7 @@ fun ProjectsScreen(
                                     Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(if (project.communityDelisted) "私人模式" else if (project.communityOfficialId != null) "微社区" else "本地项目", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        if (!project.communityDelisted && project.communityOfficialId != null) {
+                                        if (!project.communityDelisted && project.communityOfficialId != null && communityAverage != null) {
                                             Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
                                             Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12),
                                                 style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
