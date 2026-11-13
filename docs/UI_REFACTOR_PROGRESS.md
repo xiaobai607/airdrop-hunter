@@ -1042,3 +1042,9 @@
 
 - 复查发现前批有多处文件只替换了首个 10dp 间距；本次补齐 `AirdropCampaignsScreen.kt`、`CoinMarketDetailScreen.kt`、`AirdropDiscoveryScreen.kt` 中所有剩余的 10dp 区块间距，统一为 12dp。
 - 本轮对其余已检查页面再次检索，未发现剩余 9dp/14dp 布局间距；18dp/22dp 命中均为图标或拖拽阴影尺寸，不属于间距栅格。
+
+
+### 2026-11-14 — 系统状态栏/导航栏颜色接入主题令牌
+
+- `MainActivity.kt`：状态栏与系统导航栏颜色不再在 Activity 内硬编码浅/深色 RGB，直接读取当前 `MaterialTheme.colorScheme.background`，保证浅色/深色模式与页面背景令牌一致。
+- 保留系统栏图标明暗模式判断与现有窗口行为。

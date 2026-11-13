@@ -18,7 +18,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.GridView
@@ -30,6 +29,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Alignment
@@ -137,8 +137,7 @@ class MainActivity : ComponentActivity() {
             AirdropHunterTheme {
                 val darkSystem = isSystemInDarkTheme()
                 SideEffect {
-                    val barColor = if (darkSystem) android.graphics.Color.rgb(18, 18, 20)
-                        else android.graphics.Color.rgb(248, 248, 250)
+                    val barColor = MaterialTheme.colorScheme.background.toArgb()
                     window.statusBarColor = barColor
                     window.navigationBarColor = barColor
                     @Suppress("DEPRECATION")
