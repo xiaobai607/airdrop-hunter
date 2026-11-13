@@ -37,6 +37,7 @@ import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import com.airdrophunter.app.ui.components.AppButton
 import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppTextField
 import kotlinx.coroutines.Dispatchers
@@ -177,10 +178,10 @@ fun GlobalSearchScreen(
 
     Column(
         modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 12.dp),
+            .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 Modifier.weight(1f).clip(RoundedCornerShape(999.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
@@ -196,9 +197,11 @@ fun GlobalSearchScreen(
                     singleLine = true,
                     heightDp = 44
                 )
-                if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
-                    Icon(Icons.Default.Clear, contentDescription = "清空输入", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                if (query.isNotEmpty()) AppIconButton(
+                    icon = Icons.Default.Clear,
+                    contentDescription = "清空输入",
+                    onClick = { query = "" }
+                )
             }
             AppButton("取消", onClick = onCancel, style = AppButtonStyle.TEXT,
                 fullWidth = false, heightDp = 44, fontSizeSp = 14)
@@ -226,15 +229,15 @@ fun GlobalSearchScreen(
                 }
                 history.take(10).forEach { item ->
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface)
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).background(MaterialTheme.colorScheme.surface)
                             .appPressFeedback(onClick = {
                                 category = if (item.category == SearchCategory.DAPP.key) SearchCategory.DAPP else SearchCategory.COIN
                                 query = item.query
-                            }, scale = 0.96f).padding(horizontal = 13.dp, vertical = 11.dp),
+                            }, scale = 1f).padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(if (item.category == SearchCategory.DAPP.key) "DApp" else "币种", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
-                        Spacer(Modifier.width(10.dp))
+                        Spacer(Modifier.width(12.dp))
                         Text(item.query, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f), maxLines = 1)
                         Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), modifier = Modifier.size(16.dp))
                     }
@@ -281,11 +284,11 @@ fun GlobalSearchScreen(
 @Composable
 private fun HotCoinRow(coin: HotCoin, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 11.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).background(MaterialTheme.colorScheme.surface)
+            .appPressFeedback(onClick = onClick, scale = 1f).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF0F2F5)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0xFFF0F2F5)), contentAlignment = Alignment.Center) {
             Text(coin.symbol.take(1), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         }
         Spacer(Modifier.width(10.dp))
@@ -306,7 +309,7 @@ private fun HotCoinRow(coin: HotCoin, onClick: () -> Unit) {
 private fun MarketCoinRow(coin: MarketCoin, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 12.dp),
+            .appPressFeedback(onClick = onClick, scale = 1f).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF0F2F5)), contentAlignment = Alignment.Center) {
@@ -332,7 +335,7 @@ private fun DappResultRow(project: CommunityProjectCatalogDto, onClick: () -> Un
     val validUrl = Uri.parse(project.website_url).let { it.scheme.equals("https", true) && !it.host.isNullOrBlank() }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface)
-            .clickable(enabled = validUrl, onClick = onClick).padding(horizontal = 13.dp, vertical = 12.dp),
+            .appPressFeedback(onClick = onClick, scale = 1f, enabled = validUrl).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFEAF2FF)), contentAlignment = Alignment.Center) {
