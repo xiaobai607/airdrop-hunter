@@ -200,8 +200,6 @@ fun ProjectsScreen(
                     val showAccountingReminder = savedProjectRecord?.let {
                         shouldShowAccountingReminder(it.createdAt, it.interactionCount, System.currentTimeMillis())
                     } ?: false
-                    val gasTotal = pnl?.totalGasCostUsd ?: 0.0
-                    val rewardTotal = pnl?.totalRewardUsd ?: 0.0
                     val netProfit = pnl?.netProfitUsd ?: 0.0
                     val projectRatings = allRatings.filter { it.projectOfficialId == project.communityOfficialId }
                     val communityAverage = if (projectRatings.isEmpty()) 4.9 else projectRatings.map { it.score }.average()
@@ -221,7 +219,7 @@ fun ProjectsScreen(
                     ) {
                         Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary,
@@ -231,35 +229,38 @@ fun ProjectsScreen(
                                         Text(statusLabel, Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                             color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                                     }
-                                    if (project.communityDelisted) {
-                                        Surface(color = Color(0xFFFFE8E8), shape = RoundedCornerShape(999.dp)) {
-                                            Text("社区已下架", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                                color = Color(0xFFB42318), style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.SemiBold)
+                                }
+                                if (project.communityDelisted || showAccountingReminder) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        if (project.communityDelisted) {
+                                            Surface(color = Color(0xFFFFE8E8), shape = RoundedCornerShape(999.dp)) {
+                                                Text("社区已下架", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                                    color = Color(0xFFB42318), style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.SemiBold)
+                                            }
                                         }
-                                    }
-                                    if (showAccountingReminder) {
-                                        Surface(color = Color(0xFFFFF4E5), shape = RoundedCornerShape(999.dp)) {
-                                            Text("待记账", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                                color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.SemiBold)
+                                        if (showAccountingReminder) {
+                                            Surface(color = Color(0xFFFFF4E5), shape = RoundedCornerShape(999.dp)) {
+                                                Text("待记账", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                                    color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.SemiBold)
+                                            }
                                         }
                                     }
                                 }
-                                Text(String.format(Locale.US, "累计消耗 $%.2f  ·  累计收益 $%.2f", gasTotal, rewardTotal),
-                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                                Text(String.format(Locale.US, "真实净盈亏  %s$%.2f",
-                                    if (netProfit >= 0) "+" else "-", kotlin.math.abs(netProfit)),
-                                    color = if (netProfit >= 0) AppColors.Success else AppColors.Danger,
-                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-                                Text("去交互  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable {
-                                        if (project.official_url.startsWith("https://")) {
-                                            context.startActivity(Intent(context, BrowserActivity::class.java)
-                                                .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
-                                                .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
-                                        } else onProjectSelected(project)
-                                    })
+                                if (project.description.isNotBlank()) {
+                                    Text(project.description, color = AppColors.TextSecondary,
+                                        style = MaterialTheme.typography.bodySmall, maxLines = 2,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("真实净盈亏", color = AppColors.TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                                    Text(String.format(Locale.US, "%s$%.2f",
+                                        if (netProfit >= 0) "+" else "-", kotlin.math.abs(netProfit)),
+                                        color = if (netProfit >= 0) AppColors.Success else AppColors.Danger,
+                                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                }
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Surface(onClick = {
