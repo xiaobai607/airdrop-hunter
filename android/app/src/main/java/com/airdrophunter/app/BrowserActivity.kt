@@ -67,6 +67,7 @@ import androidx.core.view.WindowCompat
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppTextButton
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -996,14 +997,14 @@ private fun BrowserScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
+                AppTextButton(onClick = {
                     approvedOrigin = DappProviderBridge.origin(Uri.parse(targetUrl))
                     pendingNavigationUrl = null
                     browser?.loadUrl(targetUrl)
                 }) { Text("确认访问", color = Color(0xFFB42318)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingNavigationUrl = null }) { Text("留在当前网站") }
+                AppTextButton(onClick = { pendingNavigationUrl = null }) { Text("留在当前网站") }
             }
         )
     }
@@ -1023,7 +1024,7 @@ private fun BrowserScreen(
                 }
             },
             confirmButton = {
-                TextButton(
+                AppTextButton(
                     enabled = connectedDappAccounts.isNotEmpty() || walletConnectReady,
                     onClick = {
                     val addresses = connectedDappAccounts.map { it.address }.distinct()
@@ -1038,7 +1039,7 @@ private fun BrowserScreen(
                 }) { Text(if (connectedDappAccounts.isEmpty() && !walletConnectReady) "钱包连接服务初始化中…" else "确认并连接", color = AppColors.Primary) }
             },
             dismissButton = {
-                TextButton(onClick = {
+                AppTextButton(onClick = {
                     DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                     pendingDappConnection = null
                 }) { Text("拒绝") }
@@ -1059,11 +1060,11 @@ private fun BrowserScreen(
                     Text("选择钱包", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     if (wallets.isEmpty()) Text("尚未保存钱包地址", color = AppColors.TextSecondary)
                     wallets.forEach { wallet ->
-                        TextButton(onClick = { selectedWallet = wallet; showWalletPicker = false }, modifier = Modifier.fillMaxWidth()) {
+                        AppTextButton(onClick = { selectedWallet = wallet; showWalletPicker = false }, modifier = Modifier.fillMaxWidth()) {
                             Text("${wallet.walletName.ifBlank { wallet.chain }}  ·  ${shortAddress(wallet.address)}")
                         }
                     }
-                    TextButton(onClick = { showWalletPicker = false }, modifier = Modifier.align(Alignment.End)) { Text("关闭") }
+                    AppTextButton(onClick = { showWalletPicker = false }, modifier = Modifier.align(Alignment.End)) { Text("关闭") }
                 }
             }
         }
