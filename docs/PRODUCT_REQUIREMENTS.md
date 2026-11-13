@@ -21,7 +21,7 @@ Refactor sequence:
 4. Check dark/light theme, loading/empty/error states, touch feedback, accessibility and narrow-screen layouts.
 5. Only after the refactor is complete, run the full Android/backend test and APK build batch. Do not claim runtime/device acceptance from source inspection alone.
 
-Current implementation status at entry time: first-pass shared button/field/text-action components and selected screen migrations have landed; this is not a completed global redesign. Continue auditing remaining screens and verify compile compatibility before marking any area complete.
+Progress update: shared button/field/text-action primitives are now applied across browser toolbar/accounting inputs, wallet manager, wallet detail transaction import, wallet asset dialog, wallet eligibility dialog, campaign library, and official announcement list/detail. Wallet detail/asset/eligibility surfaces now use semantic MaterialTheme colors; wallet cards use the shared radius/border treatment; external WalletConnect's forced light theme has been narrowed to its own navigation graph so it no longer overrides the wallet-management screen. Existing real data and accounting actions are preserved. This remains a staged refactor, not a completed global redesign; remaining screens and compile compatibility still need review.
 
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
