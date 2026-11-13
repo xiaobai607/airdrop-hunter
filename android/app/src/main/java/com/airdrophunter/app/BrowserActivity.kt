@@ -400,7 +400,7 @@ private fun BrowserScreen(
                     },
                     actions = {
                         AppButton(
-                            text = if (walletConnectReady) "连接外部钱包" else "初始化中…",
+                            text = "连接外部钱包",
                             onClick = { walletNavController.openAppKit() },
                             style = AppButtonStyle.SECONDARY,
                             enabled = walletConnectReady,
@@ -412,6 +412,7 @@ private fun BrowserScreen(
                             AppButton(
                                 text = "钱包 · ${selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }}",
                                 onClick = { showWalletPicker = true },
+                                modifier = Modifier.widthIn(max = 124.dp),
                                 style = AppButtonStyle.TEXT,
                                 fullWidth = false,
                                 heightDp = 44,
