@@ -631,3 +631,12 @@
 - 保留真实快照、Room 缓存优先、远程刷新、演示数据隔离、本机评分权限判断、评分保存和项目加入流程；没有修改评分资格、数据来源或统计口径。
 - 静态核对：仅改标题文案、间距、卡片视觉和周期选中态颜色；API、缓存、钱包参与判断和评分保存调用未改。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色/窄屏验收。
 - Commit：`327288cc042eb8137bc4080a9ce92f378ff9e0d8`。
+
+
+### 2026-11-13 — 社区贡献核验等级条适配主题色（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/CommunityVerificationTierBar.kt`。
+- 移除核验等级条中固定写死的红/橙色，改用主题语义色：用户自报使用 surfaceVariant、链上已确认使用 primary、链上精确核验使用 secondary。
+- 保留三档等级的名称、数值比例计算、正数/非有限值过滤、紧凑模式高度和金额标签；不修改核验等级定义或统计逻辑。
+- 静态核对：颜色仅由 MaterialTheme.colorScheme 提供，数据比例算法与状态文案未改。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色验收。
+- Commit：`49e03c1476b951d094a2804030593e124e7b7417`。
