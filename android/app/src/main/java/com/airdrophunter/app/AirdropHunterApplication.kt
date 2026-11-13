@@ -44,7 +44,7 @@ class AirdropHunterApplication : Application() {
                     val rpcResult = response.result as? Modal.Model.JsonRpcResponse.JsonRpcResult
                         ?: return@collect
                     val txHash = rpcResult.result as? String ?: return@collect
-                    val chainId = response.chainId.removePrefix("eip155:").toLongOrNull()
+                    val chainId = response.chainId?.removePrefix("eip155:")?.toLongOrNull()
                         ?: return@collect
                     val draftId = runCatching {
                         appContainer.web3TransactionRepository.attachWalletConnectResponse(
