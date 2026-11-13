@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -45,6 +46,7 @@ import com.airdrophunter.app.ui.components.AppHaptic
 import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppButtonStyle
 import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.StaggeredListItem
 import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.google.gson.Gson
@@ -331,7 +333,8 @@ fun WalletManagerScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(state.wallets, key = { it.id }) { wallet ->
+                    itemsIndexed(state.wallets, key = { _, wallet -> wallet.id }) { index, wallet ->
+                        StaggeredListItem(wallet.id, index) {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -393,6 +396,7 @@ fun WalletManagerScreen(
                                     haptic = AppHaptic.WARNING
                                 )
                             }
+                        }
                         }
                     }
                 }
