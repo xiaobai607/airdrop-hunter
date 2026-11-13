@@ -11,6 +11,29 @@ import org.junit.Test
 
 class AccountingRepositoryTest {
     @Test
+    fun loadPersonalLedgerReturnsOnlyActiveLocalRealRowsNewestFirst() = runBlocking {
+        val source = FakeAccountingLocalDataSource()
+        val newest = ledgerWrite("newest").copy(occurred_at = "2026-11-13T12:00:00Z")
+        val older = ledgerWrite("older").copy(occurred_at = "2026-11-12T12:00:00Z")
+        val demo = ledgerWrite("demo").copy(extra = mapOf("is_demo" to "true"))
+        source.local["personal_ledger"] = Gson().toJson(listOf(older, demo, newest))
+
+        val result = AccountingRepository(source).loadPersonalLedger()
+
+        assertEquals(listOf("newest", "older"), result.map { it.client_record_id })
+    }
+
+    @Test
+    fun loadPersonalLedgerTreatsMissingOrMalformedLocalPayloadAsEmpty() = runBlocking {
+        val source = FakeAccountingLocalDataSource()
+        val repository = AccountingRepository(source)
+
+        assertTrue(repository.loadPersonalLedger().isEmpty())
+        source.local["personal_ledger"] = "{invalid-json"
+        assertTrue(repository.loadPersonalLedger().isEmpty())
+    }
+
+    @Test
     fun loadProjectsMergesSourcesAndDeduplicatesByLocalId() = runBlocking {
         val source = FakeAccountingLocalDataSource()
         source.local["projects"] = Gson().toJson(listOf(project("same", "Remote cache"), project("second", "Second")))
