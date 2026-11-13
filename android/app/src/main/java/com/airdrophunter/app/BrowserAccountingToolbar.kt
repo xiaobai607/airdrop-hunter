@@ -479,7 +479,7 @@ fun BrowserAccountingToolbar(
                                     Icon(
                                         imageVector = Icons.Filled.Add,
                                         contentDescription = "添加工具",
-                                        tint = Color(0xFF374151),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(26.dp)
                                     )
                                 }
@@ -646,9 +646,9 @@ fun BrowserAccountingToolbar(
                                     else -> "处理中"
                                 }
                                 Surface(
-                                    color = Color(0xFFF5F8FF),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
                                     shape = RoundedCornerShape(12.dp),
-                                    border = BorderStroke(1.dp, Color(0xFFD8E4FA))
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Row(
                                         Modifier.fillMaxWidth().padding(10.dp),
@@ -663,7 +663,7 @@ fun BrowserAccountingToolbar(
                                                 style = MaterialTheme.typography.labelSmall
                                             )
                                             draft.lastError?.let {
-                                                Text(it, color = Color(0xFF9A5A16), style = MaterialTheme.typography.labelSmall, maxLines = 2)
+                                                Text(it, color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall, maxLines = 2)
                                             }
                                         }
                                         when (draft.status) {
@@ -757,9 +757,9 @@ fun BrowserAccountingToolbar(
                         ) {
                             items(realPending, key = { it.id }) { bill ->
                                 Surface(
-                                    color = Color(0xFFFFFAF4),
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
                                     shape = RoundedCornerShape(14.dp),
-                                    border = BorderStroke(1.dp, Color(0xFFF2D8B9))
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Row(
                                         Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
@@ -776,7 +776,7 @@ fun BrowserAccountingToolbar(
                                                     quote?.let { String.format(Locale.US, "真实 Gas $%.2f", it) }
                                                         ?: "真实 Gas 已获取 · USD 待填写"
                                                 } else String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd),
-                                                color = Color(0xFF9A5A16),
+                                                color = MaterialTheme.colorScheme.tertiary,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账 · " else "待确认交易 · ") + bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
@@ -853,13 +853,13 @@ fun BrowserAccountingToolbar(
                     if (bill.id.startsWith("WEB3-") && bill.interactionMethod.contains("手动核验")) {
                         Text(
                             "自动回执核验未完成。请先在区块浏览器确认交易状态，再填写真实 Gas 和收益；不要把预估费用当成实际费用。",
-                            color = Color(0xFF9A5A16),
+                            color = MaterialTheme.colorScheme.tertiary,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                     if (gasL1Native.isNotBlank() || gasL2Native.isNotBlank() || gasOperatorNative.isNotBlank()) {
                         Surface(
-                            color = Color(0xFFF7F8FA),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1135,7 +1135,7 @@ fun BrowserAccountingToolbar(
                                         selectedProjectLocalId = project.id
                                         showProjectPicker = false
                                     }, scale = 0.96f),
-                                    color = if (selected) Color(0xFFE8F3F1) else Color(0xFFF8FAFC),
+                                    color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
                                 ) {
