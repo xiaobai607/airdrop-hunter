@@ -39,7 +39,6 @@ import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.appPressFeedback
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.CacheStore
-import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.CommunityTokenAggregateDto
 import com.airdrophunter.app.data.formatCommunityTokenBreakdown
 import com.airdrophunter.app.data.WalletDto
