@@ -2,7 +2,6 @@ package com.airdrophunter.app
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,6 +36,9 @@ import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.data.CommunityProjectStatsDto
 import com.airdrophunter.app.data.CommunityProjectSubmissionRequest
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppChip
 import java.time.Instant
 import java.util.Locale
 
@@ -72,7 +74,7 @@ private data class CommunityProject(
 }
 
 private enum class CommunityRanking(val title: String) {
-    REWARD("🔥 吸金榜"), GAS("💀 避坑榜"), NEW("🚀 新星榜")
+    REWARD("吸金榜"), GAS("避坑榜"), NEW("新星榜")
 }
 
 @Composable
@@ -312,16 +314,12 @@ fun CommunitySquareScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("社区榜单", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CommunityRanking.values().forEach { option ->
-                        FilterChip(
-                            selected = ranking == option, onClick = { ranking = option },
-                            label = { Text(option.title, maxLines = 1, style = MaterialTheme.typography.labelSmall) },
-                            shape = RoundedCornerShape(999.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFE8F3F1), selectedLabelColor = AppColors.Primary,
-                                labelColor = AppColors.TextSecondary
-                            )
+                        AppChip(
+                            text = option.title,
+                            selected = ranking == option,
+                            onClick = { ranking = option }
                         )
                     }
                 }
@@ -363,11 +361,14 @@ fun CommunitySquareScreen(
         }
         items(displayedProjects, key = { it.id }) { project ->
             Card(
-                modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(project.id, project.name, project.chain) },
-                shape = RoundedCornerShape(19.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                modifier = Modifier.fillMaxWidth().appPressFeedback(
+                    onClick = { onProjectSelected(project.id, project.name, project.chain) },
+                    scale = 0.96f
+                ),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
                 elevation = CardDefaults.cardElevation(0.dp), border = BorderStroke(1.dp, AppColors.Border)
             ) {
-                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(shape = RoundedCornerShape(13.dp), color = Color(0xFFEAF2FF), modifier = Modifier.size(45.dp)) {
                             Box(contentAlignment = Alignment.Center) { Text(project.logo, color = Color(0xFF315A9D), fontWeight = FontWeight.ExtraBold, fontSize = 21.sp) }
