@@ -159,6 +159,7 @@ fun WalletManagerScreen(
     val walletViewModel: WalletManagerViewModel = vm ?: viewModel(factory = WalletManagerViewModelFactory(application.appContainer.walletRepository))
     val state by walletViewModel.state.collectAsStateWithLifecycle()
     val walletConnectReady by WalletConnectInitializer.ready.collectAsStateWithLifecycle()
+    val walletConnectError by WalletConnectInitializer.error.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
     var address by remember { mutableStateOf("") }
     var selectedEcosystem by remember { mutableStateOf(WalletEcosystem.EVM) }
@@ -230,6 +231,23 @@ fun WalletManagerScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        if (walletConnectError != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    walletConnectError.orEmpty(),
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                TextButton(onClick = { WalletConnectInitializer.ensureInitialized(application) }) {
+                    Text("重试")
+                }
+            }
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -503,12 +521,20 @@ fun WalletManagerScreen(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 AppButton(
-                    text = if (walletConnectReady) "连接外部钱包（WalletConnect）" else "钱包连接服务初始化中…",
-                    onClick = {
-                        showAddDialog = false
-                        walletNavController.openAppKit()
+                    text = when {
+                        walletConnectReady -> "连接外部钱包（WalletConnect）"
+                        walletConnectError != null -> "重试钱包连接服务"
+                        else -> "钱包连接服务初始化中…"
                     },
-                    enabled = walletConnectReady,
+                    onClick = {
+                        if (walletConnectReady) {
+                            showAddDialog = false
+                            walletNavController.openAppKit()
+                        } else {
+                            WalletConnectInitializer.ensureInitialized(application)
+                        }
+                    },
+                    enabled = walletConnectReady || walletConnectError != null,
                     style = AppButtonStyle.SECONDARY
                 )
                 Text("选择地址所属链", color = MaterialTheme.colorScheme.onSurface,
