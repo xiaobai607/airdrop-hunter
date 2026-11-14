@@ -120,8 +120,8 @@ fun HomeScreen(
     Column(
         modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -201,7 +201,7 @@ fun HomeScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth(layout.widthFraction)
-                            .height(layout.heightDp.dp)
+                            .heightIn(min = layout.heightDp.dp)
                             .onGloballyPositioned { dashboardBounds[card.id] = it.boundsInRoot() }
                             .graphicsLayer {
                                 if (activeDragCard == card.id) {
@@ -256,7 +256,7 @@ fun HomeScreen(
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         if (card.id == "airdrop_navigation") {
-                            Row(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 DashboardIconTile(icon, iconBackground, iconTint, 40.dp)
@@ -271,7 +271,7 @@ fun HomeScreen(
                                 } else Text("打开  ›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
                             }
                         } else {
-                            Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     DashboardIconTile(icon, iconBackground, iconTint, 40.dp)
@@ -281,8 +281,8 @@ fun HomeScreen(
                                         contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = MaterialTheme.colorScheme.error) }
                                 }
                                 Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -332,6 +332,21 @@ fun HomeScreen(
                     )
                 }
             }
+            Surface(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
+                    .appPressFeedback(onClick = onOpenGlobalSearch, scale = 1f),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("搜索币种名称或代号", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+            }
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
@@ -367,21 +382,6 @@ fun HomeScreen(
                             if (index != visibleMarket.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
-                }
-            }
-            Surface(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
-                    .appPressFeedback(onClick = onOpenGlobalSearch, scale = 1f),
-                color = MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("搜索币种名称或代号", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Text(
