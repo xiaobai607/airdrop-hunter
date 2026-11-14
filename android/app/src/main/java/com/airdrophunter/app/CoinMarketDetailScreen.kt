@@ -151,7 +151,7 @@ private fun MarketMetricRow(label: String, value: String) {
         Text(
             label,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.85f),
+            modifier = Modifier.weight(0.9f),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -159,8 +159,11 @@ private fun MarketMetricRow(label: String, value: String) {
             value,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1.15f),
-            textAlign = TextAlign.End
+            modifier = Modifier.weight(1.1f),
+            textAlign = TextAlign.End,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            softWrap = true
         )
     }
 }
