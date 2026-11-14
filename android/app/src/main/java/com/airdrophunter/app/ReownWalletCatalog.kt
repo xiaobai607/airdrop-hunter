@@ -276,6 +276,10 @@ internal class ReownWalletCatalogRepository(private val context: Context) {
             loader.enqueue(
                 ImageRequest.Builder(context)
                     .data(url)
+                    // Match the headers used by WalletImage in the pinned AppKit 1.3.3 source.
+                    .addHeader("x-project-id", BuildConfig.REOWN_PROJECT_ID)
+                    .addHeader("x-sdk-version", "1.3.3")
+                    .addHeader("x-sdk-type", "appkit")
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
                     .networkCachePolicy(CachePolicy.ENABLED)
