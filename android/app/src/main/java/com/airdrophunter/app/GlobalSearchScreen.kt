@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,6 +75,7 @@ fun GlobalSearchScreen(
     val scope = rememberCoroutineScope()
     val searchFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current
     LaunchedEffect(Unit) {
         searchFocusRequester.requestFocus()
         keyboardController?.show()
@@ -233,8 +235,8 @@ fun GlobalSearchScreen(
 
         AnimatedVisibility(
             visible = query.isBlank() && history.isNotEmpty(),
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200)) + shrinkVertically(tween(260))
+            enter = fadeIn(tween(AppDesignTokens.Motion.TabMs)),
+            exit = fadeOut(tween(AppDesignTokens.Motion.TabMs)) + shrinkVertically(tween(AppDesignTokens.Motion.ExitMs))
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -282,6 +284,23 @@ fun GlobalSearchScreen(
             cacheStatusLabel(if (category == SearchCategory.COIN) coinCacheMetadata else dappCacheMetadata)?.let {
                 Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
+            if (isSearching && (coinResults.isNotEmpty() || dappResults.isNotEmpty())) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 1.8.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "正在更新搜索结果，当前缓存结果仍可使用",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
             when (category) {
                 SearchCategory.COIN -> if (coinResults.isEmpty()) {
                     SearchResultPlaceholder(
@@ -295,8 +314,10 @@ fun GlobalSearchScreen(
                             val delay = index * AppDesignTokens.Motion.StaggerMs
                             AnimatedVisibility(
                                 visible = true,
-                                enter = fadeIn(tween(200, delayMillis = delay)) +
-                                    slideInVertically(tween(200, delayMillis = delay)) { 8 }
+                                enter = fadeIn(tween(AppDesignTokens.Motion.FastMs, delayMillis = delay)) +
+                                    slideInVertically(tween(AppDesignTokens.Motion.FastMs, delayMillis = delay)) {
+                                        with(density) { 8.dp.roundToPx() }
+                                    }
                             ) { MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
                         } else {
                             MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) }
