@@ -219,6 +219,7 @@ internal class ReownWalletCatalogRepository(private val context: Context) {
         }
 
         if (!Regex("^[a-fA-F0-9]{64}$").matches(selected.id)) return null
+        if (selected.imageId.isNullOrBlank()) return null
         return selected.copy(priority = priority)
     }
 
@@ -267,7 +268,9 @@ internal class ReownWalletCatalogRepository(private val context: Context) {
         val loader = context.imageLoader
         wallets.mapNotNull { wallet ->
             wallet.imageId?.takeIf { it.isNotBlank() }?.let { imageId ->
-                "https://explorer-api.walletconnect.com/v3/logo/lg/$imageId?projectId=${BuildConfig.REOWN_PROJECT_ID}"
+                // Match the image URL generated internally by AppKit 1.3.3 so
+                // its Compose requests hit this same Coil memory/disk cache key.
+                "https://api.web3modal.com/getWalletImage/$imageId"
             }
         }.forEach { url ->
             loader.enqueue(
