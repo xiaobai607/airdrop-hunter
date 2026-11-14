@@ -336,8 +336,10 @@ fun GlobalSearchScreen(
                             val delay = index * AppDesignTokens.Motion.StaggerMs
                             AnimatedVisibility(
                                 visible = true,
-                                enter = fadeIn(tween(200, delayMillis = delay)) +
-                                    slideInVertically(tween(200, delayMillis = delay)) { 8 }
+                                enter = fadeIn(tween(AppDesignTokens.Motion.FastMs, delayMillis = delay)) +
+                                    slideInVertically(tween(AppDesignTokens.Motion.FastMs, delayMillis = delay)) {
+                                        with(density) { 8.dp.roundToPx() }
+                                    }
                             ) { DappResultRow(project) { recordAndOpenDapp(project) } }
                         } else {
                             DappResultRow(project) { recordAndOpenDapp(project) }
