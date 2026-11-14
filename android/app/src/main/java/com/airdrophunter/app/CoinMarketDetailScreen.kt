@@ -105,8 +105,15 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
                 ) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("最新价格", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("$ " + priceFormat.format(value.lastPrice), color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            "$ " + priceFormat.format(value.lastPrice),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            softWrap = true,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Text(String.format(Locale.US, "%+.2f%%（24小时）", value.change24hPercent),
                             color = if (positive) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
