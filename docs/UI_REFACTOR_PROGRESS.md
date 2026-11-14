@@ -1194,3 +1194,13 @@
 - `WalletManagerScreen` 增加目录/连接服务初始化失败提示和重试入口，避免目录请求失败后按钮永久停留在“初始化中”。
 - 当前明确限制：现有 `AppKitChainsPresets.ethChains` 与会话账户解析仍为 EVM；本批目录只筛选 EVM 主网兼容钱包。Solana 原生 namespace/adapter 尚未接入，不能把 Phantom 等钱包的 Solana 连接能力算作已完成。
 - 本批尚未运行 Gradle 单元测试、Android 编译、CI 或真机验收；官方 API 的实际返回数据、最终核验到的数量、AppKit 1.3.3 allowlist 的真实显示顺序、Logo 缓存命中率和连接兼容性均待设备验证。未构建 APK。
+
+
+### 2026-11-14 — 钱包生态与个人账本云同步边界审计
+
+- 钱包连接：当前 APP 的 AppKit 初始化明确调用 `AppKitChainsPresets.ethChains`；`WalletConnectSessionDelegate.parseAccounts` 只接受 `eip155`，因此即使对端会话返回 Solana namespace，当前 APP 也会过滤掉，不会保存为已连接账户。
+- 钱包目录：精选目录查询要求 `chains=eip155:1`，这是“支持 EVM 的精选钱包”，不是“已完成 EVM + Solana 的多链钱包目录”。Phantom/Backpack 等多生态钱包只能按其 EVM 能力进入当前列表；Solana-only 钱包不应被误标为已支持。
+- SDK 核对：Reown Kotlin 协议层包含 Solana 签名结果模型，但 APP 当前 pinned AppKit 配置仍只提供 EVM chain presets。不能仅凭协议层存在 Solana 数据类型就宣称 APP 已有 Solana 连接、签名、交易解析和记账闭环。下一阶段需按 SDK 版本确认 Solana namespace 所需 methods/events、账户格式、签名请求回调及链上交易同步，然后补齐 delegate 与账本网络类型测试。
+- 个人账本：`CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED=false`，`AccountingRepository` 和 `PersonalLedgerSyncWorker` 均在该策略关闭时提前退出；因此当前版本登录用户和游客的个人账本都没有云端恢复/上传。后端 `/api/personal-ledger` 仅依赖登录用户身份，数据库记录按 `user_id` 隔离，没有游客私有账本接口。
+- 按既定产品要求，游客个人账本也必须云端保存并支持本人跨设备恢复。不能简单打开布尔开关：需要先新增独立、不可猜测、可撤销的 guest identity/capability 与服务端数据隔离；游客转登录时还需明确本地/云端账本合并规则，避免串号或覆盖。当前记录为明确待实现缺口，不得描述成已完成。
+- 本轮只修正文档和源码注释，未改变云同步行为、WalletConnect 安全流程或钱包展示范围；未运行 Gradle/CI/真机测试，未构建 APK。
