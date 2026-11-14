@@ -153,11 +153,11 @@ internal class ReownWalletCatalogRepository(private val context: Context) {
             source = CuratedWalletCatalog.CACHE_SOURCE,
             ttlMillis = CuratedWalletCatalog.CACHE_TTL_MILLIS,
             readCache = {
-                CacheStore.readPublic(CuratedWalletCatalog.CACHE_KEY)?.let(::decode)
+                CacheStore.readRemoteCache(CuratedWalletCatalog.CACHE_KEY)?.let(::decode)
             },
             fetch = { fetchCuratedWallets() },
             save = { wallets ->
-                CacheStore.writePublic(CuratedWalletCatalog.CACHE_KEY, gson.toJson(wallets))
+                CacheStore.writeRemoteCache(CuratedWalletCatalog.CACHE_KEY, gson.toJson(wallets))
             }
         )
         val wallets = result.data.orEmpty()
