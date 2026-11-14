@@ -79,7 +79,7 @@ object AppDesignTokens {
         const val ExitMs = 260
         const val NumberRollMs = 400
         const val StaggerMs = 40
-        const val MaxStaggerItems = 2
+        const val MaxStaggerItems = 6
         const val PressCardScale = 0.96f
         const val PressButtonScale = 0.94f
     }
