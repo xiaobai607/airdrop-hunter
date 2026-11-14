@@ -138,14 +138,9 @@ internal object CuratedWalletCatalog {
 }
 
 internal class ReownWalletCatalogRepository(private val context: Context) {
-    companion object {
-        // One process-wide coordinator prevents the home prewarm and picker entry
-        // from issuing duplicate Explorer requests for the same cache key.
-        private val sharedCoordinator = CacheRefreshCoordinator()
-    }
-
     private val gson = Gson()
-    private val coordinator = sharedCoordinator
+    // Reuse the app-wide coordinator shared with market, search and asset caches.
+    private val coordinator = CacheRefreshCoordinator.shared
 
     suspend fun loadCuratedWallets(
         preferStaleCache: Boolean = false
