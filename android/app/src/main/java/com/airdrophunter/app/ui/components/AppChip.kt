@@ -1,6 +1,7 @@
 package com.airdrophunter.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -41,11 +42,18 @@ fun AppChip(
             modifier = Modifier
                 .height(AppDesignTokens.Control.ChipHeight.dp)
                 .background(
-                    if (!enabled) colors.surfaceVariant.copy(alpha = 0.48f)
-                    else if (selected) colors.primary else colors.surfaceVariant,
+                    when {
+                        !enabled -> colors.surfaceVariant.copy(alpha = 0.48f)
+                        selected -> colors.primary
+                        else -> colors.surface
+                    },
                     shape
                 )
-                .padding(horizontal = 16.dp),
+                .then(
+                    if (enabled && !selected) Modifier.border(1.dp, colors.outline, shape)
+                    else Modifier
+                )
+                .padding(horizontal = 14.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
