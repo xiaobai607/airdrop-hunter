@@ -133,7 +133,7 @@ internal object CuratedWalletCatalog {
         value.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]+"), "")
 }
 
-class ReownWalletCatalogRepository(private val context: Context) {
+internal class ReownWalletCatalogRepository(private val context: Context) {
     private val gson = Gson()
     private val coordinator = CacheRefreshCoordinator()
 
@@ -168,17 +168,20 @@ class ReownWalletCatalogRepository(private val context: Context) {
             }
         }.awaitAll().filterNotNull()
 
-        val unique = resolved
-            .distinctBy { it.id }
-            .distinctBy { CuratedWalletCatalog.normalizedName(it.name) }
-            .sortedBy { it.priority }
-
-        if (unique.size < CuratedWalletCatalog.MINIMUM_VERIFIED_WALLETS) {
+        val duplicateId = resolved.groupBy { it.id }.values.any { it.size > 1 }
+        val duplicateName = resolved.groupBy {
+            CuratedWalletCatalog.normalizedName(it.name)
+        }.values.any { it.size > 1 }
+        if (duplicateId || duplicateName) {
+            throw IOException("精选钱包配置出现重复官方目录项，已阻止初始化")
+        }
+        val ordered = resolved.sortedBy { it.priority }
+        if (ordered.size < CuratedWalletCatalog.MINIMUM_VERIFIED_WALLETS) {
             throw IOException(
-                "Reown 官方目录仅核验到 ${unique.size}/${CuratedWalletCatalog.definitions.size} 个精选钱包"
+                "Reown 官方目录仅核验到 ${ordered.size}/${CuratedWalletCatalog.definitions.size} 个精选钱包"
             )
         }
-        unique
+        ordered
     }
 
     private suspend fun findExactListing(
@@ -202,12 +205,7 @@ class ReownWalletCatalogRepository(private val context: Context) {
             host == definition.officialHost ||
                 host.endsWith(".${definition.officialHost}")
         }
-        val selected = when {
-            hostMatches.size == 1 -> hostMatches.single()
-            hostMatches.size > 1 -> return null
-            candidates.size == 1 && candidates.single().homepage.isNullOrBlank() -> candidates.single()
-            else -> return null
-        }
+        val selected = hostMatches.singleOrNull() ?: return null
 
         if (!Regex("^[a-fA-F0-9]{64}$").matches(selected.id)) return null
         return selected.copy(priority = priority)
