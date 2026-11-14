@@ -1187,10 +1187,10 @@
 ### 2026-11-14 — APP 精选钱包目录接入 Reown 官方 Explorer
 
 - 新增 `ReownWalletCatalog.kt`：APP 固定维护 15 个候选钱包（MetaMask、OKX Wallet、Trust Wallet、Rabby、Phantom、Bitget Wallet、Binance Wallet、SafePal、TokenPocket、imToken、Coinbase Wallet、Backpack、Zerion、Rainbow、Uniswap Wallet）。
-- 不写死或猜测 Reown ID。启动连接流程前，按名称查询官方 Explorer，并限定 Android 平台、`eip155:1` 和 `sign_v2`；只有名称精确匹配且官方 homepage 主机名核验通过、ID 格式有效的条目才会进入精选目录。重复 ID/名称会阻止目录初始化，不做静默拼接或重复展示。
-- 仅将核验通过的精选条目保存到统一公共缓存（`CacheStore.readPublic/writePublic` + `CacheRefreshCoordinator`），TTL 7 天；不下载或缓存 SDK 的完整钱包目录。首次在线核验少于 8 个时 fail closed，显示错误并允许重试，不回退到全量目录。
-- 初始化 AppKit 时把按成功连接次数、最近成功时间排序后的 ID 同时传入 `includeWalletIds` 与 `recommendedWalletsIds`；保留 Reown 原生 WalletConnect 会话、授权和断开流程。点击、拒绝、失败不计数，只有 `onSessionApproved` 更新本地排序数据。
-- `AirdropHunterApplication` 配置 Coil 单例的内存缓存与磁盘缓存；连接初始化时预热精选钱包的高清官方 Logo，降低重复进入时的网络加载与解码开销。
+- 不写死或猜测 Reown ID。启动预热/连接流程前，按名称查询官方 Explorer，并限定 Android 平台、`eip155:1` 和 `sign_v2`；只有名称精确匹配、官方 homepage 主机名核验通过、ID 为有效 64 位十六进制且带有 Logo ID 的条目才会进入精选目录。重复 ID/名称会阻止目录初始化，不做静默拼接或重复展示。
+- 仅将核验通过的精选条目保存到统一公共缓存（`CacheStore.readPublic/writePublic` + `CacheRefreshCoordinator`），TTL 7 天；不下载或缓存 SDK 的完整钱包目录。首页启动后由后台任务预热，和连接入口共用同一个刷新协调器，避免同时请求同一目录。首次在线核验少于 8 个时 fail closed，显示错误并允许重试，不回退到全量目录。
+- 初始化 AppKit 时把按成功连接次数、最近成功时间排序后的 ID 传入 `includeWalletIds`。核对了 Reown Kotlin 1.3.3 源码：`includeWalletIds` 非空时 SDK 直接走 include 列表分支，不会把默认推荐/已安装目录混入；`recommendedWalletsIds` 在该分支不参与列表排序，因此已去掉重复传参。APP 已按使用次数排列 include ID，但服务端返回顺序是否原样保留仍需真机验证。
+- `AirdropHunterApplication` 配置 Coil 2.7.0 单例的内存缓存与磁盘缓存。核对 Reown Kotlin 1.3.3 的 `WalletImage`：它使用 Coil singleton、`getWalletImage/{imageId}` URL 和项目/SDK 请求头；APP 预热时使用相同 URL 与请求头，目标是让 AppKit 弹窗复用同一磁盘/内存缓存，而不是另存一份不同 URL 的图片。
 - `WalletManagerScreen` 增加目录/连接服务初始化失败提示和重试入口，避免目录请求失败后按钮永久停留在“初始化中”。
 - 当前明确限制：现有 `AppKitChainsPresets.ethChains` 与会话账户解析仍为 EVM；本批目录只筛选 EVM 主网兼容钱包。Solana 原生 namespace/adapter 尚未接入，不能把 Phantom 等钱包的 Solana 连接能力算作已完成。
-- 本批尚未运行 Gradle 单元测试、Android 编译、CI 或真机验收；官方 API 返回结构、实际可连接钱包数、AppKit 1.3.3 的 allowlist 运行行为、图标命中率及排序展示效果均待构建/设备验证。未构建 APK。
+- 本批尚未运行 Gradle 单元测试、Android 编译、CI 或真机验收；官方 API 的实际返回数据、最终核验到的数量、AppKit 1.3.3 allowlist 的真实显示顺序、Logo 缓存命中率和连接兼容性均待设备验证。未构建 APK。
