@@ -2,6 +2,7 @@ package com.airdrophunter.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Box
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.AppTextField
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.AirdropWriteRequest
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AirdropDiscoveryScreen(
     modifier: Modifier = Modifier,
