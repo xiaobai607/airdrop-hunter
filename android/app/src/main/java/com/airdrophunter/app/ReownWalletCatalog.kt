@@ -147,7 +147,16 @@ internal class ReownWalletCatalogRepository(private val context: Context) {
     private val gson = Gson()
     private val coordinator = sharedCoordinator
 
-    suspend fun loadCuratedWallets(): List<ReownWalletListing> {
+    suspend fun loadCuratedWallets(
+        preferStaleCache: Boolean = false
+    ): List<ReownWalletListing> {
+        if (preferStaleCache) {
+            val cached = CacheStore.readRemoteCache(CuratedWalletCatalog.CACHE_KEY)?.let(::decode)
+            if (cached != null && cached.size >= CuratedWalletCatalog.MINIMUM_VERIFIED_WALLETS) {
+                return cached
+            }
+        }
+
         val result = coordinator.load(
             cacheKey = CuratedWalletCatalog.CACHE_KEY,
             source = CuratedWalletCatalog.CACHE_SOURCE,
