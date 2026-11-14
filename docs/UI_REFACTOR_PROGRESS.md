@@ -1182,3 +1182,15 @@
 - 域名先转为 ASCII/IDN 并统一大小写、去除 `www.` 与末尾点；同一有效官网仍可合并不同显示形式。
 - `WalletUsageIdentityTest.kt`：补充非法域名回退与大小写/路径/末尾点规范化用例。尚未运行 Gradle 单元测试。
 - 钱包精选名单接入仍未完成：当前 AppKit 仍直接打开 SDK 钱包面板；本次不伪造目录 ID，也不把全量目录去重作为产品待办。
+
+
+### 2026-11-14 — APP 精选钱包目录接入 Reown 官方 Explorer
+
+- 新增 `ReownWalletCatalog.kt`：APP 固定维护 15 个候选钱包（MetaMask、OKX Wallet、Trust Wallet、Rabby、Phantom、Bitget Wallet、Binance Wallet、SafePal、TokenPocket、imToken、Coinbase Wallet、Backpack、Zerion、Rainbow、Uniswap Wallet）。
+- 不写死或猜测 Reown ID。启动连接流程前，按名称查询官方 Explorer，并限定 Android 平台、`eip155:1` 和 `sign_v2`；只有名称精确匹配且官方 homepage 主机名核验通过、ID 格式有效的条目才会进入精选目录。重复 ID/名称会阻止目录初始化，不做静默拼接或重复展示。
+- 仅将核验通过的精选条目保存到统一公共缓存（`CacheStore.readPublic/writePublic` + `CacheRefreshCoordinator`），TTL 7 天；不下载或缓存 SDK 的完整钱包目录。首次在线核验少于 8 个时 fail closed，显示错误并允许重试，不回退到全量目录。
+- 初始化 AppKit 时把按成功连接次数、最近成功时间排序后的 ID 同时传入 `includeWalletIds` 与 `recommendedWalletsIds`；保留 Reown 原生 WalletConnect 会话、授权和断开流程。点击、拒绝、失败不计数，只有 `onSessionApproved` 更新本地排序数据。
+- `AirdropHunterApplication` 配置 Coil 单例的内存缓存与磁盘缓存；连接初始化时预热精选钱包的高清官方 Logo，降低重复进入时的网络加载与解码开销。
+- `WalletManagerScreen` 增加目录/连接服务初始化失败提示和重试入口，避免目录请求失败后按钮永久停留在“初始化中”。
+- 当前明确限制：现有 `AppKitChainsPresets.ethChains` 与会话账户解析仍为 EVM；本批目录只筛选 EVM 主网兼容钱包。Solana 原生 namespace/adapter 尚未接入，不能把 Phantom 等钱包的 Solana 连接能力算作已完成。
+- 本批尚未运行 Gradle 单元测试、Android 编译、CI 或真机验收；官方 API 返回结构、实际可连接钱包数、AppKit 1.3.3 的 allowlist 运行行为、图标命中率及排序展示效果均待构建/设备验证。未构建 APK。
