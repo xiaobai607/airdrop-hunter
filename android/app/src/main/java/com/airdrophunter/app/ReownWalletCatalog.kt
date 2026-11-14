@@ -283,8 +283,8 @@ internal class ReownWalletCatalogRepository(private val context: Context) {
     }
 
     /**
-     * Warm the same Coil singleton used by Compose/AppKit with the large official
-     * Explorer logos. Disk cache survives picker exits and process restarts.
+     * Warm the same Coil singleton and image URL used by the AppKit wallet picker.
+     * Disk cache survives picker exits and process restarts.
      */
     fun preloadWalletIcons(wallets: List<ReownWalletListing>) {
         val loader = context.imageLoader
