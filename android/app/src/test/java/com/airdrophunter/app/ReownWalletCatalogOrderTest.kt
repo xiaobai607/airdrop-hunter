@@ -5,6 +5,17 @@ import org.junit.Test
 
 class ReownWalletCatalogOrderTest {
     @Test
+    fun curatedShortlistHasOneCanonicalEntryPerWallet() {
+        val definitions = CuratedWalletCatalog.definitions
+        assertEquals(definitions.size, definitions.map { it.key }.toSet().size)
+        assertEquals(
+            definitions.size,
+            definitions.map { CuratedWalletCatalog.normalizedName(it.displayName) }.toSet().size
+        )
+        assertEquals(definitions.size, definitions.map { it.officialHost }.toSet().size)
+    }
+
+    @Test
     fun successfulConnectionCountSortsWalletsBeforeDefaultPriority() {
         val wallets = listOf(
             ReownWalletListing("a".repeat(64), "MetaMask", null, null, 0),
