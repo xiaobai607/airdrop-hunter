@@ -2,6 +2,9 @@ package com.airdrophunter.app
 
 import android.content.Context
 import android.net.Uri
+import coil.imageLoader
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.airdrophunter.app.data.CacheRefreshCoordinator
 import com.airdrophunter.app.data.CacheStore
 import com.airdrophunter.app.BuildConfig
@@ -200,12 +203,20 @@ internal class ReownWalletCatalogRepository(private val context: Context) {
         }
         if (candidates.isEmpty()) return null
 
-        val hostMatches = candidates.filter { listing ->
-            val host = listing.homepage?.let(::hostOf) ?: return@filter false
-            host == definition.officialHost ||
-                host.endsWith(".${definition.officialHost}")
+        val hostMatches = candidates.mapNotNull { listing ->
+            val host = listing.homepage?.let(::hostOf) ?: return@mapNotNull null
+            listing to host
         }
-        val selected = hostMatches.singleOrNull() ?: return null
+        val exactHostMatches = hostMatches.filter { it.second == definition.officialHost }
+        val subdomainMatches = hostMatches.filter {
+            it.second.endsWith(".${definition.officialHost}")
+        }
+        val selected = when {
+            exactHostMatches.size == 1 -> exactHostMatches.single().first
+            exactHostMatches.size > 1 -> return null
+            subdomainMatches.size == 1 -> subdomainMatches.single().first
+            else -> return null
+        }
 
         if (!Regex("^[a-fA-F0-9]{64}$").matches(selected.id)) return null
         return selected.copy(priority = priority)
@@ -244,6 +255,28 @@ internal class ReownWalletCatalogRepository(private val context: Context) {
                 homepage = homepage,
                 imageId = imageId,
                 priority = Int.MAX_VALUE
+            )
+        }
+    }
+
+    /**
+     * Warm the same Coil singleton used by Compose/AppKit with the large official
+     * Explorer logos. Disk cache survives picker exits and process restarts.
+     */
+    fun preloadWalletIcons(wallets: List<ReownWalletListing>) {
+        val loader = context.imageLoader
+        wallets.mapNotNull { wallet ->
+            wallet.imageId?.takeIf { it.isNotBlank() }?.let { imageId ->
+                "https://explorer-api.walletconnect.com/v3/logo/lg/$imageId?projectId=${BuildConfig.REOWN_PROJECT_ID}"
+            }
+        }.forEach { url ->
+            loader.enqueue(
+                ImageRequest.Builder(context)
+                    .data(url)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .networkCachePolicy(CachePolicy.ENABLED)
+                    .build()
             )
         }
     }
