@@ -262,8 +262,8 @@ fun HomeScreen(
                                 DashboardIconTile(icon, iconBackground, iconTint, 40.dp)
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.SemiBold)
-                                    Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 }
                                 if (editingDashboard) {
                                     AppTextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
