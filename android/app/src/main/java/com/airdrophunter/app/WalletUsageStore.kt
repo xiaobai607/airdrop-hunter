@@ -46,14 +46,6 @@ object WalletUsageStore {
     }
 
     @Synchronized
-    fun orderedIdentities(context: Context): List<String> =
-        read(context).values.sortedWith(
-            compareByDescending<WalletUsageRecord> { it.successfulConnections }
-                .thenByDescending { it.lastConnectedAt }
-                .thenBy { it.displayName.lowercase(Locale.ROOT) }
-        ).map { it.identity }
-
-    @Synchronized
     fun records(context: Context): List<WalletUsageRecord> =
         read(context).values.sortedWith(
             compareByDescending<WalletUsageRecord> { it.successfulConnections }
