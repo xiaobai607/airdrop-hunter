@@ -139,13 +139,7 @@ class GlobalSyncDispatcherWorker(appContext: Context, params: WorkerParameters) 
     }
 }
 
-/**
- * Current release deliberately disables personal-ledger cloud sync for both
- * signed-in and guest scopes. This is not the final product behavior: the
- * product requires private cloud recovery for guests too. The backend currently
- * exposes only user-owned ledger rows, so guest sync must first gain a separate
- * unguessable, revocable guest identity and storage scope.
- */
+/** Current release stores every personal record locally; private cloud sync is deferred. */
 internal object CurrentReleaseDataPolicy {
     const val PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED = false
 }
