@@ -2,6 +2,10 @@ package com.airdrophunter.app
 
 import android.app.Application
 import android.util.Log
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -20,7 +24,23 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collect
 
-class AirdropHunterApplication : Application() {
+class AirdropHunterApplication : Application(), ImageLoaderFactory {
+    override fun newImageLoader(): ImageLoader =
+        ImageLoader.Builder(this)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.20)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache"))
+                    .maxSizePercent(0.04)
+                    .build()
+            }
+            .crossfade(false)
+            .build()
+
     val appContainer: AppContainer by lazy { AppContainer() }
     private val processLifecycleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var walletResponseReconciliationStarted = false
@@ -128,6 +148,7 @@ object WalletConnectInitializer {
                 require(walletIds.size >= CuratedWalletCatalog.MINIMUM_VERIFIED_WALLETS) {
                     "Verified wallet shortlist is incomplete"
                 }
+                ReownWalletCatalogRepository(application).preloadWalletIcons(orderedCatalog)
 
                 val metadata = Core.Model.AppMetaData(
                     name = "Airdrop Hunter",
