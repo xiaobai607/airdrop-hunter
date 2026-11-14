@@ -12,9 +12,11 @@ import com.google.gson.Gson
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import org.json.JSONArray
@@ -152,18 +154,20 @@ internal class ReownWalletCatalogRepository(private val context: Context) {
             }
         }
 
-        val result = coordinator.load(
-            cacheKey = CuratedWalletCatalog.CACHE_KEY,
-            source = CuratedWalletCatalog.CACHE_SOURCE,
-            ttlMillis = CuratedWalletCatalog.CACHE_TTL_MILLIS,
-            readCache = {
-                CacheStore.readRemoteCache(CuratedWalletCatalog.CACHE_KEY)?.let(::decode)
-            },
-            fetch = { fetchCuratedWallets() },
-            save = { wallets ->
-                CacheStore.writeRemoteCache(CuratedWalletCatalog.CACHE_KEY, gson.toJson(wallets))
-            }
-        )
+        val result = withContext(Dispatchers.IO) {
+            coordinator.load(
+                cacheKey = CuratedWalletCatalog.CACHE_KEY,
+                source = CuratedWalletCatalog.CACHE_SOURCE,
+                ttlMillis = CuratedWalletCatalog.CACHE_TTL_MILLIS,
+                readCache = {
+                    CacheStore.readRemoteCache(CuratedWalletCatalog.CACHE_KEY)?.let(::decode)
+                },
+                fetch = { fetchCuratedWallets() },
+                save = { wallets ->
+                    CacheStore.writeRemoteCache(CuratedWalletCatalog.CACHE_KEY, gson.toJson(wallets))
+                }
+            )
+        }
         val wallets = result.data.orEmpty()
         if (wallets.size < CuratedWalletCatalog.MINIMUM_VERIFIED_WALLETS) {
             val detail = result.errorMessage?.let { ": $it" }.orEmpty()
