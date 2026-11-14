@@ -10,8 +10,13 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 /**
- * Retries account-private ledger restoration/upload while authenticated.
- * Guest ledgers are local-only and are deliberately never sent to this worker.
+ * Retries private ledger restoration/upload. The current release policy exits
+ * before either authenticated or guest records are uploaded.
+ *
+ * Product requirement: guest personal ledgers must also be recoverable from
+ * cloud storage. Do not describe guest cloud backup as implemented, and do not
+ * simply remove the policy guard: the backend currently has only user-owned
+ * ledger rows. Guest sync needs a separate, unguessable, revocable guest scope.
  */
 class PersonalLedgerSyncWorker(
     appContext: Context,
