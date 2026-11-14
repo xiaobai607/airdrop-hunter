@@ -613,9 +613,10 @@ private fun FaviconLetter(site: AirdropSite) {
 
 @Composable
 private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker, onClick: (String) -> Unit) {
+    // Keep small-priced assets readable; two decimals can otherwise render as $ 0.00.
     val price = NumberFormat.getNumberInstance(Locale.US).apply {
         minimumFractionDigits = 2
-        maximumFractionDigits = 2
+        maximumFractionDigits = 8
     }.format(ticker.lastPrice)
     val change = String.format(Locale.US, "%+.2f%%", ticker.change24hPercent)
     Row(
