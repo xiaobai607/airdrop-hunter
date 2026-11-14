@@ -72,7 +72,10 @@ internal fun canonicalWalletIdentity(name: String, url: String?): String {
     val host = runCatching {
         val raw = url?.trim()?.takeIf { it.isNotEmpty() } ?: return@runCatching null
         val withScheme = if ("://" in raw) raw else "https://$raw"
-        val parsedHost = android.net.Uri.parse(withScheme).host
+        // java.net.URI works in local JVM unit tests as well as Android.
+        // android.net.Uri is a framework stub in the Gradle host test runtime
+        // and can return no host there, causing valid domains to fall back to names.
+        val parsedHost = java.net.URI(withScheme).host
             ?.trimEnd('.')
             ?.lowercase(Locale.ROOT)
             ?.removePrefix("www.")
