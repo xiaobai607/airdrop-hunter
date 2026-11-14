@@ -167,8 +167,7 @@ object WalletConnectInitializer {
                 AppKit.initialize(
                     init = Modal.Params.Init(
                         core = CoreClient,
-                        includeWalletIds = walletIds,
-                        recommendedWalletsIds = walletIds
+                        includeWalletIds = walletIds
                     ),
                     onSuccess = {
                         AppKit.setDelegate(WalletConnectSessionDelegate)
