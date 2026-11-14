@@ -152,7 +152,7 @@ object WalletConnectInitializer {
             try {
                 // Resolve only the APP-owned shortlist from the official Explorer API.
                 // The repository caches only these verified entries in the shared public cache.
-                val catalog = ReownWalletCatalogRepository(application).loadCuratedWallets()
+                val catalog = ReownWalletCatalogRepository(application).loadCuratedWallets(preferStaleCache = true)
                 val orderedCatalog = CuratedWalletCatalog.orderBySuccessfulConnections(
                     wallets = catalog,
                     usage = WalletUsageStore.records(application)
