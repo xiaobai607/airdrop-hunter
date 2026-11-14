@@ -97,6 +97,19 @@ class AirdropHunterApplication : Application(), ImageLoaderFactory {
         // tasks keep their own cadence, account boundary, and retry semantics.
         WalletConnectSessionDelegate.attachApplicationContext(this)
         ApiClient.initialize(this)
+
+        // Warm the public curated wallet directory and its icon disk cache while
+        // the home screen is available; never block first-frame rendering.
+        processLifecycleScope.launch {
+            try {
+                val repository = ReownWalletCatalogRepository(applicationContext)
+                val curatedWallets = repository.loadCuratedWallets()
+                repository.preloadWalletIcons(curatedWallets)
+            } catch (error: Exception) {
+                Log.w("AirdropWallet", "Curated wallet prewarm skipped", error)
+            }
+        }
+
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
                 override fun onStart(owner: LifecycleOwner) {
