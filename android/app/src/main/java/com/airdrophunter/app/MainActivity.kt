@@ -266,7 +266,6 @@ private fun AirdropHunterApp(
         topBar = {
             if (showTopBar) {
                 CenterAlignedTopAppBar(
-                    modifier = Modifier.height(56.dp),
                     title = {
                         Text(
                             secondaryTitle,
