@@ -11,6 +11,7 @@ import com.airdrophunter.app.BuildConfig
 import com.google.gson.Gson
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -172,7 +173,13 @@ internal class ReownWalletCatalogRepository(private val context: Context) {
         val resolved = CuratedWalletCatalog.definitions.mapIndexed { index, definition ->
             async {
                 semaphore.withPermit {
-                    runCatching { findExactListing(definition, index) }.getOrNull()
+                    try {
+                        findExactListing(definition, index)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
             }
         }.awaitAll().filterNotNull()
