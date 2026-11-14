@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collect
 
@@ -161,7 +162,9 @@ object WalletConnectInitializer {
                 require(walletIds.size >= CuratedWalletCatalog.MINIMUM_VERIFIED_WALLETS) {
                     "Verified wallet shortlist is incomplete"
                 }
-                ReownWalletCatalogRepository(application).preloadWalletIcons(orderedCatalog)
+                withContext(Dispatchers.IO) {
+                    ReownWalletCatalogRepository(application).preloadWalletIcons(orderedCatalog)
+                }
 
                 val metadata = Core.Model.AppMetaData(
                     name = "Airdrop Hunter",
