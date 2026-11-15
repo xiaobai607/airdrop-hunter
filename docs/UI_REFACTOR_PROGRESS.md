@@ -1303,3 +1303,5 @@
 - 普通进入钱包管理不再初始化 WalletConnect；用户主动连接外部钱包时才初始化。AppKitTheme / appKitGraph 延迟到 WalletConnect 初始化成功后再组合，避免进入页面时承担连接 SDK 图与首屏成本。
 - 不删减钱包入口、钱包种类或连接功能。
 - 待 APK 构建及真机复测：首页点击进入钱包管理的首屏时间、缓存展示、远程刷新、主动连接外部钱包。
+
+Toolbar visual correction (2026-11-15): removed the outline border unique to the trailing Add tool icon tile so it matches the same 32dp secondary-container icon tile used by the other toolbar actions. No actions or tools removed.
