@@ -297,7 +297,8 @@ private fun BrowserScreen(
         if (pageState == BrowserPageState.Loading) {
             isSlowLoading = false
             kotlinx.coroutines.delay(5_000)
-            if (pageState == BrowserPageState.Loading) {                isSlowLoading = true
+            if (pageState == BrowserPageState.Loading) {
+                isSlowLoading = true
                 kotlinx.coroutines.delay(25_000)
             }
             if (pageState == BrowserPageState.Loading) {
@@ -1195,7 +1196,8 @@ private fun BrowserScreen(
                         pageErrorMessage = null
                         browser?.reload()
                     }
-                )            }
+                )
+            }
             BrowserAccountingToolbar(
                 walletAddress = quickCopyAddress.ifBlank { selectedWallet?.address.orEmpty() },
                 chainName = selectedWallet?.chain.orEmpty(),
