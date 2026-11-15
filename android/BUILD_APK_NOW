@@ -1,1 +1,3 @@
 One-time APK build trigger for browser toolbar and WebView navigation fixes (2026-11-15). The workflow only builds when this exact path is included in a push diff.
+
+Chrome-compatible Android WebView identity and User-Agent Client Hints alignment (2026-11-15). One-time build trigger; workflow watches this file path.
