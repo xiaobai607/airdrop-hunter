@@ -253,7 +253,6 @@ private fun BrowserScreen(
         if (targetUrl == null) {
             Toast.makeText(context, "网址无效，请输入正确的网址", Toast.LENGTH_SHORT).show()
         } else {
-            approvedOrigin = DappProviderBridge.origin(Uri.parse(targetUrl))
             pendingNavigationUrl = null
             pageState = BrowserPageState.Loading
             pageErrorMessage = null
@@ -1055,6 +1054,10 @@ private fun BrowserScreen(
                                     if (previousOrigin != null && currentOrigin != previousOrigin) {
                                         DappOriginPermissionStore.revokeAll()
                                     }
+                                    // Track the actual committed navigation origin, not the
+                                    // address the user merely typed. This keeps popup checks
+                                    // aligned with the page currently displayed.
+                                    if (currentOrigin != null) approvedOrigin = currentOrigin
                                     if (isNewDocument) {
                                         pendingDappConnection?.let { pending ->
                                             DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "The page navigated before wallet access was approved")
