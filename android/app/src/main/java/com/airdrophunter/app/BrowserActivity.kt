@@ -14,6 +14,7 @@ import android.content.res.Configuration
 import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
@@ -29,6 +30,8 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.webkit.WebViewCompat
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.UserAgentMetadata
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebViewFeature
 import androidx.activity.compose.BackHandler
@@ -812,9 +815,9 @@ private fun BrowserScreen(
                         }
                         setBackgroundColor(AndroidColor.WHITE)
                         settings.apply {
-                            // Present a Chrome-compatible mobile UA while retaining the WebView's
-                            // actual Chromium version; do not hardcode a stale Chrome release.
-                            userAgentString = chromeCompatibleUserAgent(userAgentString)
+                            // Use the device's actual WebView Chromium version for a Chrome-like
+                            // Android mobile identity. Keep UA string and Client Hints aligned.
+                            applyChromeCompatibleIdentity(this)
                             javaScriptEnabled = true
                             domStorageEnabled = true
                             databaseEnabled = true
@@ -869,6 +872,7 @@ private fun BrowserScreen(
                                     javaScriptEnabled = true
                                     domStorageEnabled = true
                                     userAgentString = view.settings.userAgentString
+                                    applyChromeCompatibleClientHints(this, view.settings.userAgentString)
                                     mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                                     safeBrowsingEnabled = true
                                     allowFileAccess = false
@@ -1249,13 +1253,67 @@ private fun markBrowserSecurityBannerShown(context: Context) {
 }
 
 private fun chromeCompatibleUserAgent(defaultUserAgent: String): String {
-    // Android WebView normally appends "; wv" and "Version/4.0" to its Chromium UA.
-    // Removing those WebView markers improves site compatibility without inventing a
-    // Chrome version or pretending that WebView has Chrome's full browser capabilities.
+    // Preserve the device WebView's real Chromium build; only remove the explicit WebView
+    // markers. Never hardcode a Chrome version that can drift from the installed provider.
     if (!defaultUserAgent.contains("Chrome/", ignoreCase = true)) return defaultUserAgent
     return defaultUserAgent
         .replace("; wv)", ")")
         .replace("Version/4.0 ", "")
+}
+
+private fun applyChromeCompatibleIdentity(settings: WebSettings) {
+    val defaultUa = settings.userAgentString
+    settings.userAgentString = chromeCompatibleUserAgent(defaultUa)
+    applyChromeCompatibleClientHints(settings, defaultUa)
+
+    val chromeVersion = Regex("Chrome/([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)")
+        .find(defaultUa)?.groupValues?.getOrNull(1)
+    val provider = runCatching { WebView.getCurrentWebViewPackage() }.getOrNull()
+    Log.i(
+        "AirdropBrowser",
+        "Browser identity configured: provider=${provider?.packageName ?: "unknown"} " +
+            "providerVersion=${provider?.versionName ?: "unknown"} " +
+            "chromium=${chromeVersion ?: "unknown"} " +
+            "uaChSupported=${WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)}"
+    )
+}
+
+private fun applyChromeCompatibleClientHints(settings: WebSettings, sourceUserAgent: String) {
+    if (!WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) return
+    val fullVersion = Regex("Chrome/([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)")
+        .find(sourceUserAgent)?.groupValues?.getOrNull(1) ?: return
+    val majorVersion = fullVersion.substringBefore('.')
+    if (majorVersion.isBlank()) return
+
+    runCatching {
+        val brands = listOf(
+            UserAgentMetadata.BrandVersion.Builder()
+                .setBrand("Not_A Brand")
+                .setMajorVersion("99")
+                .setFullVersion("99.0.0.0")
+                .build(),
+            UserAgentMetadata.BrandVersion.Builder()
+                .setBrand("Chromium")
+                .setMajorVersion(majorVersion)
+                .setFullVersion(fullVersion)
+                .build(),
+            UserAgentMetadata.BrandVersion.Builder()
+                .setBrand("Google Chrome")
+                .setMajorVersion(majorVersion)
+                .setFullVersion(fullVersion)
+                .build()
+        )
+        val metadata = UserAgentMetadata.Builder()
+            .setBrandVersionList(brands)
+            .setMobile(true)
+            .setPlatform("Android")
+            .setPlatformVersion(Build.VERSION.RELEASE.orEmpty())
+            .setModel(Build.MODEL.orEmpty())
+            .build()
+        WebSettingsCompat.setUserAgentMetadata(settings, metadata)
+    }.onFailure {
+        Log.w("AirdropBrowser", "Chrome-compatible Client Hints unavailable: ${it.javaClass.simpleName}")
+    }
 }
 
 private fun displayHost(rawUrl: String): String {
