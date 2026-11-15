@@ -257,7 +257,8 @@ private fun BrowserScreen(
             pendingNavigationUrl = null
             pageState = BrowserPageState.Loading
             pageErrorMessage = null
-            currentPageUrl = targetUrl
+            // Keep the previous URL until WebView reports onPageStarted so the
+            // existing origin-change handler can revoke the previous site's permissions.
             browser?.loadUrl(targetUrl)
         }
     }
