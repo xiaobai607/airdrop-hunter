@@ -3,3 +3,5 @@ One-time APK build trigger for browser toolbar and WebView navigation fixes (202
 Chrome-compatible Android WebView identity and User-Agent Client Hints alignment (2026-11-15). One-time build trigger; workflow watches this file path.
 
 Restore the complete WalletConnect wallet directory; remove the app-owned includeWalletIds restriction (2026-11-15). One-time APK build trigger.
+
+Final wallet picker regression check: complete default AppKit directory remains enabled; curated icon prewarm is cache-only (2026-11-15). One-time APK build trigger.
