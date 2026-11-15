@@ -1277,3 +1277,12 @@
 - 未放宽 HTTPS/TLS、DApp 钱包授权或 WebView 文件访问安全限制。真实网页仍需在设备上按具体网址验证；若仍失败，需要结合目标网址与设备 WebView/网络日志定位，不以 UI 状态变化代替加载成功。
 
 - 进一步排查发现普通主框架跨域导航被 `approvedOrigin` 拦截，导致网站跳转到 `www`、登录或验证域名时需要额外人工确认。已移除普通 HTTP(S) 跨域导航拦截；HTTP 仍升级到 HTTPS，DApp 钱包授权继续按来源隔离，跨来源导航时撤销旧来源授权。此项是针对“空投网站普遍打不开”的代码级修正，仍需构建后真机回归。
+
+
+### 2026-11-15 — Chrome 移动端身份与 Client Hints 对齐
+
+- `BrowserActivity.kt`：主 WebView 不再只移除 `wv` / `Version/4.0` 标记；从设备当前 WebView Provider 的真实 Chromium UA 提取完整版本，设置 Chrome-like Android Mobile UA，并通过 AndroidX WebKit `WebSettingsCompat.setUserAgentMetadata` 对齐 `Sec-CH-UA` / `navigator.userAgentData` 的品牌、版本、平台、移动端和设备型号元数据。
+- 仅在 `WebViewFeature.USER_AGENT_METADATA` 支持时启用 Client Hints 元数据；旧 WebView 保留 UA 字符串兼容，不因 API 不支持而崩溃。
+- 弹窗 WebView 复用相同 UA 与 Client Hints 身份，避免主窗口和新窗口表现不一致。
+- 增加脱敏诊断日志：WebView Provider 包名/版本、Chromium 版本、Client Hints 能力是否可用；不记录完整 UA、Cookie、页面内容或账户信息。
+- 这只是提高 Chrome 兼容度，不等于把 Android WebView 变成完整 Chrome，也不能绕过网站的验证码、反机器人或访问策略。下一步通过 APK 构建验证编译，再用用户设备验证真实网站表现。
