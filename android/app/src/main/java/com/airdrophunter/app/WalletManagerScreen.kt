@@ -77,15 +77,24 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
     fun load(isGuest: Boolean = false) {
         activeJob?.cancel()
         activeJob = viewModelScope.launch {
-        _state.value = WalletManagerUiState(isLoading = true)
-        try {
-            val wallets = repository.load(isGuest)
-            _state.value = _state.value.copy(wallets = wallets, isLoading = false)
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: Exception) {
-            _state.value = _state.value.copy(isLoading = false, error = "服务器繁忙，请稍后重试")
-        }
+            _state.value = WalletManagerUiState(isLoading = true)
+            try {
+                // Capture the account once, read its cache first, then refresh in the background.
+                val snapshot = withContext(Dispatchers.IO) { repository.loadCached(isGuest) }
+                _state.value = WalletManagerUiState(
+                    wallets = snapshot.wallets,
+                    isLoading = snapshot.wallets.isEmpty()
+                )
+                val refreshed = withContext(Dispatchers.IO) { repository.refresh(snapshot, isGuest) }
+                _state.value = _state.value.copy(wallets = refreshed, isLoading = false, error = null)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = if (_state.value.wallets.isEmpty()) "服务器繁忙，请稍后重试" else null
+                )
+            }
         }
     }
 
@@ -203,7 +212,9 @@ fun WalletManagerScreen(
     }
 
     LaunchedEffect(isGuest, sessionScopeKey) {
-        WalletConnectInitializer.ensureInitialized(application)
+        if (launchConnectOnStart) {
+            WalletConnectInitializer.ensureInitialized(application)
+        }
         selectedWallet = null
         editingWallet = null
         pendingConnectedAccount = null
@@ -534,7 +545,7 @@ fun WalletManagerScreen(
                             WalletConnectInitializer.ensureInitialized(application)
                         }
                     },
-                    enabled = walletConnectReady || walletConnectError != null,
+                    enabled = true,
                     style = AppButtonStyle.SECONDARY
                 )
                 Text("选择地址所属链", color = MaterialTheme.colorScheme.onSurface,
@@ -655,10 +666,14 @@ fun WalletManagerScreen(
         )
     }
 
-    AppKitTheme(mode = AppKitTheme.Mode.LIGHT) {
-        NavHost(walletNavController, startDestination = "wallet_manager_host") {
-            composable("wallet_manager_host") { }
-            appKitGraph(walletNavController)
+    // AppKit's navigation graph is relatively heavy. Compose it only after the
+    // user requests an external-wallet connection and initialization has completed.
+    if (walletConnectReady) {
+        AppKitTheme(mode = AppKitTheme.Mode.LIGHT) {
+            NavHost(walletNavController, startDestination = "wallet_manager_host") {
+                composable("wallet_manager_host") { }
+                appKitGraph(walletNavController)
+            }
         }
     }
     }
