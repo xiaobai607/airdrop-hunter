@@ -297,8 +297,7 @@ private fun BrowserScreen(
         if (pageState == BrowserPageState.Loading) {
             isSlowLoading = false
             kotlinx.coroutines.delay(5_000)
-            if (pageState == BrowserPageState.Loading) {
-                isSlowLoading = true
+            if (pageState == BrowserPageState.Loading) {                isSlowLoading = true
                 kotlinx.coroutines.delay(25_000)
             }
             if (pageState == BrowserPageState.Loading) {
@@ -498,6 +497,40 @@ private fun BrowserScreen(
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
                 )
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(56.dp).padding(start = 12.dp, end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextField(
+                            value = addressInput,
+                            onValueChange = { addressInput = it },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            placeholder = { Text("输入网址或域名") },
+                            textStyle = MaterialTheme.typography.bodyMedium,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Uri,
+                                imeAction = ImeAction.Go                            ),
+                            keyboardActions = KeyboardActions(onGo = { navigateToAddress() })
+                        )
+                        IconButton(onClick = navigateToAddress) {
+                            Icon(Icons.Default.ArrowForward, contentDescription = "访问网址",
+                                tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
                 androidx.compose.animation.AnimatedVisibility(
                     visible = showSecurityBanner || pendingNavigationUrl != null,
                     enter = expandVertically(animationSpec = tween(250)) + fadeIn(tween(250)),
@@ -569,41 +602,6 @@ private fun BrowserScreen(
                                     Text("知道了")
                                 }
                             }
-                        }
-                    }
-                }
-                Surface(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(56.dp).padding(start = 12.dp, end = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextField(
-                            value = addressInput,
-                            onValueChange = { addressInput = it },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            placeholder = { Text("输入网址或域名") },
-                            textStyle = MaterialTheme.typography.bodyMedium,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Uri,
-                                imeAction = ImeAction.Go
-                            ),
-                            keyboardActions = KeyboardActions(onGo = { navigateToAddress() })
-                        )
-                        IconButton(onClick = navigateToAddress) {
-                            Icon(Icons.Default.ArrowForward, contentDescription = "访问网址",
-                                tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -897,8 +895,7 @@ private fun BrowserScreen(
                             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                                 val message = consoleMessage ?: return false
                                 if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR ||
-                                    message.messageLevel() == ConsoleMessage.MessageLevel.WARNING
-                                ) {
+                                    message.messageLevel() == ConsoleMessage.MessageLevel.WARNING                                ) {
                                     // Never log console text or full source URLs: either may contain secrets.
                                     val sourceHost = runCatching {
                                         Uri.parse(message.sourceId()).host
@@ -1197,8 +1194,7 @@ private fun BrowserScreen(
                         pageErrorMessage = null
                         browser?.reload()
                     }
-                )
-            }
+                )            }
             BrowserAccountingToolbar(
                 walletAddress = quickCopyAddress.ifBlank { selectedWallet?.address.orEmpty() },
                 chainName = selectedWallet?.chain.orEmpty(),
