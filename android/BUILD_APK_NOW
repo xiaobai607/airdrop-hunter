@@ -15,3 +15,5 @@ Built-in browser URL address bar (2026-11-15): replaced the read-only current-ho
 Browser address bar compile/security follow-up: top-level URL normalization helper, 56dp field row, preserve previous origin until WebView onPageStarted. Build this revision.
 
 Browser address bar origin-tracking follow-up: approved origin now follows actual WebView onPageStarted navigation only. Rebuild APK for this revision.
+
+Final browser-origin review: both address-bar navigation and confirmed cross-origin link navigation defer approvedOrigin update until WebView onPageStarted. Rebuild this commit.
