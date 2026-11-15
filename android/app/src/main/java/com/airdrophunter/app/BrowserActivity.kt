@@ -466,7 +466,9 @@ private fun BrowserScreen(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column {
+            // Edge-to-edge is enabled by the Activity; keep the entire browser header
+            // below the status bar so the security notice text cannot be clipped.
+            Column(Modifier.statusBarsPadding()) {
                 CenterAlignedTopAppBar(
                     modifier = Modifier.height(56.dp),
                     title = { Text(title, color = MaterialTheme.colorScheme.onBackground,
