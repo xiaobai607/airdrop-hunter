@@ -95,6 +95,21 @@ import java.time.LocalDate
 import org.json.JSONArray
 import org.json.JSONObject
 
+private fun normalizeBrowserHttpsUrl(value: String): String? {
+    return try {
+        val trimmed = value.trim()
+        if (trimmed.isBlank()) return null
+        val withScheme = if ("://" in trimmed) trimmed else "https://$trimmed"
+        val parsed = Uri.parse(withScheme)
+        val secure = when {
+            parsed.scheme.equals("https", true) -> parsed
+            parsed.scheme.equals("http", true) -> parsed.buildUpon().scheme("https").build()
+            else -> return null
+        }
+        if (secure.host.isNullOrBlank() || secure.userInfo != null) null else secure.toString()
+    } catch (_: Exception) { null }
+}
+
 private data class BrowserWallet(
     val id: String,
     val chain: String,
@@ -234,7 +249,7 @@ private fun BrowserScreen(
     var pendingNavigationUrl by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(currentPageUrl) { addressInput = currentPageUrl }
     val navigateToAddress: () -> Unit = {
-        val targetUrl = normalizeHttpsUrl(addressInput.trim())
+        val targetUrl = normalizeBrowserHttpsUrl(addressInput.trim())
         if (targetUrl == null) {
             Toast.makeText(context, "网址无效，请输入正确的网址", Toast.LENGTH_SHORT).show()
         } else {
@@ -564,7 +579,7 @@ private fun BrowserScreen(
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().height(48.dp).padding(start = 12.dp, end = 4.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp).padding(start = 12.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextField(
