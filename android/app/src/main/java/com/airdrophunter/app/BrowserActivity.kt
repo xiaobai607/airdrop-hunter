@@ -972,10 +972,10 @@ private fun BrowserScreen(
                                 if (secureTarget.host.isNullOrBlank() || secureTarget.userInfo != null) return true
                                 val targetOrigin = runCatching { DappProviderBridge.origin(secureTarget) }.getOrNull() ?: return true
                                 val needsHttpsUpgrade = !target.scheme.equals("https", true)
-                                if (targetOrigin != approvedOrigin) {
-                                    pendingNavigationUrl = secureTarget.toString()
-                                    return true
-                                }
+                                // A browser must be able to follow ordinary HTTPS links and
+                                // site redirects across origins (www, auth, CDN, anti-bot pages).
+                                // Navigation is not wallet authorization: origin-scoped DApp
+                                // permissions are revoked in onPageStarted when the origin changes.
                                 if (needsHttpsUpgrade) {
                                     view?.loadUrl(secureTarget.toString())
                                     return true
