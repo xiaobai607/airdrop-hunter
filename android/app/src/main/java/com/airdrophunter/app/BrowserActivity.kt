@@ -554,7 +554,6 @@ private fun BrowserScreen(
                             if (targetUrl != null) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     AppTextButton(onClick = {
-                                        approvedOrigin = DappProviderBridge.origin(Uri.parse(targetUrl))
                                         pendingNavigationUrl = null
                                         browser?.loadUrl(targetUrl)
                                     }) { Text("确认访问") }
