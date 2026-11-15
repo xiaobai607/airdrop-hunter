@@ -151,21 +151,6 @@ object WalletConnectInitializer {
         _error.value = null
         initializationScope.launch {
             try {
-                // Resolve only the APP-owned shortlist from the official Explorer API.
-                // The repository caches only these verified entries in the shared public cache.
-                val catalog = ReownWalletCatalogRepository(application).loadCuratedWallets(preferStaleCache = true)
-                val orderedCatalog = CuratedWalletCatalog.orderBySuccessfulConnections(
-                    wallets = catalog,
-                    usage = WalletUsageStore.records(application)
-                )
-                val walletIds = orderedCatalog.map { it.id }
-                require(walletIds.size >= CuratedWalletCatalog.MINIMUM_VERIFIED_WALLETS) {
-                    "Verified wallet shortlist is incomplete"
-                }
-                withContext(Dispatchers.IO) {
-                    ReownWalletCatalogRepository(application).preloadWalletIcons(orderedCatalog)
-                }
-
                 val metadata = Core.Model.AppMetaData(
                     name = "Airdrop Hunter",
                     description = "Connect to external wallets for dApp interactions",
@@ -180,11 +165,11 @@ object WalletConnectInitializer {
                 ) { error ->
                     Log.e("AirdropWallet", "WalletConnect core initialization failed", error.throwable)
                 }
+                // Keep AppKit's complete WalletConnect Explorer directory.
+                // Do not pass includeWalletIds: that parameter restricts the picker
+                // to an app-maintained subset and silently hides other supported wallets.
                 AppKit.initialize(
-                    init = Modal.Params.Init(
-                        core = CoreClient,
-                        includeWalletIds = walletIds
-                    ),
+                    init = Modal.Params.Init(core = CoreClient),
                     onSuccess = {
                         AppKit.setDelegate(WalletConnectSessionDelegate)
                         _error.value = null
@@ -202,7 +187,7 @@ object WalletConnectInitializer {
             } catch (error: Exception) {
                 initializationStarted = false
                 _initializing.value = false
-                _error.value = error.message ?: "精选钱包目录加载失败，请检查网络后重试"
+                _error.value = error.message ?: "钱包连接服务初始化失败，请检查网络后重试"
                 Log.e("AirdropWallet", "WalletConnect initialization failed", error)
             }
         }
