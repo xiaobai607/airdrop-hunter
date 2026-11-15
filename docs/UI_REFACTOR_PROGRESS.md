@@ -1305,3 +1305,5 @@
 - 待 APK 构建及真机复测：首页点击进入钱包管理的首屏时间、缓存展示、远程刷新、主动连接外部钱包。
 
 Toolbar visual correction (2026-11-15): removed the outline border unique to the trailing Add tool icon tile so it matches the same 32dp secondary-container icon tile used by the other toolbar actions. No actions or tools removed.
+
+Built-in browser URL address bar (2026-11-15): replaced the read-only current-host strip with an editable URL field; prefilled with the current page URL, supports URI keyboard Go and a visible navigate action, normalizes/validates the entered URL using the existing HTTPS URL helper, and updates the approved DApp origin before manual navigation. Existing in-page navigation/security confirmation and wallet controls remain intact. APK build required for verification.
