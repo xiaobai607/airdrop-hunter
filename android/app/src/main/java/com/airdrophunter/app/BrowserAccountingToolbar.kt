@@ -9,8 +9,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -43,13 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.PointerEventPass
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalDensity
-import kotlin.math.roundToInt
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -65,8 +58,6 @@ import com.airdrophunter.app.ui.components.AppChip
 import com.airdrophunter.app.ui.components.AppTextButton
 import com.airdrophunter.app.ui.components.AppTextField
 import kotlinx.coroutines.launch
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.animation.core.VectorConverter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -161,8 +152,6 @@ fun BrowserAccountingToolbar(
     var rewardSymbol by remember { mutableStateOf("") }
     var rewardDecimals by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
-    var dockDragPosition by remember { mutableStateOf(Offset.Zero) }
-    var dockIsDragging by remember { mutableStateOf(false) }
     var showToolManager by remember { mutableStateOf(false) }
     var showWeb3HashSync by remember { mutableStateOf(false) }
     var web3HashSyncDraftId by remember { mutableStateOf<String?>(null) }
@@ -181,10 +170,6 @@ fun BrowserAccountingToolbar(
             ?.map { if (it == "mock_bill") "new_accounting" else it }
             ?.filter { id -> toolOptions.any { it.first == id } }
             ?.distinct()?.takeIf { it.isNotEmpty() } ?: toolOptions.map { it.first })
-    }
-    // One two-dimensional animation value keeps horizontal and vertical position atomic.
-    val dockOffset = remember {
-        androidx.compose.animation.core.Animatable(Offset.Zero, Offset.VectorConverter)
     }
     LaunchedEffect(selectedToolIds) {
         preferences.edit().putString("selected_tools", selectedToolIds.joinToString(",")).apply()
@@ -338,40 +323,13 @@ fun BrowserAccountingToolbar(
         runCatching { accountingRepository.savePendingBillDraft(bill.id, draftJson) }
     }
 
-    if (showDock) BoxWithConstraints(
-        modifier = modifier.fillMaxSize()
-    ) {
-        val dockWidth = minOf(maxWidth * 0.94f, 420.dp)
-        val maxHorizontalDrag = with(androidx.compose.ui.platform.LocalDensity.current) {
-            ((maxWidth - dockWidth) / 2f).toPx()
-        }
-        val maxVerticalDrag = with(androidx.compose.ui.platform.LocalDensity.current) {
-            (maxHeight - 100.dp).coerceAtLeast(0.dp).toPx()
-        }
+    if (showDock) Box(modifier = modifier.fillMaxSize()) {
         val dockShape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp)
-        val leftSnap = -maxHorizontalDrag
-        val rightSnap = maxHorizontalDrag
 
-        fun settleDockAfterDrag() {
-            val current = dockDragPosition
-            val targetX = when {
-                maxHorizontalDrag <= 0f -> 0f
-                current.x < 0f -> leftSnap
-                else -> rightSnap
-            }
-            val target = Offset(targetX, current.y.coerceIn(-maxVerticalDrag, 0f))
-            scope.launch {
-                dockOffset.snapTo(current)
-                dockIsDragging = false
-                dockOffset.animateTo(target, androidx.compose.animation.core.tween(260))
-            }
-        }
-
-        // One outer movable target owns both the translucent capsule and its tools.
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 24.dp)
+                .padding(bottom = 4.dp)
                 .fillMaxWidth(0.94f)
                 .widthIn(max = 420.dp)
                 .height(64.dp)
@@ -381,65 +339,7 @@ fun BrowserAccountingToolbar(
                     ambientColor = Color.Black.copy(alpha = 0.06f),
                     spotColor = Color.Black.copy(alpha = 0.06f)
                 )
-                .offset {
-                    val position = if (dockIsDragging) dockDragPosition else dockOffset.value
-                    IntOffset(position.x.roundToInt(), position.y.roundToInt())
-                }
-                .pointerInput(maxWidth, maxHeight) {
-                    awaitEachGesture {
-                        // Observe the gesture in the Initial pass so the parent Dock can
-                        // claim a long-press drag before the child LazyRow consumes motion.
-                        val down = awaitFirstDown(
-                            requireUnconsumed = false,
-                            pass = PointerEventPass.Initial
-                        )
-                        // A timeout means the finger stayed down and stationary for the
-                        // full long-press interval. Early release or movement cancels the drag.
-                        val longPressReached = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                            var cancelled = false
-                            while (!cancelled) {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                val change = event.changes.firstOrNull { it.id == down.id }
-                                if (change == null || !change.pressed ||
-                                    kotlin.math.hypot(
-                                        change.position.x - down.position.x,
-                                        change.position.y - down.position.y
-                                    ) > viewConfiguration.touchSlop
-                                ) {
-                                    cancelled = true
-                                }
-                            }
-                            false
-                        } == null
 
-                        if (longPressReached) {
-                            // Pointer events update one Offset synchronously; no per-move
-                            // coroutine or independently cancellable X/Y update is created.
-                            dockDragPosition = dockOffset.value
-                            dockIsDragging = true
-                            var lastPosition = down.position
-                            var dragActive = true
-                            while (dragActive) {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                val change = event.changes.firstOrNull { it.id == down.id }
-                                if (change == null || !change.pressed) {
-                                    dragActive = false
-                                } else {
-                                    val delta = change.position - lastPosition
-                                    if (delta != Offset.Zero) {
-                                        dockDragPosition = Offset(
-                                            (dockDragPosition.x + delta.x).coerceIn(-maxHorizontalDrag, maxHorizontalDrag),
-                                            (dockDragPosition.y + delta.y).coerceIn(-maxVerticalDrag, 0f)
-                                        )
-                                        change.consume()
-                                    }
-                                    lastPosition = change.position
-                                }
-                            }
-                            settleDockAfterDrag()
-                        }
-                    }
-                }
         ) {
             // Clip the capsule background and LazyRow together to the pill boundary.
             Box(
