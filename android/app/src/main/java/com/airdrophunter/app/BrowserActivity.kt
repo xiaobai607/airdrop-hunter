@@ -66,6 +66,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -74,6 +75,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -222,10 +227,25 @@ private fun BrowserScreen(
     var isSlowLoading by remember(url) { mutableStateOf(false) }
     var webViewGeneration by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
+    var addressInput by remember(url) { mutableStateOf(url) }
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
     var showSecurityBanner by remember(url) { mutableStateOf(shouldShowBrowserSecurityBanner(context)) }
     var approvedOrigin by remember(url) { mutableStateOf(DappProviderBridge.origin(Uri.parse(url))) }
     var pendingNavigationUrl by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(currentPageUrl) { addressInput = currentPageUrl }
+    val navigateToAddress: () -> Unit = {
+        val targetUrl = normalizeHttpsUrl(addressInput.trim())
+        if (targetUrl == null) {
+            Toast.makeText(context, "网址无效，请输入正确的网址", Toast.LENGTH_SHORT).show()
+        } else {
+            approvedOrigin = DappProviderBridge.origin(Uri.parse(targetUrl))
+            pendingNavigationUrl = null
+            pageState = BrowserPageState.Loading
+            pageErrorMessage = null
+            currentPageUrl = targetUrl
+            browser?.loadUrl(targetUrl)
+        }
+    }
     val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
 
@@ -538,16 +558,39 @@ private fun BrowserScreen(
                         }
                     }
                 }
-                Surface(Modifier.fillMaxWidth().height(40.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant) {
-                    Row(Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text("当前主机", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.width(8.dp))
-                        Text(displayHost(currentPageUrl), color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
-                            maxLines = 1)
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(48.dp).padding(start = 12.dp, end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextField(
+                            value = addressInput,
+                            onValueChange = { addressInput = it },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            placeholder = { Text("输入网址或域名") },
+                            textStyle = MaterialTheme.typography.bodyMedium,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Uri,
+                                imeAction = ImeAction.Go
+                            ),
+                            keyboardActions = KeyboardActions(onGo = { navigateToAddress() })
+                        )
+                        IconButton(onClick = navigateToAddress) {
+                            Icon(Icons.Default.ArrowForward, contentDescription = "访问网址",
+                                tint = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
