@@ -1013,6 +1013,16 @@ private fun BrowserScreen(
                                 Log.d("AirdropBrowser", "Page started: ${displayHost(pageUrl.orEmpty())}")
                             }
 
+                            override fun onPageCommitVisible(view: WebView?, pageUrl: String?) {
+                                // Reveal the first committed document as soon as WebView can draw it.
+                                // Do not wait for every long-running script, analytics request, or stream to finish.
+                                pageUrl?.let { currentPageUrl = it }
+                                pageState = BrowserPageState.Success
+                                pageErrorMessage = null
+                                isSlowLoading = false
+                                Log.d("AirdropBrowser", "First page content committed: ${displayHost(pageUrl.orEmpty())}")
+                            }
+
                             override fun onPageFinished(view: WebView?, pageUrl: String?) {
                                 pageUrl?.let { currentPageUrl = it }
                                 pageState = BrowserPageState.Success
@@ -1150,7 +1160,7 @@ private fun BrowserScreen(
                         Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 8.dp)
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
             )
             }
 
