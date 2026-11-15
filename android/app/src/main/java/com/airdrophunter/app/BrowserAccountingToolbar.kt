@@ -417,9 +417,7 @@ fun BrowserAccountingToolbar(
                             Box(
                                 modifier = Modifier.size(32.dp)
                                     .clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp))
-                                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant,
-                                        RoundedCornerShape(AppDesignTokens.Radius.Md.dp)),
+                                    .background(MaterialTheme.colorScheme.secondaryContainer),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
