@@ -21,7 +21,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collect
 
@@ -99,8 +98,8 @@ class AirdropHunterApplication : Application(), ImageLoaderFactory {
         WalletConnectSessionDelegate.attachApplicationContext(this)
         ApiClient.initialize(this)
 
-        // Warm the public curated wallet directory and its icon disk cache while
-        // the home screen is available; never block first-frame rendering.
+        // Prewarm a small set of verified wallet icons for faster initial rendering.
+        // This cache-only optimization does not filter or restrict AppKit's wallet directory.
         processLifecycleScope.launch {
             try {
                 val repository = ReownWalletCatalogRepository(applicationContext)
