@@ -1313,3 +1313,13 @@ Browser address bar follow-up review (2026-11-15): moved URL normalization into 
 2026-11-15 browser address-bar security review: the typed destination no longer changes approvedOrigin before WebView actually begins navigation. onPageStarted now updates the tracked origin from the real page URL after revoking previous-origin DApp permissions. This keeps popup-origin checks aligned with the displayed page and avoids treating an unvisited typed address as the active origin.
 
 Additional origin-check fix: removed the pre-navigation approvedOrigin assignment from the in-page cross-origin confirmation action too. Both typed URL navigation and confirmed link navigation now update the active origin only when WebView reports the actual page start.
+
+
+### 2026-11-16 — 浏览器安全提醒与网址栏遮挡修正
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/BrowserActivity.kt`。
+- 将浏览器顶部安全提醒移到网址输入框下方，网址输入框保持在提醒上方；关闭“知道了”只收起提醒，不再改变网址栏所在顺序。
+- Activity 使用 edge-to-edge 布局时，为整个浏览器 topBar 增加 `statusBarsPadding()`，让标题、网址输入框和安全提醒整体避开 Android 状态栏，避免提醒正文被顶部系统栏遮挡。
+- 本次仅处理浏览器顶部布局与系统状态栏 Insets，不改网页内容、网址导航逻辑、TLS 或 DApp 钱包授权规则。
+- 状态：源码已提交；尚未取得本次提交对应的 Gradle/CI 构建结果，未做真机验收。需要在设备上分别检查安全提醒显示/关闭、网址输入焦点与软键盘弹出时的布局。
+- 代码提交：`283408875a04a10efc6a5725571e236b5c5d01ed`。
