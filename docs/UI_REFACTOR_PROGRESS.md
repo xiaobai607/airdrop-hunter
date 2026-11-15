@@ -1286,3 +1286,12 @@
 - 弹窗 WebView 复用相同 UA 与 Client Hints 身份，避免主窗口和新窗口表现不一致。
 - 增加脱敏诊断日志：WebView Provider 包名/版本、Chromium 版本、Client Hints 能力是否可用；不记录完整 UA、Cookie、页面内容或账户信息。
 - 这只是提高 Chrome 兼容度，不等于把 Android WebView 变成完整 Chrome，也不能绕过网站的验证码、反机器人或访问策略。下一步通过 APK 构建验证编译，再用用户设备验证真实网站表现。
+
+
+## 钱包选择器功能恢复（2026-11-15）
+
+- 撤销应用自维护的 15 项精选钱包目录对 WalletConnect 弹窗的限制。
+- `AppKit.initialize` 恢复使用 `Modal.Params.Init(core = CoreClient)` 默认完整目录，不再传入 `includeWalletIds`；钱包是否出现在选择器中不再由应用短名单决定。
+- 保留后台图标预热作为非阻塞优化；目录预热失败不再阻止 WalletConnect 初始化。
+- 本次仅恢复原有完整钱包目录行为，不删除其他钱包功能，不改钱包管理页布局。
+- 待最新 APK 构建成功后进行设备验收，确认 OKX 及其他目录钱包均可见、可连接。
