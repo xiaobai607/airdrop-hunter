@@ -48,6 +48,23 @@ class WalletRepository(
     private fun decode(raw: String?): List<WalletDto> =
         raw?.let { runCatching { gson.fromJson<List<WalletDto>>(it, listType) }.getOrNull() }.orEmpty()
 
+    data class LoadSnapshot(val accessToken: String?, val wallets: List<WalletDto>)
+
+    /** Read the session-scoped cache first so the manager can render without waiting for the network. */
+    suspend fun loadCached(guest: Boolean): LoadSnapshot {
+        val token = accessTokenProvider()?.takeIf { it.isNotBlank() }
+        return LoadSnapshot(token, decode(local.readForSession(guest, token)))
+    }
+
+    /** Refresh only the session captured by loadCached; never mix data across account switches. */
+    suspend fun refresh(snapshot: LoadSnapshot, guest: Boolean): List<WalletDto> {
+        if (guest) return snapshot.wallets
+        val token = snapshot.accessToken ?: return emptyList()
+        val rows = remote.getWallets("Bearer $token", "captured")
+        local.writeForSession(gson.toJson(rows), false, token)
+        return rows
+    }
+
     suspend fun load(guest: Boolean): List<WalletDto> =
         loadForSession(guest, accessTokenProvider())
 
