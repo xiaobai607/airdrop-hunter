@@ -13,3 +13,5 @@ Toolbar visual correction (2026-11-15): removed the outline border unique to the
 Built-in browser URL address bar (2026-11-15): replaced the read-only current-host strip with an editable URL field; prefilled with the current page URL, supports URI keyboard Go and a visible navigate action, normalizes/validates the entered URL using the existing HTTPS URL helper, and updates the approved DApp origin before manual navigation. Existing in-page navigation/security confirmation and wallet controls remain intact. APK build required for verification.
 
 Browser address bar compile/security follow-up: top-level URL normalization helper, 56dp field row, preserve previous origin until WebView onPageStarted. Build this revision.
+
+Browser address bar origin-tracking follow-up: approved origin now follows actual WebView onPageStarted navigation only. Rebuild APK for this revision.
