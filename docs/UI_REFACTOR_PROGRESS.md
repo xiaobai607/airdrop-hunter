@@ -1311,3 +1311,5 @@ Built-in browser URL address bar (2026-11-15): replaced the read-only current-ho
 Browser address bar follow-up review (2026-11-15): moved URL normalization into a top-level helper so the composable can call it safely; increased the address row to 56dp to fit Material3 TextField; kept currentPageUrl unchanged until WebView onPageStarted so existing origin-change permission revocation logic remains effective for manually entered URLs.
 
 2026-11-15 browser address-bar security review: the typed destination no longer changes approvedOrigin before WebView actually begins navigation. onPageStarted now updates the tracked origin from the real page URL after revoking previous-origin DApp permissions. This keeps popup-origin checks aligned with the displayed page and avoids treating an unvisited typed address as the active origin.
+
+Additional origin-check fix: removed the pre-navigation approvedOrigin assignment from the in-page cross-origin confirmation action too. Both typed URL navigation and confirmed link navigation now update the active origin only when WebView reports the actual page start.
