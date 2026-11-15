@@ -522,7 +522,8 @@ private fun BrowserScreen(
                             ),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Uri,
-                                imeAction = ImeAction.Go                            ),
+                                imeAction = ImeAction.Go
+                            ),
                             keyboardActions = KeyboardActions(onGo = { navigateToAddress() })
                         )
                         IconButton(onClick = navigateToAddress) {
