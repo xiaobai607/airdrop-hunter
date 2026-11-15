@@ -5,3 +5,5 @@ Chrome-compatible Android WebView identity and User-Agent Client Hints alignment
 Restore the complete WalletConnect wallet directory; remove the app-owned includeWalletIds restriction (2026-11-15). One-time APK build trigger.
 
 Final wallet picker regression check: complete default AppKit directory remains enabled; curated icon prewarm is cache-only (2026-11-15). One-time APK build trigger.
+
+Wallet manager first-frame performance: session cache-first rendering, IO background refresh, and deferred WalletConnect/AppKit composition (2026-11-15). One-time APK build trigger.
