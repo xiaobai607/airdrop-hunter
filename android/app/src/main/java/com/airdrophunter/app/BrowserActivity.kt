@@ -44,6 +44,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.rememberModalBottomSheetState
 import com.google.accompanist.navigation.material.BottomSheetNavigator
+import com.google.accompanist.navigation.material.ModalBottomSheetLayout
 import com.reown.appkit.client.AppKit
 import com.reown.appkit.client.Modal
 import com.reown.appkit.client.models.request.Request as ExternalWalletRequest
@@ -229,6 +230,7 @@ private fun BrowserScreen(
         mutableStateOf(wallets.firstOrNull { it.id == selectedWalletId } ?: wallets.firstOrNull())
     }
     var showWalletPicker by remember { mutableStateOf(false) }
+    var showManualAccounting by remember { mutableStateOf(false) }
     var pendingDappConnection by remember { mutableStateOf<PendingDappConnection?>(null) }
     var pendingDappExternalRequest by remember { mutableStateOf<PendingDappExternalRequest?>(null) }
     var waitingDappWalletApproval by remember { mutableStateOf(false) }
@@ -457,10 +459,18 @@ private fun BrowserScreen(
         }
     }
 
+    ModalBottomSheetLayout(bottomSheetNavigator) {
     Box(Modifier.fillMaxSize()) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.End) {
+                    AppButton(text = "记账", onClick = { showManualAccounting = true }, style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 42, fontSizeSp = 14)
+                }
+            }
+        },
         topBar = {
             // Edge-to-edge is enabled by the Activity; keep the entire browser header
             // below the status bar so the security notice text cannot be clipped.
@@ -1271,6 +1281,15 @@ private fun BrowserScreen(
         composable("browser_wallet_host") { }
         appKitGraph(walletNavController)
     }
+    }
+    }
+
+    if (showManualAccounting) {
+        Dialog(onDismissRequest = { showManualAccounting = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.94f), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.background) {
+                ManualAccountingScreen(modifier = Modifier.fillMaxSize(), onBack = { showManualAccounting = false })
+            }
+        }
     }
 
     if (showWalletPicker) {
