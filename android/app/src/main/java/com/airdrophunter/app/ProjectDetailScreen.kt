@@ -134,7 +134,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         if (parsed != null && parsed.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrBlank()) {
             context.startActivity(Intent(context, BrowserActivity::class.java)
                 .putExtra(BrowserActivity.EXTRA_URL, claimUrl)
-                .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取"))
+                .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取")
+                .putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true))
         } else Toast.makeText(context, "领取链接无效，已阻止打开", Toast.LENGTH_LONG).show()
         projectDetailViewModel.consumeClaimUrl()
     }
@@ -823,7 +824,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                         .build().toString()
                                     context.startActivity(Intent(context, BrowserActivity::class.java)
                                         .putExtra(BrowserActivity.EXTRA_URL, url)
-                                        .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取"))
+                                        .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取")
+                .putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true))
                                 } else Toast.makeText(context, "领取链接无效", Toast.LENGTH_LONG).show()
                             } else projectDetailViewModel.requestClaimUrl(project.id, wallet.id)
                         }, scale = 0.96f, enabled = !state.isClaimLoading),
