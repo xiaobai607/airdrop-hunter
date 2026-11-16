@@ -20,6 +20,7 @@ class WalletRepositoryTest {
             sessionScoped[guest to accessToken] ?: if (accessToken == null) read(guest) else null
         override suspend fun writeForSession(value: String, guest: Boolean, accessToken: String?) {
             sessionScoped[guest to accessToken] = value
+            write(value, guest)
         }
     }
     private class Remote : WalletRemoteDataSource {
