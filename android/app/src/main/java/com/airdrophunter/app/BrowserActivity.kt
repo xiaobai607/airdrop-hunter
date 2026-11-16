@@ -980,10 +980,15 @@ private fun BrowserScreen(
                                 return true
                             }
                         }
+                        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                                val target = request?.url ?: return true
+                                val target = request?.url ?: run {
+                                    Log.e("AirdropBrowser", "Navigation callback had no request URL; blocking")
+                                    return true
+                                }
                                 val scheme = target.scheme?.lowercase()
+                                Log.d("AirdropBrowser", "Navigation request: url=$target, scheme=$scheme, mainFrame=${request.isForMainFrame}, gesture=${request.hasGesture()}")
                                 if (scheme in setOf("metamask", "trust", "trustwallet", "ethereum", "wc")) {
                                     if (request?.hasGesture() != true) {
                                         Log.w("AirdropBrowser", "Blocked wallet deep link without a user gesture")
@@ -1118,7 +1123,7 @@ private fun BrowserScreen(
                                 if (request?.isForMainFrame == true) {
                                     pageState = BrowserPageState.Error
                                     pageErrorMessage = "网络加载错误（${error?.errorCode ?: "未知"}）：${error?.description ?: "未提供错误详情"}"
-                                    Log.e("AirdropBrowser", "Main-frame load error: ${error?.errorCode} ${error?.description}")
+                                    Log.e("AirdropBrowser", "Main-frame load error: code=${error?.errorCode}, description=${error?.description}, url=${request?.url}, method=${request?.method}, isMainFrame=${request?.isForMainFrame}")
                                 }
                             }
 
@@ -1131,7 +1136,7 @@ private fun BrowserScreen(
                                 if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 200) >= 400) {
                                     pageState = BrowserPageState.Error
                                     pageErrorMessage = "网站返回 HTTP ${errorResponse?.statusCode ?: "错误"}：${errorResponse?.reasonPhrase ?: "服务器拒绝或无法处理请求"}"
-                                    Log.e("AirdropBrowser", "Main-frame HTTP error: ${errorResponse?.statusCode}")
+                                    Log.e("AirdropBrowser", "Main-frame HTTP error: status=${errorResponse?.statusCode}, reason=${errorResponse?.reasonPhrase}, url=${request?.url}, method=${request?.method}")
                                 }
                             }
 
@@ -1140,7 +1145,7 @@ private fun BrowserScreen(
                                 handler?.cancel()
                                 pageState = BrowserPageState.Error
                                 pageErrorMessage = "HTTPS 证书验证失败，已阻止连接。请检查设备时间、网络代理或网站证书。"
-                                Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed; primaryError=${error?.primaryError}")
+                                Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed; primaryError=${error?.primaryError}, url=${error?.url}")
                             }
 
                             override fun onRenderProcessGone(
