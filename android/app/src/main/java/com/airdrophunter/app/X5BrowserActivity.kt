@@ -184,12 +184,6 @@ private fun X5BrowserScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.SemiBold
                     )
-                    TextButton(
-                        onClick = { onOpenSystemWalletBrowser(currentUrl) },
-                        contentPadding = PaddingValues(horizontal = 8.dp)
-                    ) {
-                        Text("钱包模式")
-                    }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -287,9 +281,6 @@ private fun X5BrowserScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
-                            Button(onClick = { onOpenSystemWalletBrowser(currentUrl) }) {
-                                Text("改用兼容浏览器打开")
-                            }
                         }
                     }
                     X5KernelState.AVAILABLE -> {
@@ -418,9 +409,6 @@ private fun X5BrowserScreen(
                                         pageError = null
                                     }
                                 }) { Text("重新加载") }
-                                OutlinedButton(onClick = { onOpenSystemWalletBrowser(currentUrl) }) {
-                                    Text("切换到钱包兼容模式")
-                                }
                             }
                         } else if (pageState == X5PageState.Loading && browser != null) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
