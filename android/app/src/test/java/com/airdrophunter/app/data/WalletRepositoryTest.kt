@@ -202,6 +202,26 @@ class WalletRepositoryTest {
         assertEquals(1, remote.getCalls)
     }
 
+
+    @Test fun deleteWritesOnlyToTheCapturedAccountCache() = runBlocking {
+        var currentToken: String? = "account-A-token"
+        val local = Local()
+        local.writeForSession("[{\\\"id\\\":\\\"A-wallet\\\"}]", false, "account-A-token")
+        local.writeForSession("[{\\\"id\\\":\\\"B-wallet\\\"}]", false, "account-B-token")
+        val remote = Remote()
+        val repository = WalletRepository(remote, local, accessTokenProvider = { currentToken })
+        val wallet = WalletDto(
+            "A-wallet", "Main", WalletEcosystem.EVM, "E",
+            "0x" + "5".repeat(40)
+        )
+
+        repository.delete(wallet, guest = false, current = listOf(wallet))
+        currentToken = "account-B-token"
+
+        assertEquals("[]", local.readForSession(false, "account-A-token"))
+        assertEquals("[{\\\"id\\\":\\\"B-wallet\\\"}]", local.readForSession(false, "account-B-token"))
+    }
+
     @Test fun guestRefreshNeverCallsRemoteOrWritesAccountCache() = runBlocking {
         val local = Local()
         local.writeForSession("[{\"id\":\"guest-cache\"}]", true, null)
