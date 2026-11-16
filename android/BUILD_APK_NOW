@@ -21,3 +21,5 @@ Final browser-origin review: both address-bar navigation and confirmed cross-ori
 Browser security notice layout and Android status-bar inset correction (2026-11-16): keep the editable URL field visible and place the notice below it; rebuild Debug APK for validation.
 
 Final verification build trigger (2026-11-16): all wallet cache regression tests passed on dd166587; build the exact reviewed PR head and package the Debug APK for device acceptance.
+
+WebView connectivity and first-paint correction (2026-11-16): render the WebView immediately without a full-screen loading curtain, show connection failure after 5 seconds while allowing the request to continue, allow native HTTP/HTTPS navigation without silently upgrading or intercepting normal cross-origin links, and explicitly leave WebView network loading enabled. Build APK for validation.
