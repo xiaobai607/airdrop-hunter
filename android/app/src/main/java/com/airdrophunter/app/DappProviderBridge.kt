@@ -19,6 +19,35 @@ internal object DappProviderBridge {
     const val JS_OBJECT_NAME = "ahWalletBridge"
     val HTTPS_ORIGIN_RULES = setOf("*")
 
+    const val X5_PROMPT_PREFIX = "AH_WALLET_RPC_V1"
+
+    /**
+     * X5 prompt callbacks provide the requesting frame URL but not an isMainFrame flag.
+     * Only HTTPS requests whose origin exactly matches the currently displayed page are accepted.
+     * Cross-origin frames, insecure URLs, user-info URLs, and mismatched ports fail closed.
+     */
+    fun isTrustedX5Prompt(sourceUrl: String?, pageUrl: String?): Boolean {
+        if (sourceUrl.isNullOrBlank() || pageUrl.isNullOrBlank()) return false
+        return runCatching {
+            val source = Uri.parse(sourceUrl)
+            val page = Uri.parse(pageUrl)
+            source.scheme.equals("https", ignoreCase = true) &&
+                page.scheme.equals("https", ignoreCase = true) &&
+                !source.host.isNullOrBlank() &&
+                !page.host.isNullOrBlank() &&
+                source.userInfo == null &&
+                page.userInfo == null &&
+                source.host.equals(page.host, ignoreCase = true) &&
+                normalizedPort(source) == normalizedPort(page)
+        }.getOrDefault(false)
+    }
+
+    fun parseX5Prompt(message: String?): DappRpcRequest? {
+        val prefix = "$X5_PROMPT_PREFIX:"
+        if (message == null || !message.startsWith(prefix)) return null
+        return parseRequest(message.substring(prefix.length))
+    }
+
     const val PROVIDER_SCRIPT = """
 (function () {
   // The bridge is intended for the trusted top-level page only; do not install it in iframes.
