@@ -103,7 +103,7 @@ private fun normalizeBrowserHttpsUrl(value: String): String? {
         val parsed = Uri.parse(withScheme)
         val secure = when {
             parsed.scheme.equals("https", true) -> parsed
-            parsed.scheme.equals("http", true) -> parsed.buildUpon().scheme("https").build()
+            parsed.scheme.equals("http", true) -> parsed
             else -> return null
         }
         if (secure.host.isNullOrBlank() || secure.userInfo != null) null else secure.toString()
@@ -176,7 +176,7 @@ class BrowserActivity : ComponentActivity() {
             val parsed = Uri.parse(withScheme)
             val secure = when {
                 parsed.scheme.equals("https", true) -> parsed
-                parsed.scheme.equals("http", true) -> parsed.buildUpon().scheme("https").build()
+                parsed.scheme.equals("http", true) -> parsed
                 else -> return null
             }
             if (secure.host.isNullOrBlank() || secure.userInfo != null) null else secure.toString()
@@ -261,7 +261,6 @@ private fun BrowserScreen(
             browser?.loadUrl(targetUrl)
         }
     }
-    val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
 
     DisposableEffect(browser) {
@@ -299,12 +298,9 @@ private fun BrowserScreen(
             kotlinx.coroutines.delay(5_000)
             if (pageState == BrowserPageState.Loading) {
                 isSlowLoading = true
-                kotlinx.coroutines.delay(25_000)
-            }
-            if (pageState == BrowserPageState.Loading) {
                 pageState = BrowserPageState.Error
-                pageErrorMessage = "网页在 30 秒内未返回首屏内容。可能是网络连接、网站响应或登录跳转失败；请检查网络后重试。"
-                Log.w("AirdropBrowser", "Main-frame load timed out after 30 seconds")
+                pageErrorMessage = "网页 5 秒内没有返回首屏。请检查连接，或点击重新加载；页面仍会继续尝试显示。"
+                Log.w("AirdropBrowser", "Main-frame first-paint warning after 5 seconds")
             }
         }
     }
@@ -945,13 +941,12 @@ private fun BrowserScreen(
                                         val target = request?.url ?: return true
                                         val scheme = target.scheme?.lowercase()
                                         if (scheme != "https" && scheme != "http") return true
-                                        val secureTarget = if (scheme == "http") target.buildUpon().scheme("https").build() else target
-                                        if (secureTarget.host.isNullOrBlank() || secureTarget.userInfo != null) return true
-                                        val targetOrigin = runCatching { DappProviderBridge.origin(secureTarget) }.getOrNull() ?: return true
+                                        if (target.host.isNullOrBlank() || target.userInfo != null) return true
+                                        val targetOrigin = runCatching { DappProviderBridge.origin(target) }.getOrNull() ?: return true
                                         if (targetOrigin == approvedOrigin) {
-                                            view.loadUrl(secureTarget.toString())
+                                            view.loadUrl(target.toString())
                                         } else {
-                                            pendingNavigationUrl = secureTarget.toString()
+                                            pendingNavigationUrl = target.toString()
                                         }
                                         return true
                                     }
@@ -1033,15 +1028,9 @@ private fun BrowserScreen(
                                 }
                                 if (secureTarget.host.isNullOrBlank() || secureTarget.userInfo != null) return true
                                 val targetOrigin = runCatching { DappProviderBridge.origin(secureTarget) }.getOrNull() ?: return true
-                                val needsHttpsUpgrade = !target.scheme.equals("https", true)
-                                // A browser must be able to follow ordinary HTTPS links and
-                                // site redirects across origins (www, auth, CDN, anti-bot pages).
-                                // Navigation is not wallet authorization: origin-scoped DApp
-                                // permissions are revoked in onPageStarted when the origin changes.
-                                if (needsHttpsUpgrade) {
-                                    view?.loadUrl(secureTarget.toString())
-                                    return true
-                                }
+                                // Let WebView follow ordinary HTTP and HTTPS navigations itself.
+                                // Explicit HTTP URLs are not silently rewritten. DApp injection
+                                // remains HTTPS-only through HTTPS_ORIGIN_RULES.
                                 return false
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
@@ -1175,11 +1164,11 @@ private fun BrowserScreen(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxSize().background(Color.White).alpha(webAlpha),
+                modifier = Modifier.fillMaxSize().background(Color.White),
                 update = { view -> if (browser !== view) browser = view }
             )
             }
-            if (pageState != BrowserPageState.Success) {
+            if (pageState == BrowserPageState.Error) {
                 BrowserPageOverlay(
                     state = pageState,
                     errorDetail = pageErrorMessage,
