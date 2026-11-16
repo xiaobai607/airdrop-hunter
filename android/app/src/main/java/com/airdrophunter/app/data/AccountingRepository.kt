@@ -10,6 +10,7 @@ interface AccountingLocalDataSource {
     suspend fun readLocal(key: String): String?
     suspend fun read(key: String): String?
     suspend fun writeLocal(key: String, payload: String)
+    suspend fun writeLocalForToken(key: String, payload: String, accessToken: String?): Boolean
     suspend fun readLocalForToken(key: String, accessToken: String): String? = readLocal(key)
     suspend fun mergePersonalLedgerForToken(
         key: String,
@@ -38,6 +39,8 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
     override suspend fun readLocal(key: String): String? = CacheStore.readLocal(key)
     override suspend fun read(key: String): String? = CacheStore.read(key)
     override suspend fun writeLocal(key: String, payload: String) = CacheStore.writeLocal(key, payload)
+    override suspend fun writeLocalForToken(key: String, payload: String, accessToken: String?): Boolean =
+        CacheStore.writeLocalForToken(key, payload, accessToken)
     override suspend fun readLocalForToken(key: String, accessToken: String): String? =
         CacheStore.readLocalForToken(key, accessToken)
     override suspend fun mergePersonalLedgerForToken(
@@ -100,6 +103,7 @@ class AccountingRepository(
 ) {
     private val ledgerRemote = personalLedgerRemote ?: api?.let(::ApiPersonalLedgerRemoteDataSource)
     private val projectsType = object : TypeToken<List<ProjectDto>>() {}.type
+    private val projectsTypeForLedger = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
 
     fun observePendingBills(): Flow<List<PendingBillEntity>> = local.observePendingBills()
 
@@ -122,6 +126,25 @@ class AccountingRepository(
         val updated = existing.filterNot { it.id == project.id } + project
         local.writeLocal("pnl_projects", gson.toJson(updated))
         return updated
+    }
+
+    /**
+     * Save a manual personal-ledger row without requiring a wallet, transaction hash,
+     * or project. Writes are bound to the session captured before any suspension.
+     */
+    suspend fun saveManualLedgerEntry(entry: PersonalLedgerWriteRequest): Boolean {
+        val accessToken = accessTokenProvider()?.takeIf { it.isNotBlank() }
+        val existing = local.readLocalForToken("personal_ledger", accessToken)?.let { raw ->
+            runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, projectsTypeForLedger) }.getOrNull()
+        }.orEmpty()
+        val updated = (existing.filterNot { it.client_record_id == entry.client_record_id } + entry)
+            .sortedByDescending { runCatching { java.time.Instant.parse(it.occurred_at).toEpochMilli() }.getOrDefault(0L) }
+        val saved = local.writeLocalForToken("personal_ledger", gson.toJson(updated), accessToken)
+        if (!saved) return false
+        if (accessToken != null && accessTokenProvider() == accessToken) {
+            if (!syncPersonalLedger()) local.schedulePrivateLedgerSync()
+        }
+        return true
     }
 
     suspend fun addPendingBill(bill: PendingBillEntity) = local.addPendingBill(bill)
