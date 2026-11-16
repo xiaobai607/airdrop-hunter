@@ -11,9 +11,15 @@ class WalletRepositoryTest {
     private class Local : WalletLocalDataSource {
         val guest = mutableMapOf<String, String>()
         val account = mutableMapOf<String, String>()
+        val sessionScoped = mutableMapOf<Pair<Boolean, String?>, String>()
         override suspend fun read(guest: Boolean) = (if (guest) this.guest else account)["wallets"]
         override suspend fun write(value: String, guest: Boolean) {
             (if (guest) this.guest else account)["wallets"] = value
+        }
+        override suspend fun readForSession(guest: Boolean, accessToken: String?): String? =
+            sessionScoped[guest to accessToken] ?: if (accessToken == null) read(guest) else null
+        override suspend fun writeForSession(value: String, guest: Boolean, accessToken: String?) {
+            sessionScoped[guest to accessToken] = value
         }
     }
     private class Remote : WalletRemoteDataSource {
@@ -21,8 +27,16 @@ class WalletRepositoryTest {
         var addCalls = 0
         var lastAuthorization: String? = null
         var lastAuthMode: String? = null
-        override suspend fun getWallets() = wallets.toList()
-        override suspend fun getWallets(authorizationHeader: String?, authMode: String?) = wallets.toList().also { lastAuthorization = authorizationHeader; lastAuthMode = authMode }
+        var getCalls = 0
+        var failGetWallets = false
+        override suspend fun getWallets(): List<WalletDto> = getWallets(null, null)
+        override suspend fun getWallets(authorizationHeader: String?, authMode: String?): List<WalletDto> {
+            getCalls++
+            lastAuthorization = authorizationHeader
+            lastAuthMode = authMode
+            check(!failGetWallets) { "simulated network failure" }
+            return wallets.toList()
+        }
         override suspend fun addWallet(request: WalletWriteRequest) {
             addCalls++
             wallets += WalletDto(
@@ -132,6 +146,73 @@ class WalletRepositoryTest {
         assertEquals("Managed account wallet", updated.single().notes)
         assertTrue(local.account.containsKey("wallets"))
         assertFalse(local.guest.containsKey("wallets"))
+    }
+
+
+    @Test fun loadCachedReadsOnlyTheCapturedAccountCache() = runBlocking {
+        var currentToken: String? = "account-A-token"
+        val local = Local()
+        local.writeForSession("[{\"id\":\"A\"}]", false, "account-A-token")
+        local.writeForSession("[{\"id\":\"B\"}]", false, "account-B-token")
+        val remote = Remote()
+        val repository = WalletRepository(remote, local, accessTokenProvider = { currentToken })
+
+        val snapshot = repository.loadCached(guest = false)
+
+        assertEquals("account-A-token", snapshot.accessToken)
+        assertEquals("A", snapshot.wallets.single().id)
+        assertEquals(0, remote.getCalls)
+        currentToken = "account-B-token"
+        assertEquals("B", local.readForSession(false, currentToken)?.let {
+            Gson().fromJson(it, Array<WalletDto>::class.java).single().id
+        })
+    }
+
+    @Test fun refreshWritesToTheSessionCapturedBeforeAnAccountSwitch() = runBlocking {
+        var currentToken: String? = "account-A-token"
+        val local = Local()
+        local.writeForSession("[{\"id\":\"A-cache\"}]", false, "account-A-token")
+        local.writeForSession("[{\"id\":\"B-cache\"}]", false, "account-B-token")
+        val remote = Remote()
+        val repository = WalletRepository(remote, local, accessTokenProvider = { currentToken })
+        val snapshot = repository.loadCached(guest = false)
+        currentToken = "account-B-token"
+
+        val refreshed = repository.refresh(snapshot, guest = false)
+
+        assertTrue(refreshed.isEmpty())
+        assertEquals("[]", local.readForSession(false, "account-A-token"))
+        assertEquals("[{\"id\":\"B-cache\"}]", local.readForSession(false, "account-B-token"))
+        assertEquals("Bearer account-A-token", remote.lastAuthorization)
+        assertEquals(1, remote.getCalls)
+    }
+
+    @Test fun failedRefreshDoesNotOverwriteTheExistingAccountCache() = runBlocking {
+        val local = Local()
+        local.writeForSession("[{\"id\":\"cached\"}]", false, "account-token")
+        val remote = Remote().apply { failGetWallets = true }
+        val repository = WalletRepository(remote, local, accessTokenProvider = { "account-token" })
+        val snapshot = repository.loadCached(guest = false)
+
+        val failure = runCatching { repository.refresh(snapshot, guest = false) }
+
+        assertTrue(failure.isFailure)
+        assertEquals("[{\"id\":\"cached\"}]", local.readForSession(false, "account-token"))
+        assertEquals(1, remote.getCalls)
+    }
+
+    @Test fun guestRefreshNeverCallsRemoteOrWritesAccountCache() = runBlocking {
+        val local = Local()
+        local.writeForSession("[{\"id\":\"guest-cache\"}]", true, null)
+        val remote = Remote()
+        val repository = WalletRepository(remote, local, accessTokenProvider = { null })
+        val snapshot = repository.loadCached(guest = true)
+
+        val result = repository.refresh(snapshot, guest = true)
+
+        assertEquals("guest-cache", result.single().id)
+        assertEquals(0, remote.getCalls)
+        assertEquals(null, local.readForSession(false, null))
     }
 
 }
