@@ -306,8 +306,8 @@ private fun X5BrowserScreen(
                                                 loadsImagesAutomatically = true
                                                 allowFileAccess = false
                                                 allowContentAccess = false
-                                                allowFileAccessFromFileURLs = false
-                                                allowUniversalAccessFromFileURLs = false
+                                                setAllowFileAccessFromFileURLs(false)
+                                                setAllowUniversalAccessFromFileURLs(false)
                                                 javaScriptCanOpenWindowsAutomatically = false
                                                 setSupportMultipleWindows(false)
                                                 setMixedContentMode(1)
