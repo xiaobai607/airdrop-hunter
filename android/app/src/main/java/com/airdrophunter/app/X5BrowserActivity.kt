@@ -55,38 +55,12 @@ class X5BrowserActivity : ComponentActivity() {
             return
         }
         val title = intent.getStringExtra(BrowserActivity.EXTRA_TITLE).orEmpty()
-        val walletsJson = intent.getStringExtra(BrowserActivity.EXTRA_WALLETS_JSON).orEmpty()
-        val selectedWalletId = intent.getStringExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID).orEmpty()
-        val quickCopyAddress = intent.getStringExtra(BrowserActivity.EXTRA_QUICK_COPY_ADDRESS).orEmpty()
-        val walletAddress = quickCopyAddress.ifBlank {
-            runCatching {
-                val rows = JSONArray(walletsJson)
-                (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }
-                    .firstOrNull { it.optString("id") == selectedWalletId }
-                    ?.optString("address").orEmpty()
-                    .ifBlank { rows.optJSONObject(0)?.optString("address").orEmpty() }
-            }.getOrDefault("")
-        }
-
         setContent {
             AirdropHunterTheme {
                 X5BrowserScreen(
                     title = title.ifBlank { Uri.parse(initialUrl).host.orEmpty() },
                     initialUrl = initialUrl,
-                    walletAddress = walletAddress,
-                    onExit = { finish() },
-                    onOpenSystemWalletBrowser = { currentUrl ->
-                        startActivity(
-                            Intent(this, BrowserActivity::class.java)
-                                .putExtra(BrowserActivity.EXTRA_URL, currentUrl)
-                                .putExtra(BrowserActivity.EXTRA_TITLE, title)
-                                .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, walletsJson)
-                                .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, selectedWalletId)
-                                .putExtra(BrowserActivity.EXTRA_QUICK_COPY_ADDRESS, quickCopyAddress)
-                                .putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true)
-                        )
-                        finish()
-                    }
+                    onExit = { finish() }
                 )
             }
         }
@@ -97,9 +71,7 @@ class X5BrowserActivity : ComponentActivity() {
 private fun X5BrowserScreen(
     title: String,
     initialUrl: String,
-    walletAddress: String,
-    onExit: () -> Unit,
-    onOpenSystemWalletBrowser: (String) -> Unit
+    onExit: () -> Unit
 ) {
     val context = LocalContext.current
     val kernelState by X5KernelInitializer.state.collectAsStateWithLifecycle()
@@ -420,7 +392,7 @@ private fun X5BrowserScreen(
                 }
             }
             BrowserAccountingToolbar(
-                walletAddress = walletAddress,
+                walletAddress = "",
                 chainName = "unknown",
                 onCopyAddress = {
                     if (walletAddress.isBlank()) {
