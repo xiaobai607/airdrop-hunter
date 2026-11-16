@@ -38,3 +38,4 @@ APK packaging trigger for commit 6715bb80 (2026-11-16): run Android unit tests a
 
 Address bar correction (2026-11-16): preserve user-entered text during asynchronous page callbacks, navigate to the exact entered URL, and keep detailed error information visible in a scrollable error overlay. Build Debug APK for device verification.
 Tencent X5 browser migration: default ordinary browsing uses the dedicated X5 WebView surface; explicitly marked DApp claim flows retain the origin-restricted system WebView wallet bridge. Run Android unit tests and package the exact Debug APK for device validation.
+Tencent X5 compile correction: use the X5 SDK's explicit file-URL security setter methods; rerun unit tests and package the Debug APK.
