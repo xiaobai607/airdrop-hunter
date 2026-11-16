@@ -540,6 +540,9 @@ fun HomeScreen(
                                                 walletRows.firstOrNull()?.let {
                                                     intent.putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, it.id)
                                                 }
+                                                // Site shortcuts are the wallet-capable DApp entry; keep the legacy
+                                                // system WebView and its existing wallet approval bridge.
+                                                intent.putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true)
                                                 context.startActivity(intent)
                                             }
                                         },
