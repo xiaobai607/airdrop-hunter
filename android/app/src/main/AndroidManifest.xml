@@ -11,6 +11,7 @@
         android:theme="@style/Theme.AirdropHunter.Splash"
         android:usesCleartextTraffic="false">
         <activity android:name=".BrowserActivity" android:exported="false" />
+        <activity android:name=".X5BrowserActivity" android:exported="false" />
         <activity android:name=".WalletConnectRedirectActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
