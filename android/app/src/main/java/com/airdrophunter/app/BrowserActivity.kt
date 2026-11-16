@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.UserAgentMetadata
-import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebViewFeature
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -121,7 +120,7 @@ private data class BrowserWallet(
 private data class PendingDappExternalRequest(
     val request: DappRpcRequest,
     val origin: String,
-    val replyProxy: JavaScriptReplyProxy,
+    val replyProxy: DappReplyChannel,
     val sessionTopic: String,
     val chainId: String,
     val walletConnectRequestId: Long? = null,
@@ -237,7 +236,7 @@ private fun BrowserScreen(
         app.startWalletResponseReconciliation()
     }
     var browser by remember { mutableStateOf<WebView?>(null) }
-    val bridgeReplyProxies = remember { mutableMapOf<String, JavaScriptReplyProxy>() }
+    val bridgeReplyProxies = remember { mutableMapOf<String, DappReplyChannel>() }
     val popupWebViews = remember { mutableStateListOf<WebView>() }
     var selectedWallet by remember(wallets, selectedWalletId) {
         mutableStateOf(wallets.firstOrNull { it.id == selectedWalletId } ?: wallets.firstOrNull())
@@ -660,34 +659,35 @@ private fun BrowserScreen(
                                 this,
                                 DappProviderBridge.JS_OBJECT_NAME,
                                 DappProviderBridge.HTTPS_ORIGIN_RULES
-                            ) { sourceView, message, sourceOrigin, isMainFrame, replyProxy ->
+                            ) { sourceView, message, sourceOrigin, isMainFrame, replyChannel ->
+                                val replyChannel = DappReplyChannel { response -> replyProxy.postMessage(response) }
                                 val request = DappProviderBridge.parseRequest(message.data.orEmpty())
                                 if (request == null) {
                                     Log.w("AirdropBrowser", "Ignored malformed DApp provider message")
                                 } else if (!isMainFrame || !DappProviderBridge.isTrustedMainFrame(sourceOrigin, sourceView.url)) {
-                                    DappProviderBridge.error(replyProxy, request.id, -32000, "Wallet bridge is only available to the trusted top-level HTTPS page")
+                                    DappProviderBridge.error(replyChannel, request.id, -32000, "Wallet bridge is only available to the trusted top-level HTTPS page")
                                 } else {
                                     val origin = DappProviderBridge.origin(sourceOrigin)
-                                    bridgeReplyProxies[origin] = replyProxy
+                                    bridgeReplyProxies[origin] = replyChannel
                                     when (request.method) {
                                         "eth_requestAccounts" -> {
                                             if (pendingDappConnection != null) {
-                                                DappProviderBridge.error(replyProxy, request.id, -32002, "A wallet connection request is already pending")
+                                                DappProviderBridge.error(replyChannel, request.id, -32002, "A wallet connection request is already pending")
                                             } else if (authorizedDappOrigins[origin] == currentDappAuthorizationStamp() && connectedDappAccounts.isNotEmpty()) {
                                                 DappProviderBridge.success(
-                                                    replyProxy,
+                                                    replyChannel,
                                                     request.id,
                                                     JSONArray(connectedDappAccounts.map { it.address }.distinct())
                                                 )
                                             } else {
-                                                pendingDappConnection = PendingDappConnection(request, origin, replyProxy)
+                                                pendingDappConnection = PendingDappConnection(request, origin, replyChannel)
                                             }
                                         }
                                         "eth_accounts" -> {
                                             val addresses = if (authorizedDappOrigins[origin] == currentDappAuthorizationStamp()) {
                                                 connectedDappAccounts.map { it.address }.distinct()
                                             } else emptyList()
-                                            DappProviderBridge.success(replyProxy, request.id, JSONArray(addresses))
+                                            DappProviderBridge.success(replyChannel, request.id, JSONArray(addresses))
                                         }
                                         "eth_chainId", "net_version" -> {
                                             val rawChainReference = connectedDappAccounts.firstOrNull()?.chainId
@@ -703,18 +703,18 @@ private fun BrowserScreen(
                                             }
                                             if (chainNumber == null || chainNumber <= 0L) {
                                                 DappProviderBridge.error(
-                                                    replyProxy, request.id, -32000,
+                                                    replyChannel, request.id, -32000,
                                                     "The active EVM chain is unavailable; connect a wallet or select a supported network"
                                                 )
                                             } else {
                                                 val result = if (request.method == "eth_chainId") {
                                                     "0x" + chainNumber.toString(16)
                                                 } else chainNumber.toString()
-                                                DappProviderBridge.success(replyProxy, request.id, result)
+                                                DappProviderBridge.success(replyChannel, request.id, result)
                                             }
                                         }
                                         "wallet_switchEthereumChain" -> DappProviderBridge.error(
-                                            replyProxy, request.id, 4200, "Switch networks in the connected wallet, then reconnect this site"
+                                            replyChannel, request.id, 4200, "Switch networks in the connected wallet, then reconnect this site"
                                         )
                                         else -> {
                                             when {
@@ -738,24 +738,24 @@ private fun BrowserScreen(
                                                     }
                                                     when {
                                                         !authorized || connectedDappAccounts.isEmpty() ->
-                                                            DappProviderBridge.error(replyProxy, request.id, 4100, "请先在当前网站授权连接外部钱包")
+                                                            DappProviderBridge.error(replyChannel, request.id, 4100, "请先在当前网站授权连接外部钱包")
                                                         sessionTopic.isNullOrBlank() ->
-                                                            DappProviderBridge.error(replyProxy, request.id, 4200, "当前钱包连接方式暂不支持 DApp 签名转发，请使用 WalletConnect 外部钱包连接")
+                                                            DappProviderBridge.error(replyChannel, request.id, 4200, "当前钱包连接方式暂不支持 DApp 签名转发，请使用 WalletConnect 外部钱包连接")
                                                         pendingDappExternalRequest != null ->
-                                                            DappProviderBridge.error(replyProxy, request.id, -32002, "已有一笔外部钱包请求正在等待确认")
+                                                            DappProviderBridge.error(replyChannel, request.id, -32002, "已有一笔外部钱包请求正在等待确认")
                                                         !DappProviderBridge.isAuthorizedAccountRequest(
                                                             request.method, firstRequestParam, secondRequestParam,
                                                             transactionFrom, connectedAddresses
                                                         ) ->
-                                                            DappProviderBridge.error(replyProxy, request.id, 4100, "请求使用的钱包地址未在当前外部钱包会话中授权")
+                                                            DappProviderBridge.error(replyChannel, request.id, 4100, "请求使用的钱包地址未在当前外部钱包会话中授权")
                                                         account == null ->
-                                                            DappProviderBridge.error(replyProxy, request.id, 4901, "请求账户未在当前外部钱包的活动网络中授权，请切换网络或重新连接")
+                                                            DappProviderBridge.error(replyChannel, request.id, 4901, "请求账户未在当前外部钱包的活动网络中授权，请切换网络或重新连接")
                                                         !DappProviderBridge.isTransactionChainCompatible(
                                                             request.method,
                                                             request.params.optJSONObject(0)?.optString("chainId"),
                                                             account.chainId
                                                         ) ->
-                                                            DappProviderBridge.error(replyProxy, request.id, 4901, "交易参数指定的网络与当前授权网络不一致，已阻止转发")
+                                                            DappProviderBridge.error(replyChannel, request.id, 4901, "交易参数指定的网络与当前授权网络不一致，已阻止转发")
                                                         else -> {
                                                             val chainReference = account.chainId.let {
                                                                 if (it.startsWith("eip155:")) it else "eip155:$it"
@@ -763,7 +763,7 @@ private fun BrowserScreen(
                                                             val pending = PendingDappExternalRequest(
                                                                 request = request,
                                                                 origin = origin,
-                                                                replyProxy = replyProxy,
+                                                                replyChannel = replyChannel,
                                                                 sessionTopic = sessionTopic,
                                                                 chainId = chainReference
                                                             )
@@ -774,7 +774,7 @@ private fun BrowserScreen(
                                                                     val transaction = request.params.optJSONObject(0)
                                                                     val chainNumber = chainReference.removePrefix("eip155:").toLongOrNull()
                                                                     if (transaction == null || chainNumber == null) {
-                                                                        DappProviderBridge.error(replyProxy, request.id, -32602, "交易参数或链 ID 无效")
+                                                                        DappProviderBridge.error(replyChannel, request.id, -32602, "交易参数或链 ID 无效")
                                                                         pendingDappExternalRequest = null
                                                                         return@launch
                                                                     }
@@ -787,7 +787,7 @@ private fun BrowserScreen(
                                                                         ).id
                                                                     }.getOrElse {
                                                                         Log.e("AirdropBrowser", "Failed to persist Web3 transaction draft", it)
-                                                                        DappProviderBridge.error(replyProxy, request.id, -32000, "无法安全保存交易草稿，本次交易请求已阻止")
+                                                                        DappProviderBridge.error(replyChannel, request.id, -32000, "无法安全保存交易草稿，本次交易请求已阻止")
                                                                         pendingDappExternalRequest = null
                                                                         return@launch
                                                                     }
@@ -816,7 +816,7 @@ private fun BrowserScreen(
                                                                                             web3Repository.markWalletTimedOut(id)
                                                                                         }
                                                                                         DappProviderBridge.error(
-                                                                                            replyProxy, request.id, 4200,
+                                                                                            replyChannel, request.id, 4200,
                                                                                             "无法确认外部钱包请求编号，已安全取消本次请求"
                                                                                         )
                                                                                         pendingDappExternalRequest = null
@@ -833,7 +833,7 @@ private fun BrowserScreen(
                                                                                                 web3Repository.markWalletTimedOut(id)
                                                                                             }
                                                                                             DappProviderBridge.error(
-                                                                                                replyProxy, request.id, 4200,
+                                                                                                replyChannel, request.id, 4200,
                                                                                                 "交易草稿与钱包请求关联失败；请通过链上同步核对"
                                                                                             )
                                                                                             pendingDappExternalRequest = null
@@ -858,7 +858,7 @@ private fun BrowserScreen(
                                                                                         web3Repository.markWalletTimedOut(id)
                                                                                     }
                                                                                     DappProviderBridge.error(
-                                                                                        replyProxy, request.id, 4001,
+                                                                                        replyChannel, request.id, 4001,
                                                                                         error.localizedMessage ?: "外部钱包请求失败或被拒绝"
                                                                                     )
                                                                                     pendingDappExternalRequest = null
@@ -878,7 +878,7 @@ private fun BrowserScreen(
                                                                             web3Repository.markWalletTimedOut(id)
                                                                         }
                                                                         DappProviderBridge.error(
-                                                                            replyProxy, request.id, 4001,
+                                                                            replyChannel, request.id, 4001,
                                                                             error.localizedMessage ?: "无法打开外部钱包请求"
                                                                         )
                                                                         pendingDappExternalRequest = null
@@ -889,9 +889,9 @@ private fun BrowserScreen(
                                                     }
                                                 }
                                                 DappProviderBridge.isBlockedRawSubmissionMethod(request.method) ->
-                                                    DappProviderBridge.error(replyProxy, request.id, 4200, "不支持原始已签名交易或批量智能账户提交；请使用由外部钱包审核的标准签名/交易请求")
+                                                    DappProviderBridge.error(replyChannel, request.id, 4200, "不支持原始已签名交易或批量智能账户提交；请使用由外部钱包审核的标准签名/交易请求")
                                                 else ->
-                                                    DappProviderBridge.error(replyProxy, request.id, 4200, "Unsupported wallet method: ${request.method}")
+                                                    DappProviderBridge.error(replyChannel, request.id, 4200, "Unsupported wallet method: ${request.method}")
                                             }
                                         }
                                     }
