@@ -44,3 +44,4 @@ Browser/wallet separation correction (2026-11-16): X5 is browsing-only; all wall
 X5 toolbar isolation (2026-11-16): hide wallet-address actions from the X5 browsing-only toolbar and keep X5 dock preferences separate from the legacy wallet browser. Re-run Android unit tests and build the Debug APK.
 TRON energy wallet-assisted launch routing (2026-11-16): preserve the selected-address handoff in the existing system WebView; ordinary site/news/project browsing remains on Tencent X5, and explicit DApp/claim flows keep the legacy wallet bridge. Run Android unit tests and package the exact Debug APK.
 X5 airdrop site routing: browse all managed airdrop sites with Tencent X5; explicit wallet connect action hands the same URL and selected wallet context to the existing system-WebView wallet flow.
+X5 ordinary web routing audit: 2026-11-16
