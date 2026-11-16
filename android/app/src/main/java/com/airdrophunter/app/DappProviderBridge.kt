@@ -44,6 +44,12 @@ internal object DappProviderBridge {
         }.getOrDefault(false)
     }
 
+    /** Build a safely escaped JS event dispatch for an asynchronous X5 RPC response. */
+    fun x5ResponseDispatchScript(responseJson: String): String {
+        val encoded = JSONObject.quote(responseJson)
+        return "window.dispatchEvent(new CustomEvent('ahWalletRpcResponse',{detail:$encoded}));"
+    }
+
     fun parseX5Prompt(message: String?, defaultValue: String?): DappRpcRequest? {
         if (message != X5_PROMPT_PREFIX || defaultValue.isNullOrBlank()) return null
         return parseRequest(defaultValue)
@@ -54,17 +60,47 @@ internal object DappProviderBridge {
      * page finishes loading; it announces ethereum#initialized, but cannot guarantee
      * detection by dApps that only inspect window.ethereum during their initial boot.
      */
+    /**
+     * X5 prompt is only a transport enqueue operation. The wallet approval itself is
+     * asynchronous and its result is delivered later through evaluateJavascript.
+     * This avoids blocking the JavaScript thread while the user approves in the wallet.
+     */
     const val X5_PROVIDER_SCRIPT = """
 (function () {
   if (window.top !== window || window.ethereum) return;
+  var pending = new Map();
   var listeners = new Map();
   var state = { accounts: [], chainId: null, connected: false };
   var nextId = 1;
+
   function emit(name, value) {
     (listeners.get(name) || []).slice().forEach(function (fn) {
       try { fn(value); } catch (_) {}
     });
   }
+
+  window.addEventListener("ahWalletRpcResponse", function (event) {
+    var response;
+    try { response = JSON.parse(event.detail); } catch (_) { return; }
+    var task = pending.get(response.id);
+    if (!task) return;
+    pending.delete(response.id);
+    if (response.error) {
+      var failure = new Error(response.error.message || "Wallet request failed");
+      failure.code = response.error.code;
+      task.reject(failure);
+      return;
+    }
+    if (task.method === "eth_requestAccounts" || task.method === "eth_accounts") {
+      state.accounts = response.result || [];
+    }
+    if (task.method === "eth_chainId") {
+      state.chainId = response.result;
+      state.connected = true;
+    }
+    task.resolve(response.result);
+  });
+
   var provider = {
     isMetaMask: false,
     isConnected: function () { return state.connected; },
@@ -72,36 +108,24 @@ internal object DappProviderBridge {
       if (!args || typeof args.method !== "string" || !args.method) {
         return Promise.reject({ code: -32600, message: "Invalid request" });
       }
-      var id = nextId++;
-      var payload = JSON.stringify({
-        id: id,
-        method: args.method,
-        params: args.params === undefined ? [] : args.params
+      return new Promise(function (resolve, reject) {
+        var id = nextId++;
+        pending.set(id, { resolve: resolve, reject: reject, method: args.method });
+        try {
+          var ack = window.prompt("AH_WALLET_RPC_V1", JSON.stringify({
+            id: id,
+            method: args.method,
+            params: args.params === undefined ? [] : args.params
+          }));
+          if (ack !== "queued") {
+            pending.delete(id);
+            reject({ code: -32603, message: "Wallet bridge unavailable" });
+          }
+        } catch (error) {
+          pending.delete(id);
+          reject({ code: -32603, message: error && error.message || "Wallet bridge unavailable" });
+        }
       });
-      var raw;
-      try { raw = window.prompt("AH_WALLET_RPC_V1", payload); }
-      catch (error) {
-        return Promise.reject({ code: -32603, message: error && error.message || "Wallet bridge unavailable" });
-      }
-      if (raw === null || raw === undefined || raw === "") {
-        return Promise.reject({ code: 4001, message: "Wallet request cancelled" });
-      }
-      var response;
-      try { response = JSON.parse(raw); }
-      catch (_) { return Promise.reject({ code: -32603, message: "Invalid wallet bridge response" }); }
-      if (response.error) {
-        var failure = new Error(response.error.message || "Wallet request failed");
-        failure.code = response.error.code;
-        return Promise.reject(failure);
-      }
-      if (args.method === "eth_requestAccounts" || args.method === "eth_accounts") {
-        state.accounts = response.result || [];
-      }
-      if (args.method === "eth_chainId") {
-        state.chainId = response.result;
-        state.connected = true;
-      }
-      return Promise.resolve(response.result);
     },
     on: function (name, fn) {
       if (typeof fn !== "function") return provider;
@@ -117,6 +141,7 @@ internal object DappProviderBridge {
     addListener: function (name, fn) { return provider.on(name, fn); },
     off: function (name, fn) { return provider.removeListener(name, fn); }
   };
+
   Object.defineProperty(provider, "selectedAddress", {
     enumerable: true, get: function () { return state.accounts[0] || null; }
   });
