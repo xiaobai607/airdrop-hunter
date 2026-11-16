@@ -22,9 +22,11 @@ internal object DappProviderBridge {
     const val X5_PROMPT_PREFIX = "AH_WALLET_RPC_V1"
 
     /**
-     * X5 prompt callbacks provide the requesting frame URL but not an isMainFrame flag.
-     * Only HTTPS requests whose origin exactly matches the currently displayed page are accepted.
-     * Cross-origin frames, insecure URLs, user-info URLs, and mismatched ports fail closed.
+     * X5 prompt callbacks expose the requesting frame URL but no isMainFrame flag.
+     * Restrict the transport to the exact HTTPS document URL (path and query included),
+     * not merely the origin, so ordinary same-origin subframes on other routes fail closed.
+     * This is a defense-in-depth URL check, not cryptographic proof of the main frame:
+     * a same-origin frame loaded at the identical URL is indistinguishable through onJsPrompt.
      */
     fun isTrustedX5Prompt(sourceUrl: String?, pageUrl: String?): Boolean {
         if (sourceUrl.isNullOrBlank() || pageUrl.isNullOrBlank()) return false
@@ -33,6 +35,8 @@ internal object DappProviderBridge {
             // stub there and would silently make every prompt-origin check fail closed.
             val source = java.net.URI(sourceUrl)
             val page = java.net.URI(pageUrl)
+            val sourcePath = source.rawPath?.ifEmpty { "/" } ?: "/"
+            val pagePath = page.rawPath?.ifEmpty { "/" } ?: "/"
             source.scheme.equals("https", ignoreCase = true) &&
                 page.scheme.equals("https", ignoreCase = true) &&
                 !source.host.isNullOrBlank() &&
@@ -40,7 +44,9 @@ internal object DappProviderBridge {
                 source.userInfo == null &&
                 page.userInfo == null &&
                 source.host.equals(page.host, ignoreCase = true) &&
-                normalizedPort(source) == normalizedPort(page)
+                normalizedPort(source) == normalizedPort(page) &&
+                sourcePath == pagePath &&
+                source.rawQuery == page.rawQuery
         }.getOrDefault(false)
     }
 
