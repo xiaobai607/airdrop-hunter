@@ -249,6 +249,8 @@ private fun BrowserScreen(
     var showSecurityBanner by remember(url) { mutableStateOf(shouldShowBrowserSecurityBanner(context)) }
     var approvedOrigin by remember(url) { mutableStateOf(DappProviderBridge.origin(Uri.parse(url))) }
     var pendingNavigationUrl by remember { mutableStateOf<String?>(null) }
+    // Keep one WebView instance across Compose recompositions; recreate only after renderer recovery.
+    val rememberedWebView = remember(context, webViewGeneration) { WebView(context) }
     LaunchedEffect(currentPageUrl) { addressInput = currentPageUrl }
     val navigateToAddress: () -> Unit = {
         val targetUrl = normalizeBrowserHttpsUrl(addressInput.trim())
@@ -630,7 +632,7 @@ private fun BrowserScreen(
             key(webViewGeneration) {
             AndroidView(
                 factory = { ctx ->
-                    WebView(ctx).apply {
+                    rememberedWebView.apply {
                         browser = this
                         val supportsSecureBridge =
                             WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) &&
@@ -1044,23 +1046,11 @@ private fun BrowserScreen(
                                     }
                                     return true
                                 }
-                                val secureTarget = when {
-                                    target.scheme.equals("https", true) -> target
-                                    target.scheme.equals("http", true) -> target.buildUpon().scheme("https").build()
-                                    else -> return true
-                                }
-                                if (secureTarget.host.isNullOrBlank() || secureTarget.userInfo != null) return true
-                                val targetOrigin = runCatching { DappProviderBridge.origin(secureTarget) }.getOrNull() ?: return true
-                                val needsHttpsUpgrade = !target.scheme.equals("https", true)
-                                // A browser must be able to follow ordinary HTTPS links and
-                                // site redirects across origins (www, auth, CDN, anti-bot pages).
-                                // Navigation is not wallet authorization: origin-scoped DApp
-                                // permissions are revoked in onPageStarted when the origin changes.
-                                if (needsHttpsUpgrade) {
-                                    view?.loadUrl(secureTarget.toString())
-                                    return true
-                                }
-                                return false
+                                // Ordinary web navigation belongs to WebView. Do not rewrite HTTP
+                                // to HTTPS or intercept normal HTTP(S) links here.
+                                if (scheme == "http" || scheme == "https") return false
+                                Log.w("AirdropBrowser", "Blocked unsupported navigation scheme: $scheme, url=$target")
+                                return true
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
                                 pageUrl?.let {
@@ -1123,6 +1113,8 @@ private fun BrowserScreen(
                                 if (request?.isForMainFrame == true) {
                                     pageState = BrowserPageState.Error
                                     pageErrorMessage = "网络加载错误（${error?.errorCode ?: "未知"}）：${error?.description ?: "未提供错误详情"}"
+                                    val detail = "网络错误码: ${error?.errorCode}, 描述: ${error?.description}, 地址: ${request?.url}"
+                                    Toast.makeText(context, detail, Toast.LENGTH_LONG).show()
                                     Log.e("AirdropBrowser", "Main-frame load error: code=${error?.errorCode}, description=${error?.description}, url=${request?.url}, method=${request?.method}, isMainFrame=${request?.isForMainFrame}")
                                 }
                             }
@@ -1136,6 +1128,8 @@ private fun BrowserScreen(
                                 if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 200) >= 400) {
                                     pageState = BrowserPageState.Error
                                     pageErrorMessage = "网站返回 HTTP ${errorResponse?.statusCode ?: "错误"}：${errorResponse?.reasonPhrase ?: "服务器拒绝或无法处理请求"}"
+                                    val detail = "HTTP错误: ${errorResponse?.statusCode} ${errorResponse?.reasonPhrase}, 地址: ${request?.url}"
+                                    Toast.makeText(context, detail, Toast.LENGTH_LONG).show()
                                     Log.e("AirdropBrowser", "Main-frame HTTP error: status=${errorResponse?.statusCode}, reason=${errorResponse?.reasonPhrase}, url=${request?.url}, method=${request?.method}")
                                 }
                             }
@@ -1145,6 +1139,8 @@ private fun BrowserScreen(
                                 handler?.cancel()
                                 pageState = BrowserPageState.Error
                                 pageErrorMessage = "HTTPS 证书验证失败，已阻止连接。请检查设备时间、网络代理或网站证书。"
+                                val detail = "HTTPS证书错误: ${error?.primaryError}, 地址: ${error?.url}"
+                                Toast.makeText(context, detail, Toast.LENGTH_LONG).show()
                                 Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed; primaryError=${error?.primaryError}, url=${error?.url}")
                             }
 
