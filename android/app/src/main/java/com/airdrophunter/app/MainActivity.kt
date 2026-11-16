@@ -367,7 +367,10 @@ private fun AirdropHunterApp(
                             context.startActivity(Intent(context, BrowserActivity::class.java)
                                 .putExtra(BrowserActivity.EXTRA_URL, "https://feee.io/")
                                 .putExtra(BrowserActivity.EXTRA_TITLE, "TRON 能量租赁")
-                                .putExtra(BrowserActivity.EXTRA_QUICK_COPY_ADDRESS, address))
+                                // This flow carries the selected wallet address into the legacy
+                                // wallet-capable WebView; do not hand it off to the browsing-only X5 surface.
+                                .putExtra(BrowserActivity.EXTRA_QUICK_COPY_ADDRESS, address)
+                                .putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true))
                         }
                     )
                     route == "global-search" -> GlobalSearchScreen(
