@@ -29,8 +29,10 @@ internal object DappProviderBridge {
     fun isTrustedX5Prompt(sourceUrl: String?, pageUrl: String?): Boolean {
         if (sourceUrl.isNullOrBlank() || pageUrl.isNullOrBlank()) return false
         return runCatching {
-            val source = Uri.parse(sourceUrl)
-            val page = Uri.parse(pageUrl)
+            // java.net.URI is available in local JVM tests; android.net.Uri is a platform
+            // stub there and would silently make every prompt-origin check fail closed.
+            val source = java.net.URI(sourceUrl)
+            val page = java.net.URI(pageUrl)
             source.scheme.equals("https", ignoreCase = true) &&
                 page.scheme.equals("https", ignoreCase = true) &&
                 !source.host.isNullOrBlank() &&
@@ -347,7 +349,7 @@ internal object DappProviderBridge {
             }
             DappRpcRequest(id, method, params)
         }
-    } catch (_: JSONException) {
+    } catch (_: Exception) {
         null
     }
 
@@ -391,6 +393,8 @@ internal object DappProviderBridge {
         val error = JSONObject().put("code", code).put("message", message)
         replyProxy.postMessage(JSONObject().put("id", id).put("error", error).toString())
     }
+
+    private fun normalizedPort(uri: java.net.URI): Int = if (uri.port >= 0) uri.port else 443
 
     private fun normalizedPort(uri: Uri): Int = if (uri.port >= 0) uri.port else 443
 }
