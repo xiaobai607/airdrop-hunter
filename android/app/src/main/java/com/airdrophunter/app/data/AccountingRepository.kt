@@ -10,7 +10,10 @@ interface AccountingLocalDataSource {
     suspend fun readLocal(key: String): String?
     suspend fun read(key: String): String?
     suspend fun writeLocal(key: String, payload: String)
-    suspend fun writeLocalForToken(key: String, payload: String, accessToken: String?): Boolean
+    suspend fun writeLocalForToken(key: String, payload: String, accessToken: String?): Boolean {
+        writeLocal(key, payload)
+        return true
+    }
     suspend fun readLocalForToken(key: String, accessToken: String): String? = readLocal(key)
     suspend fun mergePersonalLedgerForToken(
         key: String,
