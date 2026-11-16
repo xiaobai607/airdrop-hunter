@@ -6,6 +6,44 @@ import org.junit.Test
 
 class DappProviderBridgeTest {
     @Test
+    fun x5PromptAcceptsOnlyTheExactSecurePageOrigin() {
+        assertTrue(DappProviderBridge.isTrustedX5Prompt(
+            "https://example.com/path", "https://example.com/other"
+        ))
+        assertTrue(DappProviderBridge.isTrustedX5Prompt(
+            "https://example.com:8443/rpc", "https://example.com:8443/"
+        ))
+        assertEquals(false, DappProviderBridge.isTrustedX5Prompt(
+            "http://example.com/", "https://example.com/"
+        ))
+        assertEquals(false, DappProviderBridge.isTrustedX5Prompt(
+            "https://evil.example/", "https://example.com/"
+        ))
+        assertEquals(false, DappProviderBridge.isTrustedX5Prompt(
+            "https://example.com:8443/", "https://example.com/"
+        ))
+        assertEquals(false, DappProviderBridge.isTrustedX5Prompt(
+            "https://user@example.com/", "https://example.com/"
+        ))
+        assertEquals(false, DappProviderBridge.isTrustedX5Prompt(
+            "https://example.com/", "http://example.com/"
+        ))
+    }
+
+    @Test
+    fun x5PromptParserRequiresTheFixedProtocolPrefix() {
+        val request = DappProviderBridge.parseX5Prompt(
+            "AH_WALLET_RPC_V1:{\\"id\\":7,\\"method\\":\\"eth_accounts\\",\\"params\\":[]}"
+        )
+        assertEquals(7L, request?.id)
+        assertEquals("eth_accounts", request?.method)
+        assertEquals(null, DappProviderBridge.parseX5Prompt(
+            "UNTRUSTED:{\\"id\\":7,\\"method\\":\\"eth_accounts\\"}"
+        ))
+        assertEquals(null, DappProviderBridge.parseX5Prompt("AH_WALLET_RPC_V1:not-json"))
+    }
+
+    @Test
     fun originRulesUseTheWebViewSupportedGlobalWildcardSyntax() {
         assertEquals(setOf("*"), DappProviderBridge.HTTPS_ORIGIN_RULES)
     }
