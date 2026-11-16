@@ -34,3 +34,6 @@ Browser and accounting follow-up (2026-11-16): compact optional asset section, p
 
 
 APK packaging trigger for commit 6715bb80 (2026-11-16): run Android unit tests and assemble/upload the Debug APK for device installation.
+
+
+Address bar correction (2026-11-16): preserve user-entered text during asynchronous page callbacks, navigate to the exact entered URL, and keep detailed error information visible in a scrollable error overlay. Build Debug APK for device verification.
