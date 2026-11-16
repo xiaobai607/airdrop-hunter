@@ -31,3 +31,6 @@ Build verification trigger refresh (2026-11-16): run :app:testDebugUnitTest and 
 PR validation refresh (2026-11-16): rerun Android unit tests and Debug APK build on current head against main merge base.
 
 Browser and accounting follow-up (2026-11-16): compact optional asset section, process-start WalletConnect warmup, browser bottom manual accounting without wallet, functional AppKit bottom-sheet host, responsive wallet button, and 6-second first-load timeout. Build and run Android unit tests on this exact branch head.
+
+
+APK packaging trigger for commit 6715bb80 (2026-11-16): run Android unit tests and assemble/upload the Debug APK for device installation.
