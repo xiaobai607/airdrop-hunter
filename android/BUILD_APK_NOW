@@ -49,3 +49,5 @@ X5 ordinary web routing audit: 2026-11-16
 X5 wallet connection handoff correction (2026-11-16): the X5 Connect Wallet action opens a dedicated WalletConnect surface without reloading the DApp URL or presenting the legacy browser chrome. Run Android unit tests and package the exact Debug APK.
 
 Wallet connection screen compile fix (2026-11-16): add the missing Compose Composable annotation import and rebuild/test.
+
+Wallet connection UX follow-up (2026-11-17): close the dedicated wallet connection surface after a newly approved WalletConnect session, returning to the still-open X5 page; correct stale architecture comments. Build debug APK and run unit tests.
