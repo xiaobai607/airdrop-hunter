@@ -25,3 +25,5 @@ Final verification build trigger (2026-11-16): all wallet cache regression tests
 One-tap manual accounting (2026-11-16): direct Home entry and wallet-free personal ledger screen; validate full UI-refactor branch with Android tests and Debug APK build.
 
 Final manual accounting UI pass (2026-11-16): route the Home dashboard accounting card to the standalone screen using the shared app bar; rerun unit tests and Debug APK build.
+
+Build verification trigger refresh (2026-11-16): run :app:testDebugUnitTest and :app:assembleDebug for the latest manual accounting commit.
