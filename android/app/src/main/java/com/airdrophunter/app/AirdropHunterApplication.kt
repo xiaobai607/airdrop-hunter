@@ -100,8 +100,9 @@ class AirdropHunterApplication : Application(), ImageLoaderFactory {
         WalletConnectSessionDelegate.attachApplicationContext(this)
         ApiClient.initialize(this)
 
-        // X5 pre-initialization is asynchronous; the existing system WebView remains active
-        // until the separate X5 browser surface is integrated and explicitly selected.
+        // X5 pre-initialization is asynchronous. Ordinary website browsing is routed to the
+        // dedicated X5 browser surface; the legacy system WebView remains for its existing
+        // wallet bridge flow until an equivalent X5 DApp bridge is fully security-reviewed.
         X5KernelInitializer.initialize(applicationContext)
 
         // Start WalletConnect/AppKit initialization as soon as the app process starts.
