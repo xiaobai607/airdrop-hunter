@@ -85,4 +85,6 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
+    // Use a real JSON implementation in local JVM tests; android.jar JSON methods are stubs.
+    testImplementation("org.json:json:20240303")
 }
