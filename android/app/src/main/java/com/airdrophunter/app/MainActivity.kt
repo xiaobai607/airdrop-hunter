@@ -386,7 +386,6 @@ private fun AirdropHunterApp(
                                 Intent(context, BrowserActivity::class.java)
                                     .putExtra(BrowserActivity.EXTRA_URL, url)
                                     .putExtra(BrowserActivity.EXTRA_TITLE, name)
-                                    .putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true)
                             )
                         }
                     )
