@@ -137,7 +137,9 @@ class AccountingRepository(
      */
     suspend fun saveManualLedgerEntry(entry: PersonalLedgerWriteRequest): Boolean {
         val accessToken = accessTokenProvider()?.takeIf { it.isNotBlank() }
-        val existing = local.readLocalForToken("personal_ledger", accessToken)?.let { raw ->
+        val existingRaw = if (accessToken == null) local.readLocal("personal_ledger")
+            else local.readLocalForToken("personal_ledger", accessToken)
+        val existing = existingRaw?.let { raw ->
             runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, projectsTypeForLedger) }.getOrNull()
         }.orEmpty()
         val updated = (existing.filterNot { it.client_record_id == entry.client_record_id } + entry)
