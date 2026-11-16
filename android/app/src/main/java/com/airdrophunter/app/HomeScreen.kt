@@ -533,16 +533,16 @@ fun HomeScreen(
                                                     val type = object : TypeToken<List<WalletDto>>() {}.type
                                                     raw?.let { runCatching { Gson().fromJson<List<WalletDto>>(it, type) }.getOrNull() }.orEmpty()
                                                 }
-                                                val intent = Intent(context, BrowserActivity::class.java)
+                                                val intent = Intent(context, X5BrowserActivity::class.java)
                                                     .putExtra(BrowserActivity.EXTRA_URL, site.url)
                                                     .putExtra(BrowserActivity.EXTRA_TITLE, site.name)
                                                     .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, Gson().toJson(walletRows))
                                                 walletRows.firstOrNull()?.let {
                                                     intent.putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, it.id)
                                                 }
-                                                // Site shortcuts are the wallet-capable DApp entry; keep the legacy
-                                                // system WebView and its existing wallet approval bridge.
-                                                intent.putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true)
+                                                // Airdrop sites are browsing-only X5 pages. The X5 page
+                                                // forwards an explicit wallet-connect action to the
+                                                // existing system-WebView wallet flow.
                                                 context.startActivity(intent)
                                             }
                                         },
