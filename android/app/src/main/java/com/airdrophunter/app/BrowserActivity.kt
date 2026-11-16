@@ -296,15 +296,11 @@ private fun BrowserScreen(
     LaunchedEffect(pageState, browser) {
         if (pageState == BrowserPageState.Loading) {
             isSlowLoading = false
-            kotlinx.coroutines.delay(5_000)
-            if (pageState == BrowserPageState.Loading) {
-                isSlowLoading = true
-                kotlinx.coroutines.delay(25_000)
-            }
+            kotlinx.coroutines.delay(6_000)
             if (pageState == BrowserPageState.Loading) {
                 pageState = BrowserPageState.Error
-                pageErrorMessage = "网页在 30 秒内未返回首屏内容。可能是网络连接、网站响应或登录跳转失败；请检查网络后重试。"
-                Log.w("AirdropBrowser", "Main-frame load timed out after 30 seconds")
+                pageErrorMessage = "网页在 6 秒内未返回首屏内容。可检查网络后重试；部分网站的验证或登录页面可能需要更长时间。"
+                Log.w("AirdropBrowser", "Main-frame load timed out after 6 seconds")
             }
         }
     }
