@@ -484,10 +484,17 @@ private fun BrowserScreen(
                     },
                     actions = {
                         AppButton(
-                            text = "连接外部钱包",
-                            onClick = { walletNavController.openAppKit() },
+                            text = if (walletConnectReady) "连接外部钱包" else "初始化钱包…",
+                            onClick = {
+                                if (walletConnectReady) {
+                                    walletNavController.openAppKit()
+                                } else {
+                                    WalletConnectInitializer.ensureInitialized(context.applicationContext as android.app.Application)
+                                    Toast.makeText(context, "钱包服务正在初始化，请稍后再试", Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             style = AppButtonStyle.SECONDARY,
-                            enabled = walletConnectReady,
+                            enabled = true,
                             fullWidth = false,
                             heightDp = 44,
                             fontSizeSp = 13
