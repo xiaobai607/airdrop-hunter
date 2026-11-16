@@ -42,12 +42,91 @@ internal object DappProviderBridge {
         }.getOrDefault(false)
     }
 
-    fun parseX5Prompt(message: String?): DappRpcRequest? {
-        val prefix = "$X5_PROMPT_PREFIX:"
-        if (message == null || !message.startsWith(prefix)) return null
-        return parseRequest(message.substring(prefix.length))
+    fun parseX5Prompt(message: String?, defaultValue: String?): DappRpcRequest? {
+        if (message != X5_PROMPT_PREFIX || defaultValue.isNullOrBlank()) return null
+        return parseRequest(defaultValue)
     }
 
+    /**
+     * X5 transport uses WebChromeClient.onJsPrompt. The script is installed after the
+     * page finishes loading; it announces ethereum#initialized, but cannot guarantee
+     * detection by dApps that only inspect window.ethereum during their initial boot.
+     */
+    const val X5_PROVIDER_SCRIPT = """
+(function () {
+  if (window.top !== window || window.ethereum) return;
+  var listeners = new Map();
+  var state = { accounts: [], chainId: null, connected: false };
+  var nextId = 1;
+  function emit(name, value) {
+    (listeners.get(name) || []).slice().forEach(function (fn) {
+      try { fn(value); } catch (_) {}
+    });
+  }
+  var provider = {
+    isMetaMask: false,
+    isConnected: function () { return state.connected; },
+    request: function (args) {
+      if (!args || typeof args.method !== "string" || !args.method) {
+        return Promise.reject({ code: -32600, message: "Invalid request" });
+      }
+      var id = nextId++;
+      var payload = JSON.stringify({
+        id: id,
+        method: args.method,
+        params: args.params === undefined ? [] : args.params
+      });
+      var raw;
+      try { raw = window.prompt("AH_WALLET_RPC_V1", payload); }
+      catch (error) {
+        return Promise.reject({ code: -32603, message: error && error.message || "Wallet bridge unavailable" });
+      }
+      if (raw === null || raw === undefined || raw === "") {
+        return Promise.reject({ code: 4001, message: "Wallet request cancelled" });
+      }
+      var response;
+      try { response = JSON.parse(raw); }
+      catch (_) { return Promise.reject({ code: -32603, message: "Invalid wallet bridge response" }); }
+      if (response.error) {
+        var failure = new Error(response.error.message || "Wallet request failed");
+        failure.code = response.error.code;
+        return Promise.reject(failure);
+      }
+      if (args.method === "eth_requestAccounts" || args.method === "eth_accounts") {
+        state.accounts = response.result || [];
+      }
+      if (args.method === "eth_chainId") {
+        state.chainId = response.result;
+        state.connected = true;
+      }
+      return Promise.resolve(response.result);
+    },
+    on: function (name, fn) {
+      if (typeof fn !== "function") return provider;
+      var items = listeners.get(name) || [];
+      items.push(fn);
+      listeners.set(name, items);
+      return provider;
+    },
+    removeListener: function (name, fn) {
+      listeners.set(name, (listeners.get(name) || []).filter(function (item) { return item !== fn; }));
+      return provider;
+    },
+    addListener: function (name, fn) { return provider.on(name, fn); },
+    off: function (name, fn) { return provider.removeListener(name, fn); }
+  };
+  Object.defineProperty(provider, "selectedAddress", {
+    enumerable: true, get: function () { return state.accounts[0] || null; }
+  });
+  Object.defineProperty(provider, "chainId", {
+    enumerable: true, get: function () { return state.chainId; }
+  });
+  Object.defineProperty(window, "ethereum", {
+    value: provider, configurable: false, enumerable: true, writable: false
+  });
+  window.dispatchEvent(new Event("ethereum#initialized"));
+})();
+"""
     const val PROVIDER_SCRIPT = """
 (function () {
   // The bridge is intended for the trusted top-level page only; do not install it in iframes.
