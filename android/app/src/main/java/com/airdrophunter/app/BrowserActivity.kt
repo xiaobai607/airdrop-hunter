@@ -73,6 +73,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -244,24 +245,35 @@ private fun BrowserScreen(
     var webViewGeneration by remember(url) { mutableIntStateOf(0) }
     var currentPageUrl by remember(url) { mutableStateOf(url) }
     var addressInput by remember(url) { mutableStateOf(url) }
+    var isAddressEditing by remember { mutableStateOf(false) }
     var pageStartCount by remember(url) { mutableIntStateOf(0) }
     var showSecurityBanner by remember(url) { mutableStateOf(shouldShowBrowserSecurityBanner(context)) }
     var approvedOrigin by remember(url) { mutableStateOf(DappProviderBridge.origin(Uri.parse(url))) }
     var pendingNavigationUrl by remember { mutableStateOf<String?>(null) }
     // Keep one WebView instance across Compose recompositions; recreate only after renderer recovery.
     val rememberedWebView = remember(context, webViewGeneration) { WebView(context) }
-    LaunchedEffect(currentPageUrl) { addressInput = currentPageUrl }
+    LaunchedEffect(currentPageUrl, isAddressEditing) {
+        // Do not overwrite text while the user is editing; page callbacks may arrive late.
+        if (!isAddressEditing) addressInput = currentPageUrl
+    }
     val navigateToAddress: () -> Unit = {
         val targetUrl = normalizeBrowserHttpsUrl(addressInput.trim())
         if (targetUrl == null) {
             Toast.makeText(context, "网址无效，请输入正确的网址", Toast.LENGTH_SHORT).show()
         } else {
+            isAddressEditing = false
+            addressInput = targetUrl
             pendingNavigationUrl = null
             pageState = BrowserPageState.Loading
             pageErrorMessage = null
-            // Keep the previous URL until WebView reports onPageStarted so the
-            // existing origin-change handler can revoke the previous site's permissions.
-            browser?.loadUrl(targetUrl)
+            val activeWebView = browser
+            if (activeWebView != null) {
+                activeWebView.stopLoading()
+                activeWebView.loadUrl(targetUrl)
+                Log.i("AirdropBrowser", "User address navigation requested: " + displayHost(targetUrl))
+            } else {
+                Toast.makeText(context, "浏览器还在初始化，请稍后再试", Toast.LENGTH_SHORT).show()
+            }
         }
     }
     val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
@@ -519,7 +531,9 @@ private fun BrowserScreen(
                         TextField(
                             value = addressInput,
                             onValueChange = { addressInput = it },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).onFocusChanged { focusState ->
+                                isAddressEditing = focusState.isFocused
+                            },
                             singleLine = true,
                             placeholder = { Text("输入网址或域名") },
                             textStyle = MaterialTheme.typography.bodyMedium,
@@ -1444,9 +1458,12 @@ private fun BrowserPageOverlay(
                 )
             }
         } else {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            Column(
+                Modifier.fillMaxWidth().verticalScroll(androidx.compose.foundation.rememberScrollState())
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Icon(Icons.Default.CloudOff, contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(64.dp))
                 Text(
