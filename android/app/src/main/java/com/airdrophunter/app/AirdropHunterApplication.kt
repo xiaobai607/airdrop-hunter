@@ -1,6 +1,7 @@
 package com.airdrophunter.app
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import coil.ImageLoader
 import coil.ImageLoaderFactory
@@ -15,6 +16,7 @@ import com.reown.android.CoreClient
 import com.reown.appkit.client.AppKit
 import com.reown.appkit.client.Modal
 import com.reown.appkit.presets.AppKitChainsPresets
+import com.tencent.smtt.sdk.QbSdk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.CoroutineScope
@@ -97,6 +99,10 @@ class AirdropHunterApplication : Application(), ImageLoaderFactory {
         // tasks keep their own cadence, account boundary, and retry semantics.
         WalletConnectSessionDelegate.attachApplicationContext(this)
         ApiClient.initialize(this)
+
+        // X5 pre-initialization is asynchronous; the existing system WebView remains active
+        // until the separate X5 browser surface is integrated and explicitly selected.
+        X5KernelInitializer.initialize(applicationContext)
 
         // Start WalletConnect/AppKit initialization as soon as the app process starts.
         // The initializer owns a process-wide scope and guards against duplicate starts.
@@ -193,6 +199,78 @@ object WalletConnectInitializer {
                 _error.value = error.message ?: "钱包连接服务初始化失败，请检查网络后重试"
                 Log.e("AirdropWallet", "WalletConnect initialization failed", error)
             }
+        }
+    }
+}
+
+
+/**
+ * Process-wide, asynchronous Tencent X5 initialization.
+ *
+ * This phase deliberately does not replace android.webkit.WebView. The current browser's
+ * AndroidX WebKit message bridge is required by WalletConnect and remains on the system
+ * WebView until an X5-specific bridge has been separately implemented and security-reviewed.
+ */
+enum class X5KernelState {
+    NOT_STARTED,
+    INITIALIZING,
+    AVAILABLE,
+    UNAVAILABLE
+}
+
+object X5KernelInitializer {
+    private const val TAG = "AirdropX5"
+
+    @Volatile
+    private var initializationStarted = false
+
+    private val _state = MutableStateFlow(X5KernelState.NOT_STARTED)
+    val state = _state.asStateFlow()
+
+    @Synchronized
+    fun initialize(context: Context) {
+        if (initializationStarted) return
+        initializationStarted = true
+        _state.value = X5KernelState.INITIALIZING
+
+        val appContext = context.applicationContext
+        try {
+            QbSdk.initX5Environment(
+                appContext,
+                object : QbSdk.PreInitCallback {
+                    override fun onCoreInitFinished() {
+                        Log.i(TAG, "TBS core pre-initialization callback completed")
+                    }
+
+                    override fun onViewInitFinished(isX5Available: Boolean) {
+                        val actuallyUsingX5 = isX5Available && runCatching {
+                            QbSdk.isX5Core()
+                        }.getOrDefault(false)
+
+                        if (actuallyUsingX5) {
+                            _state.value = X5KernelState.AVAILABLE
+                            Log.i(
+                                TAG,
+                                "X5 ready; sdkVersion=${QbSdk.getTbsSdkVersion()}, " +
+                                    "coreVersion=${QbSdk.getTbsVersion(appContext)}"
+                            )
+                        } else {
+                            _state.value = X5KernelState.UNAVAILABLE
+                            val help = runCatching {
+                                QbSdk.getX5CoreLoadHelp(appContext)
+                            }.getOrNull()
+                            Log.w(
+                                TAG,
+                                "X5 unavailable; keep system WebView active. " +
+                                    "callbackAvailable=$isX5Available; help=$help"
+                            )
+                        }
+                    }
+                }
+            )
+        } catch (error: Exception) {
+            _state.value = X5KernelState.UNAVAILABLE
+            Log.e(TAG, "X5 initialization failed; keep system WebView active", error)
         }
     }
 }
