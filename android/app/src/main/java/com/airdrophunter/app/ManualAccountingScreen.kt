@@ -53,7 +53,7 @@ fun ManualAccountingScreen(
     val reward = rewardUsd.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
     fun validAsset(amount: String, symbol: String): Boolean =
         (amount.isBlank() && symbol.isBlank()) ||
-            (amount.toBigDecimalOrNull()?.signum() in 0..Int.MAX_VALUE && symbol.isNotBlank())
+            (amount.toBigDecimalOrNull()?.let { it.signum() >= 0 } == true && symbol.isNotBlank())
 
     val nativeValid = validAsset(gasNative, gasSymbol) && validAsset(rewardNative, rewardSymbol)
     BackHandler { if (!saving) onBack() }
