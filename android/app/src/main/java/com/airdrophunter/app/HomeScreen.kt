@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
@@ -61,6 +62,7 @@ fun HomeScreen(
     onOpenProjects: () -> Unit,
     onOpenAirdropHub: () -> Unit = {},
     onOpenTronEnergy: () -> Unit = {},
+    onOpenAccounting: () -> Unit = {},
     isGuest: Boolean = true,
     onRequireAuth: () -> Unit = {},
     sessionScopeKey: String = "guest",
@@ -96,6 +98,28 @@ fun HomeScreen(
                 color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
             IconButton(onClick = { showNotifications = true }) {
                 Icon(Icons.Default.NotificationsNone, "通知", tint = AppColors.TextSecondary)
+            }
+        }
+
+        Card(
+            onClick = onOpenAccounting,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+            border = BorderStroke(1.dp, AppColors.Border),
+            elevation = CardDefaults.cardElevation(1.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(28.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("记一笔", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("直接记录 Gas 支出和实际收益，无需连接钱包", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+                Text("记账", color = AppColors.Primary, fontWeight = FontWeight.SemiBold)
             }
         }
 
