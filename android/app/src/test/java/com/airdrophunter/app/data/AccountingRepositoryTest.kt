@@ -11,29 +11,6 @@ import org.junit.Test
 
 class AccountingRepositoryTest {
     @Test
-    fun loadPersonalLedgerReturnsOnlyActiveLocalRealRowsNewestFirst() = runBlocking {
-        val source = FakeAccountingLocalDataSource()
-        val newest = ledgerWrite("newest").copy(occurred_at = "2026-11-13T12:00:00Z")
-        val older = ledgerWrite("older").copy(occurred_at = "2026-11-12T12:00:00Z")
-        val demo = ledgerWrite("demo").copy(extra = mapOf("is_demo" to "true"))
-        source.local["personal_ledger"] = Gson().toJson(listOf(older, demo, newest))
-
-        val result = AccountingRepository(source).loadPersonalLedger()
-
-        assertEquals(listOf("newest", "older"), result.map { it.client_record_id })
-    }
-
-    @Test
-    fun loadPersonalLedgerTreatsMissingOrMalformedLocalPayloadAsEmpty() = runBlocking {
-        val source = FakeAccountingLocalDataSource()
-        val repository = AccountingRepository(source)
-
-        assertTrue(repository.loadPersonalLedger().isEmpty())
-        source.local["personal_ledger"] = "{invalid-json"
-        assertTrue(repository.loadPersonalLedger().isEmpty())
-    }
-
-    @Test
     fun loadProjectsMergesSourcesAndDeduplicatesByLocalId() = runBlocking {
         val source = FakeAccountingLocalDataSource()
         source.local["projects"] = Gson().toJson(listOf(project("same", "Remote cache"), project("second", "Second")))
@@ -92,28 +69,10 @@ class AccountingRepositoryTest {
             personalLedgerRemote = remote
         )
 
-        assertTrue(repository.syncPersonalLedger())
+        assertTrue(!repository.syncPersonalLedger())
         assertEquals(0, remote.getCalls)
         assertTrue(remote.uploaded.isEmpty())
         assertEquals(Gson().toJson(listOf(guestRow)), source.local["personal_ledger"])
-    }
-
-    @Test
-    fun currentReleaseDisablesPrivateCloudSyncEvenWhenLegacyTokenExists() = runBlocking {
-        val source = FakeAccountingLocalDataSource()
-        val localRow = ledgerWrite("keep-local")
-        source.sessionLocal["token-account-A"] = mutableMapOf("personal_ledger" to Gson().toJson(listOf(localRow)))
-        val remote = FakePersonalLedgerRemoteDataSource()
-        val repository = AccountingRepository(
-            source,
-            accessTokenProvider = { "token-account-A" },
-            personalLedgerRemote = remote
-        )
-
-        assertTrue(repository.syncPersonalLedger())
-        assertEquals(0, remote.getCalls)
-        assertTrue(remote.uploaded.isEmpty())
-        assertEquals(Gson().toJson(listOf(localRow)), source.sessionLocal.getValue("token-account-A").getValue("personal_ledger"))
     }
 
     @Test
@@ -143,8 +102,7 @@ class AccountingRepositoryTest {
         val repository = AccountingRepository(
             source,
             accessTokenProvider = { activeToken },
-            personalLedgerRemote = remote,
-            privateCloudSyncEnabled = true
+            personalLedgerRemote = remote
         )
 
         assertTrue(repository.syncPersonalLedger())
@@ -182,8 +140,7 @@ class AccountingRepositoryTest {
         val repository = AccountingRepository(
             source,
             accessTokenProvider = { "token-account-A" },
-            personalLedgerRemote = remote,
-            privateCloudSyncEnabled = true
+            personalLedgerRemote = remote
         )
 
         assertTrue(!repository.syncPersonalLedger())
@@ -200,7 +157,7 @@ class AccountingRepositoryTest {
             "personal_ledger" to Gson().toJson(listOf(unknownEstimate))
         )
         val remote = FakePersonalLedgerRemoteDataSource()
-        val repository = AccountingRepository(source, accessTokenProvider = { "token-account-A" }, personalLedgerRemote = remote, privateCloudSyncEnabled = true)
+        val repository = AccountingRepository(source, accessTokenProvider = { "token-account-A" }, personalLedgerRemote = remote)
 
         assertTrue(repository.syncPersonalLedger())
         assertEquals(null, remote.uploaded.single().expected_gas_cost_usd)
@@ -219,7 +176,7 @@ class AccountingRepositoryTest {
             ledgerEntry("cloud-$index", request = request)
         }.toMutableList()
         val remote = FakePersonalLedgerRemoteDataSource(cloudEntries = cloudRows)
-        val repository = AccountingRepository(source, accessTokenProvider = { "token-account-A" }, personalLedgerRemote = remote, privateCloudSyncEnabled = true)
+        val repository = AccountingRepository(source, accessTokenProvider = { "token-account-A" }, personalLedgerRemote = remote)
 
         assertTrue(repository.syncPersonalLedger())
         assertEquals(2, remote.getCalls)
@@ -229,6 +186,54 @@ class AccountingRepositoryTest {
         )
         assertEquals(501, restored.size)
         assertEquals(null, restored.single { it.client_record_id == "cloud-0" }.expected_gas_cost_usd)
+    }
+
+    @Test
+    fun manualLedgerEntrySavesForGuestWithoutWalletOrProject() = runBlocking {
+        val source = FakeAccountingLocalDataSource()
+        val repository = AccountingRepository(source, accessTokenProvider = { null })
+        val entry = PersonalLedgerWriteRequest(
+            client_record_id = "manual-guest-row",
+            project_id = null,
+            project_name = "未关联项目",
+            chain = "manual",
+            wallet_address = "",
+            tx_hash = "",
+            interaction_method = "手动记账",
+            expected_gas_cost_usd = null,
+            expected_reward_usd = null,
+            actual_gas_cost_usd = 1.25,
+            actual_reward_usd = 0.0,
+            occurred_at = "2026-11-16T00:00:00Z"
+        )
+
+        assertTrue(repository.saveManualLedgerEntry(entry))
+        val saved = Gson().fromJson<List<PersonalLedgerWriteRequest>>(
+            source.local.getValue("personal_ledger"),
+            object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+        )
+        assertEquals(listOf("manual-guest-row"), saved.map { it.client_record_id })
+        assertEquals(null, saved.single().project_id)
+        assertEquals("", saved.single().wallet_address)
+        assertEquals("", saved.single().tx_hash)
+    }
+
+    @Test
+    fun manualLedgerEntryWritesToCapturedAuthenticatedAccountScope() = runBlocking {
+        val source = FakeAccountingLocalDataSource()
+        val entry = ledgerWrite("manual-account-row").copy(
+            project_id = null, project_name = "未关联项目", chain = "manual",
+            wallet_address = "", tx_hash = "", interaction_method = "手动记账"
+        )
+        val repository = AccountingRepository(source, accessTokenProvider = { "token-account-A" })
+
+        assertTrue(repository.saveManualLedgerEntry(entry))
+        val saved = Gson().fromJson<List<PersonalLedgerWriteRequest>>(
+            source.sessionLocal.getValue("token-account-A").getValue("personal_ledger"),
+            object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
+        )
+        assertEquals(listOf("manual-account-row"), saved.map { it.client_record_id })
+        assertTrue(source.local["personal_ledger"].isNullOrBlank())
     }
 
     @Test
@@ -278,6 +283,11 @@ private class FakeAccountingLocalDataSource : AccountingLocalDataSource {
     override suspend fun readLocal(key: String): String? = local[key]
     override suspend fun read(key: String): String? = cache[key]
     override suspend fun writeLocal(key: String, payload: String) { local[key] = payload }
+    override suspend fun writeLocalForToken(key: String, payload: String, accessToken: String?): Boolean {
+        if (accessToken.isNullOrBlank()) local[key] = payload
+        else sessionLocal.getOrPut(accessToken) { mutableMapOf() }[key] = payload
+        return true
+    }
     override suspend fun addPendingBill(bill: PendingBillEntity) { addedBill = bill }
     override suspend fun deletePendingBill(id: String) { deletedBillId = id }
     override suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean = false
