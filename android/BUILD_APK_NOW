@@ -27,3 +27,5 @@ One-tap manual accounting (2026-11-16): direct Home entry and wallet-free person
 Final manual accounting UI pass (2026-11-16): route the Home dashboard accounting card to the standalone screen using the shared app bar; rerun unit tests and Debug APK build.
 
 Build verification trigger refresh (2026-11-16): run :app:testDebugUnitTest and :app:assembleDebug for the latest manual accounting commit.
+
+PR validation refresh (2026-11-16): rerun Android unit tests and Debug APK build on current head against main merge base.
