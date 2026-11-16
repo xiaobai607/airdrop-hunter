@@ -407,7 +407,8 @@ private fun X5BrowserScreen(
                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl))) }
                         .onFailure { Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show() }
                 },
-                modifier = Modifier.fillMaxWidth().height(72.dp).navigationBarsPadding()
+                modifier = Modifier.fillMaxWidth().height(72.dp).navigationBarsPadding(),
+                showWalletTools = false
             )
         }
     }
