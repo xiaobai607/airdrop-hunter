@@ -213,7 +213,7 @@ class WalletRepositoryTest {
 
         assertEquals("guest-cache", result.single().id)
         assertEquals(0, remote.getCalls)
-        assertEquals(null, local.readForSession(false, null))
+        assertTrue(local.readForSession(false, null) == null)
     }
 
 }
