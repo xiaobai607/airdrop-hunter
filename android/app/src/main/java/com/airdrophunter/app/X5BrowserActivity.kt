@@ -395,13 +395,7 @@ private fun X5BrowserScreen(
                 walletAddress = "",
                 chainName = "unknown",
                 onCopyAddress = {
-                    if (walletAddress.isBlank()) {
-                        Toast.makeText(context, "当前没有可复制的钱包地址", Toast.LENGTH_SHORT).show()
-                    } else {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", walletAddress))
-                        Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
-                    }
+                    Toast.makeText(context, "钱包相关操作请从原有钱包 DApp 入口进入", Toast.LENGTH_SHORT).show()
                 },
                 onRefreshPage = { browser?.reload() },
                 onCopyPageUrl = {
