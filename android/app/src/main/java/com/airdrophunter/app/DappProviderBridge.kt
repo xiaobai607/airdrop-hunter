@@ -56,11 +56,6 @@ internal object DappProviderBridge {
     }
 
     /**
-     * X5 transport uses WebChromeClient.onJsPrompt. The script is installed after the
-     * page finishes loading; it announces ethereum#initialized, but cannot guarantee
-     * detection by dApps that only inspect window.ethereum during their initial boot.
-     */
-    /**
      * X5 prompt is only a transport enqueue operation. The wallet approval itself is
      * asynchronous and its result is delivered later through evaluateJavascript.
      * This avoids blocking the JavaScript thread while the user approves in the wallet.
