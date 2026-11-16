@@ -152,9 +152,6 @@ class BrowserActivity : ComponentActivity() {
                 Intent(this, X5BrowserActivity::class.java)
                     .putExtra(EXTRA_URL, url)
                     .putExtra(EXTRA_TITLE, site)
-                    .putExtra(EXTRA_WALLETS_JSON, intent.getStringExtra(EXTRA_WALLETS_JSON).orEmpty())
-                    .putExtra(EXTRA_SELECTED_WALLET_ID, intent.getStringExtra(EXTRA_SELECTED_WALLET_ID).orEmpty())
-                    .putExtra(EXTRA_QUICK_COPY_ADDRESS, intent.getStringExtra(EXTRA_QUICK_COPY_ADDRESS).orEmpty())
             )
             finish()
             return
