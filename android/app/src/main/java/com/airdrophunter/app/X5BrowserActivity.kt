@@ -310,7 +310,7 @@ private fun X5BrowserScreen(
                                                 setAllowUniversalAccessFromFileURLs(false)
                                                 javaScriptCanOpenWindowsAutomatically = false
                                                 setSupportMultipleWindows(false)
-                                                setMixedContentMode(1)
+                                                setMixedContentMode(0)
                                                 setSafeBrowsingEnabled(true)
                                                 useWideViewPort = true
                                                 loadWithOverviewMode = true
@@ -322,7 +322,7 @@ private fun X5BrowserScreen(
                                                     val target = url ?: return true
                                                     val scheme = runCatching { Uri.parse(target).scheme?.lowercase() }.getOrNull()
                                                     if (scheme == "https" || scheme == "http") return false
-                                                    Toast.makeText(context, "此链接需要钱包兼容模式处理，请点击顶部“钱包模式”", Toast.LENGTH_LONG).show()
+                                                    Toast.makeText(context, "已阻止不支持的链接协议；仅允许安全网页链接", Toast.LENGTH_LONG).show()
                                                     return true
                                                 }
 
@@ -374,7 +374,7 @@ private fun X5BrowserScreen(
                                                 }
                                             }
                                             setDownloadListener { downloadUrl, _, _, _, _ ->
-                                                Toast.makeText(context, "检测到下载链接，请使用“钱包模式”或外部浏览器处理：${downloadUrl.take(100)}", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, "检测到下载链接，请使用外部浏览器处理：${downloadUrl.take(100)}", Toast.LENGTH_LONG).show()
                                             }
                                             if (getIsX5Core()) {
                                                 isX5InstanceConfirmed = true
