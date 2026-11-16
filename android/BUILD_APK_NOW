@@ -41,3 +41,4 @@ Tencent X5 browser migration: default ordinary browsing uses the dedicated X5 We
 Tencent X5 compile correction: use the X5 SDK's explicit file-URL security setter methods; rerun unit tests and package the Debug APK.
 
 Browser/wallet separation correction (2026-11-16): X5 is browsing-only; all wallet-capable site shortcuts, wallet-manager DApp launches, and campaign interaction pages stay on the existing system WebView wallet bridge. Run unit tests and package the Debug APK for device verification.
+X5 toolbar isolation (2026-11-16): hide wallet-address actions from the X5 browsing-only toolbar and keep X5 dock preferences separate from the legacy wallet browser. Re-run Android unit tests and build the Debug APK.
