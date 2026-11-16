@@ -60,6 +60,18 @@ class X5BrowserActivity : ComponentActivity() {
                 X5BrowserScreen(
                     title = title.ifBlank { Uri.parse(initialUrl).host.orEmpty() },
                     initialUrl = initialUrl,
+                    walletJson = intent.getStringExtra(BrowserActivity.EXTRA_WALLETS_JSON).orEmpty(),
+                    selectedWalletId = intent.getStringExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID).orEmpty(),
+                    onConnectWallet = { pageUrl ->
+                        startActivity(
+                            Intent(this, BrowserActivity::class.java)
+                                .putExtra(BrowserActivity.EXTRA_URL, pageUrl)
+                                .putExtra(BrowserActivity.EXTRA_TITLE, title)
+                                .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, intent.getStringExtra(BrowserActivity.EXTRA_WALLETS_JSON).orEmpty())
+                                .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, intent.getStringExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID).orEmpty())
+                                .putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true)
+                        )
+                    },
                     onExit = { finish() }
                 )
             }
@@ -71,6 +83,9 @@ class X5BrowserActivity : ComponentActivity() {
 private fun X5BrowserScreen(
     title: String,
     initialUrl: String,
+    walletJson: String,
+    selectedWalletId: String,
+    onConnectWallet: (String) -> Unit,
     onExit: () -> Unit
 ) {
     val context = LocalContext.current
@@ -156,6 +171,10 @@ private fun X5BrowserScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.SemiBold
                     )
+                    TextButton(
+                        onClick = { onConnectWallet(currentUrl) },
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) { Text("连接钱包") }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
