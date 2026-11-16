@@ -60,9 +60,21 @@ private fun WalletConnectScreen(onClose: () -> Unit) {
     val initializing by WalletConnectInitializer.initializing.collectAsStateWithLifecycle()
     val error by WalletConnectInitializer.error.collectAsStateWithLifecycle()
     val accounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
+    val sessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsStateWithLifecycle()
+    var initialSessionGeneration by remember { androidx.compose.runtime.mutableStateOf<Long?>(null) }
 
     LaunchedEffect(Unit) {
         WalletConnectInitializer.ensureInitialized(context.applicationContext as Application)
+    }
+
+    LaunchedEffect(sessionGeneration, accounts) {
+        val initial = initialSessionGeneration
+        if (initial == null) {
+            initialSessionGeneration = sessionGeneration
+        } else if (sessionGeneration != initial && accounts.isNotEmpty()) {
+            // Return to the still-open X5 page immediately after wallet approval.
+            onClose()
+        }
     }
 
     val sheetState = rememberModalBottomSheetState(
