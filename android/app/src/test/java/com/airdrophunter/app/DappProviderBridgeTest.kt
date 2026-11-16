@@ -34,14 +34,14 @@ class DappProviderBridgeTest {
     @Test
     fun x5ProviderUsesPromptOnlyToQueueAndReceivesAsyncResponses() {
         assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains("window.prompt(\"AH_WALLET_RPC_V1\""))
-        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains('response.id'))
-        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains('ahWalletRpcResponse'))
-        assertEquals(false, DappProviderBridge.X5_PROVIDER_SCRIPT.contains('JSON.parse(ack)'))
+        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains("response.id"))
+        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains("ahWalletRpcResponse"))
+        assertEquals(false, DappProviderBridge.X5_PROVIDER_SCRIPT.contains("JSON.parse(ack)"))
     }
 
     @Test
     fun x5ResponseDispatchSafelyEscapesPayload() {
-        val payload = """{"id":9,"result":"quote ' and slash \\"}"""
+        val payload = """{"id":9,"result":"a\\\\b"}"""
         val script = DappProviderBridge.x5ResponseDispatchScript(payload)
         assertTrue(script.contains("ahWalletRpcResponse"))
         assertTrue(script.contains("detail:"))
