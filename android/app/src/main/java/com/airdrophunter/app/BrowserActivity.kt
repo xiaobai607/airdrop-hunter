@@ -146,6 +146,20 @@ class BrowserActivity : ComponentActivity() {
             finish()
             return
         }
+        if (!intent.getBooleanExtra(EXTRA_FORCE_SYSTEM_WEBVIEW, false)) {
+            // Ordinary browsing now uses Tencent X5. The system WebView is retained
+            // only for pages explicitly marked as requiring the origin-restricted wallet bridge.
+            startActivity(
+                Intent(this, X5BrowserActivity::class.java)
+                    .putExtra(EXTRA_URL, url)
+                    .putExtra(EXTRA_TITLE, site)
+                    .putExtra(EXTRA_WALLETS_JSON, intent.getStringExtra(EXTRA_WALLETS_JSON).orEmpty())
+                    .putExtra(EXTRA_SELECTED_WALLET_ID, intent.getStringExtra(EXTRA_SELECTED_WALLET_ID).orEmpty())
+                    .putExtra(EXTRA_QUICK_COPY_ADDRESS, intent.getStringExtra(EXTRA_QUICK_COPY_ADDRESS).orEmpty())
+            )
+            finish()
+            return
+        }
         val wallets = parseWallets(intent.getStringExtra(EXTRA_WALLETS_JSON).orEmpty())
         val selectedId = intent.getStringExtra(EXTRA_SELECTED_WALLET_ID).orEmpty()
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -200,6 +214,7 @@ class BrowserActivity : ComponentActivity() {
         const val EXTRA_WALLETS_JSON = "com.airdrophunter.app.extra.BROWSER_WALLETS_JSON"
         const val EXTRA_SELECTED_WALLET_ID = "com.airdrophunter.app.extra.BROWSER_SELECTED_WALLET_ID"
         const val EXTRA_QUICK_COPY_ADDRESS = "com.airdrophunter.app.extra.BROWSER_QUICK_COPY_ADDRESS"
+        const val EXTRA_FORCE_SYSTEM_WEBVIEW = "com.airdrophunter.app.extra.BROWSER_FORCE_SYSTEM_WEBVIEW"
     }
 }
 
