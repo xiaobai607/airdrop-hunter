@@ -412,7 +412,8 @@ private fun AirdropHunterApp(
                                 .putExtra(BrowserActivity.EXTRA_URL, url)
                                 .putExtra(BrowserActivity.EXTRA_TITLE, title)
                                 .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, walletJson)
-                                .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, selectedWallet.id))
+                                .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, selectedWallet.id)
+                                .putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true))
                         }
                     )
                     route.startsWith("community:") -> {
