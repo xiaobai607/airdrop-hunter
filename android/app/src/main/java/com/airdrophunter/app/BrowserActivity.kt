@@ -877,6 +877,9 @@ private fun BrowserScreen(
                             domStorageEnabled = true
                             databaseEnabled = true
                             loadsImagesAutomatically = true
+                            blockNetworkLoads = false
+                            blockNetworkImage = false
+                            cacheMode = WebSettings.LOAD_DEFAULT
                             allowFileAccess = false
                             allowContentAccess = false
                             allowUniversalAccessFromFileURLs = false
@@ -1021,16 +1024,11 @@ private fun BrowserScreen(
                                     }
                                     return true
                                 }
-                                val secureTarget = when {
-                                    target.scheme.equals("https", true) -> target
-                                    target.scheme.equals("http", true) -> target.buildUpon().scheme("https").build()
-                                    else -> return true
-                                }
-                                if (secureTarget.host.isNullOrBlank() || secureTarget.userInfo != null) return true
-                                val targetOrigin = runCatching { DappProviderBridge.origin(secureTarget) }.getOrNull() ?: return true
-                                // Let WebView follow ordinary HTTP and HTTPS navigations itself.
-                                // Explicit HTTP URLs are not silently rewritten. DApp injection
-                                // remains HTTPS-only through HTTPS_ORIGIN_RULES.
+                                if (scheme != "https" && scheme != "http") return true
+                                if (target.host.isNullOrBlank() || target.userInfo != null) return true
+                                // Leave ordinary web navigation to WebView. Do not rewrite HTTP,
+                                // block cross-origin redirects, or re-load an already accepted URL.
+                                // Wallet bridge injection remains restricted to HTTPS origins.
                                 return false
                             }
                             override fun onPageStarted(view: WebView?, pageUrl: String?, favicon: android.graphics.Bitmap?) {
