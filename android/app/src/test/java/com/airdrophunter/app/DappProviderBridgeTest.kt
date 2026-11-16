@@ -7,12 +7,18 @@ import org.json.JSONObject
 
 class DappProviderBridgeTest {
     @Test
-    fun x5PromptAcceptsOnlyTheExactSecurePageOrigin() {
+    fun x5PromptRequiresTheExactSecureDocumentUrl() {
         assertTrue(DappProviderBridge.isTrustedX5Prompt(
-            "https://example.com/path", "https://example.com/other"
+            "https://example.com/path?app=1#section", "https://example.com/path?app=1"
         ))
         assertTrue(DappProviderBridge.isTrustedX5Prompt(
-            "https://example.com:8443/rpc", "https://example.com:8443/"
+            "https://example.com:8443/rpc", "https://example.com:8443/rpc"
+        ))
+        assertEquals(false, DappProviderBridge.isTrustedX5Prompt(
+            "https://example.com/other", "https://example.com/path"
+        ))
+        assertEquals(false, DappProviderBridge.isTrustedX5Prompt(
+            "https://example.com/path?app=2", "https://example.com/path?app=1"
         ))
         assertEquals(false, DappProviderBridge.isTrustedX5Prompt(
             "http://example.com/", "https://example.com/"
