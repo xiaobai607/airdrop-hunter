@@ -10,6 +10,10 @@ interface AccountingLocalDataSource {
     suspend fun readLocal(key: String): String?
     suspend fun read(key: String): String?
     suspend fun writeLocal(key: String, payload: String)
+    suspend fun writeLocalForToken(key: String, payload: String, accessToken: String?): Boolean {
+        writeLocal(key, payload)
+        return true
+    }
     suspend fun readLocalForToken(key: String, accessToken: String): String? = readLocal(key)
     suspend fun mergePersonalLedgerForToken(
         key: String,
@@ -17,7 +21,6 @@ interface AccountingLocalDataSource {
         accessToken: String
     ): Boolean
     suspend fun addPendingBill(bill: PendingBillEntity)
-    suspend fun savePendingBillDraft(id: String, draftJson: String): Boolean = false
     suspend fun deletePendingBill(id: String)
     suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean
     fun schedulePrivateLedgerSync() {}
@@ -39,6 +42,8 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
     override suspend fun readLocal(key: String): String? = CacheStore.readLocal(key)
     override suspend fun read(key: String): String? = CacheStore.read(key)
     override suspend fun writeLocal(key: String, payload: String) = CacheStore.writeLocal(key, payload)
+    override suspend fun writeLocalForToken(key: String, payload: String, accessToken: String?): Boolean =
+        CacheStore.writeLocalForToken(key, payload, accessToken)
     override suspend fun readLocalForToken(key: String, accessToken: String): String? =
         CacheStore.readLocalForToken(key, accessToken)
     override suspend fun mergePersonalLedgerForToken(
@@ -49,8 +54,6 @@ class CacheStoreAccountingLocalDataSource : AccountingLocalDataSource {
     override suspend fun addPendingBill(bill: PendingBillEntity) {
         CacheStore.addPendingBill(bill)
     }
-    override suspend fun savePendingBillDraft(id: String, draftJson: String): Boolean =
-        CacheStore.savePendingBillDraft(id, draftJson)
     override suspend fun deletePendingBill(id: String) { CacheStore.deletePendingBill(id) }
     override suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean =
         CacheStore.hasRecordedTransaction(network, walletAddress, txHash)
@@ -99,38 +102,16 @@ class AccountingRepository(
     private val api: ApiService? = null,
     private val gson: Gson = Gson(),
     private val accessTokenProvider: () -> String? = { TokenStore.readTokenBlocking() },
-    personalLedgerRemote: PersonalLedgerRemoteDataSource? = null,
-    private val projectsRepository: ProjectsRepository? = null,
-    private val privateCloudSyncEnabled: Boolean = CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED
+    personalLedgerRemote: PersonalLedgerRemoteDataSource? = null
 ) {
     private val ledgerRemote = personalLedgerRemote ?: api?.let(::ApiPersonalLedgerRemoteDataSource)
     private val projectsType = object : TypeToken<List<ProjectDto>>() {}.type
+    private val projectsTypeForLedger = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
 
     fun observePendingBills(): Flow<List<PendingBillEntity>> = local.observePendingBills()
 
-    /** Reads only the active guest/account local ledger; no network refresh or cross-scope lookup. */
-    suspend fun loadPersonalLedger(): List<PersonalLedgerWriteRequest> {
-        val raw = local.readLocal("personal_ledger") ?: return emptyList()
-        val ledgerType = object : TypeToken<List<PersonalLedgerWriteRequest>>() {}.type
-        return runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, ledgerType) }
-            .getOrNull().orEmpty()
-            .filterNot(::isDemoPersonalLedgerEntry)
-            .distinctBy { it.client_record_id }
-            .sortedByDescending { row ->
-                runCatching { java.time.Instant.parse(row.occurred_at).toEpochMilli() }.getOrDefault(Long.MIN_VALUE)
-            }
-    }
-
     suspend fun loadProjects(): List<ProjectDto> {
         syncAndScheduleIfNeeded()
-        val repository = projectsRepository
-        if (repository != null) {
-            val guest = !privateCloudSyncEnabled || accessTokenProvider().isNullOrBlank()
-            val cached = repository.readCachedProjects(guest)
-            if (guest) return cached
-            return runCatching { repository.refreshProjects() }.getOrDefault(cached)
-        }
-        // Compatibility path for tests/older composition roots only.
         val sources = listOfNotNull(
             local.readLocal("projects"),
             local.read("projects"),
@@ -142,34 +123,36 @@ class AccountingRepository(
     }
 
     suspend fun saveLocalProject(project: ProjectDto): List<ProjectDto> {
-        val repository = projectsRepository ?: run {
-            val existing = local.readLocal("pnl_projects")?.let { raw ->
-                runCatching { gson.fromJson<List<ProjectDto>>(raw, projectsType) }.getOrNull()
-            }.orEmpty()
-            val updated = existing.filterNot { it.id == project.id } + project
-            local.writeLocal("pnl_projects", gson.toJson(updated))
-            return updated
+        val existing = local.readLocal("pnl_projects")?.let { raw ->
+            runCatching { gson.fromJson<List<ProjectDto>>(raw, projectsType) }.getOrNull()
+        }.orEmpty()
+        val updated = existing.filterNot { it.id == project.id } + project
+        local.writeLocal("pnl_projects", gson.toJson(updated))
+        return updated
+    }
+
+    /**
+     * Save a manual personal-ledger row without requiring a wallet, transaction hash,
+     * or project. Writes are bound to the session captured before any suspension.
+     */
+    suspend fun saveManualLedgerEntry(entry: PersonalLedgerWriteRequest): Boolean {
+        val accessToken = accessTokenProvider()?.takeIf { it.isNotBlank() }
+        val existingRaw = if (accessToken == null) local.readLocal("personal_ledger")
+            else local.readLocalForToken("personal_ledger", accessToken)
+        val existing = existingRaw?.let { raw ->
+            runCatching { gson.fromJson<List<PersonalLedgerWriteRequest>>(raw, projectsTypeForLedger) }.getOrNull()
+        }.orEmpty()
+        val updated = (existing.filterNot { it.client_record_id == entry.client_record_id } + entry)
+            .sortedByDescending { runCatching { java.time.Instant.parse(it.occurred_at).toEpochMilli() }.getOrDefault(0L) }
+        val saved = local.writeLocalForToken("personal_ledger", gson.toJson(updated), accessToken)
+        if (!saved) return false
+        if (accessToken != null && accessTokenProvider() == accessToken) {
+            if (!syncPersonalLedger()) local.schedulePrivateLedgerSync()
         }
-        val guest = !privateCloudSyncEnabled || accessTokenProvider().isNullOrBlank()
-        val request = ProjectWriteRequest(
-            name = project.name,
-            description = project.description,
-            status = project.status,
-            official_url = project.official_url,
-            claim_url = project.claim_url,
-            twitter_url = project.twitter_url,
-            deadline = project.deadline,
-            expected_income = project.expected_income,
-            gas_cost = project.gas_cost,
-            actual_income = project.actual_income
-        )
-        return repository.createProject(request, guest, localId = project.id)
+        return true
     }
 
     suspend fun addPendingBill(bill: PendingBillEntity) = local.addPendingBill(bill)
-
-    suspend fun savePendingBillDraft(id: String, draftJson: String): Boolean =
-        local.savePendingBillDraft(id, draftJson)
 
     suspend fun deletePendingBill(id: String) = local.deletePendingBill(id)
 
@@ -194,17 +177,15 @@ class AccountingRepository(
     }
 
     private suspend fun syncAndScheduleIfNeeded() {
-        if (!privateCloudSyncEnabled) return
         if (accessTokenProvider().isNullOrBlank()) return
         if (!syncPersonalLedger()) local.schedulePrivateLedgerSync()
     }
 
     /**
-     * Historical private-cloud implementation retained for a future phase.
-     * Current-release policy returns before any private account endpoint is called.
+     * Account records are uploaded only while authenticated. Guest records stay in
+     * the guest-local cache and never call the private account endpoint.
      */
     suspend fun syncPersonalLedger(): Boolean {
-        if (!privateCloudSyncEnabled) return true
         // Bind every request and local-cache operation to the session that started
         // this sync. An account switch during network work cannot redirect records.
         val accessToken = accessTokenProvider()?.takeIf { it.isNotBlank() } ?: return false
