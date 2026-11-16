@@ -1,15 +1,19 @@
 package com.airdrophunter.app
 
 import android.content.Intent
-import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -20,9 +24,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,34 +38,40 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.SubcomposeAsyncImage
 import com.airdrophunter.app.data.AirdropSite
 import com.airdrophunter.app.data.AirdropSiteStore
 import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.GlobalSyncScheduler
 import com.airdrophunter.app.data.WalletDto
-import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppTextField
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
     onOpenSources: () -> Unit,
     onOpenWallet: () -> Unit,
     onOpenGlobalSearch: () -> Unit,
+    onOpenMarketDetail: (String) -> Unit = {},
     onOpenProjects: () -> Unit,
-    onOpenAirdropHub: () -> Unit = {},
+    onOpenAirdropCampaigns: () -> Unit = {},
     onOpenTronEnergy: () -> Unit = {},
     onOpenAccounting: () -> Unit = {},
     isGuest: Boolean = true,
@@ -74,91 +85,301 @@ fun HomeScreen(
         factory = HomeViewModelFactory(application.appContainer)
     )
     val state by homeViewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(state.marketError) {
+        if (state.marketError?.startsWith("刚刚刷新过") == true) {
+            android.widget.Toast.makeText(context, state.marketError, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
     val scope = rememberCoroutineScope()
+    val defaultMarketSymbols = remember { listOf("BTC", "ETH", "SOL", "BNB", "TRX") }
+    var marketSymbols by remember { mutableStateOf(defaultMarketSymbols) }
+    var marketSymbolDraft by remember { mutableStateOf(defaultMarketSymbols.toSet()) }
+    var showMarketEditor by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
     var showNavOverlay by remember { mutableStateOf(false) }
-    var navContentVisible by remember { mutableStateOf(false) }
-    fun closeNavOverlay() { scope.launch { navContentVisible = false; delay(180); showNavOverlay = false } }
+    var siteSearchQuery by remember { mutableStateOf("") }
+    val navSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var sites by remember { mutableStateOf(AirdropSiteStore.defaults) }
 
+    LaunchedEffect(Unit) {
+        marketSymbols = runCatching { CacheStore.readMarketDashboardSymbols() }
+            .getOrDefault(defaultMarketSymbols)
+            .filter { it in setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP") }
+            .ifEmpty { defaultMarketSymbols }
+    }
+
     LaunchedEffect(isGuest, sessionScopeKey) {
+        // Entering Home always queues a non-blocking refresh check for public airdrop data.
+        // The worker applies its six-hour success cadence and keeps cached/server data usable.
+        GlobalSyncScheduler.enqueueDynamicCatalogWarmup(context)
         sites = withContext(Dispatchers.IO) { AirdropSiteStore.load() }
         homeViewModel.load(isGuest)
     }
 
     Box(Modifier.fillMaxSize()) {
     Column(
-        modifier.fillMaxSize().background(AppColors.Background)
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("首页", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
-                color = AppColors.TextPrimary, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { showNotifications = true }) {
-                Icon(Icons.Default.NotificationsNone, "通知", tint = AppColors.TextSecondary)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("首页", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+                Text("空投发现 · 项目任务 · 行情追踪", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.airdrophunter.app.ui.components.AppIconButton(
+                    icon = Icons.Default.NotificationsNone,
+                    contentDescription = "通知",
+                    onClick = { showNotifications = true }
+                )
             }
         }
 
-        Card(
-            onClick = onOpenAccounting,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-            border = BorderStroke(1.dp, AppColors.Border),
-            elevation = CardDefaults.cardElevation(1.dp)
-        ) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(28.dp))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("记一笔", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("直接记录 Gas 支出和实际收益，无需连接钱包", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                }
-                Text("记账", color = AppColors.Primary, fontWeight = FontWeight.SemiBold)
+        var dashboardCards by remember { mutableStateOf(HomeDashboardLayoutStore.load(context)) }
+        var editingDashboard by remember { mutableStateOf(false) }
+        var showAddDashboardCard by remember { mutableStateOf(false) }
+        val dashboardBounds = remember { mutableStateMapOf<String, Rect>() }
+        var activeDragCard by remember { mutableStateOf<String?>(null) }
+        var dashboardDragOffset by remember { mutableStateOf(Offset.Zero) }
+
+        fun saveDashboardCards(updated: List<HomeDashboardCard>) {
+            dashboardCards = updated
+            scope.launch { withContext(Dispatchers.IO) { HomeDashboardLayoutStore.save(context, updated) } }
+        }
+        fun openDashboardCard(id: String) {
+            when (id) {
+                "airdrop_navigation" -> { siteSearchQuery = ""; showNavOverlay = true }
+                "wallet_management" -> onOpenWallet()
+                "tron_energy" -> onOpenTronEnergy()
+                "accounting" -> onOpenAccounting()
+                "project_library" -> onOpenProjects()
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("行情看板", color = AppColors.TextPrimary,
+                Text("快捷入口", color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f))
+                AppTextButton(onClick = { editingDashboard = !editingDashboard }) {
+                    Text(if (editingDashboard) "完成" else "编辑", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            if (editingDashboard) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppTextButton(onClick = { showAddDashboardCard = true }) { Text("＋ 添加卡片") }
+                    AppTextButton(onClick = { saveDashboardCards(HomeDashboardLayoutStore.defaults) }) {
+                        Text("恢复默认布局")
+                    }
+                }
+                Text("长按卡片拖动排序；可添加或移除。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                    style = MaterialTheme.typography.labelSmall)
+            }
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                maxItemsInEachRow = 2,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                dashboardCards.forEach { card ->
+                    val title = HomeDashboardLayoutStore.title(card.id)
+                    val subtitle = HomeDashboardLayoutStore.subtitle(card.id)
+                    val layout = HomeDashboardLayoutStore.layout(card.id)
+                    val icon = when (card.id) {
+                        "wallet_management" -> Icons.Default.AccountBalanceWallet
+                        "tron_energy" -> Icons.Default.Shield
+                        "accounting" -> Icons.Default.ReceiptLong
+                        "project_library" -> Icons.Default.FolderOpen
+                        else -> Icons.Default.Search
+                    }
+                    val iconBackground = MaterialTheme.colorScheme.primaryContainer
+                    val iconTint = MaterialTheme.colorScheme.primary
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth(layout.widthFraction)
+                            .heightIn(min = layout.heightDp.dp)
+                            .onGloballyPositioned { dashboardBounds[card.id] = it.boundsInRoot() }
+                            .graphicsLayer {
+                                if (activeDragCard == card.id) {
+                                    translationX = dashboardDragOffset.x
+                                    translationY = dashboardDragOffset.y
+                                    shadowElevation = 18.dp.toPx()
+                                } else {
+                                    translationX = 0f
+                                    translationY = 0f
+                                    shadowElevation = 0f
+                                }
+                            }
+                            .zIndex(if (activeDragCard == card.id) 1f else 0f)
+                            .appPressFeedback(
+                                onClick = { if (!editingDashboard) openDashboardCard(card.id) },
+                                scale = 0.96f,
+                                enabled = !editingDashboard
+                            )
+                            .then(if (editingDashboard) Modifier.pointerInput(card.id, editingDashboard, dashboardCards) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { activeDragCard = card.id; dashboardDragOffset = Offset.Zero },
+                                    onDrag = { change, amount -> change.consume(); dashboardDragOffset += amount },
+                                    onDragEnd = {
+                                        val source = dashboardBounds[card.id]
+                                        val center = source?.center?.plus(dashboardDragOffset)
+                                        val target = if (center == null) null else dashboardBounds
+                                            .filterKeys { it != card.id && dashboardCards.any { item -> item.id == it } }
+                                            .minByOrNull { (_, bounds) ->
+                                                val dx = bounds.center.x - center.x
+                                                val dy = bounds.center.y - center.y
+                                                dx * dx + dy * dy
+                                            }?.key
+                                        if (target != null) {
+                                            val mutable = dashboardCards.toMutableList()
+                                            val from = mutable.indexOfFirst { it.id == card.id }
+                                            val to = mutable.indexOfFirst { it.id == target }
+                                            if (from >= 0 && to >= 0 && from != to) {
+                                                val moved = mutable.removeAt(from)
+                                                mutable.add(to, moved)
+                                                saveDashboardCards(mutable)
+                                            }
+                                        }
+                                        activeDragCard = null
+                                        dashboardDragOffset = Offset.Zero
+                                    },
+                                    onDragCancel = { activeDragCard = null; dashboardDragOffset = Offset.Zero }
+                                )
+                            } else Modifier),
+                        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        elevation = CardDefaults.cardElevation(0.dp)
+                    ) {
+                        if (card.id == "airdrop_navigation") {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                DashboardIconTile(icon, iconBackground, iconTint, 40.dp)
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                }
+                                if (editingDashboard) {
+                                    AppTextButton(onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
+                                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = MaterialTheme.colorScheme.error) }
+                                } else Text("打开  ›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                            }
+                        } else {
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    DashboardIconTile(icon, iconBackground, iconTint, 40.dp)
+                                    Spacer(Modifier.weight(1f))
+                                    if (editingDashboard) AppTextButton(
+                                        onClick = { saveDashboardCards(dashboardCards.filterNot { it.id == card.id }) },
+                                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("移除", color = MaterialTheme.colorScheme.error) }
+                                }
+                                Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showAddDashboardCard) {
+            val available = HomeDashboardLayoutStore.available(dashboardCards.map { it.id }.toSet())
+            AlertDialog(
+                onDismissRequest = { showAddDashboardCard = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("添加快捷卡片", color = MaterialTheme.colorScheme.onSurface) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (available.isEmpty()) Text("目前没有更多可添加的快捷功能。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        available.forEach { id ->
+                            AppTextButton(onClick = {
+                                saveDashboardCards(dashboardCards + HomeDashboardCard(id))
+                                showAddDashboardCard = false
+                            }) { Text(HomeDashboardLayoutStore.title(id), color = MaterialTheme.colorScheme.primary) }
+                        }
+                    }
+                },
+                confirmButton = { AppTextButton(onClick = { showAddDashboardCard = false }) { Text("关闭") } }
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("行情看板", color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                Text(if (state.isRefreshing) "更新中" else "刷新",
-                    modifier = Modifier.clickable { homeViewModel.refresh(isGuest) }.padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
-                    color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
+                AppTextButton(onClick = {
+                    marketSymbolDraft = marketSymbols.toSet()
+                    showMarketEditor = true
+                }) { Text("编辑", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium) }
+                AppTextButton(
+                    onClick = { homeViewModel.refresh(isGuest) },
+                    enabled = !state.isRefreshing,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        if (state.isRefreshing) "更新中" else "刷新",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+            Surface(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
+                    .appPressFeedback(onClick = onOpenGlobalSearch, scale = 1f),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("搜索币种名称或代号", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium)
+                }
             }
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 when {
                     state.isLoading && state.market.isEmpty() -> Box(
-                        Modifier.fillMaxWidth().padding(22.dp), contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator(color = AppColors.Primary) }
+                        Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
                     state.market.isEmpty() -> Column(
-                        Modifier.fillMaxWidth().padding(18.dp),
+                        Modifier.fillMaxWidth().padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("无法获取实时行情", color = AppColors.TextPrimary,
+                        Text("无法获取实时行情", color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         Text(state.marketError ?: "请检查网络连接后重试。",
-                            color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
-                            Text("点击重试", color = AppColors.Primary)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        AppTextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
+                            Text("点击重试", color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     else -> Column {
-                        state.market.filter { it.symbol == "BTC" || it.symbol == "ETH" }.forEachIndexed { index, ticker ->
-                            MarketRow(ticker)
-                            if (index != state.market.lastIndex) HorizontalDivider(color = AppColors.Border)
+                        val visibleMarket = state.market.filter { ticker ->
+                            ticker.symbol.substringBefore("-").uppercase(Locale.US) in marketSymbols
+                        }
+                        if (visibleMarket.isEmpty()) {
+                            Text("所选币种暂无行情数据", modifier = Modifier.padding(16.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
+                        } else visibleMarket.forEachIndexed { index, ticker ->
+                            MarketRow(ticker) { symbol -> onOpenMarketDetail(symbol) }
+                            if (index != visibleMarket.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
                 }
@@ -166,6 +387,7 @@ fun HomeScreen(
             Text(
                 when {
                     state.isRefreshing && state.lastSuccessfulUpdateAt != null -> "行情更新中 · 保留上次数据"
+                    state.marketError?.startsWith("刚刚刷新过") == true -> "刚刚刷新过 · 请30秒后再试"
                     state.marketError != null && state.lastSuccessfulUpdateAt != null -> "更新失败 · 显示上次成功数据"
                     state.marketCacheStatus == com.airdrophunter.app.data.CacheDisplayStatus.STALE && state.lastSuccessfulUpdateAt != null ->
                         "缓存数据 · 上次更新 " + java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L))
@@ -175,70 +397,49 @@ fun HomeScreen(
                     state.marketError != null -> "行情暂不可用"
                     else -> "等待行情数据"
                 },
-                color = AppColors.TextHelper,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.labelSmall
             )
         }
-        Surface(
-            modifier = Modifier.fillMaxWidth().clickable { onOpenGlobalSearch() },
-            shape = RoundedCornerShape(999.dp),
-            color = AppColors.Surface,
-            border = BorderStroke(1.dp, AppColors.Border)
-        ) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.TextHelper)
-                Spacer(Modifier.width(10.dp))
-                Text("搜索币种或 DApp", color = AppColors.TextHelper, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("快捷入口", color = AppColors.TextPrimary,
-                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Card(
-                    onClick = { showNavOverlay = true; navContentVisible = true },
-                    modifier = Modifier.weight(1f).wrapContentHeight(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                    border = BorderStroke(1.dp, AppColors.Border),
-                    elevation = CardDefaults.cardElevation(1.dp)
-                ) {
-                    Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            sites.sortedByDescending { it.clickCount }.take(4).forEach { FaviconTile(it, Modifier.size(25.dp)) }
+        if (showMarketEditor) {
+            AlertDialog(
+                onDismissRequest = { showMarketEditor = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("自定义行情看板", color = MaterialTheme.colorScheme.onSurface) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("选择要在首页显示的币种，至少保留一个。", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall)
+                        listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").forEach { symbol ->
+                            Row(Modifier.fillMaxWidth().appPressFeedback(onClick = {
+                                marketSymbolDraft = if (symbol in marketSymbolDraft) marketSymbolDraft - symbol
+                                    else marketSymbolDraft + symbol
+                            }, scale = 1f).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = symbol in marketSymbolDraft, onCheckedChange = { checked ->
+                                    marketSymbolDraft = if (checked) marketSymbolDraft + symbol else marketSymbolDraft - symbol
+                                })
+                                Text(symbol, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                            }
                         }
-                        Text("空投导航", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text("常用活动网站", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
+                },
+                confirmButton = {
+                    AppTextButton(enabled = marketSymbolDraft.isNotEmpty(), onClick = {
+                        val saved = listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").filter { it in marketSymbolDraft }
+                        marketSymbols = saved
+                        showMarketEditor = false
+                        scope.launch { runCatching { CacheStore.saveMarketDashboardSymbols(saved) } }
+                    }) { Text("保存") }
+                },
+                dismissButton = {
+                    AppTextButton(onClick = {
+                        marketSymbolDraft = defaultMarketSymbols.toSet()
+                        marketSymbols = defaultMarketSymbols
+                        showMarketEditor = false
+                        scope.launch { runCatching { CacheStore.saveMarketDashboardSymbols(defaultMarketSymbols) } }
+                    }) { Text("恢复默认") }
                 }
-                ShortcutCard(
-                    icon = Icons.Default.Search,
-                    title = "全局搜索",
-                    subtitle = "搜索币种、地址、DApp",
-                    onClick = onOpenGlobalSearch,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ShortcutCard(
-                    icon = Icons.Default.AccountBalanceWallet,
-                    title = "钱包管理",
-                    subtitle = "管理已保存地址",
-                    onClick = onOpenWallet,
-                    modifier = Modifier.weight(1f)
-                )
-                ShortcutCard(
-                    icon = Icons.Default.Shield,
-                    title = "⚡️ TRON 能量租赁",
-                    subtitle = "租赁前核对转出地址",
-                    onClick = onOpenTronEnergy,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            )
         }
 
         Spacer(Modifier.height(8.dp))
@@ -246,43 +447,86 @@ fun HomeScreen(
     }
 
     if (showNavOverlay) {
-        Dialog(
-            onDismissRequest = { closeNavOverlay() },
-            properties = DialogProperties(usePlatformDefaultWidth = true)
+        ModalBottomSheet(
+            onDismissRequest = {
+                showNavOverlay = false
+                siteSearchQuery = ""
+            },
+            sheetState = navSheetState,
+            shape = RoundedCornerShape(
+                topStart = AppDesignTokens.Radius.Xl.dp,
+                topEnd = AppDesignTokens.Radius.Xl.dp
+            ),
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+            scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
+            dragHandle = { BottomSheetDefaults.DragHandle(width = 36.dp, height = 4.dp) }
         ) {
-            AnimatedVisibility(
-                visible = navContentVisible,
-                enter = fadeIn() + scaleIn(initialScale = 0.88f),
-                exit = fadeOut() + scaleOut(targetScale = 0.92f)
+            val filteredSites = remember(sites, siteSearchQuery) {
+                sites.filter {
+                    it.name.contains(siteSearchQuery, ignoreCase = true) ||
+                        it.domain.contains(siteSearchQuery, ignoreCase = true)
+                }
+            }
+            Column(
+                Modifier.fillMaxWidth().heightIn(max = 720.dp)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(12.dp)
+                Column(
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("空投导航", modifier = Modifier.weight(1f), color = AppColors.TextPrimary,
-                                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            TextButton(onClick = { closeNavOverlay() }) { Text("关闭", color = AppColors.Primary) }
-                        }
-                        Text("选择一个平台打开", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(12.dp))
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(3),
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp),
-                            contentPadding = PaddingValues(bottom = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(sites, key = { it.id }) { site ->
-                                Column(
-                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                                        .clickable {
-                                            closeNavOverlay()
+                    Text(
+                        "空投导航",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "选择一个平台打开 · ${sites.size} 个平台", 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                AppTextField(
+                    value = siteSearchQuery,
+                    onValueChange = { siteSearchQuery = it },
+                    placeholder = "搜索平台名称或域名",
+                    trailingClear = true
+                )
+                if (filteredSites.isEmpty()) {
+                    Box(
+                        Modifier.fillMaxWidth().height(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            if (sites.isEmpty()) "还没有添加导航平台" else "没有匹配的平台",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp),
+                        contentPadding = PaddingValues(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filteredSites, key = { it.id }) { site ->
+                            Column(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp))
+                                    .appPressFeedback(
+                                        onClick = {
                                             scope.launch {
-                                                val updated = withContext(Dispatchers.IO) { AirdropSiteStore.recordClick(site) }
+                                                navSheetState.hide()
+                                                showNavOverlay = false
+                                                siteSearchQuery = ""
+                                                val updated = withContext(Dispatchers.IO) {
+                                                    AirdropSiteStore.recordClick(site)
+                                                }
                                                 sites = updated
                                                 val walletRows = withContext(Dispatchers.IO) {
                                                     val raw = if (isGuest) CacheStore.readLocal("wallets") else CacheStore.read("wallets")
@@ -293,17 +537,36 @@ fun HomeScreen(
                                                     .putExtra(BrowserActivity.EXTRA_URL, site.url)
                                                     .putExtra(BrowserActivity.EXTRA_TITLE, site.name)
                                                     .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, Gson().toJson(walletRows))
-                                                walletRows.firstOrNull()?.let { intent.putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, it.id) }
+                                                walletRows.firstOrNull()?.let {
+                                                    intent.putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, it.id)
+                                                }
                                                 context.startActivity(intent)
                                             }
-                                        }.padding(vertical = 10.dp, horizontal = 4.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                                        },
+                                        scale = 0.94f
+                                    )
+                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f))
+                                    .padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(52.dp),
+                                    shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
-                                    FaviconTile(site, Modifier.size(52.dp))
-                                    Text(site.name, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, maxLines = 2)
+                                    FaviconTile(site, Modifier.fillMaxSize().padding(8.dp))
                                 }
+                                Text(
+                                    site.name,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
@@ -313,10 +576,10 @@ fun HomeScreen(
     }
 
     if (showNotifications) AlertDialog(
-        onDismissRequest = { showNotifications = false }, containerColor = AppColors.Surface,
-        title = { Text("消息通知", color = AppColors.TextPrimary) },
-        text = { Text("通知功能正在开发中。", color = AppColors.TextSecondary) },
-        confirmButton = { TextButton(onClick = { showNotifications = false }) { Text("关闭") } }
+        onDismissRequest = { showNotifications = false }, containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("消息通知", color = MaterialTheme.colorScheme.onSurface) },
+        text = { Text("当前还没有站内通知，未读 0 条。真实通知服务接入前，不会生成测试通知或擅自开启推送。", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        confirmButton = { AppTextButton(onClick = { showNotifications = false }) { Text("关闭") } }
     )
 }
 
@@ -328,7 +591,7 @@ private fun FaviconTile(site: AirdropSite, modifier: Modifier = Modifier) {
     SubcomposeAsyncImage(
         model = if (useFallback) fallbackUrl else primaryUrl,
         contentDescription = site.name,
-        modifier = modifier.clip(RoundedCornerShape(8.dp)),
+        modifier = modifier.clip(RoundedCornerShape(AppDesignTokens.Radius.Sm.dp)),
         contentScale = ContentScale.Fit,
         loading = { FaviconLetter(site) },
         error = {
@@ -342,32 +605,49 @@ private fun FaviconTile(site: AirdropSite, modifier: Modifier = Modifier) {
 
 @Composable
 private fun FaviconLetter(site: AirdropSite) {
-    Box(Modifier.fillMaxSize().background(Color(0xFFE7F1EF), RoundedCornerShape(8.dp)),
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Sm.dp)),
         contentAlignment = Alignment.Center) {
-        Text(site.name.take(1).uppercase(), color = AppColors.Primary, fontWeight = FontWeight.Bold)
+        Text(site.name.take(1).uppercase(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker) {
+private fun MarketRow(ticker: com.airdrophunter.app.data.OkxTicker, onClick: (String) -> Unit) {
+    // Keep small-priced assets readable; two decimals can otherwise render as $ 0.00.
     val price = NumberFormat.getNumberInstance(Locale.US).apply {
         minimumFractionDigits = 2
-        maximumFractionDigits = 2
+        maximumFractionDigits = 8
     }.format(ticker.lastPrice)
     val change = String.format(Locale.US, "%+.2f%%", ticker.change24hPercent)
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp),
+        Modifier.fillMaxWidth().heightIn(min = 64.dp)
+            .appPressFeedback(onClick = { onClick(ticker.symbol.substringBefore("-").uppercase(Locale.US)) }, scale = 1f)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(ticker.symbol, color = AppColors.TextPrimary,
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(ticker.symbol, color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Text(ticker.displayName, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            Text(
+                ticker.displayName,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text("$ $price", color = AppColors.TextPrimary,
-                style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Text(change, color = if (ticker.change24hPercent >= 0) AppColors.Success else AppColors.Danger,
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "$ $price",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.End
+            )
+            Text(change, color = if (ticker.change24hPercent >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelSmall)
         }
     }
@@ -383,17 +663,105 @@ private fun ShortcutCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        onClick = onClick,
-        modifier = modifier.wrapContentHeight(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-        border = BorderStroke(1.dp, AppColors.Border),
-        elevation = CardDefaults.cardElevation(1.dp)
+        modifier = modifier.wrapContentHeight()
+            .appPressFeedback(onClick = onClick, scale = 0.96f),
+        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(icon, contentDescription = null, tint = AppColors.Primary, modifier = Modifier.size(34.dp))
-            Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
+            Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
+    }
+}
+
+
+@Composable
+private fun DashboardIconTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    backgroundColor: Color,
+    iconColor: Color,
+    size: androidx.compose.ui.unit.Dp
+) {
+    Box(
+        Modifier.size(size).clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).background(backgroundColor),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(size * 0.52f))
+    }
+}
+
+
+private data class HomeDashboardCard(val id: String)
+
+/**
+ * Developer-owned visual specification. User preferences persist card IDs/order only;
+ * they cannot change width, height, span, or other layout dimensions.
+ * Add new card types here when new Home features are introduced.
+ */
+private data class HomeDashboardCardSpec(
+    val widthFraction: Float,
+    val heightDp: Int
+)
+
+private object HomeDashboardLayoutStore {
+    private val cardSpecs = mapOf(
+        "airdrop_navigation" to HomeDashboardCardSpec(widthFraction = 1f, heightDp = 76),
+        "wallet_management" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 120),
+        "tron_energy" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
+        "accounting" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104),
+        "project_library" to HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104)
+    )
+
+    fun layout(id: String): HomeDashboardCardSpec =
+        cardSpecs[id] ?: HomeDashboardCardSpec(widthFraction = 0.48f, heightDp = 104)
+
+    val defaults = listOf(
+        HomeDashboardCard("airdrop_navigation"),
+        HomeDashboardCard("accounting"),
+        HomeDashboardCard("wallet_management"),
+        HomeDashboardCard("tron_energy"),
+    )
+    private val supported = listOf("airdrop_navigation", "accounting", "wallet_management", "tron_energy", "project_library")
+    fun title(id: String) = when (id) {
+        "airdrop_navigation" -> "空投导航"
+        "accounting" -> "记账"
+        "wallet_management" -> "钱包管理"
+        "tron_energy" -> "TRON 能量租赁"
+        "project_library" -> "库管理"
+        else -> "快捷入口"
+    }
+    fun subtitle(id: String) = when (id) {
+        "airdrop_navigation" -> "常用活动网站"
+        "accounting" -> "记录Gas与收益"
+        "wallet_management" -> "管理已保存地址"
+        "tron_energy" -> "租赁前核对转出地址"
+        "project_library" -> "管理个人项目与任务"
+        else -> ""
+    }
+    fun available(selected: Set<String>) = supported.filterNot { it in selected }
+    fun load(context: android.content.Context): List<HomeDashboardCard> {
+        val preferences = context.getSharedPreferences("home_dashboard_layout", android.content.Context.MODE_PRIVATE)
+        val raw = preferences.getString("cards", null) ?: return defaults
+        val type = object : TypeToken<List<HomeDashboardCard>>() {}.type
+        val parsed = runCatching { Gson().fromJson<List<HomeDashboardCard>>(raw, type) }.getOrNull() ?: return defaults
+        val valid = parsed.filter { it.id in supported }.distinctBy { it.id }
+            .map { HomeDashboardCard(it.id) }.toMutableList()
+        // v4 removes the duplicate Home shortcut; the bottom navigation Airdrop Library is the sole entry.
+        if (preferences.getInt("layout_version", 0) < 4) {
+            valid.removeAll { it.id == "binance_official" || it.id == "airdrop_library" }
+            preferences.edit().putInt("layout_version", 4).apply()
+        }
+        // Keep the accounting shortcut visible for users upgrading from older layouts.
+        if (valid.none { it.id == "accounting" }) valid.add(minOf(1, valid.size), HomeDashboardCard("accounting"))
+        return valid
+    }
+    fun save(context: android.content.Context, cards: List<HomeDashboardCard>) {
+        val valid = cards.filter { it.id in supported }.distinctBy { it.id }
+        context.getSharedPreferences("home_dashboard_layout", android.content.Context.MODE_PRIVATE)
+            .edit().putString("cards", Gson().toJson(valid)).putInt("layout_version", 4).apply()
     }
 }
