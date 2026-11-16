@@ -94,7 +94,8 @@ fun BrowserAccountingToolbar(
     modifier: Modifier = Modifier,
     initialShowBillList: Boolean = false,
     showDock: Boolean = true,
-    onCloseAccounting: () -> Unit = {}
+    onCloseAccounting: () -> Unit = {},
+    showWalletTools: Boolean = true
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -156,14 +157,22 @@ fun BrowserAccountingToolbar(
     var showWeb3HashSync by remember { mutableStateOf(false) }
     var web3HashSyncDraftId by remember { mutableStateOf<String?>(null) }
     var web3HashSyncInput by remember { mutableStateOf("") }
-    val toolOptions = listOf(
-        "copy_address" to "复制地址",
+    // The X5 surface is browsing-only: it must not expose wallet-specific actions.
+    // Keep separate preferences so its reduced tool set cannot overwrite the legacy
+    // wallet browser's dock configuration.
+    val toolOptions = listOfNotNull(
+        if (showWalletTools) "copy_address" to "复制地址" else null,
         "pending_bills" to "待确认记录",
         "refresh_page" to "刷新网页",
         "copy_url" to "复制网址",
         "open_external" to "外部打开"
     )
-    val preferences = remember(context) { context.getSharedPreferences("browser_dock_preferences", android.content.Context.MODE_PRIVATE) }
+    val preferences = remember(context, showWalletTools) {
+        context.getSharedPreferences(
+            if (showWalletTools) "browser_dock_preferences" else "x5_browser_dock_preferences",
+            android.content.Context.MODE_PRIVATE
+        )
+    }
     var selectedToolIds by remember {
         mutableStateOf(preferences.getString("selected_tools", null)?.split(",")
             ?.map { if (it == "mock_bill") "new_accounting" else it }
