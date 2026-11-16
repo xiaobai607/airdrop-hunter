@@ -1,7 +1,6 @@
 package com.airdrophunter.app
 
 import android.net.Uri
-import androidx.webkit.JavaScriptReplyProxy
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
