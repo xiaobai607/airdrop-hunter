@@ -19,3 +19,5 @@ Browser address bar origin-tracking follow-up: approved origin now follows actua
 Final browser-origin review: both address-bar navigation and confirmed cross-origin link navigation defer approvedOrigin update until WebView onPageStarted. Rebuild this commit.
 
 Browser security notice layout and Android status-bar inset correction (2026-11-16): keep the editable URL field visible and place the notice below it; rebuild Debug APK for validation.
+
+Final verification build trigger (2026-11-16): all wallet cache regression tests passed on dd166587; build the exact reviewed PR head and package the Debug APK for device acceptance.
