@@ -12,6 +12,10 @@ internal data class DappRpcRequest(
     val params: JSONArray
 )
 
+internal fun interface DappReplyChannel {
+    fun postMessage(message: String)
+}
+
 internal object DappProviderBridge {
     const val JS_OBJECT_NAME = "ahWalletBridge"
     val HTTPS_ORIGIN_RULES = setOf("*")
@@ -272,11 +276,11 @@ internal object DappProviderBridge {
         "https://${sourceOrigin.host.orEmpty().lowercase()}" +
             if (normalizedPort(sourceOrigin) == 443) "" else ":${normalizedPort(sourceOrigin)}"
 
-    fun success(replyProxy: JavaScriptReplyProxy, id: Long, result: Any?) {
+    fun success(replyProxy: DappReplyChannel, id: Long, result: Any?) {
         replyProxy.postMessage(JSONObject().put("id", id).put("result", result ?: JSONObject.NULL).toString())
     }
 
-    fun error(replyProxy: JavaScriptReplyProxy, id: Long, code: Int, message: String) {
+    fun error(replyProxy: DappReplyChannel, id: Long, code: Int, message: String) {
         val error = JSONObject().put("code", code).put("message", message)
         replyProxy.postMessage(JSONObject().put("id", id).put("error", error).toString())
     }
@@ -287,6 +291,6 @@ internal object DappProviderBridge {
 internal data class PendingDappConnection(
     val request: DappRpcRequest,
     val origin: String,
-    val replyProxy: JavaScriptReplyProxy
+    val replyProxy: DappReplyChannel
 )
 
