@@ -10,6 +10,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -46,6 +49,7 @@ fun ManualAccountingScreen(
     var rewardSymbol by remember { mutableStateOf("") }
     var rewardDecimals by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
+    var showNativeDetails by rememberSaveable { mutableStateOf(false) }
 
     val gas = gasUsd.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
     val reward = rewardUsd.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
@@ -58,8 +62,8 @@ fun ManualAccountingScreen(
 
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -67,7 +71,7 @@ fun ManualAccountingScreen(
             border = BorderStroke(1.dp, AppColors.Border),
             shape = RoundedCornerShape(18.dp)
         ) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = gasUsd, onValueChange = { gasUsd = it },
                     modifier = Modifier.fillMaxWidth(), label = { Text("Gas 支出（USD）") },
@@ -85,14 +89,21 @@ fun ManualAccountingScreen(
                 )
             }
         }
-        Text("原生币种明细（可选，不同币种分别记录）", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
             border = BorderStroke(1.dp, AppColors.Border),
             shape = RoundedCornerShape(18.dp)
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("原生币种明细（可选）", Modifier.weight(1f), color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    TextButton(onClick = { showNativeDetails = !showNativeDetails }) {
+                        Text(if (showNativeDetails) "收起" else "展开")
+                        Icon(if (showNativeDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+                    }
+                }
+                if (showNativeDetails) {
                 Text("Gas 原生金额", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(gasNative, { gasNative = it }, Modifier.weight(1.2f), label = { Text("金额") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
@@ -106,6 +117,7 @@ fun ManualAccountingScreen(
                     OutlinedTextField(rewardSymbol, { rewardSymbol = it.uppercase(Locale.US) }, Modifier.weight(0.8f), label = { Text("币种") }, singleLine = true)
                 }
                 OutlinedTextField(rewardDecimals, { rewardDecimals = it.filter(Char::isDigit).take(2) }, Modifier.fillMaxWidth(), label = { Text("精度（可选）") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                }
             }
         }
         Text("无需连接钱包，也不需要填写交易哈希。记录仅进入你的个人账本，不会自动贡献到社区统计。", color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
@@ -151,7 +163,7 @@ fun ManualAccountingScreen(
                 }
             },
             enabled = !saving && gas != null && reward != null && nativeValid,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
+            modifier = Modifier.fillMaxWidth().height(46.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
         ) {
