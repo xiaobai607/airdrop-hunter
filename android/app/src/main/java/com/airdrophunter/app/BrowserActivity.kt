@@ -659,8 +659,8 @@ private fun BrowserScreen(
                                 this,
                                 DappProviderBridge.JS_OBJECT_NAME,
                                 DappProviderBridge.HTTPS_ORIGIN_RULES
-                            ) { sourceView, message, sourceOrigin, isMainFrame, replyChannel ->
-                                val replyChannel = DappReplyChannel { response -> replyProxy.postMessage(response) }
+                            ) { sourceView, message, sourceOrigin, isMainFrame, nativeReplyProxy ->
+                                val replyChannel = DappReplyChannel { response -> nativeReplyProxy.postMessage(response) }
                                 val request = DappProviderBridge.parseRequest(message.data.orEmpty())
                                 if (request == null) {
                                     Log.w("AirdropBrowser", "Ignored malformed DApp provider message")
