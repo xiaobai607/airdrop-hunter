@@ -763,7 +763,7 @@ private fun BrowserScreen(
                                                             val pending = PendingDappExternalRequest(
                                                                 request = request,
                                                                 origin = origin,
-                                                                replyChannel = replyChannel,
+                                                                replyProxy = replyChannel,
                                                                 sessionTopic = sessionTopic,
                                                                 chainId = chainReference
                                                             )
