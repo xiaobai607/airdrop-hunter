@@ -51,7 +51,6 @@ import com.reown.appkit.client.models.request.Request as ExternalWalletRequest
 import com.reown.appkit.client.models.request.SentRequestResult
 import com.reown.appkit.ui.appKitGraph
 import com.reown.appkit.ui.openAppKit
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.RepeatMode
@@ -61,7 +60,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -276,7 +274,6 @@ private fun BrowserScreen(
             }
         }
     }
-    val webAlpha by animateFloatAsState(targetValue = if (pageState == BrowserPageState.Success) 1f else 0f, animationSpec = tween(300), label = "webview-fade-in")
     BackHandler { val web = browser; if (web != null && web.canGoBack()) web.goBack() else onExit() }
 
     DisposableEffect(browser) {
@@ -311,11 +308,11 @@ private fun BrowserScreen(
     LaunchedEffect(pageState, browser) {
         if (pageState == BrowserPageState.Loading) {
             isSlowLoading = false
-            kotlinx.coroutines.delay(6_000)
+            kotlinx.coroutines.delay(30_000)
             if (pageState == BrowserPageState.Loading) {
                 pageState = BrowserPageState.Error
-                pageErrorMessage = "错误类型：页面加载超时\n等待时间：6 秒\n当前网址：$currentPageUrl\n说明：WebView 在等待时间内没有提交可显示的首屏内容。可能原因包括 DNS 解析失败、网络/VPN 连接受阻、服务器无响应或网站验证页面未完成。"
-                Log.w("AirdropBrowser", "Main-frame load timed out after 6 seconds; url=$currentPageUrl")
+                pageErrorMessage = "错误类型：页面加载超时\n等待时间：30 秒\n当前网址：$currentPageUrl\n说明：WebView 在等待时间内没有提交可显示的首屏内容。可能原因包括 DNS 解析失败、网络/VPN 连接受阻、服务器无响应或网站验证页面未完成。"
+                Log.w("AirdropBrowser", "Main-frame load timed out after 30 seconds; url=$currentPageUrl")
             }
         }
     }
@@ -895,9 +892,7 @@ private fun BrowserScreen(
                         }
                         setBackgroundColor(AndroidColor.WHITE)
                         settings.apply {
-                            // Use the device's actual WebView Chromium version for a Chrome-like
-                            // Android mobile identity. Keep UA string and Client Hints aligned.
-                            applyChromeCompatibleIdentity(this)
+                            // Use the WebView provider default User-Agent and Client Hints.
                             javaScriptEnabled = true
                             domStorageEnabled = true
                             databaseEnabled = true
@@ -950,8 +945,7 @@ private fun BrowserScreen(
                                 popup.settings.apply {
                                     javaScriptEnabled = true
                                     domStorageEnabled = true
-                                    userAgentString = view.settings.userAgentString
-                                    applyChromeCompatibleClientHints(this, view.settings.userAgentString)
+                                    // Popup WebView keeps its provider default User-Agent and Client Hints.
                                     mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                                     safeBrowsingEnabled = true
                                     allowFileAccess = false
@@ -1213,7 +1207,7 @@ private fun BrowserScreen(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxSize().background(Color.White).alpha(webAlpha),
+                modifier = Modifier.fillMaxSize().background(Color.White),
                 update = { view -> if (browser !== view) browser = view }
             )
             }
