@@ -1,0 +1,25 @@
+One-time APK build trigger for browser toolbar and WebView navigation fixes (2026-11-15). The workflow only builds when this exact path is included in a push diff.
+
+Chrome-compatible Android WebView identity and User-Agent Client Hints alignment (2026-11-15). One-time build trigger; workflow watches this file path.
+
+Restore the complete WalletConnect wallet directory; remove the app-owned includeWalletIds restriction (2026-11-15). One-time APK build trigger.
+
+Final wallet picker regression check: complete default AppKit directory remains enabled; curated icon prewarm is cache-only (2026-11-15). One-time APK build trigger.
+
+Wallet manager first-frame performance: session cache-first rendering, IO background refresh, and deferred WalletConnect/AppKit composition (2026-11-15). One-time APK build trigger.
+
+Toolbar visual correction (2026-11-15): removed the outline border unique to the trailing Add tool icon tile so it matches the same 32dp secondary-container icon tile used by the other toolbar actions. No actions or tools removed.
+
+Built-in browser URL address bar (2026-11-15): replaced the read-only current-host strip with an editable URL field; prefilled with the current page URL, supports URI keyboard Go and a visible navigate action, normalizes/validates the entered URL using the existing HTTPS URL helper, and updates the approved DApp origin before manual navigation. Existing in-page navigation/security confirmation and wallet controls remain intact. APK build required for verification.
+
+Browser address bar compile/security follow-up: top-level URL normalization helper, 56dp field row, preserve previous origin until WebView onPageStarted. Build this revision.
+
+Browser address bar origin-tracking follow-up: approved origin now follows actual WebView onPageStarted navigation only. Rebuild APK for this revision.
+
+Final browser-origin review: both address-bar navigation and confirmed cross-origin link navigation defer approvedOrigin update until WebView onPageStarted. Rebuild this commit.
+
+Browser security notice layout and Android status-bar inset correction (2026-11-16): keep the editable URL field visible and place the notice below it; rebuild Debug APK for validation.
+
+Final verification build trigger (2026-11-16): all wallet cache regression tests passed on dd166587; build the exact reviewed PR head and package the Debug APK for device acceptance.
+
+One-tap manual accounting (2026-11-16): add Home shortcut and wallet-free personal-ledger form; run Android unit tests and build Debug APK on the full UI-refactor base.
