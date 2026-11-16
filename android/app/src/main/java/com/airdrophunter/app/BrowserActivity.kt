@@ -102,12 +102,11 @@ private fun normalizeBrowserHttpsUrl(value: String): String? {
         if (trimmed.isBlank()) return null
         val withScheme = if ("://" in trimmed) trimmed else "https://$trimmed"
         val parsed = Uri.parse(withScheme)
-        val secure = when {
-            parsed.scheme.equals("https", true) -> parsed
-            parsed.scheme.equals("http", true) -> parsed.buildUpon().scheme("https").build()
+        val normalized = when {
+            parsed.scheme.equals("https", true) || parsed.scheme.equals("http", true) -> parsed
             else -> return null
         }
-        if (secure.host.isNullOrBlank() || secure.userInfo != null) null else secure.toString()
+        if (normalized.host.isNullOrBlank() || normalized.userInfo != null) null else normalized.toString()
     } catch (_: Exception) { null }
 }
 
@@ -175,12 +174,11 @@ class BrowserActivity : ComponentActivity() {
             if (trimmed.isBlank()) return null
             val withScheme = if ("://" in trimmed) trimmed else "https://$trimmed"
             val parsed = Uri.parse(withScheme)
-            val secure = when {
-                parsed.scheme.equals("https", true) -> parsed
-                parsed.scheme.equals("http", true) -> parsed.buildUpon().scheme("https").build()
+            val normalized = when {
+                parsed.scheme.equals("https", true) || parsed.scheme.equals("http", true) -> parsed
                 else -> return null
             }
-            if (secure.host.isNullOrBlank() || secure.userInfo != null) null else secure.toString()
+            if (normalized.host.isNullOrBlank() || normalized.userInfo != null) null else normalized.toString()
         } catch (_: Exception) { null }
     }
 
@@ -303,8 +301,8 @@ private fun BrowserScreen(
             kotlinx.coroutines.delay(6_000)
             if (pageState == BrowserPageState.Loading) {
                 pageState = BrowserPageState.Error
-                pageErrorMessage = "网页在 6 秒内未返回首屏内容。可检查网络后重试；部分网站的验证或登录页面可能需要更长时间。"
-                Log.w("AirdropBrowser", "Main-frame load timed out after 6 seconds")
+                pageErrorMessage = "错误类型：页面加载超时\n等待时间：6 秒\n当前网址：$currentPageUrl\n说明：WebView 在等待时间内没有提交可显示的首屏内容。可能原因包括 DNS 解析失败、网络/VPN 连接受阻、服务器无响应或网站验证页面未完成。"
+                Log.w("AirdropBrowser", "Main-frame load timed out after 6 seconds; url=$currentPageUrl")
             }
         }
     }
@@ -466,13 +464,6 @@ private fun BrowserScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
-                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.End) {
-                    AppButton(text = "记账", onClick = { showManualAccounting = true }, style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 42, fontSizeSp = 14)
-                }
-            }
-        },
         topBar = {
             // Edge-to-edge is enabled by the Activity; keep the entire browser header
             // below the status bar so the security notice text cannot be clipped.
@@ -1091,16 +1082,20 @@ private fun BrowserScreen(
                                 // Reveal the first committed document as soon as WebView can draw it.
                                 // Do not wait for every long-running script, analytics request, or stream to finish.
                                 pageUrl?.let { currentPageUrl = it }
-                                pageState = BrowserPageState.Success
-                                pageErrorMessage = null
+                                if (pageState != BrowserPageState.Error) {
+                                    pageState = BrowserPageState.Success
+                                    pageErrorMessage = null
+                                }
                                 isSlowLoading = false
                                 Log.d("AirdropBrowser", "First page content committed: ${displayHost(pageUrl.orEmpty())}")
                             }
 
                             override fun onPageFinished(view: WebView?, pageUrl: String?) {
                                 pageUrl?.let { currentPageUrl = it }
-                                pageState = BrowserPageState.Success
-                                pageErrorMessage = null
+                                if (pageState != BrowserPageState.Error) {
+                                    pageState = BrowserPageState.Success
+                                    pageErrorMessage = null
+                                }
                                 Log.d("AirdropBrowser", "Page finished: ${displayHost(pageUrl.orEmpty())}")
                             }
 
@@ -1112,10 +1107,20 @@ private fun BrowserScreen(
                                 super.onReceivedError(view, request, error)
                                 if (request?.isForMainFrame == true) {
                                     pageState = BrowserPageState.Error
-                                    pageErrorMessage = "网络加载错误（${error?.errorCode ?: "未知"}）：${error?.description ?: "未提供错误详情"}"
-                                    val detail = "网络错误码: ${error?.errorCode}, 描述: ${error?.description}, 地址: ${request?.url}"
-                                    Toast.makeText(context, detail, Toast.LENGTH_LONG).show()
-                                    Log.e("AirdropBrowser", "Main-frame load error: code=${error?.errorCode}, description=${error?.description}, url=${request?.url}, method=${request?.method}, isMainFrame=${request?.isForMainFrame}")
+                                    val code = error?.errorCode
+                                    val errorName = when (code) {
+                                        WebViewClient.ERROR_HOST_LOOKUP -> "DNS 域名解析失败"
+                                        WebViewClient.ERROR_CONNECT -> "无法连接服务器"
+                                        WebViewClient.ERROR_TIMEOUT -> "网络连接超时"
+                                        WebViewClient.ERROR_IO -> "网络读写错误"
+                                        WebViewClient.ERROR_UNSUPPORTED_SCHEME -> "不支持的网址协议"
+                                        WebViewClient.ERROR_FAILED_SSL_HANDSHAKE -> "SSL/TLS 握手失败"
+                                        WebViewClient.ERROR_TOO_MANY_REQUESTS -> "请求过于频繁"
+                                        WebViewClient.ERROR_UNKNOWN -> "未知网络错误"
+                                        else -> "WebView 网络错误"
+                                    }
+                                    pageErrorMessage = "错误类型：$errorName\n网络错误码：${code ?: "未知"}\n错误描述：${error?.description ?: "系统未提供"}\n请求方式：${request?.method ?: "未知"}\n主框架：是\n完整网址：${request?.url ?: view?.url ?: currentPageUrl}"
+                                    Log.e("AirdropBrowser", "Main-frame load error: code=$code, name=$errorName, description=${error?.description}, url=${request?.url}, method=${request?.method}")
                                 }
                             }
 
@@ -1127,9 +1132,7 @@ private fun BrowserScreen(
                                 super.onReceivedHttpError(view, request, errorResponse)
                                 if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 200) >= 400) {
                                     pageState = BrowserPageState.Error
-                                    pageErrorMessage = "网站返回 HTTP ${errorResponse?.statusCode ?: "错误"}：${errorResponse?.reasonPhrase ?: "服务器拒绝或无法处理请求"}"
-                                    val detail = "HTTP错误: ${errorResponse?.statusCode} ${errorResponse?.reasonPhrase}, 地址: ${request?.url}"
-                                    Toast.makeText(context, detail, Toast.LENGTH_LONG).show()
+                                    pageErrorMessage = "错误类型：HTTP 服务器响应错误\nHTTP 状态码：${errorResponse?.statusCode ?: "未知"}\n原因：${errorResponse?.reasonPhrase ?: "服务器未提供"}\n请求方式：${request?.method ?: "未知"}\n完整网址：${request?.url ?: view?.url ?: currentPageUrl}"
                                     Log.e("AirdropBrowser", "Main-frame HTTP error: status=${errorResponse?.statusCode}, reason=${errorResponse?.reasonPhrase}, url=${request?.url}, method=${request?.method}")
                                 }
                             }
@@ -1138,9 +1141,15 @@ private fun BrowserScreen(
                                 // Never allow a WebView page to bypass TLS certificate validation.
                                 handler?.cancel()
                                 pageState = BrowserPageState.Error
-                                pageErrorMessage = "HTTPS 证书验证失败，已阻止连接。请检查设备时间、网络代理或网站证书。"
-                                val detail = "HTTPS证书错误: ${error?.primaryError}, 地址: ${error?.url}"
-                                Toast.makeText(context, detail, Toast.LENGTH_LONG).show()
+                                pageErrorMessage = "错误类型：HTTPS/SSL 证书验证失败\n证书错误码：${error?.primaryError ?: "未知"}\n证书错误说明：${when (error?.primaryError) {
+                                    android.net.http.SslError.SSL_NOTYETVALID -> "证书尚未生效"
+                                    android.net.http.SslError.SSL_EXPIRED -> "证书已过期"
+                                    android.net.http.SslError.SSL_IDMISMATCH -> "证书域名与访问网址不匹配"
+                                    android.net.http.SslError.SSL_UNTRUSTED -> "证书颁发机构不受信任"
+                                    android.net.http.SslError.SSL_DATE_INVALID -> "证书日期无效"
+                                    android.net.http.SslError.SSL_INVALID -> "证书无效"
+                                    else -> "系统未提供更详细说明"
+                                }}\n完整网址：${error?.url ?: currentPageUrl}\n安全处理：已阻止连接，没有跳过证书验证。"
                                 Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed; primaryError=${error?.primaryError}, url=${error?.url}")
                             }
 
@@ -1182,7 +1191,7 @@ private fun BrowserScreen(
                                 DappOriginPermissionStore.revokeAll()
                                 browser = null
                                 pageState = BrowserPageState.Error
-                                pageErrorMessage = "网页渲染进程意外退出，已安全重建浏览器页面。请点击重新加载。"
+                                pageErrorMessage = "错误类型：WebView 渲染进程退出\n是否崩溃：${detail?.didCrash() ?: "未知"}\n退出优先级：${detail?.rendererPriorityAtExit() ?: "未知"}\n当前网址：$currentPageUrl\n处理结果：已准备重建页面，请点击重新加载。"
                                 webViewGeneration += 1
                                 return true
                             }
@@ -1440,13 +1449,23 @@ private fun BrowserPageOverlay(
                 Icon(Icons.Default.CloudOff, contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(64.dp))
                 Text(
-                    if (errorDetail?.contains("30 秒") == true) "网页加载超时" else "网页无法打开",
+                    if (errorDetail?.contains("超时") == true) "网页加载超时" else "网页无法打开",
                     color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.titleLarge
                 )
-                Text(errorDetail ?: "网站未提供具体错误原因。请检查网络后重试。",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium)
+                Surface(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        errorDetail ?: "网站未提供具体错误原因。请检查网络后重试。",
+                        modifier = Modifier.fillMaxWidth().padding(12.dp)
+                            .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 AppButton("重新加载", onClick = onRetry)
                 AppButton("用浏览器打开", onClick = onOpenExternally, style = AppButtonStyle.SECONDARY)
                 AppButton("返回", onClick = onBack, style = AppButtonStyle.TEXT)
