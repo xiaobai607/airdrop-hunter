@@ -17,6 +17,7 @@ import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -50,7 +51,7 @@ class WalletConnectActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class)
+@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun WalletConnectScreen(onClose: () -> Unit) {
     val context = LocalContext.current
