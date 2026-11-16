@@ -98,6 +98,10 @@ class AirdropHunterApplication : Application(), ImageLoaderFactory {
         WalletConnectSessionDelegate.attachApplicationContext(this)
         ApiClient.initialize(this)
 
+        // Start WalletConnect/AppKit initialization as soon as the app process starts.
+        // The initializer owns a process-wide scope and guards against duplicate starts.
+        WalletConnectInitializer.ensureInitialized(this)
+
         // Prewarm a small set of verified wallet icons for faster initial rendering.
         // This cache-only optimization does not filter or restrict AppKit's wallet directory.
         processLifecycleScope.launch {
