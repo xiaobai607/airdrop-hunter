@@ -142,9 +142,12 @@ class WalletRepository(
     }
 
     suspend fun delete(wallet: WalletDto, guest: Boolean, current: List<WalletDto>): List<WalletDto> {
+        // Capture the owner before the remote operation; never write the result into
+        // whichever account happens to be active when the operation completes.
+        val token = accessTokenProvider()?.takeIf { it.isNotBlank() }
         if (!guest) remote.deleteWallet(wallet.id)
         val updated = current.filterNot { it.id == wallet.id }
-        local.write(gson.toJson(updated), guest)
+        local.writeForSession(gson.toJson(updated), guest, token)
         return updated
     }
 }
