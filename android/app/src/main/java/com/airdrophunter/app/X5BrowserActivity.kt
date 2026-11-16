@@ -62,15 +62,10 @@ class X5BrowserActivity : ComponentActivity() {
                     initialUrl = initialUrl,
                     walletJson = intent.getStringExtra(BrowserActivity.EXTRA_WALLETS_JSON).orEmpty(),
                     selectedWalletId = intent.getStringExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID).orEmpty(),
-                    onConnectWallet = { pageUrl ->
-                        startActivity(
-                            Intent(this, BrowserActivity::class.java)
-                                .putExtra(BrowserActivity.EXTRA_URL, pageUrl)
-                                .putExtra(BrowserActivity.EXTRA_TITLE, title)
-                                .putExtra(BrowserActivity.EXTRA_WALLETS_JSON, intent.getStringExtra(BrowserActivity.EXTRA_WALLETS_JSON).orEmpty())
-                                .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, intent.getStringExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID).orEmpty())
-                                .putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true)
-                        )
+                    onConnectWallet = { _ ->
+                        // Keep the active website in X5. WalletConnect gets its own
+                        // focused surface and must never reopen this URL in BrowserActivity.
+                        startActivity(Intent(this, WalletConnectActivity::class.java))
                     },
                     onExit = { finish() }
                 )
