@@ -8,8 +8,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -63,14 +61,9 @@ fun ManualAccountingScreen(
             .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack, enabled = !saving) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = AppColors.TextPrimary)
-            }
-            Column(Modifier.weight(1f)) {
-                Text("记一笔", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("手动记录实际支出与收益", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text("记一笔", color = AppColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("手动记录实际支出与收益", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
         Card(
             modifier = Modifier.fillMaxWidth(),
