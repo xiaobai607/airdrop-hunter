@@ -3,6 +3,7 @@ package com.airdrophunter.app
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.json.JSONObject
 
 class DappProviderBridgeTest {
     @Test
@@ -32,7 +33,7 @@ class DappProviderBridgeTest {
 
     @Test
     fun x5ProviderUsesPromptOnlyToQueueAndReceivesAsyncResponses() {
-        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains('window.prompt("AH_WALLET_RPC_V1"'))
+        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains("window.prompt(\"AH_WALLET_RPC_V1\""))
         assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains('response.id'))
         assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains('ahWalletRpcResponse'))
         assertEquals(false, DappProviderBridge.X5_PROVIDER_SCRIPT.contains('JSON.parse(ack)'))
@@ -40,12 +41,11 @@ class DappProviderBridgeTest {
 
     @Test
     fun x5ResponseDispatchSafelyEscapesPayload() {
-        val script = DappProviderBridge.x5ResponseDispatchScript(
-            """{"id":9,"result":"quote ' and slash \\"}"""
-        )
+        val payload = """{"id":9,"result":"quote ' and slash \\"}"""
+        val script = DappProviderBridge.x5ResponseDispatchScript(payload)
         assertTrue(script.contains("ahWalletRpcResponse"))
         assertTrue(script.contains("detail:"))
-        assertTrue(script.contains("\\\\"))
+        assertTrue(script.contains(JSONObject.quote(payload)))
     }
 
     @Test
