@@ -33,12 +33,12 @@ class DappProviderBridgeTest {
     @Test
     fun x5PromptParserRequiresTheFixedProtocolPrefix() {
         val request = DappProviderBridge.parseX5Prompt(
-            "AH_WALLET_RPC_V1:{\\"id\\":7,\\"method\\":\\"eth_accounts\\",\\"params\\":[]}"
+            """AH_WALLET_RPC_V1:{"id":7,"method":"eth_accounts","params":[]}"""
         )
         assertEquals(7L, request?.id)
         assertEquals("eth_accounts", request?.method)
         assertEquals(null, DappProviderBridge.parseX5Prompt(
-            "UNTRUSTED:{\\"id\\":7,\\"method\\":\\"eth_accounts\\"}"
+            """UNTRUSTED:{"id":7,"method":"eth_accounts"}"""
         ))
         assertEquals(null, DappProviderBridge.parseX5Prompt("AH_WALLET_RPC_V1:not-json"))
     }
