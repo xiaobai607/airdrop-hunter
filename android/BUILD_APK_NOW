@@ -21,3 +21,5 @@ Final browser-origin review: both address-bar navigation and confirmed cross-ori
 Browser security notice layout and Android status-bar inset correction (2026-11-16): keep the editable URL field visible and place the notice below it; rebuild Debug APK for validation.
 
 Final verification build trigger (2026-11-16): all wallet cache regression tests passed on dd166587; build the exact reviewed PR head and package the Debug APK for device acceptance.
+
+One-tap manual accounting (2026-11-16): direct Home entry and wallet-free personal ledger screen; validate full UI-refactor branch with Android tests and Debug APK build.
