@@ -157,7 +157,6 @@ fun BrowserAccountingToolbar(
     var web3HashSyncDraftId by remember { mutableStateOf<String?>(null) }
     var web3HashSyncInput by remember { mutableStateOf("") }
     val toolOptions = listOf(
-        "new_accounting" to "记账",
         "copy_address" to "复制地址",
         "pending_bills" to "待确认记录",
         "refresh_page" to "刷新网页",
