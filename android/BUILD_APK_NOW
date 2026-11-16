@@ -47,3 +47,5 @@ X5 airdrop site routing: browse all managed airdrop sites with Tencent X5; expli
 X5 ordinary web routing audit: 2026-11-16
 
 X5 wallet connection handoff correction (2026-11-16): the X5 Connect Wallet action opens a dedicated WalletConnect surface without reloading the DApp URL or presenting the legacy browser chrome. Run Android unit tests and package the exact Debug APK.
+
+Wallet connection screen compile fix (2026-11-16): add the missing Compose Composable annotation import and rebuild/test.
