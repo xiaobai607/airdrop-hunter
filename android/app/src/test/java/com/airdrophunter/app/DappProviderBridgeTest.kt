@@ -31,6 +31,24 @@ class DappProviderBridgeTest {
     }
 
     @Test
+    fun x5ProviderUsesPromptOnlyToQueueAndReceivesAsyncResponses() {
+        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains('window.prompt("AH_WALLET_RPC_V1"'))
+        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains('response.id'))
+        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains('ahWalletRpcResponse'))
+        assertEquals(false, DappProviderBridge.X5_PROVIDER_SCRIPT.contains('JSON.parse(ack)'))
+    }
+
+    @Test
+    fun x5ResponseDispatchSafelyEscapesPayload() {
+        val script = DappProviderBridge.x5ResponseDispatchScript(
+            """{"id":9,"result":"quote ' and slash \\"}"""
+        )
+        assertTrue(script.contains("ahWalletRpcResponse"))
+        assertTrue(script.contains("detail:"))
+        assertTrue(script.contains("\\\\"))
+    }
+
+    @Test
     fun x5PromptParserRequiresTheFixedProtocolPrefix() {
         val request = DappProviderBridge.parseX5Prompt(
             "AH_WALLET_RPC_V1",
