@@ -95,7 +95,8 @@ fun BrowserAccountingToolbar(
     initialShowBillList: Boolean = false,
     showDock: Boolean = true,
     onCloseAccounting: () -> Unit = {},
-    showWalletTools: Boolean = true
+    showWalletTools: Boolean = true,
+    walletAddressFilter: String? = null
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -123,7 +124,10 @@ fun BrowserAccountingToolbar(
     }
 
     // Legacy MOCK fixtures stay stored for compatibility but never enter the real ledger flow.
-    val realPending = remember(pending) { pending.filterNot { it.txHash.startsWith("MOCK-") } }
+    val realPending = remember(pending, walletAddressFilter) {
+        pending.filterNot { it.txHash.startsWith("MOCK-") }
+            .filter { walletAddressFilter.isNullOrBlank() || it.walletAddress.equals(walletAddressFilter, ignoreCase = true) }
+    }
 
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var activeBill by remember { mutableStateOf<PendingBillEntity?>(null) }
@@ -1120,7 +1124,9 @@ fun AccountingCenterScreen(
     modifier: Modifier = Modifier,
     isGuest: Boolean = true,
     onClose: () -> Unit = {},
-    onConnectWallet: () -> Unit = {}
+    onConnectWallet: () -> Unit = {},
+    initialSection: String = "history",
+    initialWalletAddress: String? = null
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -1129,13 +1135,14 @@ fun AccountingCenterScreen(
     val pending by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
     var wallets by remember { mutableStateOf<List<WalletDto>>(emptyList()) }
     var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
+    var walletFilterAddress by remember(initialWalletAddress) { mutableStateOf(initialWalletAddress) }
     var isLoadingWallets by remember { mutableStateOf(true) }
     var walletMenuExpanded by remember { mutableStateOf(false) }
     var walletLoadError by remember { mutableStateOf<String?>(null) }
     var ledgerRows by remember { mutableStateOf<List<PersonalLedgerWriteRequest>>(emptyList()) }
     var isLoadingLedger by remember { mutableStateOf(true) }
     var ledgerLoadError by remember { mutableStateOf<String?>(null) }
-    var selectedSection by remember { mutableStateOf("history") }
+    var selectedSection by remember(initialSection) { mutableStateOf(initialSection) }
     var selectedPeriod by remember { mutableStateOf("month") }
     var expandedRecordId by remember { mutableStateOf<String?>(null) }
     var showPendingManager by remember { mutableStateOf(false) }
@@ -1157,7 +1164,8 @@ fun AccountingCenterScreen(
         walletLoadError = null
         try {
             wallets = application.appContainer.walletRepository.load(isGuest)
-            selectedWallet = wallets.firstOrNull()
+            selectedWallet = wallets.firstOrNull { !initialWalletAddress.isNullOrBlank() && it.address.equals(initialWalletAddress, ignoreCase = true) }
+                ?: wallets.firstOrNull()
         } catch (_: Exception) {
             wallets = emptyList()
             selectedWallet = null
@@ -1168,7 +1176,11 @@ fun AccountingCenterScreen(
     }
     LaunchedEffect(accountingRepository) { reloadLedger() }
 
-    val realPendingCount = remember(pending) { pending.count { !it.txHash.startsWith("MOCK-") } }
+    val visiblePending = remember(pending, walletFilterAddress) {
+        pending.filterNot { it.txHash.startsWith("MOCK-") }
+            .filter { walletFilterAddress.isNullOrBlank() || it.walletAddress.equals(walletFilterAddress, ignoreCase = true) }
+    }
+    val realPendingCount = visiblePending.size
     val periodRows = remember(ledgerRows, selectedPeriod) {
         val now = java.util.Calendar.getInstance()
         val weekStart = (now.clone() as java.util.Calendar).apply {
@@ -1199,7 +1211,7 @@ fun AccountingCenterScreen(
     val actualGasTotal = periodSummary.actualGasUsd
     val actualRewardTotal = periodSummary.valuedActualRewardUsd
     val completeNetTotal = periodSummary.completeNetProfitUsd
-    val pendingBills = remember(pending) { pending.filterNot { it.txHash.startsWith("MOCK-") } }
+    val pendingBills = visiblePending
 
     Column(
         modifier = modifier.fillMaxWidth().heightIn(max = 760.dp)
@@ -1245,7 +1257,11 @@ fun AccountingCenterScreen(
                         wallets.forEach { wallet ->
                             DropdownMenuItem(
                                 text = { Text("${wallet.wallet_name} · ${wallet.chain} · ${shortAddress(wallet.address)}") },
-                                onClick = { selectedWallet = wallet; walletMenuExpanded = false }
+                                onClick = {
+                                    selectedWallet = wallet
+                                    if (selectedSection == "pending") walletFilterAddress = wallet.address
+                                    walletMenuExpanded = false
+                                }
                             )
                         }
                     }
@@ -1485,6 +1501,7 @@ fun AccountingCenterScreen(
             modifier = Modifier.fillMaxWidth(),
             initialShowBillList = true,
             showDock = false,
+            walletAddressFilter = walletFilterAddress,
             onCloseAccounting = {
                 showPendingManager = false
                 scope.launch { reloadLedger() }
