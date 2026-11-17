@@ -33,7 +33,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.airdrophunter.app.data.Web3TransactionRepository
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
+import com.reown.appkit.client.AppKit
+import com.reown.appkit.client.Modal
+import com.reown.appkit.client.models.request.Request as ExternalWalletRequest
+import com.reown.appkit.client.models.request.SentRequestResult
+import org.json.JSONObject
 import com.tencent.smtt.export.external.interfaces.SslError
 import com.tencent.smtt.export.external.interfaces.JsPromptResult
 import com.tencent.smtt.export.external.interfaces.SslErrorHandler
@@ -45,6 +51,16 @@ import com.tencent.smtt.sdk.WebViewClient as X5WebViewClient
 import org.json.JSONArray
 
 private enum class X5PageState { Loading, Success, Error }
+
+private data class X5PendingExternalWalletRequest(
+    val request: DappRpcRequest,
+    val origin: String,
+    val replyProxy: DappReplyChannel,
+    val sessionTopic: String,
+    val chainId: String,
+    val walletConnectRequestId: Long? = null,
+    val web3DraftId: String? = null
+)
 
 class X5BrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,6 +101,8 @@ private fun X5BrowserScreen(
     onExit: () -> Unit
 ) {
     val context = LocalContext.current
+    val app = context.applicationContext as AirdropHunterApplication
+    val web3Repository = remember(app) { app.appContainer.web3TransactionRepository }
     val kernelState by X5KernelInitializer.state.collectAsStateWithLifecycle()
     var browser by remember { mutableStateOf<X5WebView?>(null) }
     var webViewGeneration by remember { mutableIntStateOf(0) }
@@ -100,9 +118,108 @@ private fun X5BrowserScreen(
     var isX5InstanceConfirmed by remember { mutableStateOf(false) }
     val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
     val walletSessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsStateWithLifecycle()
+    val activeWalletConnectTopic by WalletConnectSessionDelegate.sessionTopic.collectAsStateWithLifecycle()
     val authorizedDappOrigins by DappOriginPermissionStore.authorizedOrigins.collectAsStateWithLifecycle()
+    val dappRequestScope = rememberCoroutineScope()
     var pendingDappConnection by remember { mutableStateOf<PendingDappConnection?>(null) }
+    var pendingDappExternalRequest by remember { mutableStateOf<X5PendingExternalWalletRequest?>(null) }
     var waitingDappWalletApproval by remember { mutableStateOf(false) }
+    var lastObservedSessionGeneration by remember { mutableStateOf(walletSessionGeneration) }
+
+    LaunchedEffect(Unit) {
+        WalletConnectInitializer.ensureInitialized(context.applicationContext as android.app.Application)
+        app.startWalletResponseReconciliation()
+    }
+
+    LaunchedEffect(Unit) {
+        WalletConnectSessionDelegate.requestResponses.collect { response ->
+            val pending = pendingDappExternalRequest
+            if (pending != null && DappProviderBridge.isMatchingExternalWalletResponse(
+                    pending.walletConnectRequestId,
+                    response.result.id,
+                    pending.sessionTopic,
+                    response.topic,
+                    pending.request.method,
+                    response.method,
+                    pending.chainId,
+                    response.chainId
+                )
+            ) {
+                when (val result = response.result) {
+                    is Modal.Model.JsonRpcResponse.JsonRpcResult -> {
+                        if (pending.request.method.equals("eth_sendTransaction", ignoreCase = true)) {
+                            val txHash = result.result as? String
+                            val draftId = pending.web3DraftId
+                            val walletRequestId = pending.walletConnectRequestId
+                            val chainNumber = pending.chainId.removePrefix("eip155:").toLongOrNull()
+                            if (draftId != null && walletRequestId != null && chainNumber != null &&
+                                txHash != null && Web3TransactionRepository.isValidTxHash(txHash)
+                            ) {
+                                val accepted = runCatching {
+                                    web3Repository.attachWalletConnectHash(
+                                        draftId, walletRequestId, chainNumber, txHash
+                                    )
+                                }.onFailure {
+                                    Log.e("AirdropX5Browser", "Could not persist WalletConnect transaction hash", it)
+                                }.getOrDefault(false)
+                                if (accepted) {
+                                    com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(
+                                        context.applicationContext, draftId
+                                    )
+                                } else {
+                                    runCatching { web3Repository.markWalletTimedOut(draftId) }
+                                    Log.e("AirdropX5Browser", "WalletConnect hash was not attached; draft requires manual chain sync")
+                                }
+                            } else if (draftId != null) {
+                                runCatching { web3Repository.markWalletTimedOut(draftId) }
+                                Log.e("AirdropX5Browser", "WalletConnect returned an invalid or incomplete transaction hash")
+                            }
+                        }
+                        DappProviderBridge.success(pending.replyProxy, pending.request.id, result.result)
+                    }
+                    is Modal.Model.JsonRpcResponse.JsonRpcError -> {
+                        pending.web3DraftId?.let { draftId ->
+                            dappRequestScope.launch {
+                                if (result.code == 4001) web3Repository.markWalletRejected(draftId)
+                                else web3Repository.markWalletTimedOut(draftId)
+                            }
+                        }
+                        DappProviderBridge.error(pending.replyProxy, pending.request.id, result.code, result.message)
+                    }
+                }
+                pendingDappExternalRequest = null
+            }
+        }
+    }
+
+    LaunchedEffect(pendingDappExternalRequest?.request?.id) {
+        val requestId = pendingDappExternalRequest?.request?.id ?: return@LaunchedEffect
+        kotlinx.coroutines.delay(120_000)
+        val pending = pendingDappExternalRequest
+        if (pending?.request?.id == requestId) {
+            pending.web3DraftId?.let { draftId -> web3Repository.markWalletTimedOut(draftId) }
+            DappProviderBridge.error(pending.replyProxy, requestId, 4001, "External wallet request timed out or was cancelled; chain status still requires reconciliation")
+            pendingDappExternalRequest = null
+        }
+    }
+
+    LaunchedEffect(waitingDappWalletApproval, connectedDappAccounts, walletSessionGeneration) {
+        if (walletSessionGeneration != lastObservedSessionGeneration) {
+            lastObservedSessionGeneration = walletSessionGeneration
+            val completingApprovedConnection =
+                waitingDappWalletApproval && pendingDappConnection != null && connectedDappAccounts.isNotEmpty()
+            if (!completingApprovedConnection) {
+                DappOriginPermissionStore.revokeAll()
+                pendingDappExternalRequest?.let { pending ->
+                    pending.web3DraftId?.let { id ->
+                        dappRequestScope.launch { web3Repository.markWalletTimedOut(id) }
+                    }
+                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4100, "Wallet session changed; the transaction draft is retained for chain reconciliation")
+                    pendingDappExternalRequest = null
+                }
+            }
+        }
+    }
 
     LaunchedEffect(currentUrl, isAddressEditing) {
         if (!isAddressEditing) addressInput = currentUrl
@@ -348,6 +465,16 @@ private fun X5BrowserScreen(
                                                         if (previousOrigin != null && previousOrigin != nextOrigin) {
                                                             DappOriginPermissionStore.revokeAll()
                                                         }
+                                                        pendingDappExternalRequest?.let { pending ->
+                                                            pending.web3DraftId?.let { id ->
+                                                                dappRequestScope.launch { web3Repository.markWalletTimedOut(id) }
+                                                            }
+                                                            DappProviderBridge.error(
+                                                                pending.replyProxy, pending.request.id, 4001,
+                                                                "The page navigated; the transaction draft is retained for chain reconciliation"
+                                                            )
+                                                            pendingDappExternalRequest = null
+                                                        }
                                                         // A full document navigation invalidates any unanswered prompt,
                                                         // even when it stays on the same origin. Never let an old page's
                                                         // approval dialog authorize a later document.
@@ -455,10 +582,8 @@ private fun X5BrowserScreen(
                                                             } else if (authorizedDappOrigins[origin] == x5DappAuthorizationStamp() &&
                                                                 connectedDappAccounts.isNotEmpty()
                                                             ) {
-                                                                DappProviderBridge.success(
-                                                                    replyChannel, request.id,
-                                                                    JSONArray(connectedDappAccounts.map { it.address }.distinct())
-                                                                )
+                                                                DappProviderBridge.success(replyChannel, request.id,
+                                                                    JSONArray(connectedDappAccounts.map { it.address }.distinct()))
                                                             } else {
                                                                 pendingDappConnection = PendingDappConnection(request, origin, replyChannel)
                                                             }
@@ -471,7 +596,7 @@ private fun X5BrowserScreen(
                                                         }
                                                         "eth_chainId", "net_version" -> {
                                                             val rawChain = connectedDappAccounts.firstOrNull()?.chainId
-                                                                ?: runCatching { com.reown.appkit.client.AppKit.getSelectedChain()?.chainReference }.getOrNull()
+                                                                ?: runCatching { AppKit.getSelectedChain()?.chainReference }.getOrNull()
                                                             val reference = rawChain?.removePrefix("eip155:")?.trim()
                                                             val number = when {
                                                                 reference.isNullOrBlank() -> null
@@ -485,13 +610,147 @@ private fun X5BrowserScreen(
                                                                 DappProviderBridge.success(replyChannel, request.id, value)
                                                             }
                                                         }
-                                                        else -> DappProviderBridge.error(
-                                                            replyChannel, request.id, 4200,
-                                                            if (DappProviderBridge.isBlockedRawSubmissionMethod(request.method))
-                                                                "Raw transaction submission is blocked; use a wallet-reviewed transaction request"
-                                                            else
-                                                                "This X5 wallet bridge stage currently supports account access and chain queries only"
+                                                        "wallet_switchEthereumChain" -> DappProviderBridge.error(
+                                                            replyChannel, request.id, 4200, "Switch networks in the connected wallet, then reconnect this site"
                                                         )
+                                                        else -> {
+                                                            if (!DappProviderBridge.isSupportedExternalWalletMethod(request.method)) {
+                                                                DappProviderBridge.error(
+                                                                    replyChannel, request.id, 4200,
+                                                                    if (DappProviderBridge.isBlockedRawSubmissionMethod(request.method))
+                                                                        "Raw signed transaction submission is blocked"
+                                                                    else "Unsupported wallet method: ${request.method}"
+                                                                )
+                                                            } else {
+                                                                val sessionTopic = activeWalletConnectTopic
+                                                                val authorized = authorizedDappOrigins[origin] == x5DappAuthorizationStamp()
+                                                                val connectedAddresses = connectedDappAccounts.map { it.address }.toSet()
+                                                                val firstParam = request.params.opt(0) as? String
+                                                                val secondParam = request.params.opt(1) as? String
+                                                                val transactionFrom = request.params.optJSONObject(0)?.optString("from")
+                                                                val requestedAddress = DappProviderBridge.requestedAccountAddress(
+                                                                    request.method, firstParam, secondParam, transactionFrom
+                                                                )
+                                                                val selectedChain = AppKit.getSelectedChain()?.chainReference?.removePrefix("eip155:")
+                                                                val account = connectedDappAccounts.firstOrNull { candidate ->
+                                                                    !requestedAddress.isNullOrBlank() &&
+                                                                        candidate.address.equals(requestedAddress, ignoreCase = true) &&
+                                                                        !selectedChain.isNullOrBlank() &&
+                                                                        candidate.chainId.removePrefix("eip155:") == selectedChain
+                                                                }
+                                                                when {
+                                                                    !authorized || connectedDappAccounts.isEmpty() ->
+                                                                        DappProviderBridge.error(replyChannel, request.id, 4100, "Authorize this website before requesting a signature or transaction")
+                                                                    sessionTopic.isNullOrBlank() ->
+                                                                        DappProviderBridge.error(replyChannel, request.id, 4200, "The active wallet session cannot forward DApp requests")
+                                                                    pendingDappExternalRequest != null ->
+                                                                        DappProviderBridge.error(replyChannel, request.id, -32002, "Another external wallet request is awaiting confirmation")
+                                                                    !DappProviderBridge.isAuthorizedAccountRequest(
+                                                                        request.method, firstParam, secondParam, transactionFrom, connectedAddresses
+                                                                    ) ->
+                                                                        DappProviderBridge.error(replyChannel, request.id, 4100, "The requested account is not authorized in this wallet session")
+                                                                    account == null ->
+                                                                        DappProviderBridge.error(replyChannel, request.id, 4901, "The requested account is not authorized on the active EVM network")
+                                                                    !DappProviderBridge.isTransactionChainCompatible(
+                                                                        request.method, request.params.optJSONObject(0)?.optString("chainId"), account.chainId
+                                                                    ) ->
+                                                                        DappProviderBridge.error(replyChannel, request.id, 4901, "The transaction chain does not match the active wallet network")
+                                                                    else -> {
+                                                                        val chainReference = account.chainId.let { if (it.startsWith("eip155:")) it else "eip155:$it" }
+                                                                        pendingDappExternalRequest = X5PendingExternalWalletRequest(
+                                                                            request, origin, replyChannel, sessionTopic, chainReference
+                                                                        )
+                                                                        dappRequestScope.launch {
+                                                                            var draftId: String? = null
+                                                                            if (request.method.equals("eth_sendTransaction", ignoreCase = true)) {
+                                                                                val transaction = request.params.optJSONObject(0)
+                                                                                val chainNumber = chainReference.removePrefix("eip155:").toLongOrNull()
+                                                                                if (transaction == null || chainNumber == null) {
+                                                                                    DappProviderBridge.error(replyChannel, request.id, -32602, "Invalid transaction parameters or chain ID")
+                                                                                    pendingDappExternalRequest = null
+                                                                                    return@launch
+                                                                                }
+                                                                                draftId = runCatching {
+                                                                                    web3Repository.createDappDraft(
+                                                                                        chainId = chainNumber,
+                                                                                        walletAddress = account.address,
+                                                                                        origin = origin,
+                                                                                        transaction = transaction
+                                                                                    ).id
+                                                                                }.getOrElse { error ->
+                                                                                    Log.e("AirdropX5Browser", "Failed to persist Web3 transaction draft", error)
+                                                                                    DappProviderBridge.error(replyChannel, request.id, -32000, "Could not safely save the transaction draft; request blocked")
+                                                                                    pendingDappExternalRequest = null
+                                                                                    return@launch
+                                                                                }
+                                                                            }
+                                                                            val activePending = pendingDappExternalRequest
+                                                                            if (activePending?.request?.id != request.id) {
+                                                                                draftId?.let { web3Repository.markWalletTimedOut(it) }
+                                                                                return@launch
+                                                                            }
+                                                                            pendingDappExternalRequest = activePending.copy(web3DraftId = draftId)
+                                                                            runCatching {
+                                                                                AppKit.request(
+                                                                                    request = ExternalWalletRequest(
+                                                                                        method = request.method,
+                                                                                        params = request.params.toString()
+                                                                                    ),
+                                                                                    onSuccess = { sentRequest ->
+                                                                                        dappRequestScope.launch {
+                                                                                            val currentPending = pendingDappExternalRequest
+                                                                                            if (currentPending?.request?.id == request.id) {
+                                                                                                val walletRequest = sentRequest as? SentRequestResult.WalletConnect
+                                                                                                if (walletRequest == null || walletRequest.sessionTopic != currentPending.sessionTopic) {
+                                                                                                    currentPending.web3DraftId?.let { web3Repository.markWalletTimedOut(it) }
+                                                                                                    DappProviderBridge.error(replyChannel, request.id, 4200, "Could not verify the external wallet request; cancelled safely")
+                                                                                                    pendingDappExternalRequest = null
+                                                                                                } else {
+                                                                                                    val bound = currentPending.web3DraftId?.let { id ->
+                                                                                                        web3Repository.bindWalletConnectRequest(id, walletRequest.requestId, walletRequest.sessionTopic)
+                                                                                                    } ?: true
+                                                                                                    if (!bound) {
+                                                                                                        currentPending.web3DraftId?.let { web3Repository.markWalletTimedOut(it) }
+                                                                                                        DappProviderBridge.error(replyChannel, request.id, 4200, "Could not bind the wallet request to its transaction draft")
+                                                                                                        pendingDappExternalRequest = null
+                                                                                                    } else {
+                                                                                                        currentPending.web3DraftId?.let { id ->
+                                                                                                            com.airdrophunter.app.data.Web3DraftTimeoutScheduler.enqueue(context.applicationContext, id)
+                                                                                                        }
+                                                                                                        pendingDappExternalRequest = currentPending.copy(walletConnectRequestId = walletRequest.requestId)
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    onError = { error ->
+                                                                                        dappRequestScope.launch {
+                                                                                            val active = pendingDappExternalRequest
+                                                                                            if (active?.request?.id == request.id) {
+                                                                                                active.web3DraftId?.let { web3Repository.markWalletTimedOut(it) }
+                                                                                                DappProviderBridge.error(replyChannel, request.id, 4001,
+                                                                                                    error.localizedMessage ?: "External wallet request failed or was rejected")
+                                                                                                pendingDappExternalRequest = null
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                )
+                                                                            }.onFailure { error ->
+                                                                                val active = pendingDappExternalRequest
+                                                                                if (active?.request?.id == request.id &&
+                                                                                    active.sessionTopic == sessionTopic && active.origin == origin
+                                                                                ) {
+                                                                                    active.web3DraftId?.let { web3Repository.markWalletTimedOut(it) }
+                                                                                    DappProviderBridge.error(replyChannel, request.id, 4001,
+                                                                                        error.localizedMessage ?: "Could not open external wallet request")
+                                                                                    pendingDappExternalRequest = null
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                     return true
                                                 }
