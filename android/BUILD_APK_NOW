@@ -62,3 +62,5 @@ X5 WalletConnect coroutine compile fix (2026-11-17): import coroutine launch ext
 X5 EIP-1193 wallet event synchronization (2026-11-17): emit accountsChanged, chainChanged and disconnect events only to the active authorized HTTPS origin, after the provider script is injected; add JSON escaping and provider event tests. Run Android unit tests and build Debug APK.
 
 X5 wallet event test assertion correction (2026-11-17): verify escaped event payload content without depending on JSONObject serializer formatting; rerun all Android unit tests and package Debug APK.
+
+X5 DApp payload hardening (2026-11-17): validate personal_sign/eth_sign hex data, EIP-712 typed-data JSON schema shape and size, and transaction address/data/quantity fields before external-wallet relay; add regression tests and rebuild.
