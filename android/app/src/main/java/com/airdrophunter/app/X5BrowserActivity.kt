@@ -462,11 +462,12 @@ private fun X5BrowserScreen(
                             Text("当前没有悄悄切回系统内核。为了避免误以为正在使用腾讯内核，网页暂不加载。",
                                 color = MaterialTheme.colorScheme.onBackground)
                             Text(
-                                "SDK 版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsSdkVersion() }.getOrDefault(0)}\\n" +
-                                    "内核版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsVersion(context) }.getOrDefault(0)}\\n" +
-                                    "下载进度：${kernelDiagnostics.downloadProgress?.let { "$it%" } ?: "尚无回调"}\\n" +
-                                    "下载状态码：${kernelDiagnostics.downloadCode?.toString() ?: "暂无"}\\n" +
-                                    "安装状态码：${kernelDiagnostics.installCode?.toString() ?: "暂无"}\\n" +
+                                "SDK 版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsSdkVersion() }.getOrDefault(0)}\n" +
+                                    "内核版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsVersion(context) }.getOrDefault(0)}\n" +
+                                    "下载进度：${kernelDiagnostics.downloadProgress?.let { "$it%" } ?: "尚无回调"}\n" +
+                                    "下载状态码：${kernelDiagnostics.downloadCode?.toString() ?: "暂无"}\n" +
+                                    "安装状态码：${kernelDiagnostics.installCode?.toString() ?: "暂无"}\n" +
+                                    "核心初始化：${if (kernelDiagnostics.coreInitFinished) "已完成" else "未完成"}\n" +
                                     "诊断信息：${kernelDiagnostics.lastFailure ?: help.ifBlank { "腾讯 SDK 未提供详细原因" }}",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
