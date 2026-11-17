@@ -163,12 +163,16 @@ fun WalletManagerScreen(
     vm: WalletManagerViewModel? = null,
     launchConnectOnStart: Boolean = false,
     onConnectLaunchHandled: () -> Unit = {},
-    onOpenAccounting: () -> Unit = {}
+    onOpenAccounting: () -> Unit = {},
+    onOpenPendingAccounting: (String?) -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
     val walletViewModel: WalletManagerViewModel = vm ?: viewModel(factory = WalletManagerViewModelFactory(application.appContainer.walletRepository))
     val state by walletViewModel.state.collectAsStateWithLifecycle()
+    val accountingRepository = remember(application) { application.appContainer.accountingRepository }
+    val pendingBills by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
+    val realPendingBills = remember(pendingBills) { pendingBills.filterNot { it.txHash.startsWith("MOCK-") } }
     val walletConnectReady by WalletConnectInitializer.ready.collectAsStateWithLifecycle()
     val walletConnectError by WalletConnectInitializer.error.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
@@ -236,7 +240,8 @@ fun WalletManagerScreen(
     }
 
     selectedWallet?.let { wallet ->
-        WalletDetailScreen(wallet, onBack = { selectedWallet = null }, isGuest = isGuest)
+        WalletDetailScreen(wallet, onBack = { selectedWallet = null }, isGuest = isGuest,
+            onOpenPendingAccounting = onOpenPendingAccounting)
         return
     }
 
@@ -325,6 +330,26 @@ fun WalletManagerScreen(
                             modifier = Modifier.weight(1.25f)
                         )
                     }
+                }
+            }
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("待确认账单", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                        Text("链上交易与手动记录需由你核对后入账", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                    }
+                    AppButton(
+                        text = "${realPendingBills.size} 笔 · 查看",
+                        onClick = { onOpenPendingAccounting(null) },
+                        fullWidth = false,
+                        heightDp = 38,
+                        fontSizeSp = 12
+                    )
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
