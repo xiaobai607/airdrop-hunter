@@ -36,7 +36,8 @@ import java.util.Locale
 fun WalletDetailScreen(
     wallet: WalletDto,
     onBack: () -> Unit,
-    isGuest: Boolean = false
+    isGuest: Boolean = false,
+    onOpenPendingAccounting: (String) -> Unit = {}
 ) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -63,7 +64,7 @@ fun WalletDetailScreen(
                 android.widget.Toast.makeText(context, "已复制钱包地址", android.widget.Toast.LENGTH_SHORT).show()
             })
         }
-        WalletActivityPanel(wallet, Modifier.weight(1f), isGuest)
+        WalletActivityPanel(wallet, Modifier.weight(1f), isGuest, onOpenPendingAccounting)
     }
 }
 
@@ -71,7 +72,8 @@ fun WalletDetailScreen(
 private fun WalletActivityPanel(
     wallet: WalletDto,
     modifier: Modifier = Modifier,
-    isGuest: Boolean = false
+    isGuest: Boolean = false,
+    onOpenPendingAccounting: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -115,6 +117,11 @@ private fun WalletActivityPanel(
         }
     }
 
+    val walletPendingBills = remember(pendingBills, wallet.address, wallet.ecosystem) {
+        pendingBills.filter { bill ->
+            !bill.txHash.startsWith("MOCK-") && bill.walletAddress.equals(wallet.address, ignoreCase = wallet.ecosystem == WalletEcosystem.EVM)
+        }
+    }
     val pendingKeys = remember(pendingBills, wallet.address, wallet.ecosystem) {
         pendingBills.filter { bill ->
             bill.walletAddress.equals(wallet.address, ignoreCase = wallet.ecosystem == WalletEcosystem.EVM)
@@ -122,6 +129,22 @@ private fun WalletActivityPanel(
     }
 
     Column(modifier.fillMaxSize()) {
+        if (walletPendingBills.isNotEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("该地址有 ${walletPendingBills.size} 笔待确认", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                        Text("核对实际 Gas 与收益后再完成入账", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                    }
+                    AppButton("去确认", onClick = { onOpenPendingAccounting(wallet.address) }, fullWidth = false, heightDp = 38, fontSizeSp = 12)
+                }
+            }
+        }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
