@@ -58,3 +58,5 @@ X5 DApp navigation security follow-up (2026-11-17): cancel any pending site acco
 X5 DApp WalletConnect signing and transaction relay (2026-11-17): port authorized personal_sign, eth_sign, EIP-712 typed-data and eth_sendTransaction requests to AppKit external-wallet approval; persist transaction drafts, bind WalletConnect request IDs, handle wallet success/rejection/timeouts and schedule receipt reconciliation; cancel pending requests on navigation/session changes. Run Android unit tests and build Debug APK.
 
 X5 WalletConnect coroutine compile fix (2026-11-17): import coroutine launch extension required by asynchronous external-wallet response and transaction draft handling; rerun Android unit tests and Debug APK build.
+
+X5 EIP-1193 wallet event synchronization (2026-11-17): emit accountsChanged, chainChanged and disconnect events only to the active authorized HTTPS origin, after the provider script is injected; add JSON escaping and provider event tests. Run Android unit tests and build Debug APK.
