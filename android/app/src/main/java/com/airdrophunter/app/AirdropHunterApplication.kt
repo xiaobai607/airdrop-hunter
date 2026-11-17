@@ -206,11 +206,11 @@ object WalletConnectInitializer {
 
 
 /**
- * Process-wide, asynchronous Tencent X5 initialization.
+ * Process-wide Tencent X5 initialization and download diagnostics.
  *
- * This phase deliberately does not replace android.webkit.WebView. The current browser's
- * AndroidX WebKit message bridge is required by WalletConnect and remains on the system
- * WebView until an X5-specific bridge has been separately implemented and security-reviewed.
+ * The SDK owns kernel download/retry throttling. We expose its callbacks and only
+ * resume a paused in-process download on explicit user action; we never force a
+ * system-WebView fallback or repeatedly call initX5Environment.
  */
 enum class X5KernelState {
     NOT_STARTED,
@@ -218,6 +218,14 @@ enum class X5KernelState {
     AVAILABLE,
     UNAVAILABLE
 }
+
+data class X5KernelDiagnostics(
+    val downloadProgress: Int? = null,
+    val downloadCode: Int? = null,
+    val installCode: Int? = null,
+    val coreInitFinished: Boolean = false,
+    val lastFailure: String? = null
+)
 
 object X5KernelInitializer {
     private const val TAG = "AirdropX5"
@@ -227,19 +235,53 @@ object X5KernelInitializer {
 
     private val _state = MutableStateFlow(X5KernelState.NOT_STARTED)
     val state = _state.asStateFlow()
+    private val _diagnostics = MutableStateFlow(X5KernelDiagnostics())
+    val diagnostics = _diagnostics.asStateFlow()
 
     @Synchronized
     fun initialize(context: Context) {
         if (initializationStarted) return
         initializationStarted = true
         _state.value = X5KernelState.INITIALIZING
+        _diagnostics.value = X5KernelDiagnostics()
 
         val appContext = context.applicationContext
         try {
+            // Register before initialization so early download/install callbacks are not lost.
+            QbSdk.setTbsListener(object : com.tencent.smtt.sdk.TbsListener {
+                override fun onDownloadProgress(progress: Int) {
+                    _diagnostics.value = _diagnostics.value.copy(
+                        downloadProgress = progress.coerceIn(0, 100)
+                    )
+                    Log.i(TAG, "X5 download progress=$progress")
+                }
+
+                override fun onDownloadFinish(errorCode: Int) {
+                    _diagnostics.value = _diagnostics.value.copy(downloadCode = errorCode)
+                    Log.i(TAG, "X5 download finished code=$errorCode")
+                    if (errorCode != 100) {
+                        _diagnostics.value = _diagnostics.value.copy(
+                            lastFailure = "内核下载未成功，下载状态码：$errorCode"
+                        )
+                    }
+                }
+
+                override fun onInstallFinish(errorCode: Int) {
+                    _diagnostics.value = _diagnostics.value.copy(installCode = errorCode)
+                    Log.i(TAG, "X5 install finished code=$errorCode")
+                    if (errorCode != 200) {
+                        _diagnostics.value = _diagnostics.value.copy(
+                            lastFailure = "内核安装未成功，安装状态码：$errorCode"
+                        )
+                    }
+                }
+            })
+
             QbSdk.initX5Environment(
                 appContext,
                 object : QbSdk.PreInitCallback {
                     override fun onCoreInitFinished() {
+                        _diagnostics.value = _diagnostics.value.copy(coreInitFinished = true)
                         Log.i(TAG, "TBS core pre-initialization callback completed")
                     }
 
@@ -250,6 +292,7 @@ object X5KernelInitializer {
 
                         if (actuallyUsingX5) {
                             _state.value = X5KernelState.AVAILABLE
+                            _diagnostics.value = _diagnostics.value.copy(lastFailure = null)
                             Log.i(
                                 TAG,
                                 "X5 ready; sdkVersion=${QbSdk.getTbsSdkVersion()}, " +
@@ -260,18 +303,41 @@ object X5KernelInitializer {
                             val help = runCatching {
                                 QbSdk.getX5CoreLoadHelp(appContext)
                             }.getOrNull()
-                            Log.w(
-                                TAG,
-                                "X5 unavailable; keep system WebView active. " +
-                                    "callbackAvailable=$isX5Available; help=$help"
+                            _diagnostics.value = _diagnostics.value.copy(
+                                lastFailure = help?.takeIf { it.isNotBlank() }
+                                    ?: "X5 WebView 验证失败；请查看下载/安装状态码"
                             )
+                            Log.w(TAG, "X5 unavailable; callbackAvailable=$isX5Available; help=$help")
                         }
                     }
                 }
             )
         } catch (error: Exception) {
             _state.value = X5KernelState.UNAVAILABLE
-            Log.e(TAG, "X5 initialization failed; keep system WebView active", error)
+            _diagnostics.value = _diagnostics.value.copy(
+                lastFailure = error.message ?: error.javaClass.simpleName
+            )
+            Log.e(TAG, "X5 initialization failed", error)
         }
+    }
+
+    /**
+     * Tencent documents resumeDownload() as resuming a paused download in this process.
+     * It is not a bypass for the SDK's 24-hour request throttle or a fresh-download API.
+     */
+    fun resumeDownload(): Boolean {
+        if (_state.value == X5KernelState.AVAILABLE) return false
+        return runCatching {
+            QbSdk.resumeDownload()
+            _state.value = X5KernelState.INITIALIZING
+            _diagnostics.value = _diagnostics.value.copy(lastFailure = null)
+            Log.i(TAG, "Requested resume of in-process X5 download")
+            true
+        }.onFailure {
+            _diagnostics.value = _diagnostics.value.copy(
+                lastFailure = it.message ?: it.javaClass.simpleName
+            )
+            Log.e(TAG, "Could not resume X5 download", it)
+        }.getOrDefault(false)
     }
 }
