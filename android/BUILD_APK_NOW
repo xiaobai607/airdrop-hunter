@@ -52,3 +52,5 @@ Wallet connection UX follow-up (2026-11-17): close the dedicated wallet connecti
 Compile repair (2026-11-17): import Compose runtime setValue for delegated state in WalletConnectActivity; rebuild unit tests and Debug APK.
 
 X5 DApp provider integration stage 1 (2026-11-17): inject the provider into the verified top-level X5 page, intercept the dedicated prompt transport, validate the requesting HTTPS document URL, support explicit per-origin account approval and read-only account/chain queries, and fail closed for signing/raw transaction methods until the full WalletConnect request lifecycle is ported. Run Android unit tests and build Debug APK.
+
+X5 DApp navigation security follow-up (2026-11-17): cancel any pending site account-approval request on every new document, revoke previously granted site permissions on origin changes using the last committed document URL rather than the address-bar target, then rerun Android unit tests and package the exact Debug APK.
