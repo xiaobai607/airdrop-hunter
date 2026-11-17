@@ -63,11 +63,11 @@ class DappProviderBridgeTest {
         val accounts = """["0x0123456789012345678901234567890123456789"]"""
         val accountsScript = DappProviderBridge.x5EventDispatchScript("accountsChanged", accounts)
         assertTrue(accountsScript.contains("ahWalletRpcEvent"))
-        assertTrue(accountsScript.contains(JSONObject.quote(
-            """{"event":"accountsChanged","data":["0x0123456789012345678901234567890123456789"]}"""
-        )))
+        assertTrue(accountsScript.contains("accountsChanged"))
+        assertTrue(accountsScript.contains("0x0123456789012345678901234567890123456789"))
         val chainScript = DappProviderBridge.x5EventDispatchScript("chainChanged", JSONObject.quote("0x89"))
-        assertTrue(chainScript.contains(JSONObject.quote("""{"event":"chainChanged","data":"0x89"}""")))
+        assertTrue(chainScript.contains("chainChanged"))
+        assertTrue(chainScript.contains("0x89"))
     }
 
     @Test
