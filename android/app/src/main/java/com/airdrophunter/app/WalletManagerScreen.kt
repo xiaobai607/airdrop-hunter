@@ -161,7 +161,8 @@ fun WalletManagerScreen(
     sessionScopeKey: String = "guest",
     vm: WalletManagerViewModel? = null,
     launchConnectOnStart: Boolean = false,
-    onConnectLaunchHandled: () -> Unit = {}
+    onConnectLaunchHandled: () -> Unit = {},
+    onOpenAccounting: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -259,13 +260,11 @@ fun WalletManagerScreen(
             }
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(Modifier.weight(1f)) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     "我的钱包",
                     color = MaterialTheme.colorScheme.onSurface,
@@ -273,29 +272,95 @@ fun WalletManagerScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    "管理公开地址，查看链上交易记录",
+                    "统一管理地址、查看链上活动与记账",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            AppButton(
-                text = "添加钱包",
-                onClick = {
-                    address = ""
-                    selectedEcosystem = WalletEcosystem.EVM
-                    walletName = ""
-                    walletTags = ""
-                    walletNotes = ""
-                    showAddDialog = true
-                },
-                modifier = Modifier.width(124.dp),
-                style = AppButtonStyle.SECONDARY,
-                enabled = !state.isSaving,
-                fullWidth = false,
-                heightDp = 44,
-                leadingIcon = Icons.Default.Add,
-                fontSizeSp = 14
-            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Xl.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("钱包总览", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("已管理钱包", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                "${state.wallets.size} 个",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("覆盖生态", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                "${state.wallets.map { it.ecosystem }.distinct().size} 条",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("资产总额", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            Text("暂不可汇总", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        }
+                        Text(
+                            "余额接口尚未覆盖全部链，不展示估算金额",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.weight(1.25f)
+                        )
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppButton(
+                    text = "添加地址",
+                    onClick = {
+                        address = ""
+                        selectedEcosystem = WalletEcosystem.EVM
+                        walletName = ""
+                        walletTags = ""
+                        walletNotes = ""
+                        showAddDialog = true
+                    },
+                    modifier = Modifier.weight(1f),
+                    style = AppButtonStyle.SECONDARY,
+                    enabled = !state.isSaving,
+                    heightDp = 44,
+                    leadingIcon = Icons.Default.Add,
+                    fontSizeSp = 13
+                )
+                AppButton(
+                    text = "连接钱包",
+                    onClick = {
+                        if (walletConnectReady) walletNavController.openAppKit()
+                        else WalletConnectInitializer.ensureInitialized(application)
+                    },
+                    modifier = Modifier.weight(1f),
+                    style = AppButtonStyle.SECONDARY,
+                    enabled = !state.isSaving,
+                    heightDp = 44,
+                    fontSizeSp = 13
+                )
+                AppButton(
+                    text = "去记账",
+                    onClick = onOpenAccounting,
+                    modifier = Modifier.weight(1f),
+                    style = AppButtonStyle.SECONDARY,
+                    enabled = true,
+                    heightDp = 44,
+                    fontSizeSp = 13
+                )
+            }
         }
 
         if (connectedAccounts.isNotEmpty()) {
