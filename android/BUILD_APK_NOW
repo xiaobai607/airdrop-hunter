@@ -4,9 +4,9 @@ Chrome-compatible Android WebView identity and User-Agent Client Hints alignment
 
 Restore the complete WalletConnect wallet directory; remove the app-owned includeWalletIds restriction (2026-11-15). One-time APK build trigger.
 
-Final wallet picker regression check: complete default AppKit directory remains enabled; curated icon prewarm is cache-only (2026-11-15). One-time APK build trigger.
+Final wallet picker regression check: complete default AppKit directory remains enabled; curated icon prewarm is cache-only (2026-11-15). One-time build trigger.
 
-Wallet manager first-frame performance: session cache-first rendering, IO background refresh, and deferred WalletConnect/AppKit composition (2026-11-15). One-time APK build trigger.
+Wallet manager first-frame performance: session cache-first rendering, IO background refresh, and deferred WalletConnect/AppKit composition (2026-11-15). One-time build trigger.
 
 Toolbar visual correction (2026-11-15): removed the outline border unique to the trailing Add tool icon tile so it matches the same 32dp secondary-container icon tile used by the other toolbar actions. No actions or tools removed.
 
@@ -18,7 +18,7 @@ Browser address bar origin-tracking follow-up: approved origin now follows actua
 
 Final browser-origin review: both address-bar navigation and confirmed cross-origin link navigation defer approvedOrigin update until WebView onPageStarted. Rebuild this commit.
 
-Browser security notice layout and Android status-bar inset correction (2026-11-16): keep the editable URL field visible and place the notice below it; rebuild Debug APK for validation.
+Browser security notice layout and Android status-bar inset correction (2026-11-16): keep the editable URL field visible and place the notice below it; rebuild APK for validation.
 
 Final verification build trigger (2026-11-16): all wallet cache regression tests passed on dd166587; build the exact reviewed PR head and package the Debug APK for device acceptance.
 
@@ -37,17 +37,16 @@ APK packaging trigger for commit 6715bb80 (2026-11-16): run Android unit tests a
 
 
 Address bar correction (2026-11-16): preserve user-entered text during asynchronous page callbacks, navigate to the exact entered URL, and keep detailed error information visible in a scrollable error overlay. Build Debug APK for device verification.
-Tencent X5 browser migration: default ordinary browsing uses the dedicated X5 WebView surface; explicitly marked DApp claim flows retain the origin-restricted system WebView wallet bridge. Run Android unit tests and package the exact Debug APK for device validation.
+Tencent X5 browser migration: default ordinary browsing uses the dedicated X5 WebView surface; explicitly marked DApp claim flows retain the origin-restricted system-WebView wallet bridge. Run Android unit tests and package the exact Debug APK for device validation.
 Tencent X5 compile correction: use the X5 SDK's explicit file-URL security setter methods; rerun unit tests and package the Debug APK.
 
-Browser/wallet separation correction (2026-11-16): X5 is browsing-only; all wallet-capable site shortcuts, wallet-manager DApp launches, and campaign interaction pages stay on the existing system WebView wallet bridge. Run unit tests and package the Debug APK for device verification.
+Browser/wallet separation correction (2026-11-16): X5 is browsing-only; all wallet-capable site shortcuts, wallet-manager DApp launches, and campaign interaction pages stay on the existing system WebView wallet bridge. Run Android unit tests and package the Debug APK for device verification.
 X5 toolbar isolation (2026-11-16): hide wallet-address actions from the X5 browsing-only toolbar and keep X5 dock preferences separate from the legacy wallet browser. Re-run Android unit tests and build the Debug APK.
-TRON energy wallet-assisted launch routing (2026-11-16): preserve the selected-address handoff in the existing system WebView; ordinary site/news/project browsing remains on Tencent X5, and explicit DApp/claim flows keep the legacy wallet bridge. Run Android unit tests and package the exact Debug APK.
+TRON energy wallet-assisted launch routing (2026-11-16): preserve the selected-address handoff in the existing system WebView; ordinary site/news/project browsing remains on Tencent X5, and explicit DApp/claim flows keep the legacy wallet bridge. Run Android unit tests and package the exact Debug APK for device verification.
 X5 airdrop site routing: browse all managed airdrop sites with Tencent X5; explicit wallet connect action hands the same URL and selected wallet context to the existing system-WebView wallet flow.
 X5 ordinary web routing audit: 2026-11-16
 
 X5 wallet connection handoff correction (2026-11-16): the X5 Connect Wallet action opens a dedicated WalletConnect surface without reloading the DApp URL or presenting the legacy browser chrome. Run Android unit tests and package the exact Debug APK.
-
 Wallet connection screen compile fix (2026-11-16): add the missing Compose Composable annotation import and rebuild/test.
-
-Wallet connection UX follow-up (2026-11-17): close the dedicated wallet connection surface after a newly approved WalletConnect session, returning to the still-open X5 page; correct stale architecture comments. Build debug APK and run unit tests.
+Wallet connection UX follow-up (2026-11-17): close the dedicated wallet connection surface after a newly approved WalletConnect session; correct stale architecture comments. Build debug APK and run unit tests.
+Compile repair (2026-11-17): import Compose runtime setValue for delegated state in WalletConnectActivity; rebuild unit tests and Debug APK.
