@@ -119,6 +119,7 @@ private fun X5BrowserScreen(
     var pageError by remember(initialUrl) { mutableStateOf<String?>(null) }
     var progress by remember { mutableIntStateOf(0) }
     var isX5InstanceConfirmed by remember { mutableStateOf(false) }
+    var showCellularDownloadDialog by remember { mutableStateOf(false) }
     val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
     val walletSessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsStateWithLifecycle()
     val activeWalletConnectTopic by WalletConnectSessionDelegate.sessionTopic.collectAsStateWithLifecycle()
@@ -488,6 +489,16 @@ private fun X5BrowserScreen(
                                 }
                             ) {
                                 Text("恢复内核下载")
+                            }
+                            if (kernelDiagnostics.downloadCode == 111) {
+                                Text(
+                                    "检测到状态码 111：当前网络不是 Wi‑Fi，腾讯 SDK 按默认策略拒绝下载。",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            OutlinedButton(onClick = { showCellularDownloadDialog = true }) {
+                                Text("授权使用移动数据下载")
                             }
                         }
                     }
@@ -905,7 +916,30 @@ private fun X5BrowserScreen(
             )
         }
     }
-    pendingDappConnection?.takeIf { !waitingDappWalletApproval }?.let { pending ->
+    if (showCellularDownloadDialog) {
+        AlertDialog(
+            onDismissRequest = { showCellularDownloadDialog = false },
+            title = { Text("允许使用移动数据下载 X5 内核？") },
+            text = {
+                Text("腾讯 X5 内核下载可能消耗约 40–50 MB 流量。授权后会保存此选择，并在下次完整重启 APP 时应用；不会切换到系统 WebView。")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    X5KernelInitializer.enableCellularDownload(context)
+                    showCellularDownloadDialog = false
+                    Toast.makeText(
+                        context,
+                        "已保存移动数据下载授权，请完全退出并重新打开 APP",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }) { Text("允许并重启 APP") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCellularDownloadDialog = false }) { Text("暂不允许") }
+            }
+        )
+    }
+        pendingDappConnection?.takeIf { !waitingDappWalletApproval }?.let { pending ->
         val requestedHost = runCatching { Uri.parse(pending.origin).host.orEmpty() }.getOrDefault("unknown site")
         AlertDialog(
             onDismissRequest = {
