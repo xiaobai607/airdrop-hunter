@@ -68,3 +68,5 @@ X5 DApp payload hardening (2026-11-17): validate personal_sign/eth_sign hex data
 X5 DApp payload validation test compile fix (2026-11-17): add missing org.json.JSONArray test import; rerun Android unit tests and package the validated Debug APK.
 
 X5 kernel diagnostics and explicit in-process download resume
+
+Explicit mobile-data opt-in and X5 download/install callbacks
