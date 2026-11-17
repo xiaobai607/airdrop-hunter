@@ -35,6 +35,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.tencent.smtt.export.external.interfaces.SslError
+import com.tencent.smtt.export.external.interfaces.JsPromptResult
 import com.tencent.smtt.export.external.interfaces.SslErrorHandler
 import com.tencent.smtt.sdk.CookieManager
 import com.tencent.smtt.sdk.WebChromeClient
@@ -94,6 +95,11 @@ private fun X5BrowserScreen(
     var pageError by remember(initialUrl) { mutableStateOf<String?>(null) }
     var progress by remember { mutableIntStateOf(0) }
     var isX5InstanceConfirmed by remember { mutableStateOf(false) }
+    val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
+    val walletSessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsStateWithLifecycle()
+    val authorizedDappOrigins by DappOriginPermissionStore.authorizedOrigins.collectAsStateWithLifecycle()
+    var pendingDappConnection by remember { mutableStateOf<PendingDappConnection?>(null) }
+    var waitingDappWalletApproval by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentUrl, isAddressEditing) {
         if (!isAddressEditing) addressInput = currentUrl
@@ -133,6 +139,31 @@ private fun X5BrowserScreen(
             pageError = null
             browser?.stopLoading()
             browser?.loadUrl(target)
+        }
+    }
+
+    LaunchedEffect(waitingDappWalletApproval, connectedDappAccounts, walletSessionGeneration) {
+        val pending = pendingDappConnection
+        if (waitingDappWalletApproval && pending != null && connectedDappAccounts.isNotEmpty()) {
+            DappOriginPermissionStore.grant(pending.origin, x5DappAuthorizationStamp())
+            DappProviderBridge.success(
+                pending.replyProxy,
+                pending.request.id,
+                JSONArray(connectedDappAccounts.map { it.address }.distinct())
+            )
+            pendingDappConnection = null
+            waitingDappWalletApproval = false
+        }
+    }
+
+    LaunchedEffect(pendingDappConnection?.request?.id, waitingDappWalletApproval) {
+        val requestId = pendingDappConnection?.request?.id ?: return@LaunchedEffect
+        kotlinx.coroutines.delay(120_000)
+        val pending = pendingDappConnection
+        if (pending?.request?.id == requestId) {
+            DappProviderBridge.error(pending.replyProxy, requestId, 4001, "Wallet connection timed out or was cancelled")
+            pendingDappConnection = null
+            waitingDappWalletApproval = false
         }
     }
 
@@ -321,6 +352,11 @@ private fun X5BrowserScreen(
                                                 override fun onPageFinished(view: X5WebView?, url: String?) {
                                                     url?.let { currentUrl = it }
                                                     if (pageState != X5PageState.Error) pageState = X5PageState.Success
+                                                    if (view != null && DappProviderBridge.isTrustedX5Prompt(url, view.url)) {
+                                                        // evaluateJavascript runs in the top-level page context. The script
+                                                        // refuses to install itself in a subframe.
+                                                        view.evaluateJavascript(DappProviderBridge.X5_PROVIDER_SCRIPT, null)
+                                                    }
                                                 }
 
                                                 override fun onReceivedError(
@@ -348,6 +384,92 @@ private fun X5BrowserScreen(
                                             webChromeClient = object : WebChromeClient() {
                                                 override fun onProgressChanged(view: X5WebView?, newProgress: Int) {
                                                     progress = newProgress
+                                                }
+
+                                                override fun onJsPrompt(
+                                                    view: X5WebView?,
+                                                    url: String?,
+                                                    message: String?,
+                                                    defaultValue: String?,
+                                                    result: JsPromptResult?
+                                                ): Boolean {
+                                                    if (message != DappProviderBridge.X5_PROMPT_PREFIX) return false
+                                                    val activeView = view
+                                                    val promptResult = result
+                                                    if (activeView == null || promptResult == null ||
+                                                        !DappProviderBridge.isTrustedX5Prompt(url, activeView.url)
+                                                    ) {
+                                                        promptResult?.confirm("rejected")
+                                                        return true
+                                                    }
+                                                    val request = DappProviderBridge.parseX5Prompt(message, defaultValue)
+                                                    if (request == null) {
+                                                        promptResult.confirm("rejected")
+                                                        return true
+                                                    }
+                                                    val origin = runCatching {
+                                                        DappProviderBridge.origin(Uri.parse(url))
+                                                    }.getOrNull()
+                                                    if (origin.isNullOrBlank()) {
+                                                        promptResult.confirm("rejected")
+                                                        return true
+                                                    }
+                                                    val replyChannel = DappReplyChannel { response ->
+                                                        activeView.post {
+                                                            if (activeView.url == url) {
+                                                                activeView.evaluateJavascript(
+                                                                    DappProviderBridge.x5ResponseDispatchScript(response), null
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                    promptResult.confirm("queued")
+                                                    when (request.method) {
+                                                        "eth_requestAccounts" -> {
+                                                            if (pendingDappConnection != null) {
+                                                                DappProviderBridge.error(replyChannel, request.id, -32002, "A wallet connection request is already pending")
+                                                            } else if (authorizedDappOrigins[origin] == x5DappAuthorizationStamp() &&
+                                                                connectedDappAccounts.isNotEmpty()
+                                                            ) {
+                                                                DappProviderBridge.success(
+                                                                    replyChannel, request.id,
+                                                                    JSONArray(connectedDappAccounts.map { it.address }.distinct())
+                                                                )
+                                                            } else {
+                                                                pendingDappConnection = PendingDappConnection(request, origin, replyChannel)
+                                                            }
+                                                        }
+                                                        "eth_accounts" -> {
+                                                            val addresses = if (authorizedDappOrigins[origin] == x5DappAuthorizationStamp()) {
+                                                                connectedDappAccounts.map { it.address }.distinct()
+                                                            } else emptyList()
+                                                            DappProviderBridge.success(replyChannel, request.id, JSONArray(addresses))
+                                                        }
+                                                        "eth_chainId", "net_version" -> {
+                                                            val rawChain = connectedDappAccounts.firstOrNull()?.chainId
+                                                                ?: runCatching { com.reown.appkit.client.AppKit.getSelectedChain()?.chainReference }.getOrNull()
+                                                            val reference = rawChain?.removePrefix("eip155:")?.trim()
+                                                            val number = when {
+                                                                reference.isNullOrBlank() -> null
+                                                                reference.startsWith("0x", true) -> reference.substring(2).toLongOrNull(16)
+                                                                else -> reference.toLongOrNull()
+                                                            }
+                                                            if (number == null || number <= 0L) {
+                                                                DappProviderBridge.error(replyChannel, request.id, -32000, "Active EVM chain is unavailable")
+                                                            } else {
+                                                                val value = if (request.method == "eth_chainId") "0x" + number.toString(16) else number.toString()
+                                                                DappProviderBridge.success(replyChannel, request.id, value)
+                                                            }
+                                                        }
+                                                        else -> DappProviderBridge.error(
+                                                            replyChannel, request.id, 4200,
+                                                            if (DappProviderBridge.isBlockedRawSubmissionMethod(request.method))
+                                                                "Raw transaction submission is blocked; use a wallet-reviewed transaction request"
+                                                            else
+                                                                "This X5 wallet bridge stage currently supports account access and chain queries only"
+                                                        )
+                                                    }
+                                                    return true
                                                 }
                                             }
                                             setDownloadListener { downloadUrl, _, _, _, _ ->
@@ -425,6 +547,51 @@ private fun X5BrowserScreen(
                 showWalletTools = false
             )
         }
+    }
+}
+
+private fun x5DappAuthorizationStamp(): String {
+    val generation = WalletConnectSessionDelegate.sessionGeneration.value
+    val addresses = WalletConnectSessionDelegate.accounts.value
+        .map { it.address.lowercase() }
+        .sorted()
+    return generation.toString() + ":" + addresses.joinToString(",")
+}
+
+    pendingDappConnection?.takeIf { !waitingDappWalletApproval }?.let { pending ->
+        val requestedHost = runCatching { Uri.parse(pending.origin).host.orEmpty() }.getOrDefault("unknown site")
+        AlertDialog(
+            onDismissRequest = {
+                DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
+                pendingDappConnection = null
+            },
+            title = { Text("网站请求连接钱包") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("来源网站：$requestedHost", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    Text("确认后，该网站才能读取当前外部钱包的公开地址。本次不会签名消息或发送交易。")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val addresses = connectedDappAccounts.map { it.address }.distinct()
+                    if (addresses.isNotEmpty()) {
+                        DappOriginPermissionStore.grant(pending.origin, x5DappAuthorizationStamp())
+                        DappProviderBridge.success(pending.replyProxy, pending.request.id, JSONArray(addresses))
+                        pendingDappConnection = null
+                    } else {
+                        waitingDappWalletApproval = true
+                        onConnectWallet(currentUrl)
+                    }
+                }) { Text(if (connectedDappAccounts.isEmpty()) "连接钱包并授权" else "确认授权") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
+                    pendingDappConnection = null
+                }) { Text("拒绝") }
+            }
+        )
     }
 }
 
