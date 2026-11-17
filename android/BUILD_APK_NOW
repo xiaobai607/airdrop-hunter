@@ -66,3 +66,5 @@ X5 wallet event test assertion correction (2026-11-17): verify escaped event pay
 X5 DApp payload hardening (2026-11-17): validate personal_sign/eth_sign hex data, EIP-712 typed-data JSON schema shape and size, and transaction address/data/quantity fields before external-wallet relay; add regression tests and rebuild.
 
 X5 DApp payload validation test compile fix (2026-11-17): add missing org.json.JSONArray test import; rerun Android unit tests and package the validated Debug APK.
+
+X5 kernel diagnostics and explicit in-process download resume
