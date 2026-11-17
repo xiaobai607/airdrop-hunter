@@ -695,6 +695,8 @@ private fun X5BrowserScreen(
                                                                         DappProviderBridge.error(replyChannel, request.id, 4200, "The active wallet session cannot forward DApp requests")
                                                                     pendingDappExternalRequest != null ->
                                                                         DappProviderBridge.error(replyChannel, request.id, -32002, "Another external wallet request is awaiting confirmation")
+                                                                    !DappProviderBridge.isValidExternalWalletParams(request.method, request.params) ->
+                                                                        DappProviderBridge.error(replyChannel, request.id, -32602, "Invalid signing or transaction parameters")
                                                                     !DappProviderBridge.isAuthorizedAccountRequest(
                                                                         request.method, firstParam, secondParam, transactionFrom, connectedAddresses
                                                                     ) ->
