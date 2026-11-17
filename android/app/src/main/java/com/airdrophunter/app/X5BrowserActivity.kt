@@ -467,14 +467,16 @@ private fun X5BrowserScreen(
                                     "内核版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsVersion(context) }.getOrDefault(0)}\n" +
                                     "下载进度：${kernelDiagnostics.downloadProgress?.let { "$it%" } ?: "尚无回调"}\n" +
                                     "下载状态码：${kernelDiagnostics.downloadCode?.toString() ?: "暂无"}\n" +
+                                    "下载状态解释：${x5DownloadCodeHint(kernelDiagnostics.downloadCode)}\n" +
                                     "安装状态码：${kernelDiagnostics.installCode?.toString() ?: "暂无"}\n" +
+                                    "安装状态解释：${x5InstallCodeHint(kernelDiagnostics.installCode)}\n" +
                                     "核心初始化：${if (kernelDiagnostics.coreInitFinished) "已完成" else "未完成"}\n" +
                                     "诊断信息：${kernelDiagnostics.lastFailure ?: help.ifBlank { "腾讯 SDK 未提供详细原因" }}",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
-                                "说明：腾讯 SDK 会限制内核下载请求频率（可能间隔约 24 小时）。恢复按钮只能继续当前进程中已暂停的下载，不能绕过官方限流。",
+                                "说明：只有下载状态码 -122 等明确返回时，才按腾讯 SDK 的下载请求条件/间隔规则处理；恢复按钮只能继续当前进程中已暂停的下载，不能绕过官方限流。",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -974,6 +976,25 @@ private fun X5BrowserScreen(
             }
         )
     }
+}
+
+private fun x5DownloadCodeHint(code: Int?): String = when (code) {
+    null -> "SDK 尚未回调"
+    100 -> "下载成功"
+    101 -> "网络不可用"
+    111 -> "SDK 判定当前不是 Wi-Fi，拒绝下载"
+    127 -> "本进程已达到发起下载次数限制"
+    133 -> "已有下载请求进行中，未重复发起"
+    -122 -> "当前条件不满足下载请求；可能涉及请求间隔、重试次数或版本条件"
+    -134 -> "带宽策略取消下载；腾讯官方建议调试阶段通过其内核调试页安装线上内核"
+    else -> "腾讯 SDK 返回未分类状态码，请保留此码用于定位"
+}
+
+private fun x5InstallCodeHint(code: Int?): String = when (code) {
+    null -> "SDK 尚未回调"
+    200 -> "安装成功"
+    243 -> "预初始化中间状态，不代表安装失败"
+    else -> "安装未成功或处于其他状态，请保留此码用于定位"
 }
 
 private fun x5DappAuthorizationStamp(): String {
