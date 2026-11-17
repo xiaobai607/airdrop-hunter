@@ -107,6 +107,7 @@ private fun X5BrowserScreen(
     val kernelState by X5KernelInitializer.state.collectAsStateWithLifecycle()
     var browser by remember { mutableStateOf<X5WebView?>(null) }
     var webViewGeneration by remember { mutableIntStateOf(0) }
+    var providerInjectionGeneration by remember { mutableIntStateOf(0) }
     var currentUrl by remember(initialUrl) { mutableStateOf(initialUrl) }
     // Track the last document URL independently of the editable address bar/current navigation target.
     // This lets origin changes revoke permissions even when the user typed a new URL before load starts.
@@ -281,8 +282,9 @@ private fun X5BrowserScreen(
     // after that exact origin has an active account permission for this wallet session.
     LaunchedEffect(
         browser, currentUrl, connectedDappAccounts, walletSessionGeneration,
-        authorizedDappOrigins
+        authorizedDappOrigins, providerInjectionGeneration, pageState
     ) {
+        if (providerInjectionGeneration == 0 || pageState != X5PageState.Success) return@LaunchedEffect
         val view = browser ?: return@LaunchedEffect
         val origin = runCatching { DappProviderBridge.origin(Uri.parse(currentUrl)) }.getOrNull()
             ?: return@LaunchedEffect
@@ -554,6 +556,7 @@ private fun X5BrowserScreen(
                                                         // evaluateJavascript runs in the top-level page context. The script
                                                         // refuses to install itself in a subframe.
                                                         view.evaluateJavascript(DappProviderBridge.X5_PROVIDER_SCRIPT, null)
+                                                        providerInjectionGeneration += 1
                                                     }
                                                 }
 
