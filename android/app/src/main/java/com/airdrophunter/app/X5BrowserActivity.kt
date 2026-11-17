@@ -593,42 +593,6 @@ private fun x5DappAuthorizationStamp(): String {
     return generation.toString() + ":" + addresses.joinToString(",")
 }
 
-    pendingDappConnection?.takeIf { !waitingDappWalletApproval }?.let { pending ->
-        val requestedHost = runCatching { Uri.parse(pending.origin).host.orEmpty() }.getOrDefault("unknown site")
-        AlertDialog(
-            onDismissRequest = {
-                DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
-                pendingDappConnection = null
-            },
-            title = { Text("网站请求连接钱包") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("来源网站：$requestedHost", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                    Text("确认后，该网站才能读取当前外部钱包的公开地址。本次不会签名消息或发送交易。")
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val addresses = connectedDappAccounts.map { it.address }.distinct()
-                    if (addresses.isNotEmpty()) {
-                        DappOriginPermissionStore.grant(pending.origin, x5DappAuthorizationStamp())
-                        DappProviderBridge.success(pending.replyProxy, pending.request.id, JSONArray(addresses))
-                        pendingDappConnection = null
-                    } else {
-                        waitingDappWalletApproval = true
-                        onConnectWallet(currentUrl)
-                    }
-                }) { Text(if (connectedDappAccounts.isEmpty()) "连接钱包并授权" else "确认授权") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
-                    pendingDappConnection = null
-                }) { Text("拒绝") }
-            }
-        )
-    }
-}
 
 private fun normalizeX5BrowserUrl(value: String): String? {
     return runCatching {
