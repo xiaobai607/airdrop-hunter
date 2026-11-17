@@ -72,3 +72,5 @@ X5 kernel diagnostics and explicit in-process download resume
 Explicit mobile-data opt-in and X5 download/install callbacks
 
 Fix missing Android network-state permissions and decode X5 download status codes
+
+Wallet manager UI redesign (2026-11-17): rebuild and run Android unit tests.
