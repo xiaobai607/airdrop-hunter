@@ -196,6 +196,8 @@ private fun AirdropHunterApp(
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
     var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
     var showAccountingSheet by rememberSaveable { mutableStateOf(false) }
+    var accountingInitialSection by rememberSaveable { mutableStateOf("history") }
+    var accountingInitialWalletAddress by rememberSaveable { mutableStateOf<String?>(null) }
     var reopenAccountingAfterWalletManager by rememberSaveable { mutableStateOf(false) }
     var launchWalletConnectOnOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(activeOverlay, reopenAccountingAfterWalletManager) {
@@ -400,6 +402,12 @@ private fun AirdropHunterApp(
                         launchConnectOnStart = launchWalletConnectOnOpen,
                         onConnectLaunchHandled = { launchWalletConnectOnOpen = false },
                         onOpenAccounting = { activeOverlay = AppOverlay.MANUAL_ACCOUNTING },
+                        onOpenPendingAccounting = { address ->
+                            accountingInitialSection = "pending"
+                            accountingInitialWalletAddress = address
+                            activeOverlay = AppOverlay.NONE
+                            showAccountingSheet = true
+                        },
                         onOpenBrowser = { url, selectedWallet, wallets, title ->
                             val walletJson = JSONArray().apply {
                                 wallets.forEach { wallet ->
@@ -506,6 +514,8 @@ private fun AirdropHunterApp(
                 modifier = Modifier.fillMaxWidth(),
                 isGuest = isGuest,
                 onClose = { showAccountingSheet = false },
+                initialSection = accountingInitialSection,
+                initialWalletAddress = accountingInitialWalletAddress,
                 onConnectWallet = {
                     reopenAccountingAfterWalletManager = true
                     launchWalletConnectOnOpen = true
