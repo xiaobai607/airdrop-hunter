@@ -164,6 +164,35 @@ class DappProviderBridgeTest {
     }
 
     @Test
+    fun signingAndTransactionPayloadsAreValidatedBeforeWalletForwarding() {
+        val account = "0x0123456789012345678901234567890123456789"
+        assertTrue(DappProviderBridge.isValidExternalWalletParams(
+            "personal_sign", JSONArray().put("0xdeadbeef").put(account)
+        ))
+        assertEquals(false, DappProviderBridge.isValidExternalWalletParams(
+            "personal_sign", JSONArray().put("not-hex").put(account)
+        ))
+        assertEquals(false, DappProviderBridge.isValidExternalWalletParams(
+            "eth_sign", JSONArray().put(account).put("0xabc")
+        ))
+        val typed = JSONObject().put("types", JSONObject().put("Mail", JSONArray()
+            .put(JSONObject().put("name", "contents").put("type", "string"))))
+            .put("primaryType", "Mail").put("domain", JSONObject()).put("message", JSONObject())
+        assertTrue(DappProviderBridge.isValidExternalWalletParams(
+            "eth_signTypedData_v4", JSONArray().put(account).put(typed)
+        ))
+        assertEquals(false, DappProviderBridge.isValidExternalWalletParams(
+            "eth_signTypedData_v4", JSONArray().put(account).put("{bad-json")
+        ))
+        val tx = JSONObject().put("from", account).put("to", "0x9999999999999999999999999999999999999999")
+            .put("value", "0x10").put("data", "0x")
+        assertTrue(DappProviderBridge.isValidExternalWalletParams("eth_sendTransaction", JSONArray().put(tx)))
+        assertEquals(false, DappProviderBridge.isValidExternalWalletParams(
+            "eth_sendTransaction", JSONArray().put(JSONObject().put("from", "0x123").put("value", "10"))
+        ))
+    }
+
+    @Test
     fun walletResponsesMustMatchExactRequestIdAndSessionContext() {
         assertTrue(DappProviderBridge.isMatchingExternalWalletResponse(
             101L, 101L, "topic-a", "topic-a", "personal_sign", "personal_sign",
