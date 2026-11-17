@@ -55,6 +55,22 @@ class DappProviderBridgeTest {
     }
 
     @Test
+    fun x5ProviderReceivesWalletStateEventsAndUpdatesEip1193State() {
+        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains("ahWalletRpcEvent"))
+        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains("accountsChanged"))
+        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains("chainChanged"))
+        assertTrue(DappProviderBridge.X5_PROVIDER_SCRIPT.contains("emit(update.event, update.data)"))
+        val accounts = """["0x0123456789012345678901234567890123456789"]"""
+        val accountsScript = DappProviderBridge.x5EventDispatchScript("accountsChanged", accounts)
+        assertTrue(accountsScript.contains("ahWalletRpcEvent"))
+        assertTrue(accountsScript.contains(JSONObject.quote(
+            """{"event":"accountsChanged","data":["0x0123456789012345678901234567890123456789"]}"""
+        )))
+        val chainScript = DappProviderBridge.x5EventDispatchScript("chainChanged", JSONObject.quote("0x89"))
+        assertTrue(chainScript.contains(JSONObject.quote("""{"event":"chainChanged","data":"0x89"}""")))
+    }
+
+    @Test
     fun x5PromptParserRequiresTheFixedProtocolPrefix() {
         val request = DappProviderBridge.parseX5Prompt(
             "AH_WALLET_RPC_V1",
