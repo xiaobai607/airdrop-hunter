@@ -100,6 +100,14 @@ class AirdropHunterApplication : Application(), ImageLoaderFactory {
         WalletConnectSessionDelegate.attachApplicationContext(this)
         ApiClient.initialize(this)
 
+        // Respect an explicit user opt-in before X5 initialization. Tencent blocks kernel
+        // downloads on mobile data by default; never enable metered downloads silently.
+        if (getSharedPreferences(X5KernelInitializer.PREFS_NAME, MODE_PRIVATE)
+                .getBoolean(X5KernelInitializer.ALLOW_CELLULAR_KEY, false)
+        ) {
+            QbSdk.setDownloadWithoutWifi(true)
+        }
+
         // X5 pre-initialization is asynchronous. Ordinary website browsing is routed to the
         // dedicated X5 browser surface; the legacy system WebView remains for its existing
         // wallet bridge flow until an equivalent X5 DApp bridge is fully security-reviewed.
@@ -228,6 +236,8 @@ data class X5KernelDiagnostics(
 )
 
 object X5KernelInitializer {
+    const val PREFS_NAME = "x5_kernel_settings"
+    const val ALLOW_CELLULAR_KEY = "allow_cellular_download"
     private const val TAG = "AirdropX5"
 
     @Volatile
@@ -319,6 +329,20 @@ object X5KernelInitializer {
             )
             Log.e(TAG, "X5 initialization failed", error)
         }
+    }
+
+    /**
+     * Stores an explicit metered-network consent. The setting is applied before
+     * initX5Environment on the next process start, not silently enabled by default.
+     */
+    fun enableCellularDownload(context: Context) {
+        context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(ALLOW_CELLULAR_KEY, true)
+            .apply()
+        runCatching { QbSdk.setDownloadWithoutWifi(true) }
+            .onFailure { Log.w(TAG, "Could not apply cellular download consent in current process", it) }
     }
 
     /**
