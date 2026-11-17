@@ -105,6 +105,7 @@ private fun X5BrowserScreen(
     val app = context.applicationContext as AirdropHunterApplication
     val web3Repository = remember(app) { app.appContainer.web3TransactionRepository }
     val kernelState by X5KernelInitializer.state.collectAsStateWithLifecycle()
+    val kernelDiagnostics by X5KernelInitializer.diagnostics.collectAsStateWithLifecycle()
     var browser by remember { mutableStateOf<X5WebView?>(null) }
     var webViewGeneration by remember { mutableIntStateOf(0) }
     var providerInjectionGeneration by remember { mutableIntStateOf(0) }
@@ -461,12 +462,32 @@ private fun X5BrowserScreen(
                             Text("当前没有悄悄切回系统内核。为了避免误以为正在使用腾讯内核，网页暂不加载。",
                                 color = MaterialTheme.colorScheme.onBackground)
                             Text(
-                                "SDK 版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsSdkVersion() }.getOrDefault(0)}\n" +
-                                    "内核版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsVersion(context) }.getOrDefault(0)}\n" +
-                                    "诊断信息：${help.ifBlank { "腾讯 SDK 未提供详细原因" }}",
+                                "SDK 版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsSdkVersion() }.getOrDefault(0)}\\n" +
+                                    "内核版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsVersion(context) }.getOrDefault(0)}\\n" +
+                                    "下载进度：${kernelDiagnostics.downloadProgress?.let { "$it%" } ?: "尚无回调"}\\n" +
+                                    "下载状态码：${kernelDiagnostics.downloadCode?.toString() ?: "暂无"}\\n" +
+                                    "安装状态码：${kernelDiagnostics.installCode?.toString() ?: "暂无"}\\n" +
+                                    "诊断信息：${kernelDiagnostics.lastFailure ?: help.ifBlank { "腾讯 SDK 未提供详细原因" }}",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
+                            Text(
+                                "说明：腾讯 SDK 会限制内核下载请求频率（可能间隔约 24 小时）。恢复按钮只能继续当前进程中已暂停的下载，不能绕过官方限流。",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    val resumed = X5KernelInitializer.resumeDownload()
+                                    Toast.makeText(
+                                        context,
+                                        if (resumed) "已请求恢复 X5 内核下载，请稍候查看状态" else "当前无需恢复下载",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            ) {
+                                Text("恢复内核下载")
+                            }
                         }
                     }
                     X5KernelState.AVAILABLE -> {
