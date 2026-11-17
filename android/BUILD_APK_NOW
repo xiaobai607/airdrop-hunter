@@ -74,3 +74,5 @@ Explicit mobile-data opt-in and X5 download/install callbacks
 Fix missing Android network-state permissions and decode X5 download status codes
 
 Wallet manager UI redesign (2026-11-17): rebuild and run Android unit tests.
+
+Wallet manager ecosystem filters: rebuild and verify Android tests (2026-11-17).
