@@ -39,6 +39,7 @@ import com.reown.appkit.client.AppKit
 import com.reown.appkit.client.Modal
 import com.reown.appkit.client.models.request.Request as ExternalWalletRequest
 import com.reown.appkit.client.models.request.SentRequestResult
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import com.tencent.smtt.export.external.interfaces.SslError
 import com.tencent.smtt.export.external.interfaces.JsPromptResult
