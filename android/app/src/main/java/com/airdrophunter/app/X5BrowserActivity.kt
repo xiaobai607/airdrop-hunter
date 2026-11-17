@@ -277,6 +277,52 @@ private fun X5BrowserScreen(
         }
     }
 
+    // EIP-1193 wallet events are sent only to the currently displayed HTTPS origin
+    // after that exact origin has an active account permission for this wallet session.
+    LaunchedEffect(
+        browser, currentUrl, connectedDappAccounts, walletSessionGeneration,
+        authorizedDappOrigins
+    ) {
+        val view = browser ?: return@LaunchedEffect
+        val origin = runCatching { DappProviderBridge.origin(Uri.parse(currentUrl)) }.getOrNull()
+            ?: return@LaunchedEffect
+        if (authorizedDappOrigins[origin] != x5DappAuthorizationStamp()) return@LaunchedEffect
+        val pageUrl = view.url
+        if (!DappProviderBridge.isTrustedX5Prompt(pageUrl, currentUrl)) return@LaunchedEffect
+
+        val addresses = connectedDappAccounts.map { it.address }.distinct()
+        val accountsJson = JSONArray(addresses).toString()
+        runCatching {
+            view.evaluateJavascript(
+                DappProviderBridge.x5EventDispatchScript("accountsChanged", accountsJson), null
+            )
+        }
+
+        val rawChain = connectedDappAccounts.firstOrNull()?.chainId
+            ?: runCatching { AppKit.getSelectedChain()?.chainReference }.getOrNull()
+        val chainReference = rawChain?.removePrefix("eip155:")?.trim()
+        val chainNumber = chainReference?.let { value ->
+            runCatching {
+                if (value.startsWith("0x", true)) value.substring(2).toLong(16)
+                else value.toLong()
+            }.getOrNull()
+        }
+        if (chainNumber != null && chainNumber > 0L) {
+            val chainHexJson = JSONObject.quote("0x" + chainNumber.toString(16))
+            runCatching {
+                view.evaluateJavascript(
+                    DappProviderBridge.x5EventDispatchScript("chainChanged", chainHexJson), null
+                )
+            }
+        } else {
+            runCatching {
+                view.evaluateJavascript(
+                    DappProviderBridge.x5EventDispatchScript("disconnect", JSONObject().put("code", 4900).toString()), null
+                )
+            }
+        }
+    }
+
     LaunchedEffect(pendingDappConnection?.request?.id, waitingDappWalletApproval) {
         val requestId = pendingDappConnection?.request?.id ?: return@LaunchedEffect
         kotlinx.coroutines.delay(120_000)
