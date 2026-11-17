@@ -56,6 +56,15 @@ internal object DappProviderBridge {
         return "window.dispatchEvent(new CustomEvent('ahWalletRpcResponse',{detail:$encoded}));"
     }
 
+    /** Deliver wallet state changes only through a JSON-escaped event payload. */
+    fun x5EventDispatchScript(eventName: String, dataJson: String): String {
+        val encoded = JSONObject.quote(JSONObject()
+            .put("event", eventName)
+            .put("data", runCatching { org.json.JSONTokener(dataJson).nextValue() }.getOrNull() ?: JSONObject.NULL)
+            .toString())
+        return "window.dispatchEvent(new CustomEvent('ahWalletRpcEvent',{detail:$encoded}));"
+    }
+
     fun parseX5Prompt(message: String?, defaultValue: String?): DappRpcRequest? {
         if (message != X5_PROMPT_PREFIX || defaultValue.isNullOrBlank()) return null
         return parseRequest(defaultValue)
@@ -100,6 +109,22 @@ internal object DappProviderBridge {
       state.connected = true;
     }
     task.resolve(response.result);
+  });
+
+  window.addEventListener("ahWalletRpcEvent", function (event) {
+    var update;
+    try { update = JSON.parse(event.detail); } catch (_) { return; }
+    if (!update || typeof update.event !== "string") return;
+    if (update.event === "accountsChanged") state.accounts = Array.isArray(update.data) ? update.data : [];
+    if (update.event === "chainChanged") {
+      state.chainId = typeof update.data === "string" ? update.data : null;
+      state.connected = !!state.chainId;
+    }
+    if (update.event === "disconnect") {
+      state.accounts = [];
+      state.connected = false;
+    }
+    emit(update.event, update.data);
   });
 
   var provider = {
