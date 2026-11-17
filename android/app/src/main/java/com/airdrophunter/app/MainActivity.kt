@@ -399,6 +399,7 @@ private fun AirdropHunterApp(
                         sessionScopeKey = sessionScopeKey,
                         launchConnectOnStart = launchWalletConnectOnOpen,
                         onConnectLaunchHandled = { launchWalletConnectOnOpen = false },
+                        onOpenAccounting = { activeOverlay = AppOverlay.MANUAL_ACCOUNTING },
                         onOpenBrowser = { url, selectedWallet, wallets, title ->
                             val walletJson = JSONArray().apply {
                                 wallets.forEach { wallet ->
