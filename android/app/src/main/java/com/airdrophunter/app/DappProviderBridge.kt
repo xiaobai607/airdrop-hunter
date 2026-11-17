@@ -385,6 +385,60 @@ internal object DappProviderBridge {
             "eth_submittransaction"
         )
 
+    /** Validate signing and transaction shapes before forwarding anything to the wallet UI. */
+    fun isValidExternalWalletParams(method: String, params: JSONArray): Boolean {
+        val addressPattern = Regex("^0x[a-fA-F0-9]{40}$")
+        val hexDataPattern = Regex("^0x(?:[a-fA-F0-9]{2})*$")
+        val quantityPattern = Regex("^0x[0-9a-fA-F]+$")
+        fun isAddress(value: Any?): Boolean = value is String && addressPattern.matches(value)
+        fun isHexData(value: Any?): Boolean = value is String && hexDataPattern.matches(value)
+        fun typedData(value: Any?): Boolean {
+            val json = when (value) {
+                is JSONObject -> value
+                is String -> {
+                    if (value.length > 262_144) return false
+                    runCatching { JSONObject(value) }.getOrNull() ?: return false
+                }
+                else -> return false
+            }
+            val types = json.optJSONObject("types") ?: return false
+            val primaryType = json.optString("primaryType")
+            if (primaryType.isBlank() || !types.has(primaryType)) return false
+            if (json.optJSONObject("domain") == null || json.optJSONObject("message") == null) return false
+            val keys = types.keys()
+            while (keys.hasNext()) {
+                val fields = types.optJSONArray(keys.next()) ?: return false
+                if (fields.length() == 0) return false
+                for (index in 0 until fields.length()) {
+                    val field = fields.optJSONObject(index) ?: return false
+                    if (field.optString("name").isBlank() || field.optString("type").isBlank()) return false
+                }
+            }
+            return true
+        }
+        return when (method.trim().lowercase()) {
+            "personal_sign" -> params.length() == 2 &&
+                ((isHexData(params.opt(0)) && isAddress(params.opt(1))) ||
+                    (isAddress(params.opt(0)) && isHexData(params.opt(1))))
+            "eth_sign" -> params.length() == 2 && isAddress(params.opt(0)) && isHexData(params.opt(1))
+            "eth_signtypeddata", "eth_signtypeddata_v3", "eth_signtypeddata_v4" ->
+                params.length() == 2 && isAddress(params.opt(0)) && typedData(params.opt(1))
+            "eth_sendtransaction", "eth_signtransaction" -> {
+                if (params.length() != 1) return false
+                val tx = params.optJSONObject(0) ?: return false
+                if (!isAddress(tx.opt("from"))) return false
+                if (tx.has("to") && !isAddress(tx.opt("to"))) return false
+                if (tx.has("data") && !isHexData(tx.opt("data"))) return false
+                if (tx.has("input") && !isHexData(tx.opt("input"))) return false
+                listOf("value", "gas", "gasLimit", "gasPrice", "maxFeePerGas",
+                    "maxPriorityFeePerGas", "nonce", "chainId", "type").all { key ->
+                    !tx.has(key) || (tx.opt(key) is String && quantityPattern.matches(tx.optString(key)))
+                }
+            }
+            else -> false
+        }
+    }
+
     fun parseRequest(raw: String): DappRpcRequest? = try {
         val json = JSONObject(raw)
         val id = json.optLong("id", -1L)
