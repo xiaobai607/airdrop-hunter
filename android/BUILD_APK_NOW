@@ -50,3 +50,5 @@ X5 wallet connection handoff correction (2026-11-16): the X5 Connect Wallet acti
 Wallet connection screen compile fix (2026-11-16): add the missing Compose Composable annotation import and rebuild/test.
 Wallet connection UX follow-up (2026-11-17): close the dedicated wallet connection surface after a newly approved WalletConnect session; correct stale architecture comments. Build debug APK and run unit tests.
 Compile repair (2026-11-17): import Compose runtime setValue for delegated state in WalletConnectActivity; rebuild unit tests and Debug APK.
+
+X5 DApp provider integration stage 1 (2026-11-17): inject the provider into the verified top-level X5 page, intercept the dedicated prompt transport, validate the requesting HTTPS document URL, support explicit per-origin account approval and read-only account/chain queries, and fail closed for signing/raw transaction methods until the full WalletConnect request lifecycle is ported. Run Android unit tests and build Debug APK.
