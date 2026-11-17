@@ -60,3 +60,5 @@ X5 DApp WalletConnect signing and transaction relay (2026-11-17): port authorize
 X5 WalletConnect coroutine compile fix (2026-11-17): import coroutine launch extension required by asynchronous external-wallet response and transaction draft handling; rerun Android unit tests and Debug APK build.
 
 X5 EIP-1193 wallet event synchronization (2026-11-17): emit accountsChanged, chainChanged and disconnect events only to the active authorized HTTPS origin, after the provider script is injected; add JSON escaping and provider event tests. Run Android unit tests and build Debug APK.
+
+X5 wallet event test assertion correction (2026-11-17): verify escaped event payload content without depending on JSONObject serializer formatting; rerun all Android unit tests and package Debug APK.
