@@ -89,6 +89,9 @@ private fun X5BrowserScreen(
     var browser by remember { mutableStateOf<X5WebView?>(null) }
     var webViewGeneration by remember { mutableIntStateOf(0) }
     var currentUrl by remember(initialUrl) { mutableStateOf(initialUrl) }
+    // Track the last document URL independently of the editable address bar/current navigation target.
+    // This lets origin changes revoke permissions even when the user typed a new URL before load starts.
+    var lastCommittedDocumentUrl by remember(initialUrl) { mutableStateOf(initialUrl) }
     var addressInput by remember(initialUrl) { mutableStateOf(initialUrl) }
     var isAddressEditing by remember { mutableStateOf(false) }
     var pageState by remember(initialUrl) { mutableStateOf(X5PageState.Loading) }
@@ -335,9 +338,30 @@ private fun X5BrowserScreen(
                                                 }
 
                                                 override fun onPageStarted(view: X5WebView?, url: String?, favicon: Bitmap?) {
-                                                    url?.let {
-                                                        currentUrl = it
-                                                        if (!isAddressEditing) addressInput = it
+                                                    url?.let { nextUrl ->
+                                                        val previousOrigin = runCatching {
+                                                            DappProviderBridge.origin(Uri.parse(lastCommittedDocumentUrl))
+                                                        }.getOrNull()
+                                                        val nextOrigin = runCatching {
+                                                            DappProviderBridge.origin(Uri.parse(nextUrl))
+                                                        }.getOrNull()
+                                                        if (previousOrigin != null && previousOrigin != nextOrigin) {
+                                                            DappOriginPermissionStore.revokeAll()
+                                                        }
+                                                        // A full document navigation invalidates any unanswered prompt,
+                                                        // even when it stays on the same origin. Never let an old page's
+                                                        // approval dialog authorize a later document.
+                                                        pendingDappConnection?.let { pending ->
+                                                            DappProviderBridge.error(
+                                                                pending.replyProxy, pending.request.id, 4001,
+                                                                "The page navigated before wallet access was approved"
+                                                            )
+                                                        }
+                                                        pendingDappConnection = null
+                                                        waitingDappWalletApproval = false
+                                                        lastCommittedDocumentUrl = nextUrl
+                                                        currentUrl = nextUrl
+                                                        if (!isAddressEditing) addressInput = nextUrl
                                                     }
                                                     pageState = X5PageState.Loading
                                                     pageError = null
