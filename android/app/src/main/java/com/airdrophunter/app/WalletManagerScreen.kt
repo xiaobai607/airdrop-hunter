@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -181,6 +182,11 @@ fun WalletManagerScreen(
     var editWalletTags by remember { mutableStateOf("") }
     var editWalletNotes by remember { mutableStateOf("") }
     var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
+    var ecosystemFilter by remember { mutableStateOf("全部") }
+    val filteredWallets = remember(state.wallets, ecosystemFilter) {
+        if (ecosystemFilter == "全部") state.wallets
+        else state.wallets.filter { it.ecosystem == ecosystemFilter }
+    }
     val addressValidation = remember(selectedEcosystem, address) { WalletAddressValidator.validate(selectedEcosystem, address) }
     val connectedAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
     var pendingConnectedAccount by remember { mutableStateOf<WalletConnectAccount?>(null) }
@@ -458,10 +464,55 @@ fun WalletManagerScreen(
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    itemsIndexed(state.wallets, key = { _, wallet -> wallet.id }) { index, wallet ->
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "钱包地址",
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    "${filteredWallets.size} / ${state.wallets.size}",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf("全部", WalletEcosystem.EVM, WalletEcosystem.TRON, WalletEcosystem.SOL, WalletEcosystem.BTC).forEach { filter ->
+                                    FilterChip(
+                                        selected = ecosystemFilter == filter,
+                                        onClick = { ecosystemFilter = filter },
+                                        label = { Text(filter) },
+                                        shape = RoundedCornerShape(50)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (filteredWallets.isEmpty()) {
+                        item {
+                            Box(
+                                Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "当前分类还没有钱包地址",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                    itemsIndexed(filteredWallets, key = { _, wallet -> wallet.id }) { index, wallet ->
                         StaggeredListItem(wallet.id, index) {
                         Card(
                             modifier = Modifier
