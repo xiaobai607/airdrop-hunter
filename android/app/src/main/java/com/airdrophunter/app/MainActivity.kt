@@ -219,7 +219,7 @@ private fun AirdropHunterApp(
         selectedProject = null
         selectedCommunityProject = null
     }
-    BackHandler(reopenAccountingAfterWalletManager && tab == 4) {
+    BackHandler(reopenAccountingAfterWalletManager && tab == 3) {
         reopenAccountingAfterWalletManager = false
         tab = accountingReturnTab
         showAccountingSheet = true
@@ -229,8 +229,8 @@ private fun AirdropHunterApp(
         Destination(R.string.tab_home, Icons.Default.Home),
         Destination(R.string.tab_community, Icons.Default.Public),
         Destination(R.string.tab_projects, Icons.Default.GridView),
-        Destination(R.string.tab_profile, Icons.Default.Person),
-        Destination(R.string.tab_wallet, Icons.Default.AccountBalanceWallet)
+        Destination(R.string.tab_wallet, Icons.Default.AccountBalanceWallet),
+        Destination(R.string.tab_profile, Icons.Default.Person)
     )
     val projectTransitionSnapshots = remember { mutableStateMapOf<String, ProjectDto>() }
     val communityTransitionSnapshots = remember { mutableStateMapOf<String, ProjectDto>() }
@@ -398,7 +398,7 @@ private fun AirdropHunterApp(
                         symbol = selectedMarketSymbol,
                         modifier = Modifier.fillMaxSize()
                     )
-                    route == "tab:4" -> tabStateHolder.SaveableStateProvider("bottom-tab-4") {
+                    route == "tab:3" -> tabStateHolder.SaveableStateProvider("bottom-tab-3") {
                         WalletManagerScreen(
                         modifier = Modifier.fillMaxSize(),
                         isGuest = isGuest,
@@ -462,7 +462,7 @@ private fun AirdropHunterApp(
                         HomeScreen(
                             modifier = Modifier.fillMaxSize(),
                             onOpenSources = { activeOverlay = AppOverlay.SOURCES },
-                            onOpenWallet = { tab = 4 },
+                            onOpenWallet = { tab = 3 },
                             onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
                             onOpenMarketDetail = { symbol ->
                                 selectedMarketSymbol = symbol
@@ -501,7 +501,7 @@ private fun AirdropHunterApp(
                             onLogout,
                             isGuest,
                             onRequireAuth,
-                            onManageWallets = { tab = 4 },
+                            onManageWallets = { tab = 3 },
                             sessionScopeKey = sessionScopeKey
                         )
                     }
@@ -526,7 +526,7 @@ private fun AirdropHunterApp(
                     launchWalletConnectOnOpen = true
                     showAccountingSheet = false
                     accountingReturnTab = tab
-                    tab = 4
+                    tab = 3
                 }
             )
         }
