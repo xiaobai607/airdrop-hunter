@@ -164,7 +164,8 @@ fun WalletManagerScreen(
     launchConnectOnStart: Boolean = false,
     onConnectLaunchHandled: () -> Unit = {},
     onOpenAccounting: () -> Unit = {},
-    onOpenPendingAccounting: (String?) -> Unit = {}
+    onOpenPendingAccounting: (String?) -> Unit = {},
+    onOpenLibrary: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -367,6 +368,20 @@ fun WalletManagerScreen(
                         Text("核对实际 Gas 与收益后再完成入账", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                     Text("${realPendingBills.size} 笔  ›", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Surface(
+                modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = onOpenLibrary),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("我的项目库", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                        Text("管理已收集项目、参与状态与个人进度", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Text("进入  ›", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
