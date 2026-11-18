@@ -85,3 +85,5 @@ Wallet-to-profile navigation crash fix (2026-11-18): give Profile tab its own ta
 Wallet workspace redesign (2026-11-18): compact live wallet/address and ecosystem overview, primary add/connect actions, separate pending-confirmation entry, real wallet address list, chain activity drill-in, and personal ledger entry. Preserve existing AppKit connection and manual actual-result confirmation flows. Run Android unit tests and package Debug APK.
 
 Android permission minimization (2026-11-18): remove the unused POST_NOTIFICATIONS permission contributed by dependency manifests; keep only permissions needed for networking and scheduled background sync. Verify merged APK manifest and wallet/browser regression build.
+
+Wallet transaction activity filters (2026-11-18): split each wallet address's on-chain activity into All, Sent and Received tabs, with direction derived from the transaction from/to address and live per-tab counts. Preserve cached transaction data, refresh policy, and manual accounting import behavior. Run Android unit tests and package the exact Debug APK.
