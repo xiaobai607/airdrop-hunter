@@ -419,11 +419,6 @@ private fun AirdropHunterApp(
                         sessionScopeKey = sessionScopeKey,
                         launchConnectOnStart = launchWalletConnectOnOpen,
                         onConnectLaunchHandled = { launchWalletConnectOnOpen = false },
-                        onOpenAccounting = {
-                            accountingInitialSection = "history"
-                            accountingInitialWalletAddress = null
-                            tab = 3
-                        },
                         onOpenPendingAccounting = { address ->
                             accountingInitialSection = "pending"
                             accountingInitialWalletAddress = address
