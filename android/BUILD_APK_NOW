@@ -78,3 +78,4 @@ Wallet manager UI redesign (2026-11-17): rebuild and run Android unit tests.
 Wallet manager ecosystem filters: rebuild and verify Android tests (2026-11-17).
 
 Wallet-to-accounting handoff (2026-11-17): show real pending bill count on wallet manager, expose wallet-specific pending bills in wallet detail, and open the existing accounting confirmation flow filtered to the selected address. Re-run Android unit tests and build the Debug APK.
+wallet-primary-bottom-tab-navigation
