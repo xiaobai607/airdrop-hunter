@@ -163,7 +163,6 @@ fun WalletManagerScreen(
     vm: WalletManagerViewModel? = null,
     launchConnectOnStart: Boolean = false,
     onConnectLaunchHandled: () -> Unit = {},
-    onOpenAccounting: () -> Unit = {},
     onOpenPendingAccounting: (String?) -> Unit = {},
     onOpenLibrary: () -> Unit = {}
 ) {
@@ -171,9 +170,6 @@ fun WalletManagerScreen(
     val application = context.applicationContext as AirdropHunterApplication
     val walletViewModel: WalletManagerViewModel = vm ?: viewModel(factory = WalletManagerViewModelFactory(application.appContainer.walletRepository))
     val state by walletViewModel.state.collectAsStateWithLifecycle()
-    val accountingRepository = remember(application) { application.appContainer.accountingRepository }
-    val pendingBills by accountingRepository.observePendingBills().collectAsStateWithLifecycle(initialValue = emptyList())
-    val realPendingBills = remember(pendingBills) { pendingBills.filterNot { it.txHash.startsWith("MOCK-") } }
     val walletConnectReady by WalletConnectInitializer.ready.collectAsStateWithLifecycle()
     val walletConnectError by WalletConnectInitializer.error.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
@@ -354,20 +350,6 @@ fun WalletManagerScreen(
                         Text("连接钱包", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                         Text("连接已有钱包", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
-                }
-            }
-            Surface(
-                modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = { onOpenPendingAccounting(null) }),
-                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("待确认记账", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                        Text("核对实际 Gas 与收益后再完成入账", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-                    }
-                    Text("${realPendingBills.size} 笔  ›", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                 }
             }
             Surface(
@@ -580,21 +562,6 @@ fun WalletManagerScreen(
                                         Text("查看真实交易、Gas 消耗和刷新状态", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                     }
                                     Text("查看  ›", color = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                            Text("账本与同步管理", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Surface(
-                                modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = onOpenAccounting),
-                                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                            ) {
-                                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Text("个人账本", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                                        Text("进入完整记账中心与收益统计", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-                                    }
-                                    Text("进入  ›", color = MaterialTheme.colorScheme.primary)
                                 }
                             }
                         }
