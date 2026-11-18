@@ -495,7 +495,7 @@ private fun AirdropHunterApp(
                             sessionScopeKey = sessionScopeKey
                         )
                     }
-                    else -> tabStateHolder.SaveableStateProvider("bottom-tab-3") {
+                    route == "tab:4" -> tabStateHolder.SaveableStateProvider("bottom-tab-4") {
                         ProfileScreen(
                             Modifier.fillMaxSize(),
                             onLogout,
