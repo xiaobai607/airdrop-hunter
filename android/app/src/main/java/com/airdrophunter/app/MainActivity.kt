@@ -213,9 +213,11 @@ private fun AirdropHunterApp(
     val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.PROJECT_LIBRARY, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY, AppOverlay.MANUAL_ACCOUNTING) || selectedProject != null || selectedCommunityProject != null
 
     BackHandler(hasSecondaryDestination) {
-        activeOverlay = AppOverlay.NONE
-        selectedProject = null
-        selectedCommunityProject = null
+        when {
+            selectedCommunityProject != null -> selectedCommunityProject = null
+            selectedProject != null -> selectedProject = null
+            else -> activeOverlay = AppOverlay.NONE
+        }
     }
     BackHandler(reopenAccountingAfterWalletManager && tab == 2) {
         reopenAccountingAfterWalletManager = false
@@ -242,12 +244,12 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.AIRDROP_HUB -> "airdrop-hub"
         activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> "airdrop-campaigns"
         activeOverlay == AppOverlay.TRON_ENERGY -> "tron-energy"
+        selectedCommunityProject != null -> "community:${selectedCommunityProject!!.id}"
+        selectedProject != null -> "project:${selectedProject!!.id}"
         activeOverlay == AppOverlay.PROJECT_LIBRARY -> "project-library"
         activeOverlay == AppOverlay.MANUAL_ACCOUNTING -> "manual-accounting"
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "global-search"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "market-detail"
-        selectedCommunityProject != null -> "community:${selectedCommunityProject!!.id}"
-        selectedProject != null -> "project:${selectedProject!!.id}"
         else -> "tab:$tab"
     }
     val secondaryTitle = when {
@@ -257,9 +259,10 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "$selectedMarketSymbol 行情"
         activeOverlay == AppOverlay.TRON_ENERGY -> "TRON 能量租赁助手"
+        selectedCommunityProject != null -> "项目微社区"
+        selectedProject != null -> stringResource(R.string.project_detail)
         activeOverlay == AppOverlay.PROJECT_LIBRARY -> "库管理"
         activeOverlay == AppOverlay.MANUAL_ACCOUNTING -> "记账"
-        selectedCommunityProject != null -> "项目微社区"
         else -> stringResource(R.string.project_detail)
     }
 
@@ -283,9 +286,11 @@ private fun AirdropHunterApp(
                             icon = Icons.Default.ArrowBack,
                             contentDescription = stringResource(R.string.back),
                             onClick = {
-                                activeOverlay = AppOverlay.NONE
-                                selectedProject = null
-                                selectedCommunityProject = null
+                                when {
+                                    selectedCommunityProject != null -> selectedCommunityProject = null
+                                    selectedProject != null -> selectedProject = null
+                                    else -> activeOverlay = AppOverlay.NONE
+                                }
                             }
                         )
                     },
