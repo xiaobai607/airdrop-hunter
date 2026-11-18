@@ -94,6 +94,21 @@ private fun WalletActivityPanel(
     var refreshNonce by remember(wallet.address, sessionToken) { mutableIntStateOf(0) }
     var addingHash by remember(wallet.address, sessionToken) { mutableStateOf<String?>(null) }
 
+    var activityFilter by remember(wallet.address, sessionToken) { mutableStateOf("全部") }
+    val sentTransactions = remember(transactions, wallet.address, wallet.ecosystem) {
+        transactions.filter { isWalletActivityAddress(it.from_address, wallet) }
+    }
+    val receivedTransactions = remember(transactions, wallet.address, wallet.ecosystem) {
+        transactions.filter { isWalletActivityAddress(it.to_address, wallet) }
+    }
+    val visibleTransactions = remember(transactions, sentTransactions, receivedTransactions, activityFilter) {
+        when (activityFilter) {
+            "发送" -> sentTransactions
+            "接收" -> receivedTransactions
+            else -> transactions
+        }
+    }
+
     LaunchedEffect(wallet.address, refreshNonce, sessionToken) {
         // Keep last-known-good rows visible while Room is read and the coordinator
         // refreshes. The remember keys above already isolate wallet/session changes.
@@ -155,6 +170,23 @@ private fun WalletActivityPanel(
             }
             AppIconButton(Icons.Default.Refresh, "刷新交易", onClick = { if (!isLoading) refreshNonce++ }, enabled = !isLoading)
         }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf(
+                "全部" to transactions.size,
+                "发送" to sentTransactions.size,
+                "接收" to receivedTransactions.size
+            ).forEach { (label, count) ->
+                FilterChip(
+                    selected = activityFilter == label,
+                    onClick = { activityFilter = label },
+                    label = { Text("$label $count") },
+                    shape = RoundedCornerShape(50)
+                )
+            }
+        }
         if (networksUnavailable.isNotEmpty()) {
             Text(
                 "部分网络暂时不可用：${networksUnavailable.joinToString()}",
@@ -190,25 +222,34 @@ private fun WalletActivityPanel(
                     modifier = Modifier.widthIn(min = 132.dp)
                 )
             }
-        } else if (transactions.isEmpty()) {
+        } else if (visibleTransactions.isEmpty()) {
             Column(
                 Modifier.fillMaxSize().padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text("暂无链上交易记录", color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(8.dp))
-                Text("当前地址还没有可展示的交易，稍后可再次刷新。", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(16.dp))
-                AppButton(
-                    text = "刷新交易",
-                    onClick = { if (!isLoading) refreshNonce++ },
-                    enabled = !isLoading,
-                    loading = isLoading,
-                    modifier = Modifier.widthIn(min = 132.dp)
+                Text(
+                    if (transactions.isEmpty()) "暂无链上交易记录" else "该分类暂无交易",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (transactions.isEmpty()) "当前地址还没有可展示的交易，稍后可再次刷新。" else "切换「总交易活动、发送、接收」查看其他交易。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (transactions.isEmpty()) {
+                    Spacer(Modifier.height(16.dp))
+                    AppButton(
+                        text = "刷新交易",
+                        onClick = { if (!isLoading) refreshNonce++ },
+                        enabled = !isLoading,
+                        loading = isLoading,
+                        modifier = Modifier.widthIn(min = 132.dp)
+                    )
+                }
             }
         } else {
             LazyColumn(
@@ -216,7 +257,7 @@ private fun WalletActivityPanel(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                itemsIndexed(transactions, key = { _, tx -> "${tx.chain}:${tx.hash}" }) { index, tx ->
+                itemsIndexed(visibleTransactions, key = { _, tx -> "${tx.chain}:${tx.hash}" }) { index, tx ->
                     StaggeredListItem("${tx.chain}:${tx.hash}", index) {
                     val normalizedHash = normalizeWalletActivityHash(tx.chain, tx.hash)
                     val txKey = "${tx.chain.lowercase()}:$normalizedHash"
@@ -370,3 +411,11 @@ private fun formatWalletActivityTime(timestampSeconds: Long): String =
 
 private fun normalizeWalletActivityHash(network: String, hash: String): String =
     if (network.equals("solana", true)) hash else hash.lowercase()
+private fun isWalletActivityAddress(candidate: String, wallet: WalletDto): Boolean {
+    if (candidate.isBlank()) return false
+    return if (wallet.ecosystem == WalletEcosystem.EVM) {
+        candidate.equals(wallet.address, ignoreCase = true)
+    } else {
+        candidate == wallet.address
+    }
+}
