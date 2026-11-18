@@ -81,3 +81,5 @@ Wallet-to-accounting handoff (2026-11-17): show real pending bill count on walle
 wallet-primary-bottom-tab-navigation
 wallet-before-profile-rightmost-profile-tab
 Wallet-to-profile navigation crash fix (2026-11-18): give Profile tab its own tab:4 route and unique SaveableStateHolder key; rebuild and verify Debug APK.
+
+Wallet workspace redesign (2026-11-18): compact live wallet/address and ecosystem overview, primary add/connect actions, separate pending-confirmation entry, real wallet address list, chain activity drill-in, and personal ledger entry. Preserve existing AppKit connection and manual actual-result confirmation flows. Run Android unit tests and package Debug APK.
