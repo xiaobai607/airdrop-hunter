@@ -83,3 +83,5 @@ wallet-before-profile-rightmost-profile-tab
 Wallet-to-profile navigation crash fix (2026-11-18): give Profile tab its own tab:4 route and unique SaveableStateHolder key; rebuild and verify Debug APK.
 
 Wallet workspace redesign (2026-11-18): compact live wallet/address and ecosystem overview, primary add/connect actions, separate pending-confirmation entry, real wallet address list, chain activity drill-in, and personal ledger entry. Preserve existing AppKit connection and manual actual-result confirmation flows. Run Android unit tests and package Debug APK.
+
+Android permission minimization (2026-11-18): remove the unused POST_NOTIFICATIONS permission contributed by dependency manifests; keep only permissions needed for networking and scheduled background sync. Verify merged APK manifest and wallet/browser regression build.
