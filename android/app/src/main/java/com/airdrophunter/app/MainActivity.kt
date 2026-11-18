@@ -20,6 +20,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -199,13 +200,8 @@ private fun AirdropHunterApp(
     var accountingInitialSection by rememberSaveable { mutableStateOf("history") }
     var accountingInitialWalletAddress by rememberSaveable { mutableStateOf<String?>(null) }
     var reopenAccountingAfterWalletManager by rememberSaveable { mutableStateOf(false) }
+    var accountingReturnTab by rememberSaveable { mutableIntStateOf(0) }
     var launchWalletConnectOnOpen by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(activeOverlay, reopenAccountingAfterWalletManager) {
-        if (activeOverlay == AppOverlay.NONE && reopenAccountingAfterWalletManager) {
-            reopenAccountingAfterWalletManager = false
-            showAccountingSheet = true
-        }
-    }
     val accountingSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Never leave a previous account's secondary screen or editor alive after a session switch.
@@ -216,19 +212,25 @@ private fun AirdropHunterApp(
     }
 
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
-    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY, AppOverlay.MANUAL_ACCOUNTING) || selectedProject != null || selectedCommunityProject != null
+    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY, AppOverlay.MANUAL_ACCOUNTING) || selectedProject != null || selectedCommunityProject != null
 
     BackHandler(hasSecondaryDestination) {
         activeOverlay = AppOverlay.NONE
         selectedProject = null
         selectedCommunityProject = null
     }
+    BackHandler(reopenAccountingAfterWalletManager && tab == 4) {
+        reopenAccountingAfterWalletManager = false
+        tab = accountingReturnTab
+        showAccountingSheet = true
+    }
 
     val destinations = listOf(
         Destination(R.string.tab_home, Icons.Default.Home),
         Destination(R.string.tab_community, Icons.Default.Public),
         Destination(R.string.tab_projects, Icons.Default.GridView),
-        Destination(R.string.tab_profile, Icons.Default.Person)
+        Destination(R.string.tab_profile, Icons.Default.Person),
+        Destination(R.string.tab_wallet, Icons.Default.AccountBalanceWallet)
     )
     val projectTransitionSnapshots = remember { mutableStateMapOf<String, ProjectDto>() }
     val communityTransitionSnapshots = remember { mutableStateMapOf<String, ProjectDto>() }
@@ -246,7 +248,6 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.MANUAL_ACCOUNTING -> "manual-accounting"
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "global-search"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "market-detail"
-        activeOverlay == AppOverlay.WALLET_MANAGER -> "wallet-manager"
         selectedCommunityProject != null -> "community:${selectedCommunityProject!!.id}"
         selectedProject != null -> "project:${selectedProject!!.id}"
         else -> "tab:$tab"
@@ -255,7 +256,6 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.SOURCES -> stringResource(R.string.sources_title)
         activeOverlay == AppOverlay.AIRDROP_HUB -> "空投发现"
         activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> "空投活动"
-        activeOverlay == AppOverlay.WALLET_MANAGER -> "钱包管理"
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "$selectedMarketSymbol 行情"
         activeOverlay == AppOverlay.TRON_ENERGY -> "TRON 能量租赁助手"
@@ -314,7 +314,10 @@ private fun AirdropHunterApp(
                     AppBottomBar(
                         items = destinations.map { AppNavigationItem(stringResource(it.label), it.icon) },
                         selectedIndex = tab,
-                        onSelect = { tab = it },
+                        onSelect = {
+                            if (reopenAccountingAfterWalletManager && it != 4) reopenAccountingAfterWalletManager = false
+                            tab = it
+                        },
                         modifier = Modifier.align(Alignment.TopCenter)
                     )
                 }
@@ -395,7 +398,8 @@ private fun AirdropHunterApp(
                         symbol = selectedMarketSymbol,
                         modifier = Modifier.fillMaxSize()
                     )
-                    route == "wallet-manager" -> WalletManagerScreen(
+                    route == "tab:4" -> tabStateHolder.SaveableStateProvider("bottom-tab-4") {
+                        WalletManagerScreen(
                         modifier = Modifier.fillMaxSize(),
                         isGuest = isGuest,
                         sessionScopeKey = sessionScopeKey,
@@ -426,7 +430,8 @@ private fun AirdropHunterApp(
                                 .putExtra(BrowserActivity.EXTRA_SELECTED_WALLET_ID, selectedWallet.id)
                                 .putExtra(BrowserActivity.EXTRA_FORCE_SYSTEM_WEBVIEW, true))
                         }
-                    )
+                        )
+                    }
                     route.startsWith("community:") -> {
                         val projectId = route.substringAfter("community:")
                         val project = communityTransitionSnapshots[projectId] ?: selectedCommunityProject
@@ -457,7 +462,7 @@ private fun AirdropHunterApp(
                         HomeScreen(
                             modifier = Modifier.fillMaxSize(),
                             onOpenSources = { activeOverlay = AppOverlay.SOURCES },
-                            onOpenWallet = { activeOverlay = AppOverlay.WALLET_MANAGER },
+                            onOpenWallet = { tab = 4 },
                             onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
                             onOpenMarketDetail = { symbol ->
                                 selectedMarketSymbol = symbol
@@ -496,7 +501,7 @@ private fun AirdropHunterApp(
                             onLogout,
                             isGuest,
                             onRequireAuth,
-                            onManageWallets = { activeOverlay = AppOverlay.WALLET_MANAGER },
+                            onManageWallets = { tab = 4 },
                             sessionScopeKey = sessionScopeKey
                         )
                     }
@@ -520,7 +525,8 @@ private fun AirdropHunterApp(
                     reopenAccountingAfterWalletManager = true
                     launchWalletConnectOnOpen = true
                     showAccountingSheet = false
-                    activeOverlay = AppOverlay.WALLET_MANAGER
+                    accountingReturnTab = tab
+                    tab = 4
                 }
             )
         }
