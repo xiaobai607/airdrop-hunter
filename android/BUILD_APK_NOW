@@ -80,3 +80,4 @@ Wallet manager ecosystem filters: rebuild and verify Android tests (2026-11-17).
 Wallet-to-accounting handoff (2026-11-17): show real pending bill count on wallet manager, expose wallet-specific pending bills in wallet detail, and open the existing accounting confirmation flow filtered to the selected address. Re-run Android unit tests and build the Debug APK.
 wallet-primary-bottom-tab-navigation
 wallet-before-profile-rightmost-profile-tab
+Wallet-to-profile navigation crash fix (2026-11-18): give Profile tab its own tab:4 route and unique SaveableStateHolder key; rebuild and verify Debug APK.
