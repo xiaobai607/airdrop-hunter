@@ -87,3 +87,5 @@ Wallet workspace redesign (2026-11-18): compact live wallet/address and ecosyste
 Android permission minimization (2026-11-18): remove the unused POST_NOTIFICATIONS permission contributed by dependency manifests; keep only permissions needed for networking and scheduled background sync. Verify merged APK manifest and wallet/browser regression build.
 
 Wallet transaction activity filters (2026-11-18): split each wallet address's on-chain activity into All, Sent and Received tabs, with direction derived from the transaction from/to address and live per-tab counts. Preserve cached transaction data, refresh policy, and manual accounting import behavior. Run Android unit tests and package the exact Debug APK.
+
+Navigation restructure (2026-11-18): five primary destinations Home, Airdrop Library, Wallet, Accounting Center, Profile; move full ProjectsScreen into Wallet, make accounting center a standalone tab, preserve project-library back stack and wallet-connect return. Run Android unit tests and package Debug APK for device verification.
