@@ -89,3 +89,5 @@ Android permission minimization (2026-11-18): remove the unused POST_NOTIFICATIO
 Wallet transaction activity filters (2026-11-18): split each wallet address's on-chain activity into All, Sent and Received tabs, with direction derived from the transaction from/to address and live per-tab counts. Preserve cached transaction data, refresh policy, and manual accounting import behavior. Run Android unit tests and package the exact Debug APK.
 
 Navigation restructure (2026-11-18): five primary destinations Home, Airdrop Library, Wallet, Accounting Center, Profile; move full ProjectsScreen into Wallet, make accounting center a standalone tab, preserve project-library back stack and wallet-connect return. Run Android unit tests and package Debug APK for device verification.
+
+Wallet activity filter wording refinement (2026-11-18): use the explicit "Total Activity" label instead of ambiguous "All" for the complete transaction list; keep Sent and Received counts and allow horizontal scrolling on narrow screens. Run Android build/tests and package Debug APK.
