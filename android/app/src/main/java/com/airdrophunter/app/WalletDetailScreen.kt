@@ -1,6 +1,7 @@
 package com.airdrophunter.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.airdrophunter.app.ui.components.AppIconButton
 import com.airdrophunter.app.ui.components.AppButton
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -94,7 +96,7 @@ private fun WalletActivityPanel(
     var refreshNonce by remember(wallet.address, sessionToken) { mutableIntStateOf(0) }
     var addingHash by remember(wallet.address, sessionToken) { mutableStateOf<String?>(null) }
 
-    var activityFilter by remember(wallet.address, sessionToken) { mutableStateOf("全部") }
+    var activityFilter by remember(wallet.address, sessionToken) { mutableStateOf("总交易活动") }
     val sentTransactions = remember(transactions, wallet.address, wallet.ecosystem) {
         transactions.filter { isWalletActivityAddress(it.from_address, wallet) }
     }
@@ -171,11 +173,11 @@ private fun WalletActivityPanel(
             AppIconButton(Icons.Default.Refresh, "刷新交易", onClick = { if (!isLoading) refreshNonce++ }, enabled = !isLoading)
         }
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             listOf(
-                "全部" to transactions.size,
+                "总交易活动" to transactions.size,
                 "发送" to sentTransactions.size,
                 "接收" to receivedTransactions.size
             ).forEach { (label, count) ->
