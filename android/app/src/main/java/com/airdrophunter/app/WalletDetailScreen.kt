@@ -45,7 +45,7 @@ fun WalletDetailScreen(
     val context = LocalContext.current
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AppIconButton(Icons.Default.ArrowBack, "返回", onBack)
@@ -53,6 +53,7 @@ fun WalletDetailScreen(
                 Text(
                     wallet.wallet_name.ifBlank { "钱包详情" },
                     color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
