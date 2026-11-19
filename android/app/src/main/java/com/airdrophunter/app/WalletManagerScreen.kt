@@ -294,7 +294,7 @@ fun WalletManagerScreen(
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -306,7 +306,7 @@ fun WalletManagerScreen(
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
