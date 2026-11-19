@@ -478,8 +478,8 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
 
     val valued = assets.filter { it.isVerified && it.usdValue != null }
     val estimatedTotal = valued.sumOf { it.usdValue ?: 0.0 }
-    val grouped = assets.sortedWith(compareBy<UnifiedAsset> { it.chain }.thenByDescending { it.usdValue ?: -1.0 })
-        .groupBy { it.chain }
+    val displayAssets = assets.sortedWith(compareByDescending<UnifiedAsset> { it.usdValue ?: -1.0 }).take(5)
+    val networkCount = assets.map { it.chain }.distinct().size
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
@@ -488,7 +488,7 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("资产余额", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
@@ -521,61 +521,56 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
             error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
             }
-            if (grouped.isNotEmpty()) {
-                grouped.forEach { (chain, rows) ->
-                    Text(
-                        when (chain) {
-                            "ethereum" -> "Ethereum"
-                            "bsc" -> "BNB Smart Chain"
-                            "polygon" -> "Polygon"
-                            "arbitrum" -> "Arbitrum One"
-                            "optimism" -> "OP Mainnet"
-                            "base" -> "Base"
-                            "avalanche" -> "Avalanche"
-                            "tron" -> "TRON"
-                            "solana" -> "Solana"
-                            "bitcoin" -> "Bitcoin"
-                            else -> chain
-                        },
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    rows.take(4).forEach { asset ->
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    asset.symbol + if (asset.isVerified) "" else " · 未验证",
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(asset.name, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    asset.formattedQuantity + " " + asset.symbol,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Text(
-                                    if (asset.isVerified && asset.usdValue != null) "$" + String.format(Locale.US, "%,.2f", asset.usdValue)
-                                    else "估值暂不可用",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        }
+            displayAssets.forEach { asset ->
+                val networkLabel = when (asset.chain) {
+                    "ethereum" -> "Ethereum"
+                    "bsc" -> "BNB Chain"
+                    "polygon" -> "Polygon"
+                    "arbitrum" -> "Arbitrum"
+                    "optimism" -> "Optimism"
+                    "base" -> "Base"
+                    "avalanche" -> "Avalanche"
+                    "tron" -> "TRON"
+                    "solana" -> "Solana"
+                    "bitcoin" -> "Bitcoin"
+                    else -> asset.chain
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            asset.symbol + if (asset.isVerified) "" else " · 未验证",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            networkLabel + " · " + asset.name,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1
+                        )
                     }
-                    if (rows.size > 4) {
-                        Text("另有 ${rows.size - 4} 项资产", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            asset.formattedQuantity + " " + asset.symbol,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            if (asset.isVerified && asset.usdValue != null) "$" + String.format(Locale.US, "%,.2f", asset.usdValue)
+                            else "估值暂不可用",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall
+                        )
                     }
                 }
-            } else if (!isLoading && error == null) {
-                Text("暂无已识别资产", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            }
+            if (assets.size > displayAssets.size) {
+                Text(
+                    "共读取 ${assets.size} 项资产，覆盖 ${networkCount} 条网络；此处先展示估值靠前的 5 项。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
             if (lastUpdated > 0L) {
                 Text(
@@ -585,7 +580,8 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
                 )
             }
             Text(
-                "仅展示链上读取到的资产；未验证代币不计入估值。",
+                if (wallet.ecosystem == WalletEcosystem.TRON) "TRON 当前展示 TRX 和已识别的 USDT；其他 TRC20 暂未纳入。"
+                else "仅展示链上读取到的资产；未验证代币不计入估值。",
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                 style = MaterialTheme.typography.labelSmall
             )
