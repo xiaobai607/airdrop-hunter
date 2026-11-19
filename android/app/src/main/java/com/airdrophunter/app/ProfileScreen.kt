@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
@@ -69,7 +68,6 @@ fun ProfileScreen(
     var pendingBackup by remember { mutableStateOf<LocalBackupSnapshot?>(null) }
     var backupBusy by remember { mutableStateOf(false) }
     var activeProfileDestination by remember { mutableStateOf<ProfileDestination?>(null) }
-    var showAboutDialog by remember { mutableStateOf(false) }
     val appVersion = remember(context) {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
             .getOrNull() ?: "未知"
@@ -271,27 +269,8 @@ fun ProfileScreen(
                     SettingRow("消息通知", Icons.Default.NotificationsNone) { activeProfileDestination = ProfileDestination.NOTIFICATIONS }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow("钱包管理", Icons.Default.Wallet, onManageWallets)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingRow("关于", Icons.Default.Info) { showAboutDialog = true }
                 }
             }
-        }
-        if (showAboutDialog) {
-            AlertDialog(
-                onDismissRequest = { showAboutDialog = false },
-                title = { Text("关于 Airdrop Hunter") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("面向空投项目管理、钱包追踪与个人记账的工具。",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("版本 $appVersion", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelMedium)
-                    }
-                },
-                confirmButton = {
-                    AppTextButton(onClick = { showAboutDialog = false }) { Text("知道了") }
-                }
-            )
         }
 
         if (showBackupPasswordDialog) {
@@ -395,7 +374,7 @@ fun ProfileScreen(
         }
     }
     activeProfileDestination?.let { destination ->
-        ProfileDestinationDialog(destination = destination) { activeProfileDestination = null }
+        ProfileDestinationDialog(destination = destination, appVersion = appVersion) { activeProfileDestination = null }
     }
 }
 
