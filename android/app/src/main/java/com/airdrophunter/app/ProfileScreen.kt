@@ -112,12 +112,12 @@ fun ProfileScreen(
         modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("我的", modifier = Modifier.weight(1f).semantics { heading() },
                 color = MaterialTheme.colorScheme.onBackground,
-                style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
             AppIconButton(
                 icon = Icons.Default.Settings,
                 contentDescription = "打开设置",
