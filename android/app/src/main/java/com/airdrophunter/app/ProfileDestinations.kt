@@ -7,6 +7,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -17,6 +20,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.airdrophunter.app.ui.theme.AppDesignTokens
@@ -39,7 +43,8 @@ fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String
                             destination.title,
                             modifier = Modifier.semantics { heading() },
                             color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp
                         )
                     },
                     navigationIcon = {
@@ -51,7 +56,7 @@ fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String
                 )
                 Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     when (destination) {
                         ProfileDestination.SETTINGS -> SettingsDestinationContent(appVersion)
@@ -66,41 +71,84 @@ fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String
 
 @Composable
 private fun SettingsDestinationContent(appVersion: String) {
-    Text(
-        "浏览器",
-        modifier = Modifier.semantics { heading() },
-        color = MaterialTheme.colorScheme.onSurface,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold
-    )
-    DestinationInfoCard {
-        Text("工具栏管理", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            "网页工具栏的显示与排序，直接在浏览器页面的“添加”入口管理。",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall
+            "偏好与工具",
+            modifier = Modifier.semantics { heading() },
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold
         )
+        DestinationInfoCard {
+            SettingsInfoRow(
+                icon = { Icon(Icons.Default.Language, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                title = "浏览器工具栏",
+                description = "工具显示与排序可在浏览器页面的“添加”入口管理"
+            )
+        }
     }
 
-    Text(
-        "关于",
-        modifier = Modifier.semantics { heading() },
-        color = MaterialTheme.colorScheme.onSurface,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold
-    )
-    DestinationInfoCard {
-        Text("Airdrop Hunter", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            "面向空投项目管理、钱包追踪与个人记账的工具。",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall
+            "关于应用",
+            modifier = Modifier.semantics { heading() },
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold
         )
-        Text(
-            "版本 $appVersion",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelSmall
-        )
+        DestinationInfoCard {
+            SettingsInfoRow(
+                icon = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                title = "Airdrop Hunter",
+                description = "空投项目管理 · 钱包追踪 · 个人记账",
+                trailing = "v$appVersion"
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsInfoRow(
+    icon: @Composable () -> Unit,
+    title: String,
+    description: String,
+    trailing: String? = null
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Surface(
+            modifier = Modifier.size(38.dp),
+            shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                icon()
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                title,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                description,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                lineHeight = 17.sp
+            )
+        }
+        if (trailing != null) {
+            Text(
+                trailing,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+        }
     }
 }
 
