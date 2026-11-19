@@ -66,6 +66,7 @@ fun WalletDetailScreen(
                 android.widget.Toast.makeText(context, "已复制钱包地址", android.widget.Toast.LENGTH_SHORT).show()
             })
         }
+        WalletAssetsPanel(wallet, isGuest)
         WalletActivityPanel(wallet, Modifier.weight(1f), isGuest, onOpenPendingAccounting)
     }
 }
@@ -403,6 +404,191 @@ private fun WalletActivityPanel(
                     }
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
+    val context = LocalContext.current
+    val application = context.applicationContext as AirdropHunterApplication
+    val repository = remember(application) { application.appContainer.walletAssetRepository }
+    val observedToken by TokenStore.observeToken(context).collectAsStateWithLifecycle(
+        initialValue = if (isGuest) null else TokenStore.readTokenBlocking()
+    )
+    val token = observedToken?.takeIf { it.isNotBlank() }
+    val chains = remember(wallet.ecosystem) {
+        when (wallet.ecosystem) {
+            WalletEcosystem.EVM -> listOf("ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche")
+            WalletEcosystem.TRON -> listOf("tron")
+            WalletEcosystem.SOL -> listOf("solana")
+            WalletEcosystem.BTC -> listOf("bitcoin")
+            else -> emptyList()
+        }
+    }
+    var assets by remember(wallet.id, token) { mutableStateOf<List<UnifiedAsset>>(emptyList()) }
+    var isLoading by remember(wallet.id, token) { mutableStateOf(false) }
+    var error by remember(wallet.id, token) { mutableStateOf<String?>(null) }
+    var refreshNonce by remember(wallet.id, token) { mutableIntStateOf(0) }
+    var lastUpdated by remember(wallet.id, token) { mutableLongStateOf(0L) }
+
+    LaunchedEffect(wallet.id, wallet.address, token, refreshNonce) {
+        if (chains.isEmpty()) {
+            error = "该地址类型暂不支持余额查询"
+            return@LaunchedEffect
+        }
+        isLoading = true
+        error = null
+        val collected = linkedMapOf<String, UnifiedAsset>()
+        val failures = mutableListOf<String>()
+        try {
+            for (chain in chains) {
+                repository.readCached(wallet.id, chain, token)?.let { cached ->
+                    cached.assets.forEach { collected["${it.chain}:${it.assetId}"] = it }
+                    assets = collected.values.toList()
+                    if (cached.fetchedAt > lastUpdated) lastUpdated = cached.fetchedAt
+                }
+                try {
+                    val result = repository.refresh(
+                        walletId = wallet.id,
+                        address = wallet.address,
+                        chain = chain,
+                        accessToken = token,
+                        manual = refreshNonce > 0
+                    )
+                    result.assets.forEach { collected["${it.chain}:${it.assetId}"] = it }
+                    assets = collected.values.toList()
+                    if (result.fetchedAt > lastUpdated) lastUpdated = result.fetchedAt
+                    if (!result.errorMessage.isNullOrBlank()) failures += chain
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    failures += chain
+                }
+            }
+            if (failures.isNotEmpty()) {
+                error = "部分网络余额暂时不可用：${failures.joinToString()}"
+            }
+            if (assets.isEmpty() && failures.isEmpty()) error = "当前地址暂无可展示资产"
+        } finally {
+            isLoading = false
+        }
+    }
+
+    val valued = assets.filter { it.isVerified && it.usdValue != null }
+    val estimatedTotal = valued.sumOf { it.usdValue ?: 0.0 }
+    val grouped = assets.sortedWith(compareBy<UnifiedAsset> { it.chain }.thenByDescending { it.usdValue ?: -1.0 })
+        .groupBy { it.chain }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("资产余额", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (valued.isNotEmpty()) "已估值资产 · ${valued.size} 项" else "读取链上真实余额",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+                if (valued.isNotEmpty()) {
+                    Text(
+                        "$" + String.format(Locale.US, "%,.2f", estimatedTotal),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                AppIconButton(
+                    Icons.Default.Refresh,
+                    "刷新余额",
+                    onClick = { if (!isLoading) refreshNonce++ },
+                    enabled = !isLoading
+                )
+            }
+            if (isLoading && assets.isEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text("正在读取链上余额…", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+            }
+            if (grouped.isNotEmpty()) {
+                grouped.forEach { (chain, rows) ->
+                    Text(
+                        when (chain) {
+                            "ethereum" -> "Ethereum"
+                            "bsc" -> "BNB Smart Chain"
+                            "polygon" -> "Polygon"
+                            "arbitrum" -> "Arbitrum One"
+                            "optimism" -> "OP Mainnet"
+                            "base" -> "Base"
+                            "avalanche" -> "Avalanche"
+                            "tron" -> "TRON"
+                            "solana" -> "Solana"
+                            "bitcoin" -> "Bitcoin"
+                            else -> chain
+                        },
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    rows.take(4).forEach { asset ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    asset.symbol + if (asset.isVerified) "" else " · 未验证",
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(asset.name, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    asset.formattedQuantity + " " + asset.symbol,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Text(
+                                    if (asset.isVerified && asset.usdValue != null) "$" + String.format(Locale.US, "%,.2f", asset.usdValue)
+                                    else "估值暂不可用",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
+                    if (rows.size > 4) {
+                        Text("另有 ${rows.size - 4} 项资产", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            } else if (!isLoading && error == null) {
+                Text("暂无已识别资产", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            }
+            if (lastUpdated > 0L) {
+                Text(
+                    "数据更新时间：${SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(lastUpdated))}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Text(
+                "仅展示链上读取到的资产；未验证代币不计入估值。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                style = MaterialTheme.typography.labelSmall
+            )
         }
     }
 }
