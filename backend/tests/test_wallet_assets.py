@@ -75,3 +75,29 @@ def test_tron_normalization_returns_zero_balance_for_not_yet_activated_address()
     assert len(assets) == 1
     assert assets[0].symbol == "TRX"
     assert assets[0].formatted_quantity == "0"
+
+
+def test_evm_native_balance_prefers_server_side_etherscan_v2_key(monkeypatch):
+    import asyncio
+    from app.routers.wallet_assets import ETHERSCAN_V2, fetch_evm_native_balance
+
+    monkeypatch.setenv("ETHERSCAN_API_KEY", "server-side-test-key")
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"status": "1", "message": "OK", "result": "123456789"}
+
+    class FakeClient:
+        async def get(self, url, params):
+            assert url == ETHERSCAN_V2
+            assert params["chainid"] == "1"
+            assert params["module"] == "account"
+            assert params["action"] == "balance"
+            assert params["apikey"] == "server-side-test-key"
+            return FakeResponse()
+
+    result = asyncio.run(fetch_evm_native_balance(FakeClient(), "ethereum", "0x" + "1" * 40))
+    assert result == ("0x75bcd15", "Etherscan V2")

@@ -95,3 +95,5 @@ Wallet activity filter wording refinement (2026-11-18): use the explicit "Total 
 Wallet live balance integration (2026-11-19): connect the existing wallet-assets API to wallet details with account-scoped 8-hour cache, Etherscan V2 native EVM balance lookup, TRON TRX/known-USDT, Solana and Bitcoin balance display. Run backend pytest, Android unit tests and package Debug APK.
 
 Wallet balance UI compact pass (2026-11-19): keep the real balance summary compact above chain activity while preserving per-network balances and the 8-hour cache. Build/test final wallet balance integration.
+
+Combined validation trigger (2026-11-19): run backend pytest for Etherscan V2/TRON balance adapters together with Android unit tests and Debug APK packaging for the wallet live-balance integration.
