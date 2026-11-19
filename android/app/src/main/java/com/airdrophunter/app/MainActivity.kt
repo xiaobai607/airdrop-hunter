@@ -178,7 +178,7 @@ private val startupSyncLock = Any()
 
 private data class Destination(val label: Int, val icon: ImageVector)
 
-private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, PROJECT_LIBRARY, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY, MANUAL_ACCOUNTING }
+private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, PROJECT_LIBRARY, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY, MANUAL_ACCOUNTING, TODO }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -210,7 +210,7 @@ private fun AirdropHunterApp(
     }
 
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
-    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.PROJECT_LIBRARY, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY, AppOverlay.MANUAL_ACCOUNTING) || selectedProject != null || selectedCommunityProject != null
+    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.PROJECT_LIBRARY, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY, AppOverlay.MANUAL_ACCOUNTING, AppOverlay.TODO) || selectedProject != null || selectedCommunityProject != null
 
     BackHandler(hasSecondaryDestination) {
         when {
@@ -248,6 +248,7 @@ private fun AirdropHunterApp(
         selectedProject != null -> "project:${selectedProject!!.id}"
         activeOverlay == AppOverlay.PROJECT_LIBRARY -> "project-library"
         activeOverlay == AppOverlay.MANUAL_ACCOUNTING -> "manual-accounting"
+        activeOverlay == AppOverlay.TODO -> "todo"
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "global-search"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "market-detail"
         else -> "tab:$tab"
@@ -263,6 +264,7 @@ private fun AirdropHunterApp(
         selectedProject != null -> stringResource(R.string.project_detail)
         activeOverlay == AppOverlay.PROJECT_LIBRARY -> "库管理"
         activeOverlay == AppOverlay.MANUAL_ACCOUNTING -> "记账"
+        activeOverlay == AppOverlay.TODO -> "待办事项"
         else -> stringResource(R.string.project_detail)
     }
 
@@ -368,6 +370,7 @@ private fun AirdropHunterApp(
                         modifier = Modifier.fillMaxSize(),
                         onBack = { activeOverlay = AppOverlay.NONE }
                     )
+                    route == "todo" -> TodoManagementScreen(modifier = Modifier.fillMaxSize())
                     route == "tron-energy" -> TronEnergyAssistantScreen(
                         modifier = Modifier.fillMaxSize(),
                         onBack = { activeOverlay = AppOverlay.NONE },
@@ -485,6 +488,8 @@ private fun AirdropHunterApp(
                             onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
                             onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
                             onOpenAccounting = { accountingInitialSection = "history"; accountingInitialWalletAddress = null; tab = 3 },
+                            onOpenTodo = { activeOverlay = AppOverlay.TODO },
+                            onOpenAirdropLibrary = { tab = 1 },
                             isGuest = isGuest,
                             onRequireAuth = onRequireAuth,
                             sessionScopeKey = sessionScopeKey
