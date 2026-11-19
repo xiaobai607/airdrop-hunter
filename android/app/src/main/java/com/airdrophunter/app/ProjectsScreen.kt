@@ -186,7 +186,7 @@ fun ProjectsScreen(
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("项目管理", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
                 Text("跟踪参与进度与真实净盈亏", color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
             }
