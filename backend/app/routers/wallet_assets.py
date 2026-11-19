@@ -219,7 +219,7 @@ async def fetch_evm_native_balance(client: httpx.AsyncClient, chain: str, addres
             response.raise_for_status()
             payload = response.json()
             raw = payload.get("result") if isinstance(payload, dict) else None
-            if str(payload.get("status")) == "1" and isinstance(raw, str) and raw.isdigit():
+            if isinstance(payload, dict) and str(payload.get("status")) == "1" and isinstance(raw, str) and raw.isdigit():
                 return hex(int(raw)), "Etherscan V2"
         except (httpx.HTTPError, ValueError, TypeError, KeyError):
             pass
