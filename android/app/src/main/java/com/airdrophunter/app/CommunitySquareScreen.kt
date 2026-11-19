@@ -241,8 +241,8 @@ fun CommunitySquareScreen(
                         "微社区广场",
                         modifier = Modifier.weight(1f).semantics { heading() },
                         color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.displayLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
                     AppIconButton(
                         icon = Icons.Default.Add,
@@ -256,8 +256,10 @@ fun CommunitySquareScreen(
                     style = MaterialTheme.typography.bodySmall
                 )
                 Row(
-                    Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(AppDesignTokens.Radius.Full.dp)).padding(start = 12.dp, end = 4.dp),
+                    Modifier.fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(AppDesignTokens.Radius.Md.dp))
+                        .then(Modifier)
+                        .padding(start = 12.dp, end = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.Search, contentDescription = "搜索社区项目",
