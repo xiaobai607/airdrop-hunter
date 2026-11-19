@@ -132,8 +132,9 @@ fun HomeScreen(
         }
         dashboardProjects = snapshot.first
         dashboardWalletCount = snapshot.second
-        dashboardGasSpend = snapshot.third.sumOf { it.actual_gas_cost_usd ?: 0.0 }
-        dashboardActualIncome = snapshot.third.sumOf { it.actual_reward_usd ?: 0.0 }
+        val actualSummary = com.airdrophunter.app.data.summarizePersonalLedgerRows(snapshot.third)
+        dashboardGasSpend = actualSummary.actualGasUsd
+        dashboardActualIncome = actualSummary.valuedActualRewardUsd
         sites = withContext(Dispatchers.IO) { AirdropSiteStore.load() }
         homeViewModel.load(isGuest)
     }
