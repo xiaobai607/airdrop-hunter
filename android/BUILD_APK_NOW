@@ -97,3 +97,5 @@ Wallet live balance integration (2026-11-19): connect the existing wallet-assets
 Wallet balance UI compact pass (2026-11-19): keep the real balance summary compact above chain activity while preserving per-network balances and the 8-hour cache. Build/test final wallet balance integration.
 
 Combined validation trigger (2026-11-19): run backend pytest for Etherscan V2/TRON balance adapters together with Android unit tests and Debug APK packaging for the wallet live-balance integration.
+
+Primary navigation UI unification (2026-11-19): standardize Home, Airdrop Library, Wallet, Accounting Center and Profile page hierarchy and header spacing. Run Android unit tests and package the exact Debug APK for device verification.
