@@ -74,7 +74,7 @@ fun AppTextField(
                 when {
                     !enabled -> colors.surfaceVariant.copy(alpha = 0.4f)
                     isError -> colors.errorContainer
-                    else -> colors.surfaceVariant
+                    else -> colors.surface
                 },
                 shape
             )
