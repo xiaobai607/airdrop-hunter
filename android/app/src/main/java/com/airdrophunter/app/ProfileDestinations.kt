@@ -29,7 +29,7 @@ enum class ProfileDestination(val title: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileDestinationDialog(destination: ProfileDestination, onDismiss: () -> Unit) {
+fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String = "未知", onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize()) {
@@ -54,7 +54,7 @@ fun ProfileDestinationDialog(destination: ProfileDestination, onDismiss: () -> U
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     when (destination) {
-                        ProfileDestination.SETTINGS -> SettingsDestinationContent()
+                        ProfileDestination.SETTINGS -> SettingsDestinationContent(appVersion)
                         ProfileDestination.SECURITY -> SecurityDestinationContent()
                         ProfileDestination.NOTIFICATIONS -> NotificationsDestinationContent()
                     }
@@ -65,14 +65,43 @@ fun ProfileDestinationDialog(destination: ProfileDestination, onDismiss: () -> U
 }
 
 @Composable
-private fun SettingsDestinationContent() {
-    Text("应用偏好", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-    DestinationInfoRow("外观与主题", "主题和显示偏好设置入口，具体控制项正在开发中")
-    DestinationInfoRow("语言", "多语言切换能力正在开发中")
-    DestinationInfoRow("浏览器与工具栏", "网页工具栏的显示与排序可在浏览器工具栏的“添加”入口管理")
-    Text("数据与诊断", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-    DestinationInfoRow("缓存管理", "缓存清理与详细状态控制正在开发中")
-    DestinationInfoRow("诊断信息", "诊断导出功能正在开发中；私钥、助记词和签名材料不属于诊断数据")
+private fun SettingsDestinationContent(appVersion: String) {
+    Text(
+        "浏览器",
+        modifier = Modifier.semantics { heading() },
+        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold
+    )
+    DestinationInfoCard {
+        Text("工具栏管理", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+        Text(
+            "网页工具栏的显示与排序，直接在浏览器页面的“添加”入口管理。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+
+    Text(
+        "关于",
+        modifier = Modifier.semantics { heading() },
+        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold
+    )
+    DestinationInfoCard {
+        Text("Airdrop Hunter", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+        Text(
+            "面向空投项目管理、钱包追踪与个人记账的工具。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall
+        )
+        Text(
+            "版本 $appVersion",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelSmall
+        )
+    }
 }
 
 @Composable
