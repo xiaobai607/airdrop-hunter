@@ -3,36 +3,36 @@ package com.airdrophunter.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Single source of truth for the Airdrop Hunter v1.1 visual system.
- * Keep legacy AppColors aliases below until each screen is migrated to MaterialTheme.
+ * Airdrop Hunter visual tokens aligned with the approved ledger UI specification.
+ * Keep legacy aliases until all screens have completed their page-level migration.
  */
 object AppDesignTokens {
     object Light {
-        val Brand = Color(0xFF0D8279)
-        val BrandPressed = Color(0xFF0A6B64)
-        val BrandSoft = Color(0xFFE6F2F1)
-        val Success = Color(0xFF34C759)
-        val Warning = Color(0xFFFF9500)
-        val Danger = Color(0xFFFF3B30)
-        val WarningSoft = Color(0xFFFFF4E6)
-        val DangerSoft = Color(0xFFFFEDEC)
-        val Ink1 = Color(0xFF1C1C1E)
-        val Ink2 = Color(0xFF636366)
-        val Ink3 = Color(0xFF8E8E93)
-        val Ink4 = Color(0xFFC7C7CC)
-        val Background = Color(0xFFF8F8FA)
-        val Group = Color(0xFFF2F2F7)
+        val Brand = Color(0xFF1677FF)
+        val BrandPressed = Color(0xFF0E5FD8)
+        val BrandSoft = Color(0xFFEAF2FF)
+        val Success = Color(0xFF00B42A)
+        val Warning = Color(0xFFFF7D00)
+        val Danger = Color(0xFFF53F3F)
+        val WarningSoft = Color(0xFFFFF3E0)
+        val DangerSoft = Color(0xFFFFECE8)
+        val Ink1 = Color(0xFF1D2129)
+        val Ink2 = Color(0xFF4E5969)
+        val Ink3 = Color(0xFF86909C)
+        val Ink4 = Color(0xFFC9CDD4)
+        val Background = Color(0xFFF7F8FA)
+        val Group = Color(0xFFF2F3F5)
         val Surface = Color(0xFFFFFFFF)
-        val Glass = Color(0xB8FFFFFF)
-        val Line = Color(0x14000000)
-        val Stroke = Color(0x0F000000)
+        val Glass = Color(0xF2FFFFFF)
+        val Line = Color(0xFFE5E6EB)
+        val Stroke = Color(0xFFE5E6EB)
         val Scrim = Color(0x52000000)
     }
 
     object Dark {
-        val Brand = Color(0xFF2BA79C)
-        val BrandPressed = Color(0xFF24897F)
-        val BrandSoft = Color(0xFF16302E)
+        val Brand = Color(0xFF4B9AFF)
+        val BrandPressed = Color(0xFF2678E8)
+        val BrandSoft = Color(0xFF172B45)
         val Success = Color(0xFF30D158)
         val Warning = Color(0xFFFF9F0A)
         val Danger = Color(0xFFFF453A)
@@ -46,16 +46,16 @@ object AppDesignTokens {
         val Group = Color(0xFF1C1C1E)
         val Surface = Color(0xFF1E1E23)
         val Glass = Color(0xAD1E1E23)
-        val Line = Color(0x1AFFFFFF)
-        val Stroke = Color(0x14FFFFFF)
+        val Line = Color(0xFF34343A)
+        val Stroke = Color(0xFF34343A)
         val Scrim = Color(0x8F000000)
     }
 
     object Radius {
         const val Sm = 8
-        const val Xl = 28
-        const val Lg = 20
-        const val Md = 12
+        const val Xl = 16
+        const val Lg = 12
+        const val Md = 8
         const val Full = 999
     }
 
@@ -85,8 +85,8 @@ object AppDesignTokens {
     }
 
     object Control {
-        const val ButtonHeight = 52
-        const val InputHeight = 52
+        const val ButtonHeight = 48
+        const val InputHeight = 48
         const val IconHitTarget = 48
         const val ListRowHeight = 56
         const val TwoLineRowHeight = 64
@@ -111,12 +111,12 @@ object AppColors {
     val TextDisabled = AppDesignTokens.Light.Ink4
     val Border = AppDesignTokens.Light.Stroke
     val Success = AppDesignTokens.Light.Success
-    val SuccessBackground = Color(0xFFE8F5EF)
+    val SuccessBackground = Color(0xFFE8F8EC)
     val MutedBackground = AppDesignTokens.Light.Group
     val Danger = AppDesignTokens.Light.Danger
     val DangerBackground = AppDesignTokens.Light.DangerSoft
     val NavIndicator = AppDesignTokens.Light.BrandSoft
     val Navigation = AppDesignTokens.Light.Glass
     val TealTint = AppDesignTokens.Light.BrandSoft
-    val TealSoft = Color(0xFFD7ECEA)
+    val TealSoft = Color(0xFFD7E7FF)
 }
