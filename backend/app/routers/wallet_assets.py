@@ -1,4 +1,5 @@
 import asyncio
+import os
 import re
 import time
 from decimal import Decimal, InvalidOperation
@@ -17,6 +18,9 @@ from app.services.provider_resilience import (
 from urllib.parse import urlparse
 
 router = APIRouter(prefix="/api/wallet-assets", tags=["wallet assets"])
+ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
+TRONGRID = "https://api.trongrid.io"
+TRON_USDT_CONTRACT = "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj"
 
 EVM_RPC = {
     "ethereum": ("https://ethereum-rpc.publicnode.com", "ETH", "eth-ethereum"),
@@ -34,6 +38,7 @@ BLOCKSCOUT = {
     "base": "https://base.blockscout.com",
     "polygon": "https://polygon.blockscout.com",
 }
+EVM_CHAIN_IDS = {"ethereum": 1, "bsc": 56, "polygon": 137, "arbitrum": 42161, "optimism": 10, "base": 8453, "avalanche": 43114}
 SOLANA_RPC = "https://api.mainnet-beta.solana.com"
 SOLANA_RPC_PROVIDERS = (SOLANA_RPC, "https://solana-rpc.publicnode.com")
 BITCOIN_API = "https://blockstream.info/api"
@@ -197,6 +202,79 @@ def normalize_solana_assets(balance_lamports: str, token_payloads: list,
             ))
     return assets
 
+
+async def fetch_evm_native_balance(client: httpx.AsyncClient, chain: str, address: str) -> tuple[str, str]:
+    """Prefer the server-side Etherscan V2 key; fall back to public RPC on provider limits."""
+    api_key = (os.getenv("ETHERSCAN_API_KEY") or "").strip()
+    if api_key:
+        try:
+            response = await client.get(ETHERSCAN_V2, params={
+                "chainid": str(EVM_CHAIN_IDS[chain]),
+                "module": "account",
+                "action": "balance",
+                "address": address,
+                "tag": "latest",
+                "apikey": api_key,
+            })
+            response.raise_for_status()
+            payload = response.json()
+            raw = payload.get("result") if isinstance(payload, dict) else None
+            if str(payload.get("status")) == "1" and isinstance(raw, str) and raw.isdigit():
+                return hex(int(raw)), "Etherscan V2"
+        except (httpx.HTTPError, ValueError, TypeError, KeyError):
+            pass
+
+    rpc_payload, rpc_provider = await post_json_rpc_with_provider_failover(
+        client, EVM_RPC_PROVIDERS[chain], {
+            "jsonrpc": "2.0", "id": 1, "method": "eth_getBalance",
+            "params": [address, "latest"],
+        }
+    )
+    native_wei = rpc_payload.get("result")
+    if not isinstance(native_wei, str) or not re.fullmatch(r"0x[0-9a-fA-F]+", native_wei):
+        raise HTTPException(503, "EVM 原生币余额暂时不可用")
+    return native_wei, f"{urlparse(rpc_provider).netloc} RPC"
+
+
+def normalize_tron_assets(payload: dict, trx_price: Decimal | None, usdt_price: Decimal | None) -> list[WalletAsset]:
+    rows = payload.get("data") if isinstance(payload, dict) else None
+    account = rows[0] if isinstance(rows, list) and rows and isinstance(rows[0], dict) else {}
+    try:
+        sun = int(account.get("balance") or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(502, "TRON 余额服务返回无效数据")
+    if sun < 0:
+        raise HTTPException(502, "TRON 余额服务返回无效数据")
+    trx = Decimal(sun) / Decimal(1_000_000)
+    price_text, usd_value = _price_value(trx, trx_price)
+    assets = [WalletAsset(
+        asset_id="tron:native", symbol="TRX", name="TRON", decimals=6,
+        raw_quantity=str(sun), formatted_quantity=format(trx, "f"),
+        price_usd=price_text, usd_value=usd_value, is_verified=True, source="trongrid",
+    )]
+    token_rows = account.get("trc20") or []
+    for item in token_rows:
+        if not isinstance(item, dict):
+            continue
+        raw = item.get(TRON_USDT_CONTRACT)
+        if raw is None:
+            continue
+        try:
+            raw_amount = int(str(raw))
+        except (TypeError, ValueError):
+            continue
+        if raw_amount <= 0:
+            continue
+        quantity = Decimal(raw_amount) / Decimal(1_000_000)
+        price_text, usd_value = _price_value(quantity, usdt_price)
+        assets.append(WalletAsset(
+            asset_id=f"tron:{TRON_USDT_CONTRACT}", contract_address=TRON_USDT_CONTRACT,
+            symbol="USDT", name="Tether USD", decimals=6, raw_quantity=str(raw_amount),
+            formatted_quantity=format(quantity, "f"), price_usd=price_text,
+            usd_value=usd_value, is_verified=True, source="trongrid-trc20",
+        ))
+    return assets
+
 async def fetch_price(client: httpx.AsyncClient, price_id: str) -> Decimal | None:
     try:
         response = await client.get(COINPAPRIKA + price_id)
@@ -240,16 +318,37 @@ async def verify_evm_token_contracts(
 @limiter.limit("12/minute")
 async def get_wallet_assets(
     request: Request,
-    chain: Literal["ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche", "bitcoin", "solana"],
+    chain: Literal["ethereum", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche", "bitcoin", "solana", "tron"],
     address: str,
 ):
-    expected = "Bitcoin" if chain == "bitcoin" else "SOL" if chain == "solana" else "EVM"
+    expected = "Bitcoin" if chain == "bitcoin" else "SOL" if chain == "solana" else "TRON" if chain == "tron" else "EVM"
     if identify_chain(address) != expected:
         raise HTTPException(422, "钱包地址格式与所选网络不匹配")
     fetched_at = int(time.time() * 1000)
     timeout = httpx.Timeout(20.0, connect=8.0)
     try:
         async with httpx.AsyncClient(timeout=timeout, headers={"User-Agent": "AirdropHunter/1.0"}) as client:
+            if chain == "tron":
+                headers = {}
+                tron_key = (os.getenv("TRONGRID_API_KEY") or "").strip()
+                if tron_key:
+                    headers["TRON-PRO-API-KEY"] = tron_key
+                response = await client.get(f"{TRONGRID}/v1/accounts/{address}", headers=headers)
+                response.raise_for_status()
+                payload = response.json()
+                assets = normalize_tron_assets(
+                    payload,
+                    await fetch_price(client, "trx-tron"),
+                    await fetch_price(client, "usdt-tether"),
+                )
+                data_rows = payload.get("data") if isinstance(payload, dict) else None
+                note = "当前展示 TRX 和已识别的 USDT；其他 TRC20 代币暂未纳入" if data_rows else "该地址暂无已激活的 TRON 链上账户数据"
+                return WalletAssetsResponse(
+                    chain=chain, network="TRON",
+                    provider="TronGrid + CoinPaprika",
+                    fetched_at=fetched_at, coverage_note=note, assets=assets,
+                )
+
             if chain == "bitcoin":
                 response, bitcoin_provider = await request_with_provider_failover(
                     client, "GET",
@@ -295,15 +394,7 @@ async def get_wallet_assets(
                                              fetched_at=fetched_at, coverage_note=note, assets=assets)
 
             _, _, native_price_id = EVM_RPC[chain]
-            rpc_payload, rpc_provider = await post_json_rpc_with_provider_failover(
-                client, EVM_RPC_PROVIDERS[chain], {
-                    "jsonrpc": "2.0", "id": 1, "method": "eth_getBalance",
-                    "params": [address, "latest"],
-                }
-            )
-            native_wei = rpc_payload.get("result")
-            if not isinstance(native_wei, str) or not re.fullmatch(r"0x[0-9a-fA-F]+", native_wei):
-                raise HTTPException(503, "EVM 原生币余额暂时不可用")
+            native_wei, native_provider = await fetch_evm_native_balance(client, chain, address)
 
             token_rows, token_unavailable = [], False
             blockscout = BLOCKSCOUT.get(chain)
@@ -339,7 +430,7 @@ async def get_wallet_assets(
             )
             return WalletAssetsResponse(
                 chain=chain, network=chain.title(),
-                provider=f"{urlparse(rpc_provider).netloc} + Blockscout + CoinPaprika",
+                provider=f"{native_provider} + Blockscout + CoinPaprika",
                 fetched_at=fetched_at, coverage_note=note, assets=assets,
             )
     except HTTPException:
