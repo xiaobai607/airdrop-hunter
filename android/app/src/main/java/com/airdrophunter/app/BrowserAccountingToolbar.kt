@@ -1285,8 +1285,9 @@ fun AccountingCenterScreen(
                     modifier = Modifier.weight(1f).height(42.dp)
                         .clip(RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
                         .clickable { selectedSection = id },
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp),
+                    border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
