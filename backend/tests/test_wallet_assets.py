@@ -47,3 +47,31 @@ def test_solana_only_known_mints_receive_verified_metadata_and_prices():
     assert assets[1].usd_value == "1.25"
     assert assets[2].is_verified is False
     assert assets[2].price_usd is None
+
+
+def test_tron_normalization_reads_native_trx_and_known_usdt_only():
+    from app.routers.wallet_assets import normalize_tron_assets, TRON_USDT_CONTRACT
+
+    payload = {"data": [{
+        "balance": 2_500_000,
+        "trc20": [
+            {TRON_USDT_CONTRACT: "1234567"},
+            {"TUnknownTokenContract": "9000000"},
+        ],
+    }]}
+    assets = normalize_tron_assets(payload, Decimal("0.1"), Decimal("1"))
+    assert assets[0].symbol == "TRX"
+    assert assets[0].formatted_quantity == "2.5"
+    assert assets[1].symbol == "USDT"
+    assert assets[1].formatted_quantity == "1.234567"
+    assert assets[1].is_verified is True
+    assert len(assets) == 2
+
+
+def test_tron_normalization_returns_zero_balance_for_not_yet_activated_address():
+    from app.routers.wallet_assets import normalize_tron_assets
+
+    assets = normalize_tron_assets({"data": []}, Decimal("0.1"), Decimal("1"))
+    assert len(assets) == 1
+    assert assets[0].symbol == "TRX"
+    assert assets[0].formatted_quantity == "0"
