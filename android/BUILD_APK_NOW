@@ -93,3 +93,5 @@ Navigation restructure (2026-11-18): five primary destinations Home, Airdrop Lib
 Wallet activity filter wording refinement (2026-11-18): use the explicit "Total Activity" label instead of ambiguous "All" for the complete transaction list; keep Sent and Received counts and allow horizontal scrolling on narrow screens. Run Android build/tests and package Debug APK.
 
 Wallet live balance integration (2026-11-19): connect the existing wallet-assets API to wallet details with account-scoped 8-hour cache, Etherscan V2 native EVM balance lookup, TRON TRX/known-USDT, Solana and Bitcoin balance display. Run backend pytest, Android unit tests and package Debug APK.
+
+Wallet balance UI compact pass (2026-11-19): keep the real balance summary compact above chain activity while preserving per-network balances and the 8-hour cache. Build/test final wallet balance integration.
