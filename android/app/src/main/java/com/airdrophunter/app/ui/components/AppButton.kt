@@ -40,7 +40,7 @@ fun AppButton(
     fullWidth: Boolean = true,
     heightDp: Int = if (style == AppButtonStyle.TEXT) 48 else AppDesignTokens.Control.ButtonHeight,
     leadingIcon: ImageVector? = null,
-    fontSizeSp: Int = 17
+    fontSizeSp: Int = 15
 ) {
     val colors = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)

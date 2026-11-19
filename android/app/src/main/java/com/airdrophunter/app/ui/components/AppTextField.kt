@@ -53,7 +53,7 @@ fun AppTextField(
     val borderColor = when {
         isError -> colors.error
         focused -> colors.primary
-        else -> Color.Transparent
+        else -> colors.outlineVariant
     }
     BasicTextField(
         value = value,
@@ -78,13 +78,7 @@ fun AppTextField(
                 },
                 shape
             )
-            .then(
-                if (borderColor != Color.Transparent) Modifier.border(
-                    if (focused || isError) 1.5.dp else 1.dp,
-                    borderColor,
-                    shape
-                ) else Modifier
-            )
+            .border(if (focused || isError) 1.5.dp else 1.dp, borderColor, shape)
             .onFocusChanged { focused = it.isFocused }
             .padding(horizontal = 16.dp, vertical = if (singleLine) 0.dp else 4.dp),
         enabled = enabled,
