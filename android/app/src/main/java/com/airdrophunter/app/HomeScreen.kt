@@ -107,6 +107,9 @@ fun HomeScreen(
     var dashboardWalletCount by remember { mutableIntStateOf(0) }
     var dashboardGasSpend by remember { mutableDoubleStateOf(0.0) }
     var dashboardActualIncome by remember { mutableDoubleStateOf(0.0) }
+    var dashboardRecentLedger by remember {
+        mutableStateOf<List<com.airdrophunter.app.data.PersonalLedgerWriteRequest>>(emptyList())
+    }
 
     LaunchedEffect(Unit) {
         marketSymbols = runCatching { CacheStore.readMarketDashboardSymbols() }
@@ -135,6 +138,7 @@ fun HomeScreen(
         val actualSummary = com.airdrophunter.app.data.summarizePersonalLedgerRows(snapshot.third)
         dashboardGasSpend = actualSummary.actualGasUsd
         dashboardActualIncome = actualSummary.valuedActualRewardUsd
+        dashboardRecentLedger = snapshot.third.take(2)
         sites = withContext(Dispatchers.IO) { AirdropSiteStore.load() }
         homeViewModel.load(isGuest)
     }
@@ -327,17 +331,36 @@ fun HomeScreen(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("记账与收益", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
+                        Text("最近记账", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("查看明细", color = MaterialTheme.colorScheme.primary,
+                        Text("查看全部", color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelMedium)
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        HomeDashboardMetric("累计实际支出", formatHomeUsd(dashboardGasSpend), modifier = Modifier.weight(1f))
-                        HomeDashboardMetric("已确认实际收益", formatHomeUsd(dashboardActualIncome), modifier = Modifier.weight(1f),
-                            valueColor = MaterialTheme.colorScheme.primary)
+                    if (dashboardRecentLedger.isEmpty()) {
+                        Text("还没有记账记录", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        dashboardRecentLedger.forEachIndexed { index, entry ->
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(entry.project_name.ifBlank { entry.interaction_method },
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    "支出 ${formatHomeUsd(entry.actual_gas_cost_usd)}  ·  收益 ${formatHomeUsd(entry.actual_reward_usd)}",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                                Text(entry.occurred_at.substringBefore('T'),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelSmall)
+                            }
+                            if (index != dashboardRecentLedger.lastIndex) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
+                        }
                     }
                 }
             }
