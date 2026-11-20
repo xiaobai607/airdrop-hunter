@@ -498,7 +498,8 @@ private fun X5BrowserScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
-                            OutlinedButton(
+                            AppButton(
+                                text = "恢复内核下载",
                                 onClick = {
                                     val resumed = X5KernelInitializer.resumeDownload()
                                     Toast.makeText(
@@ -506,10 +507,10 @@ private fun X5BrowserScreen(
                                         if (resumed) "已请求恢复 X5 内核下载，请稍候查看状态" else "当前无需恢复下载",
                                         Toast.LENGTH_LONG
                                     ).show()
-                                }
-                            ) {
-                                Text("恢复内核下载")
-                            }
+                                },
+                                style = AppButtonStyle.SECONDARY,
+                                fullWidth = false
+                            )
                             if (kernelDiagnostics.downloadCode == 111) {
                                 Text(
                                     "检测到状态码 111：当前网络不是 Wi‑Fi，腾讯 SDK 按默认策略拒绝下载。",
@@ -517,9 +518,11 @@ private fun X5BrowserScreen(
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
-                            OutlinedButton(onClick = { showCellularDownloadDialog = true }) {
-                                Text("授权使用移动数据下载")
-                            }
+                            AppButton(
+                                text = "授权使用移动数据下载",
+                                onClick = { showCellularDownloadDialog = true },
+                                style = AppButtonStyle.SECONDARY
+                            )
                         }
                     }
                     X5KernelState.AVAILABLE -> {
@@ -947,7 +950,7 @@ private fun X5BrowserScreen(
                 Text("腾讯 X5 内核下载可能消耗约 40–50 MB 流量。授权后会保存此选择，并在下次完整重启 APP 时应用；不会切换到系统 WebView。")
             },
             confirmButton = {
-                TextButton(onClick = {
+                AppTextButton(onClick = {
                     X5KernelInitializer.enableCellularDownload(context)
                     showCellularDownloadDialog = false
                     Toast.makeText(
@@ -958,7 +961,7 @@ private fun X5BrowserScreen(
                 }) { Text("允许并重启 APP") }
             },
             dismissButton = {
-                TextButton(onClick = { showCellularDownloadDialog = false }) { Text("暂不允许") }
+                AppTextButton(onClick = { showCellularDownloadDialog = false }) { Text("暂不允许") }
             }
         )
     }
@@ -977,7 +980,7 @@ private fun X5BrowserScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
+                AppTextButton(onClick = {
                     val addresses = connectedDappAccounts.map { it.address }.distinct()
                     if (addresses.isNotEmpty()) {
                         DappOriginPermissionStore.grant(pending.origin, x5DappAuthorizationStamp())
@@ -990,7 +993,7 @@ private fun X5BrowserScreen(
                 }) { Text(if (connectedDappAccounts.isEmpty()) "连接钱包并授权" else "确认授权") }
             },
             dismissButton = {
-                TextButton(onClick = {
+                AppTextButton(onClick = {
                     DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                     pendingDappConnection = null
                 }) { Text("拒绝") }
