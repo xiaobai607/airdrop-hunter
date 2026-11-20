@@ -123,8 +123,8 @@ private fun X5BrowserScreen(
     var pageState by remember(initialUrl) { mutableStateOf(X5PageState.Loading) }
     var pageError by remember(initialUrl) { mutableStateOf<String?>(null) }
     var progress by remember { mutableIntStateOf(0) }
-    var isX5InstanceConfirmed by remember { mutableStateOf(false) }
-    var showCellularDownloadDialog by remember { mutableStateOf(false) }
+    var isBrowserInstanceReady by remember { mutableStateOf(false) }
+    var isUsingX5Core by remember { mutableStateOf(false) }
     val connectedDappAccounts by WalletConnectSessionDelegate.accounts.collectAsStateWithLifecycle()
     val walletSessionGeneration by WalletConnectSessionDelegate.sessionGeneration.collectAsStateWithLifecycle()
     val activeWalletConnectTopic by WalletConnectSessionDelegate.sessionTopic.collectAsStateWithLifecycle()
@@ -250,7 +250,7 @@ private fun X5BrowserScreen(
             kotlinx.coroutines.delay(30_000)
             if (pageState == X5PageState.Loading) {
                 pageState = X5PageState.Error
-                pageError = "错误类型：X5 页面加载超时\n等待时间：30 秒\n当前网站：${Uri.parse(currentUrl).host.orEmpty().ifBlank { "未知网站" }}\n说明：腾讯 X5 内核未能在等待时间内提交首屏内容。"
+                pageError = "错误类型：X5 页面加载超时\n等待时间：30 秒\n当前网站：${Uri.parse(currentUrl).host.orEmpty().ifBlank { "未知网站" }}\n说明：浏览器内核未能在等待时间内提交首屏内容。"
             }
         }
     }
@@ -259,8 +259,8 @@ private fun X5BrowserScreen(
         val target = normalizeX5BrowserUrl(addressInput)
         if (target == null) {
             Toast.makeText(context, "网址无效，请输入正确的网址", Toast.LENGTH_SHORT).show()
-        } else if (!isX5InstanceConfirmed || browser == null) {
-            Toast.makeText(context, "腾讯 X5 内核尚未就绪，暂时不能加载网页", Toast.LENGTH_LONG).show()
+        } else if (!isBrowserInstanceReady || browser == null) {
+            Toast.makeText(context, "浏览器正在准备，请稍后重试", Toast.LENGTH_LONG).show()
         } else {
             isAddressEditing = false
             currentUrl = target
@@ -428,7 +428,7 @@ private fun X5BrowserScreen(
                             pageError = null
                             browser?.reload()
                         },
-                        enabled = isX5InstanceConfirmed,
+                        enabled = isBrowserInstanceReady,
                         style = AppButtonStyle.SECONDARY,
                         fullWidth = false,
                         heightDp = 44
@@ -436,11 +436,11 @@ private fun X5BrowserScreen(
                     Spacer(Modifier.weight(1f))
                     Text(
                         when (kernelState) {
-                            X5KernelState.AVAILABLE -> if (isX5InstanceConfirmed) "腾讯 X5" else "验证内核…"
+                            X5KernelState.AVAILABLE -> if (!isBrowserInstanceReady) "浏览器准备中" else if (isUsingX5Core) "腾讯 X5" else "系统内核备用"
                             X5KernelState.INITIALIZING, X5KernelState.NOT_STARTED -> "X5 初始化中"
-                            X5KernelState.UNAVAILABLE -> "X5 不可用"
+                            X5KernelState.UNAVAILABLE -> "浏览器内核异常"
                         },
-                        color = if (kernelState == X5KernelState.AVAILABLE && isX5InstanceConfirmed)
+                        color = if (kernelState == X5KernelState.AVAILABLE && isBrowserInstanceReady)
                             MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold
@@ -467,61 +467,17 @@ private fun X5BrowserScreen(
                         }
                     }
                     X5KernelState.UNAVAILABLE -> {
-                        val help = remember(kernelState) {
-                            runCatching { com.tencent.smtt.sdk.QbSdk.getX5CoreLoadHelp(context.applicationContext) }
-                                .getOrNull().orEmpty()
-                        }
                         Column(
-                            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(18.dp),
+                            Modifier.fillMaxWidth().padding(18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Md.dp)
                         ) {
-                            Text("腾讯 X5 内核暂不可用", color = MaterialTheme.colorScheme.error,
+                            Text("浏览器内核初始化异常", color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text("当前没有悄悄切回系统内核。为了避免误以为正在使用腾讯内核，网页暂不加载。",
-                                color = MaterialTheme.colorScheme.onBackground)
                             Text(
-                                "SDK 版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsSdkVersion() }.getOrDefault(0)}\n" +
-                                    "内核版本：${runCatching { com.tencent.smtt.sdk.QbSdk.getTbsVersion(context) }.getOrDefault(0)}\n" +
-                                    "下载进度：${kernelDiagnostics.downloadProgress?.let { "$it%" } ?: "尚无回调"}\n" +
-                                    "下载状态码：${kernelDiagnostics.downloadCode?.toString() ?: "暂无"}\n" +
-                                    "下载状态解释：${x5DownloadCodeHint(kernelDiagnostics.downloadCode)}\n" +
-                                    "安装状态码：${kernelDiagnostics.installCode?.toString() ?: "暂无"}\n" +
-                                    "安装状态解释：${x5InstallCodeHint(kernelDiagnostics.installCode)}\n" +
-                                    "核心初始化：${if (kernelDiagnostics.coreInitFinished) "已完成" else "未完成"}\n" +
-                                    "诊断信息：${kernelDiagnostics.lastFailure ?: help.ifBlank { "腾讯 SDK 未提供详细原因" }}",
+                                kernelDiagnostics.lastFailure ?: "系统浏览器内核暂时无法启动，请稍后重试。",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                "说明：只有下载状态码 -122 等明确返回时，才按腾讯 SDK 的下载请求条件/间隔规则处理；恢复按钮只能继续当前进程中已暂停的下载，不能绕过官方限流。",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            AppButton(
-                                text = "恢复内核下载",
-                                onClick = {
-                                    val resumed = X5KernelInitializer.resumeDownload()
-                                    Toast.makeText(
-                                        context,
-                                        if (resumed) "已请求恢复 X5 内核下载，请稍候查看状态" else "当前无需恢复下载",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                },
-                                style = AppButtonStyle.SECONDARY,
-                                fullWidth = false
-                            )
-                            if (kernelDiagnostics.downloadCode == 111) {
-                                Text(
-                                    "检测到状态码 111：当前网络不是 Wi‑Fi，腾讯 SDK 按默认策略拒绝下载。",
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                            AppButton(
-                                text = "授权使用移动数据下载",
-                                onClick = { showCellularDownloadDialog = true },
-                                style = AppButtonStyle.SECONDARY
                             )
                         }
                     }
@@ -866,14 +822,11 @@ private fun X5BrowserScreen(
                                             setDownloadListener { downloadUrl, _, _, _, _ ->
                                                 Toast.makeText(context, "检测到下载链接，请使用外部浏览器处理：${Uri.parse(downloadUrl).host.orEmpty().ifBlank { "未知网站" }}", Toast.LENGTH_LONG).show()
                                             }
-                                            if (getIsX5Core()) {
-                                                isX5InstanceConfirmed = true
-                                                loadUrl(initialUrl)
-                                            } else {
-                                                isX5InstanceConfirmed = false
-                                                pageState = X5PageState.Error
-                                                pageError = "错误类型：X5 内核验证失败\n说明：SDK WebView 实例没有使用腾讯 X5 内核。为避免冒充 X5，本页面没有加载网址。"
-                                            }
+                                            isUsingX5Core = getIsX5Core()
+                                            isBrowserInstanceReady = true
+                                            // The Tencent wrapper automatically uses Android System WebView
+                                            // when X5 is unavailable; do not block the initial page load.
+                                            loadUrl(initialUrl)
                                         }
                                     }.getOrElse { error ->
                                         pageState = X5PageState.Error
@@ -888,7 +841,7 @@ private fun X5BrowserScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
-                        if (!isX5InstanceConfirmed || pageState == X5PageState.Error) {
+                        if (!isBrowserInstanceReady || pageState == X5PageState.Error) {
                             Column(
                                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(18.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -900,7 +853,7 @@ private fun X5BrowserScreen(
                                 AppButton(
                                     text = "重新加载",
                                     onClick = {
-                                        if (browser != null && isX5InstanceConfirmed) {
+                                        if (browser != null && isBrowserInstanceReady) {
                                             pageState = X5PageState.Loading
                                             pageError = null
                                             browser?.reload()
@@ -915,7 +868,7 @@ private fun X5BrowserScreen(
                         } else if (pageState == X5PageState.Loading && browser != null) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 CircularProgressIndicator()
-                                Text("正在使用腾讯 X5 加载网页", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(if (isUsingX5Core) "正在使用腾讯 X5 加载网页" else "正在使用系统内核加载网页", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -941,29 +894,6 @@ private fun X5BrowserScreen(
                 showWalletTools = false
             )
         }
-    }
-    if (showCellularDownloadDialog) {
-        AlertDialog(
-            onDismissRequest = { showCellularDownloadDialog = false },
-            title = { Text("允许使用移动数据下载 X5 内核？") },
-            text = {
-                Text("腾讯 X5 内核下载可能消耗约 40–50 MB 流量。授权后会保存此选择，并在下次完整重启 APP 时应用；不会切换到系统 WebView。")
-            },
-            confirmButton = {
-                AppTextButton(onClick = {
-                    X5KernelInitializer.enableCellularDownload(context)
-                    showCellularDownloadDialog = false
-                    Toast.makeText(
-                        context,
-                        "已保存移动数据下载授权，请完全退出并重新打开 APP",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }) { Text("允许并重启 APP") }
-            },
-            dismissButton = {
-                AppTextButton(onClick = { showCellularDownloadDialog = false }) { Text("暂不允许") }
-            }
-        )
     }
         pendingDappConnection?.takeIf { !waitingDappWalletApproval }?.let { pending ->
         val requestedHost = runCatching { Uri.parse(pending.origin).host.orEmpty() }.getOrDefault("unknown site")
