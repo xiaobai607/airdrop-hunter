@@ -105,3 +105,5 @@ UI system validation (2026-11-20): compile repair for settings/security/notifica
 Global typography alignment (2026-11-20): apply the approved 18/16/14/12sp hierarchy app-wide and standard 24dp dashboard module spacing. Run Android tests and package Debug APK.
 
 Screen spacing pass: manual accounting form sections and wallet overview modules use 24dp separation; project filter row uses balanced vertical breathing room. Build and test this batch.
+
+Browser accounting toolbar UI pass: use shared 12sp label typography and shared 12dp card radius tokens. Preserve all accounting, pending transaction and wallet behavior.
