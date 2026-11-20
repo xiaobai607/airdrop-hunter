@@ -71,16 +71,25 @@ class WalletActivityRepository(
         guest: Boolean,
         accessToken: String? = TokenStore.readTokenBlocking(),
         manual: Boolean = false,
-        force: Boolean = false
+        force: Boolean = false,
+        manualCooldownMillis: Long = DEFAULT_MANUAL_COOLDOWN_MILLIS
     ): WalletActivitySnapshot {
         val token = accessToken?.takeIf { it.isNotBlank() }
         val scopedCacheKey = metadataCacheKey(wallet, token)
+        if (manual && !force) {
+            val remaining = manualRefreshCooldownRemainingMillis(wallet, token, manualCooldownMillis)
+            if (remaining > 0L) {
+                val cached = readCached(wallet, guest, token)
+                return (cached ?: throw IllegalStateException("请等待冷却结束后再刷新"))
+                    .copy(throttled = true)
+            }
+        }
         val result = cacheRefresh.load(
             cacheKey = scopedCacheKey,
             source = WALLET_ACTIVITY_SOURCE,
             ttlMillis = WALLET_ACTIVITY_TTL_MILLIS,
-            manual = manual,
-            force = force,
+            manual = false,
+            force = force || manual,
             readCache = { readCached(wallet, guest, token) },
             fetch = {
                 val authorizationHeader = token?.let { "Bearer $it" }
@@ -96,6 +105,19 @@ class WalletActivityRepository(
             .copy(stale = result.stale, errorMessage = result.errorMessage, throttled = result.throttled)
     }
 
+    suspend fun manualRefreshCooldownRemainingMillis(
+        wallet: WalletDto,
+        accessToken: String?,
+        cooldownMillis: Long
+    ): Long {
+        val metadata = CacheStore.readCacheMetadata(metadataCacheKey(wallet, accessToken), WALLET_ACTIVITY_SOURCE)
+        return walletActivityCooldownRemainingMillis(
+            metadata?.fetchedAt ?: 0L,
+            System.currentTimeMillis(),
+            cooldownMillis
+        )
+    }
+
     private fun cacheKey(wallet: WalletDto) = "wallet_activity:${wallet.id}"
 
     private fun metadataCacheKey(wallet: WalletDto, accessToken: String?) =
@@ -104,6 +126,7 @@ class WalletActivityRepository(
     companion object {
         private const val WALLET_ACTIVITY_SOURCE = "private-wallet-activity"
         private const val WALLET_ACTIVITY_TTL_MILLIS = 8 * 60 * 60 * 1000L
+        const val DEFAULT_MANUAL_COOLDOWN_MILLIS = 30 * 60 * 1000L
     }
 
     suspend fun load(
@@ -133,4 +156,13 @@ class WalletActivityRepository(
             )
             else -> throw IllegalArgumentException("该地址类型暂不支持交易记录查询")
         }
+}
+
+internal fun walletActivityCooldownRemainingMillis(
+    lastSuccessfulRefreshAt: Long,
+    now: Long,
+    cooldownMillis: Long
+): Long {
+    if (lastSuccessfulRefreshAt <= 0L || cooldownMillis <= 0L || now < lastSuccessfulRefreshAt) return 0L
+    return (lastSuccessfulRefreshAt + cooldownMillis - now).coerceAtLeast(0L)
 }
