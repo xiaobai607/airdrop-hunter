@@ -35,6 +35,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.Web3TransactionRepository
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
+import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.reown.appkit.client.AppKit
 import com.reown.appkit.client.Modal
 import com.reown.appkit.client.models.request.Request as ExternalWalletRequest
@@ -245,7 +246,7 @@ private fun X5BrowserScreen(
             kotlinx.coroutines.delay(30_000)
             if (pageState == X5PageState.Loading) {
                 pageState = X5PageState.Error
-                pageError = "错误类型：X5 页面加载超时\n等待时间：30 秒\n当前网址：$currentUrl\n说明：腾讯 X5 内核未能在等待时间内提交首屏内容。"
+                pageError = "错误类型：X5 页面加载超时\n等待时间：30 秒\n当前网站：${Uri.parse(currentUrl).host.orEmpty().ifBlank { "未知网站" }}\n说明：腾讯 X5 内核未能在等待时间内提交首屏内容。"
             }
         }
     }
@@ -354,8 +355,8 @@ private fun X5BrowserScreen(
                 Modifier.fillMaxWidth()
                     .statusBarsPadding()
                     .background(MaterialTheme.colorScheme.background)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                     .padding(horizontal = AppDesignTokens.Spacing.Lg.dp, vertical = AppDesignTokens.Spacing.Sm.dp),
+                verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = onExit, contentPadding = PaddingValues(horizontal = 8.dp)) {
@@ -441,7 +442,7 @@ private fun X5BrowserScreen(
             ) {
                 when (kernelState) {
                     X5KernelState.NOT_STARTED, X5KernelState.INITIALIZING -> {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Md.dp)) {
                             CircularProgressIndicator()
                             Text("正在准备腾讯 X5 内核", color = MaterialTheme.colorScheme.onBackground)
                             Text("内核初始化完成后会自动打开网页", color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -456,7 +457,7 @@ private fun X5BrowserScreen(
                         Column(
                             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Md.dp)
                         ) {
                             Text("腾讯 X5 内核暂不可用", color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -843,7 +844,7 @@ private fun X5BrowserScreen(
                                                 }
                                             }
                                             setDownloadListener { downloadUrl, _, _, _, _ ->
-                                                Toast.makeText(context, "检测到下载链接，请使用外部浏览器处理：${downloadUrl.take(100)}", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, "检测到下载链接，请使用外部浏览器处理：${Uri.parse(downloadUrl).host.orEmpty().ifBlank { "未知网站" }}", Toast.LENGTH_LONG).show()
                                             }
                                             if (getIsX5Core()) {
                                                 isX5InstanceConfirmed = true
@@ -871,7 +872,7 @@ private fun X5BrowserScreen(
                             Column(
                                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(18.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Md.dp)
                             ) {
                                 Text("网页无法打开", color = MaterialTheme.colorScheme.error,
                                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
