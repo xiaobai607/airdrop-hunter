@@ -3244,3 +3244,12 @@ The user reports that the built-in browser cannot reliably open websites, airdro
 - Search page autofocuses its input and presents local history with a 200ms fade/260ms collapse. Search results enter with an 8dp upward slide and 40ms stagger, capped at six items.
 - Home's platform navigator is a searchable two-column bottom sheet, not a centered dialog. The app-wide search remains a separate single global search entry beneath the market board.
 - Wallet, project, community, official campaign and announcement lists use stable-key first-entry staggered motion; a list row must not replay the animation when the user scrolls away and back.
+
+### Wallet activity refresh policy update (2026-11-20)
+
+- Wallet transaction activity is cache-only when the app or wallet detail page opens. Opening the app must not silently trigger a chain-provider request.
+- Users explicitly tap the refresh control to fetch wallet activity. The refresh interval is a user preference with two choices: 30 minutes or 1 hour (default: 30 minutes).
+- A successful fetch starts the cooldown; failed or interrupted fetches do not start a new cooldown. The UI shows the remaining cooldown and disables manual refresh until it expires.
+- The cooldown is evaluated against the last successful snapshot timestamp, so it survives app restarts and does not depend on an in-memory timer.
+- Wallet activity is excluded from the periodic global WorkManager dispatcher. Other unrelated background sync sources retain their existing schedules.
+
