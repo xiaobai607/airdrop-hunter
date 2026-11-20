@@ -102,7 +102,8 @@ class AirdropHunterApplication : Application(), ImageLoaderFactory {
 
         // The user explicitly wants browsing to work on Wi-Fi and mobile data.
         // Allow Tencent's kernel download on any available network before initialization.
-        QbSdk.setDownloadWithoutWifi(true)
+        runCatching { QbSdk.setDownloadWithoutWifi(true) }
+            .onFailure { Log.w("AirdropX5", "Could not enable X5 kernel download on mobile networks", it) }
 
         // X5 pre-initialization is asynchronous. Ordinary website browsing is routed to the
         // dedicated X5 browser surface; the legacy system WebView remains for its existing
