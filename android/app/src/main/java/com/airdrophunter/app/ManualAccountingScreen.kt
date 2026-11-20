@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import com.airdrophunter.app.data.LedgerAssetAmount
 import com.airdrophunter.app.data.LedgerAssetBreakdownCodec
 import com.airdrophunter.app.data.PersonalLedgerWriteRequest
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppTextField
 import com.airdrophunter.app.ui.theme.AppColors
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import kotlinx.coroutines.launch
@@ -86,40 +89,43 @@ fun ManualAccountingScreen(
             }
 
             AccountingFormSection(title = "基础信息", description = "项目可不关联，先把真实账目记录下来。") {
-                OutlinedTextField(
-                    value = projectName,
-                    onValueChange = { projectName = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("归属项目（选填）") },
-                    placeholder = { Text("例如：Linea、Scroll") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(AppDesignTokens.Radius.Sm.dp)
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)) {
+                    Text("归属项目（选填）", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                    AppTextField(
+                        value = projectName,
+                        onValueChange = { projectName = it },
+                        placeholder = "例如：Linea、Scroll"
+                    )
+                }
             }
 
             AccountingFormSection(title = "费用与收益", description = "金额统一按 USD 记录；没有收益请填写 0。") {
-                OutlinedTextField(
-                    value = gasUsd,
-                    onValueChange = { gasUsd = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Gas 支出（USD）*") },
-                    placeholder = { Text("0.00") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(AppDesignTokens.Radius.Sm.dp),
-                    supportingText = { if (gasUsd.isNotBlank() && gas == null) Text("请输入有效的非负数字") }
-                )
-                OutlinedTextField(
-                    value = rewardUsd,
-                    onValueChange = { rewardUsd = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("实际收益（USD）*") },
-                    placeholder = { Text("没有收益请填 0") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(AppDesignTokens.Radius.Sm.dp),
-                    supportingText = { if (rewardUsd.isNotBlank() && reward == null) Text("请输入有效的非负数字") }
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)) {
+                    Text("Gas 支出（USD）*", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                    AppTextField(
+                        value = gasUsd,
+                        onValueChange = { gasUsd = it },
+                        placeholder = "0.00",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        isError = gasUsd.isNotBlank() && gas == null
+                    )
+                    if (gasUsd.isNotBlank() && gas == null) {
+                        Text("请输入有效的非负数字", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)) {
+                    Text("实际收益（USD）*", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                    AppTextField(
+                        value = rewardUsd,
+                        onValueChange = { rewardUsd = it },
+                        placeholder = "没有收益请填 0",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        isError = rewardUsd.isNotBlank() && reward == null
+                    )
+                    if (rewardUsd.isNotBlank() && reward == null) {
+                        Text("请输入有效的非负数字", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
             }
 
             AccountingFormSection(
@@ -133,7 +139,7 @@ fun ManualAccountingScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    TextButton(onClick = { showNativeDetails = !showNativeDetails }) {
+                    AppTextButton(onClick = { showNativeDetails = !showNativeDetails }) {
                         Text(if (showNativeDetails) "收起" else "展开")
                         Icon(
                             if (showNativeDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -144,38 +150,38 @@ fun ManualAccountingScreen(
                 if (showNativeDetails) {
                     Text("Gas 原生金额", style = MaterialTheme.typography.labelLarge, color = AppColors.TextSecondary)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            gasNative, { gasNative = it }, Modifier.weight(1.2f),
-                            label = { Text("数量") }, singleLine = true,
+                        AppTextField(
+                            value = gasNative, onValueChange = { gasNative = it },
+                            placeholder = "数量", modifier = Modifier.weight(1.2f),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                         )
-                        OutlinedTextField(
-                            gasSymbol, { gasSymbol = it.uppercase(Locale.US) }, Modifier.weight(0.8f),
-                            label = { Text("币种") }, singleLine = true
+                        AppTextField(
+                            value = gasSymbol, onValueChange = { gasSymbol = it.uppercase(Locale.US) },
+                            placeholder = "币种", modifier = Modifier.weight(0.8f)
                         )
                     }
-                    OutlinedTextField(
-                        gasDecimals, { gasDecimals = it.filter(Char::isDigit).take(2) },
-                        Modifier.fillMaxWidth(), label = { Text("精度（选填）" ) },
-                        singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    AppTextField(
+                        value = gasDecimals, onValueChange = { gasDecimals = it.filter(Char::isDigit).take(2) },
+                        modifier = Modifier.fillMaxWidth(), placeholder = "精度（选填）",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text("收益原生金额", style = MaterialTheme.typography.labelLarge, color = AppColors.TextSecondary)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            rewardNative, { rewardNative = it }, Modifier.weight(1.2f),
-                            label = { Text("数量") }, singleLine = true,
+                        AppTextField(
+                            value = rewardNative, onValueChange = { rewardNative = it },
+                            placeholder = "数量", modifier = Modifier.weight(1.2f),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                         )
-                        OutlinedTextField(
-                            rewardSymbol, { rewardSymbol = it.uppercase(Locale.US) }, Modifier.weight(0.8f),
-                            label = { Text("币种") }, singleLine = true
+                        AppTextField(
+                            value = rewardSymbol, onValueChange = { rewardSymbol = it.uppercase(Locale.US) },
+                            placeholder = "币种", modifier = Modifier.weight(0.8f)
                         )
                     }
-                    OutlinedTextField(
-                        rewardDecimals, { rewardDecimals = it.filter(Char::isDigit).take(2) },
-                        Modifier.fillMaxWidth(), label = { Text("精度（选填）") },
-                        singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    AppTextField(
+                        value = rewardDecimals, onValueChange = { rewardDecimals = it.filter(Char::isDigit).take(2) },
+                        modifier = Modifier.fillMaxWidth(), placeholder = "精度（选填）",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }
             }
@@ -200,11 +206,12 @@ fun ManualAccountingScreen(
             tonalElevation = 1.dp,
             shadowElevation = 4.dp
         ) {
-            Button(
+            AppButton(
+                text = if (saving) "保存中…" else "保存记账",
                 onClick = {
-                    val safeGas = gas ?: return@Button
-                    val safeReward = reward ?: return@Button
-                    if (saving || !nativeValid) return@Button
+                    val safeGas = gas ?: return@AppButton
+                    val safeReward = reward ?: return@AppButton
+                    if (saving || !nativeValid) return@AppButton
                     val now = Instant.now().toString()
                     val assets = buildList {
                         if (gasNative.isNotBlank()) add(LedgerAssetAmount("gas", gasNative.trim(), gasSymbol.trim(), gasDecimals.toIntOrNull()))
@@ -242,15 +249,9 @@ fun ManualAccountingScreen(
                     }
                 },
                 enabled = !saving && gas != null && reward != null && nativeValid,
-                modifier = Modifier.fillMaxWidth().height(AppDesignTokens.Control.ButtonHeight.dp),
-                shape = RoundedCornerShape(AppDesignTokens.Radius.Sm.dp)
-            ) {
-                if (saving) {
-                    CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(if (saving) "保存中…" else "保存记账")
-            }
+                loading = saving,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -270,7 +271,7 @@ private fun AccountingFormSection(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Md.dp),
             content = {
                 Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                 if (!description.isNullOrBlank()) {
