@@ -100,13 +100,9 @@ class AirdropHunterApplication : Application(), ImageLoaderFactory {
         WalletConnectSessionDelegate.attachApplicationContext(this)
         ApiClient.initialize(this)
 
-        // Respect an explicit user opt-in before X5 initialization. Tencent blocks kernel
-        // downloads on mobile data by default; never enable metered downloads silently.
-        if (getSharedPreferences(X5KernelInitializer.PREFS_NAME, MODE_PRIVATE)
-                .getBoolean(X5KernelInitializer.ALLOW_CELLULAR_KEY, false)
-        ) {
-            QbSdk.setDownloadWithoutWifi(true)
-        }
+        // The user explicitly wants browsing to work on Wi-Fi and mobile data.
+        // Allow Tencent's kernel download on any available network before initialization.
+        QbSdk.setDownloadWithoutWifi(true)
 
         // X5 pre-initialization is asynchronous. Ordinary website browsing is routed to the
         // dedicated X5 browser surface; the legacy system WebView remains for its existing
@@ -232,6 +228,7 @@ data class X5KernelDiagnostics(
     val downloadCode: Int? = null,
     val installCode: Int? = null,
     val coreInitFinished: Boolean = false,
+    val usingX5Core: Boolean? = null,
     val lastFailure: String? = null
 )
 
@@ -302,32 +299,42 @@ object X5KernelInitializer {
 
                         if (actuallyUsingX5) {
                             _state.value = X5KernelState.AVAILABLE
-                            _diagnostics.value = _diagnostics.value.copy(lastFailure = null)
+                            _diagnostics.value = _diagnostics.value.copy(
+                                usingX5Core = true,
+                                lastFailure = null
+                            )
                             Log.i(
                                 TAG,
                                 "X5 ready; sdkVersion=${QbSdk.getTbsSdkVersion()}, " +
                                     "coreVersion=${QbSdk.getTbsVersion(appContext)}"
                             )
                         } else {
-                            _state.value = X5KernelState.UNAVAILABLE
+                            // Tencent documents that its WebView wrapper falls back to
+                            // Android System WebView when the X5 core is unavailable.
+                            _state.value = X5KernelState.AVAILABLE
                             val help = runCatching {
                                 QbSdk.getX5CoreLoadHelp(appContext)
                             }.getOrNull()
                             _diagnostics.value = _diagnostics.value.copy(
-                                lastFailure = help?.takeIf { it.isNotBlank() }
-                                    ?: "X5 WebView 验证失败；请查看下载/安装状态码"
+                                usingX5Core = false,
+                                lastFailure = "X5 内核暂不可用，已自动切换系统 WebView" +
+                                    help?.takeIf { it.isNotBlank() }?.let { "；$it" }.orEmpty()
                             )
-                            Log.w(TAG, "X5 unavailable; callbackAvailable=$isX5Available; help=$help")
+                            Log.w(TAG, "X5 unavailable; system WebView fallback enabled; callbackAvailable=$isX5Available; help=$help")
                         }
                     }
                 }
             )
         } catch (error: Exception) {
-            _state.value = X5KernelState.UNAVAILABLE
+            // An initialization exception must not take ordinary website browsing down.
+            runCatching { QbSdk.forceSysWebView() }
+                .onFailure { Log.w(TAG, "Could not force system WebView fallback", it) }
+            _state.value = X5KernelState.AVAILABLE
             _diagnostics.value = _diagnostics.value.copy(
-                lastFailure = error.message ?: error.javaClass.simpleName
+                usingX5Core = false,
+                lastFailure = "X5 初始化异常，已切换系统 WebView：${error.message ?: error.javaClass.simpleName}"
             )
-            Log.e(TAG, "X5 initialization failed", error)
+            Log.e(TAG, "X5 initialization failed; system WebView fallback selected", error)
         }
     }
 
