@@ -212,9 +212,8 @@ object WalletConnectInitializer {
 /**
  * Process-wide Tencent X5 initialization and download diagnostics.
  *
- * The SDK owns kernel download/retry throttling. We expose its callbacks and only
- * resume a paused in-process download on explicit user action; we never force a
- * system-WebView fallback or repeatedly call initX5Environment.
+ * The SDK owns kernel download/retry throttling. X5 is preferred, but ordinary
+ * website browsing must remain available through Android System WebView fallback.
  */
 enum class X5KernelState {
     NOT_STARTED,
@@ -233,8 +232,6 @@ data class X5KernelDiagnostics(
 )
 
 object X5KernelInitializer {
-    const val PREFS_NAME = "x5_kernel_settings"
-    const val ALLOW_CELLULAR_KEY = "allow_cellular_download"
     private const val TAG = "AirdropX5"
 
     @Volatile
@@ -338,37 +335,22 @@ object X5KernelInitializer {
         }
     }
 
-    /**
-     * Stores an explicit metered-network consent. The setting is applied before
-     * initX5Environment on the next process start, not silently enabled by default.
-     */
-    fun enableCellularDownload(context: Context) {
-        context.applicationContext
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(ALLOW_CELLULAR_KEY, true)
-            .apply()
-        runCatching { QbSdk.setDownloadWithoutWifi(true) }
-            .onFailure { Log.w(TAG, "Could not apply cellular download consent in current process", it) }
-    }
 
     /**
-     * Tencent documents resumeDownload() as resuming a paused download in this process.
-     * It is not a bypass for the SDK's 24-hour request throttle or a fresh-download API.
+     * Keeps normal website browsing available if the vendor kernel never responds.
+     * The current process uses Android System WebView; a later app process can retry X5.
      */
-    fun resumeDownload(): Boolean {
-        if (_state.value == X5KernelState.AVAILABLE) return false
-        return runCatching {
-            QbSdk.resumeDownload()
-            _state.value = X5KernelState.INITIALIZING
-            _diagnostics.value = _diagnostics.value.copy(lastFailure = null)
-            Log.i(TAG, "Requested resume of in-process X5 download")
-            true
-        }.onFailure {
-            _diagnostics.value = _diagnostics.value.copy(
-                lastFailure = it.message ?: it.javaClass.simpleName
-            )
-            Log.e(TAG, "Could not resume X5 download", it)
-        }.getOrDefault(false)
+    @Synchronized
+    fun activateSystemWebViewFallback(reason: String) {
+        if (_state.value == X5KernelState.AVAILABLE) return
+        runCatching { QbSdk.forceSysWebView() }
+            .onFailure { Log.w(TAG, "Could not force system WebView fallback", it) }
+        _state.value = X5KernelState.AVAILABLE
+        _diagnostics.value = _diagnostics.value.copy(
+            usingX5Core = false,
+            lastFailure = reason
+        )
+        Log.w(TAG, "System WebView fallback activated: $reason")
     }
+
 }
