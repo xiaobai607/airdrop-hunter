@@ -511,7 +511,7 @@ private fun BrowserScreen(
                             enabled = true,
                             fullWidth = false,
                             heightDp = 44,
-                            fontSizeSp = 13
+                            fontSizeSp = 14
                         )
                         if (selectedWallet != null) {
                             AppButton(
@@ -521,7 +521,7 @@ private fun BrowserScreen(
                                 style = AppButtonStyle.TEXT,
                                 fullWidth = false,
                                 heightDp = 44,
-                                fontSizeSp = 12
+                                fontSizeSp = 14
                             )
                         }
                     },
