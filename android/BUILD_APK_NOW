@@ -103,3 +103,5 @@ Primary navigation UI unification (2026-11-19): standardize Home, Airdrop Librar
 UI system validation (2026-11-20): compile repair for settings/security/notifications, then run Android unit tests and package the latest debug APK.
 
 Global typography alignment (2026-11-20): apply the approved 18/16/14/12sp hierarchy app-wide and standard 24dp dashboard module spacing. Run Android tests and package Debug APK.
+
+Screen spacing pass: manual accounting form sections and wallet overview modules use 24dp separation; project filter row uses balanced vertical breathing room. Build and test this batch.
