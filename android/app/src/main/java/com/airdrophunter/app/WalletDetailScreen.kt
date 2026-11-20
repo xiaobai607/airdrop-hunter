@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -97,6 +98,36 @@ private fun WalletActivityPanel(
     var errorMessage by remember(wallet.address, sessionToken) { mutableStateOf<String?>(null) }
     var refreshNonce by remember(wallet.address, sessionToken) { mutableIntStateOf(0) }
     var addingHash by remember(wallet.address, sessionToken) { mutableStateOf<String?>(null) }
+    val refreshPreferences = remember(context) {
+        context.getSharedPreferences("wallet_activity_refresh_settings", android.content.Context.MODE_PRIVATE)
+    }
+    var cooldownMinutes by remember {
+        mutableIntStateOf(refreshPreferences.getInt("cooldown_minutes", 30).let { if (it == 60) 60 else 30 })
+    }
+    var showCooldownMenu by remember { mutableStateOf(false) }
+    var lastSuccessfulRefreshAt by remember(wallet.address, sessionToken) { mutableLongStateOf(0L) }
+    var cooldownUntilEpochMillis by remember(wallet.address, sessionToken) { mutableLongStateOf(0L) }
+    var nowEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val cooldownMillis = cooldownMinutes * 60L * 1000L
+    val cooldownRemainingMillis = (cooldownUntilEpochMillis - nowEpochMillis).coerceAtLeast(0L)
+    val canManuallyRefresh = !isLoading && cooldownRemainingMillis == 0L
+    val cooldownLabel = if (cooldownRemainingMillis > 0L) {
+        val totalSeconds = (cooldownRemainingMillis + 999L) / 1000L
+        String.format(Locale.US, "%02d:%02d 后可刷新", totalSeconds / 60L, totalSeconds % 60L)
+    } else "可刷新"
+
+    LaunchedEffect(lastSuccessfulRefreshAt, cooldownMinutes) {
+        cooldownUntilEpochMillis = if (lastSuccessfulRefreshAt > 0L) {
+            lastSuccessfulRefreshAt + cooldownMillis
+        } else 0L
+    }
+    LaunchedEffect(cooldownUntilEpochMillis) {
+        while (cooldownUntilEpochMillis > System.currentTimeMillis()) {
+            delay(1000L)
+            nowEpochMillis = System.currentTimeMillis()
+        }
+        nowEpochMillis = System.currentTimeMillis()
+    }
 
     var activityFilter by remember(wallet.address, sessionToken) { mutableStateOf("总交易活动") }
     val sentTransactions = remember(transactions, wallet.address, wallet.ecosystem) {
@@ -113,20 +144,46 @@ private fun WalletActivityPanel(
         }
     }
 
-    LaunchedEffect(wallet.address, refreshNonce, sessionToken) {
-        // Keep last-known-good rows visible while Room is read and the coordinator
-        // refreshes. The remember keys above already isolate wallet/session changes.
+    LaunchedEffect(wallet.address, sessionToken) {
+        // Opening a wallet is cache-only. Network access happens only after an explicit tap.
         isLoading = true
-        errorMessage = null
         try {
             activityRepository.readCached(wallet, sessionIsGuest, sessionToken)?.let { cached ->
                 transactions = cached.transactions
                 networksUnavailable = cached.networksUnavailable
+                lastSuccessfulRefreshAt = cached.fetchedAtEpochMillis
             }
-            val result = activityRepository.refresh(wallet, sessionIsGuest, sessionToken, manual = refreshNonce > 0)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            errorMessage = error.message ?: "读取本地交易缓存失败"
+        } finally {
+            isLoading = false
+        }
+    }
+
+    LaunchedEffect(wallet.address, refreshNonce, sessionToken) {
+        if (refreshNonce == 0) return@LaunchedEffect
+        isLoading = true
+        errorMessage = null
+        try {
+            val result = activityRepository.refresh(
+                wallet,
+                sessionIsGuest,
+                sessionToken,
+                manual = true,
+                manualCooldownMillis = cooldownMillis
+            )
             transactions = result.transactions
             networksUnavailable = result.networksUnavailable
-            if (result.throttled) android.widget.Toast.makeText(context, "刷新太频繁，请30秒后再试", android.widget.Toast.LENGTH_SHORT).show()
+            if (result.throttled) {
+                android.widget.Toast.makeText(context, "刷新冷却中，请稍后再试", android.widget.Toast.LENGTH_SHORT).show()
+            } else if (!result.stale && result.errorMessage == null) {
+                lastSuccessfulRefreshAt = result.fetchedAtEpochMillis
+                nowEpochMillis = System.currentTimeMillis()
+            } else {
+                errorMessage = result.errorMessage ?: "刷新未成功，请稍后重试"
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -170,9 +227,37 @@ private fun WalletActivityPanel(
         ) {
             Column(Modifier.weight(1f)) {
                 Text("链上交易", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                Text("只读查询，不会发起交易或签名", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                Text("仅手动刷新 · $cooldownLabel", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
-            AppIconButton(Icons.Default.Refresh, "刷新交易", onClick = { if (!isLoading) refreshNonce++ }, enabled = !isLoading)
+            Box {
+                TextButton(onClick = { showCooldownMenu = true }) {
+                    Text("${cooldownMinutes}分钟", style = MaterialTheme.typography.labelMedium)
+                }
+                DropdownMenu(expanded = showCooldownMenu, onDismissRequest = { showCooldownMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("30分钟") },
+                        onClick = {
+                            cooldownMinutes = 30
+                            refreshPreferences.edit().putInt("cooldown_minutes", 30).apply()
+                            showCooldownMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("1小时") },
+                        onClick = {
+                            cooldownMinutes = 60
+                            refreshPreferences.edit().putInt("cooldown_minutes", 60).apply()
+                            showCooldownMenu = false
+                        }
+                    )
+                }
+            }
+            AppIconButton(
+                Icons.Default.Refresh,
+                if (canManuallyRefresh) "刷新交易" else "冷却中",
+                onClick = { if (canManuallyRefresh) refreshNonce++ },
+                enabled = canManuallyRefresh
+            )
         }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).horizontalScroll(rememberScrollState()),
@@ -221,7 +306,7 @@ private fun WalletActivityPanel(
                 AppButton(
                     text = "重试",
                     onClick = { if (!isLoading) refreshNonce++ },
-                    enabled = !isLoading,
+                    enabled = canManuallyRefresh,
                     loading = isLoading,
                     modifier = Modifier.widthIn(min = 132.dp)
                 )
@@ -249,7 +334,7 @@ private fun WalletActivityPanel(
                     AppButton(
                         text = "刷新交易",
                         onClick = { if (!isLoading) refreshNonce++ },
-                        enabled = !isLoading,
+                        enabled = canManuallyRefresh,
                         loading = isLoading,
                         modifier = Modifier.widthIn(min = 132.dp)
                     )
