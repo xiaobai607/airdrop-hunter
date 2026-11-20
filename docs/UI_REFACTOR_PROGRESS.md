@@ -1335,3 +1335,12 @@ Additional origin-check fix: removed the pre-navigation approvedOrigin assignmen
 - 本轮源码提交：a97827a、b7e1d92、ec337f8、46bfcbe、20de3e5、b6f5de1、cb13325、f0c02c7、78eab55、ce29b12、28d54fd、2142f20、9e25413。
 - 状态：源码已提交；仅完成源码级核对，尚未执行 Gradle 编译、Android 单元测试、后端测试、APK 构建或真机验收。最终统一构建前不得标记为已验收。
 - 本轮按用户要求不触发单项 APK 构建；待本批 UI 工作收口后统一测试与构建。
+
+### 2026-11-20 — X5 初始化失败导致网页被应用逻辑拦截：修复
+
+- 根因：X5KernelInitializer.onViewInitFinished(false) 被错误标记为 UNAVAILABLE，而 X5BrowserActivity 只在 AVAILABLE 状态创建 WebView；创建后又要求 getIsX5Core() 必须为 true 才执行 loadUrl()。腾讯官方 SDK 文档说明回调 false 表示使用系统 WebView，并非浏览器不可用；因此旧逻辑主动挡掉了系统内核备用路径。
+- 修复：X5 不可用时仍允许腾讯 WebView wrapper 使用 Android System WebView，并明确显示当前实际内核；X5 初始化异常时调用 QbSdk.forceSysWebView()；初始化回调超过 15 秒仍未完成时自动切换系统内核，避免一直停留在初始化页面。
+- 下载策略：按用户明确要求，X5 内核下载允许使用 Wi-Fi 和移动网络；移除“恢复内核下载”和“授权使用移动数据下载”操作，不再要求用户手动恢复或重启。
+- 安全与职责：普通网页浏览继续走独立 X5 浏览器入口；系统内核仅作为同一普通网页浏览页面的自动备用，不改变原有钱包连接 Activity / wallet bridge 路由。
+- 涉及文件：AirdropHunterApplication.kt、X5BrowserActivity.kt、BrowserActivity.kt。
+- 状态：源码已提交，等待本批统一 Gradle 编译、单元测试和 APK 构建；未做真机网页打开验收。
