@@ -199,7 +199,7 @@ fun ProjectsScreen(
 
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             filterOptions.forEach { (label, count) ->
