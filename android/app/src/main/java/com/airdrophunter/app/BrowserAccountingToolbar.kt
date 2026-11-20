@@ -903,7 +903,7 @@ fun BrowserAccountingToolbar(
                                     modifier = Modifier.fillMaxWidth(),
                                     trailingContent = {
                                         AppButton("选择", onClick = { gasSymbolCustom = false; gasSymbol = gasSymbolChoices.firstOrNull().orEmpty() },
-                                            style = AppButtonStyle.TEXT, fullWidth = false, heightDp = 44, fontSizeSp = 12)
+                                            style = AppButtonStyle.TEXT, fullWidth = false, heightDp = 44, fontSizeSp = 14)
                                     }
                                 )
                             } else {
@@ -1250,7 +1250,7 @@ fun AccountingCenterScreen(
                         text = "切换",
                         onClick = { if (!isLoadingWallets && wallets.isNotEmpty()) walletMenuExpanded = true },
                         enabled = !isLoadingWallets && wallets.isNotEmpty(),
-                        style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 38, fontSizeSp = 13
+                        style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 44, fontSizeSp = 14
                     )
                     DropdownMenu(expanded = walletMenuExpanded, onDismissRequest = { walletMenuExpanded = false }) {
                         wallets.forEach { wallet ->
