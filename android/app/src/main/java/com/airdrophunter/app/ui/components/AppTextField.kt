@@ -85,11 +85,11 @@ fun AppTextField(
         singleLine = singleLine,
         keyboardOptions = keyboardOptions,
         visualTransformation = visualTransformation,
-        textStyle = TextStyle(color = colors.onSurface, fontSize = 15.sp, lineHeight = 22.sp),
+        textStyle = TextStyle(color = colors.onSurface, fontSize = 14.sp, lineHeight = 20.sp),
         decorationBox = { inner ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                    if (value.isEmpty()) Text(placeholder, color = colors.onSurfaceVariant.copy(alpha = 0.72f), fontSize = 15.sp)
+                    if (value.isEmpty()) Text(placeholder, color = colors.onSurfaceVariant.copy(alpha = 0.72f), fontSize = 14.sp)
                     inner()
                 }
                 when {
