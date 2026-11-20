@@ -107,3 +107,5 @@ Global typography alignment (2026-11-20): apply the approved 18/16/14/12sp hiera
 Screen spacing pass: manual accounting form sections and wallet overview modules use 24dp separation; project filter row uses balanced vertical breathing room. Build and test this batch.
 
 Browser accounting toolbar UI pass: use shared 12sp label typography and shared 12dp card radius tokens. Preserve all accounting, pending transaction and wallet behavior.
+
+Final consolidated browser and accounting UI batch (2026-11-20): X5 browser toolbar/navigation and dialogs now use shared controls; manual accounting form uses shared fields/buttons; shared input/button typography is 14sp; browser diagnostics show host-only values. Run Android unit tests and build/upload one Debug APK for this exact batch. No intermediate APK builds were triggered.
