@@ -322,8 +322,8 @@ private fun BrowserScreen(
             kotlinx.coroutines.delay(30_000)
             if (pageState == BrowserPageState.Loading) {
                 pageState = BrowserPageState.Error
-                pageErrorMessage = "错误类型：页面加载超时\n等待时间：30 秒\n当前网址：$currentPageUrl\n说明：WebView 在等待时间内没有提交可显示的首屏内容。可能原因包括 DNS 解析失败、网络/VPN 连接受阻、服务器无响应或网站验证页面未完成。"
-                Log.w("AirdropBrowser", "Main-frame load timed out after 30 seconds; url=$currentPageUrl")
+                pageErrorMessage = "错误类型：页面加载超时\n等待时间：30 秒\n当前网站：${displayHost(currentPageUrl)}\n说明：WebView 在等待时间内没有提交可显示的首屏内容。可能原因包括 DNS 解析失败、网络/VPN 连接受阻、服务器无响应或网站验证页面未完成。"
+                Log.w("AirdropBrowser", "Main-frame load timed out after 30 seconds; host=${displayHost(currentPageUrl)}")
             }
         }
     }
@@ -530,7 +530,7 @@ private fun BrowserScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().height(56.dp).padding(start = 12.dp, end = 4.dp),
@@ -1212,7 +1212,7 @@ private fun BrowserScreen(
                                 DappOriginPermissionStore.revokeAll()
                                 browser = null
                                 pageState = BrowserPageState.Error
-                                pageErrorMessage = "错误类型：WebView 渲染进程退出\n是否崩溃：${detail?.didCrash() ?: "未知"}\n退出优先级：${detail?.rendererPriorityAtExit() ?: "未知"}\n当前网址：$currentPageUrl\n处理结果：已准备重建页面，请点击重新加载。"
+                                pageErrorMessage = "错误类型：WebView 渲染进程退出\n是否崩溃：${detail?.didCrash() ?: "未知"}\n退出优先级：${detail?.rendererPriorityAtExit() ?: "未知"}\n当前网站：${displayHost(currentPageUrl)}\n处理结果：已准备重建页面，请点击重新加载。"
                                 webViewGeneration += 1
                                 return true
                             }
@@ -1324,7 +1324,7 @@ private fun BrowserScreen(
 
     if (showManualAccounting) {
         Dialog(onDismissRequest = { showManualAccounting = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Surface(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.94f), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.background) {
+            Surface(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.94f), shape = RoundedCornerShape(AppDesignTokens.Radius.Xl.dp), color = MaterialTheme.colorScheme.background) {
                 ManualAccountingScreen(modifier = Modifier.fillMaxSize(), onBack = { showManualAccounting = false })
             }
         }
@@ -1332,7 +1332,7 @@ private fun BrowserScreen(
 
     if (showWalletPicker) {
         Dialog(onDismissRequest = { showWalletPicker = false }) {
-            Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface) {
+            Surface(shape = RoundedCornerShape(AppDesignTokens.Radius.Xl.dp), color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("选择钱包", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     if (wallets.isEmpty()) Text("尚未保存钱包地址", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1416,7 +1416,7 @@ private fun BrowserPageOverlay(
                 Surface(
                     modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp)
                 ) {
                     Text(
                         errorDetail ?: "网站未提供具体错误原因。请检查网络后重试。",
