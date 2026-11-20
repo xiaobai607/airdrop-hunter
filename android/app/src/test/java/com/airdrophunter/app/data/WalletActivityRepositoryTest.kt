@@ -109,7 +109,10 @@ class WalletActivityRepositoryTest {
             readMetadata = { key, source -> metadata[key to source] },
             writeMetadata = { row -> metadata[row.cacheKey to row.source] = row }
         )
-        val repository = WalletActivityRepository(remote, local, cacheRefresh = engine)
+        val repository = WalletActivityRepository(
+            remote, local, cacheRefresh = engine,
+            readCacheMetadata = { key, source -> metadata[key to source] }
+        )
         val wallet = wallet("T" + "2".repeat(33), WalletEcosystem.TRON)
 
         val first = repository.refresh(wallet, guest = true, accessToken = null)
