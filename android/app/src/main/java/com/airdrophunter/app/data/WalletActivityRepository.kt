@@ -55,7 +55,10 @@ class WalletActivityRepository(
     private val remote: WalletActivityRemoteDataSource,
     private val local: WalletActivityLocalDataSource? = null,
     private val gson: Gson = Gson(),
-    private val cacheRefresh: CacheRefreshCoordinator = CacheRefreshCoordinator.shared
+    private val cacheRefresh: CacheRefreshCoordinator = CacheRefreshCoordinator.shared,
+    private val readCacheMetadata: suspend (String, String) -> CacheMetadataEntity? = { key, source ->
+        CacheStore.readCacheMetadata(key, source)
+    }
 ) {
     suspend fun readCached(
         wallet: WalletDto,
@@ -110,7 +113,7 @@ class WalletActivityRepository(
         accessToken: String?,
         cooldownMillis: Long
     ): Long {
-        val metadata = CacheStore.readCacheMetadata(metadataCacheKey(wallet, accessToken), WALLET_ACTIVITY_SOURCE)
+        val metadata = readCacheMetadata(metadataCacheKey(wallet, accessToken), WALLET_ACTIVITY_SOURCE)
         return walletActivityCooldownRemainingMillis(
             metadata?.fetchedAt ?: 0L,
             System.currentTimeMillis(),
