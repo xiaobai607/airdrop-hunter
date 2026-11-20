@@ -101,3 +101,5 @@ Combined validation trigger (2026-11-19): run backend pytest for Etherscan V2/TR
 Primary navigation UI unification (2026-11-19): standardize Home, Airdrop Library, Wallet, Accounting Center and Profile page hierarchy and header spacing. Run Android unit tests and package the exact Debug APK for device verification.
 
 UI system validation (2026-11-20): compile repair for settings/security/notifications, then run Android unit tests and package the latest debug APK.
+
+Global typography alignment (2026-11-20): apply the approved 18/16/14/12sp hierarchy app-wide and standard 24dp dashboard module spacing. Run Android tests and package Debug APK.
