@@ -40,7 +40,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.window.Dialog
@@ -412,7 +411,7 @@ fun BrowserAccountingToolbar(
                                 Text(
                                     option.second,
                                     color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                                    style = MaterialTheme.typography.labelSmall,
                                     maxLines = 1
                                 )
                             }
@@ -443,7 +442,7 @@ fun BrowserAccountingToolbar(
                             Text(
                                 "添加",
                                 color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                                style = MaterialTheme.typography.labelSmall,
                                 maxLines = 1
                             )
                         }
@@ -602,7 +601,7 @@ fun BrowserAccountingToolbar(
                                 }
                                 Surface(
                                     color = MaterialTheme.colorScheme.primaryContainer,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Row(
@@ -713,7 +712,7 @@ fun BrowserAccountingToolbar(
                             items(realPending, key = { it.id }) { bill ->
                                 Surface(
                                     color = MaterialTheme.colorScheme.tertiaryContainer,
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Row(
@@ -817,7 +816,7 @@ fun BrowserAccountingToolbar(
                     if (gasL1Native.isNotBlank() || gasL2Native.isNotBlank() || gasOperatorNative.isNotBlank()) {
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1093,7 +1092,7 @@ fun BrowserAccountingToolbar(
                                         showProjectPicker = false
                                     }, scale = 1f),
                                     color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                                     border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
