@@ -43,10 +43,10 @@ fun AppTextField(
     singleLine: Boolean = true,
     isError: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default,
     trailingClear: Boolean = false,
     heightDp: Int = AppDesignTokens.Control.InputHeight,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     trailingContent: (@Composable () -> Unit)? = null
 ) {
     var focused by remember { mutableStateOf(false) }
