@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
  * A lightweight dispatcher runs every 15 minutes and schedules each source into
  * its own unique WorkManager queue. Failures retry independently. Individual
  * workers decide whether their own data source is due:
- * public contributions 15m; wallet activity and wallet balances 8h per isolated wallet/network; dynamic market/community catalogs are
+ * public contributions 15m; wallet activity is user-triggered only; dynamic market/community catalogs are
  * warmed on launch and revalidated from their own Room cache TTLs; the public Binance airdrop hub is revalidated every 6h. Personal cloud sync is disabled.
  */
 private const val AIRDROP_HUB_REFRESH_KEY = "airdrop_hub_last_success"
@@ -194,11 +194,8 @@ object GlobalSyncScheduler {
             .setConstraints(network)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
-        val walletActivity = OneTimeWorkRequestBuilder<WalletActivitySyncWorker>()
-            .setInputData(workDataOf(FORCE_KEY to forceWalletActivity))
-            .setConstraints(network)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
+        // Wallet activity is deliberately excluded from periodic dispatch. It is queued
+        // only when an explicit user action requests it through forceWalletActivity=true.
         // Wallet balance background sync is deferred until its repository/provider contract is implemented.
         // Each source has its own unique queue. A failure in one source retries
         // independently and cannot block unrelated ledger, wallet, or favorite work.
@@ -207,11 +204,18 @@ object GlobalSyncScheduler {
             if (forceCommunityContribution) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
             contribution
         )
-        workManager.enqueueUniqueWork(
-            "global-sync-wallet-activity",
-            if (forceWalletActivity) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP,
-            walletActivity
-        )
+        if (forceWalletActivity) {
+            val walletActivity = OneTimeWorkRequestBuilder<WalletActivitySyncWorker>()
+                .setInputData(workDataOf(FORCE_KEY to true))
+                .setConstraints(network)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+                .build()
+            workManager.enqueueUniqueWork(
+                "global-sync-wallet-activity",
+                ExistingWorkPolicy.APPEND_OR_REPLACE,
+                walletActivity
+            )
+        }
         enqueueDynamicCatalogWarmup(context)
 
     }
