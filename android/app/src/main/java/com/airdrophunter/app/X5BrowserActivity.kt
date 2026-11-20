@@ -140,6 +140,19 @@ private fun X5BrowserScreen(
         app.startWalletResponseReconciliation()
     }
 
+    // Do not leave the browser stuck forever if the vendor kernel callback stalls.
+    // The current process switches to Android System WebView; a future launch can retry X5.
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(15_000)
+        if (X5KernelInitializer.state.value == X5KernelState.INITIALIZING ||
+            X5KernelInitializer.state.value == X5KernelState.NOT_STARTED
+        ) {
+            X5KernelInitializer.activateSystemWebViewFallback(
+                "X5 内核初始化超时，已自动切换系统 WebView"
+            )
+        }
+    }
+
     LaunchedEffect(Unit) {
         WalletConnectSessionDelegate.requestResponses.collect { response ->
             val pending = pendingDappExternalRequest
@@ -250,7 +263,7 @@ private fun X5BrowserScreen(
             kotlinx.coroutines.delay(30_000)
             if (pageState == X5PageState.Loading) {
                 pageState = X5PageState.Error
-                pageError = "错误类型：X5 页面加载超时\n等待时间：30 秒\n当前网站：${Uri.parse(currentUrl).host.orEmpty().ifBlank { "未知网站" }}\n说明：浏览器内核未能在等待时间内提交首屏内容。"
+                pageError = "错误类型：网页加载超时\n等待时间：30 秒\n当前网站：${Uri.parse(currentUrl).host.orEmpty().ifBlank { "未知网站" }}\n说明：浏览器内核未能在等待时间内提交首屏内容。"
             }
         }
     }
@@ -437,7 +450,7 @@ private fun X5BrowserScreen(
                     Text(
                         when (kernelState) {
                             X5KernelState.AVAILABLE -> if (!isBrowserInstanceReady) "浏览器准备中" else if (isUsingX5Core) "腾讯 X5" else "系统内核备用"
-                            X5KernelState.INITIALIZING, X5KernelState.NOT_STARTED -> "X5 初始化中"
+                            X5KernelState.INITIALIZING, X5KernelState.NOT_STARTED -> "浏览器准备中"
                             X5KernelState.UNAVAILABLE -> "浏览器内核异常"
                         },
                         color = if (kernelState == X5KernelState.AVAILABLE && isBrowserInstanceReady)
@@ -461,8 +474,8 @@ private fun X5BrowserScreen(
                     X5KernelState.NOT_STARTED, X5KernelState.INITIALIZING -> {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Md.dp)) {
                             CircularProgressIndicator()
-                            Text("正在准备腾讯 X5 内核", color = MaterialTheme.colorScheme.onBackground)
-                            Text("内核初始化完成后会自动打开网页", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Text("正在准备浏览器", color = MaterialTheme.colorScheme.onBackground)
+                            Text("若 X5 初始化较慢，将自动切换系统内核，不会阻止打开网页", color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall)
                         }
                     }
@@ -579,7 +592,7 @@ private fun X5BrowserScreen(
                                                     failingUrl: String?
                                                 ) {
                                                     pageState = X5PageState.Error
-                                                    pageError = "错误类型：腾讯 X5 网络错误\n错误码：$errorCode\n错误描述：${description ?: "系统未提供"}\n失败网址：${failingUrl ?: currentUrl}"
+                                                    pageError = "错误类型：网页网络错误\n错误码：$errorCode\n错误描述：${description ?: "系统未提供"}\n失败网址：${failingUrl ?: currentUrl}"
                                                     Log.e("AirdropX5Browser", "X5 load error code=$errorCode description=$description url=$failingUrl")
                                                 }
 
