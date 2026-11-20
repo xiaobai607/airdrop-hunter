@@ -282,24 +282,16 @@ private fun DestinationSectionTitle(title: String, modifier: Modifier = Modifier
 private fun NotificationsDestinationContent() {
     DestinationInfoCard {
         Column(
-            Modifier.fillMaxWidth().padding(vertical = 20.dp),
+            Modifier.fillMaxWidth().padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Surface(
-                modifier = Modifier.size(48.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
+            Icon(
+                Icons.Default.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
             Text(
                 "暂无通知",
                 color = MaterialTheme.colorScheme.onSurface,
@@ -318,15 +310,6 @@ private fun NotificationsDestinationContent() {
                 fontSize = 12.sp
             )
         }
-    }
-}
-
-@Composable
-private fun DestinationInfoRow(title: String, description: String) {
-    DestinationInfoCard {
-        Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-        Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-        Text("开发中", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
     }
 }
 
