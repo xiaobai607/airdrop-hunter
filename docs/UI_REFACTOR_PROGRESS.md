@@ -1328,10 +1328,10 @@ Additional origin-check fix: removed the pre-navigation approvedOrigin assignmen
 ### 2026-11-20 — 浏览器与手动记账 UI 批量统一
 
 - BrowserActivity.kt：浏览器地址栏、错误提示卡片与钱包/记账弹窗统一引用全局圆角 Token；加载超时详情和日志只保留网站主机名，不再输出完整网址及查询参数。
-- X5BrowserActivity.kt：顶部容器边距和内部节奏改用全局间距 Token；加载超时与下载提示只显示网站主机名，避免把完整下载链接或参数直接展示在 Toast/诊断文本中。
+- X5BrowserActivity.kt：顶部容器边距和内部节奏改用全局间距 Token；网址栏、前进/后退/刷新、重新加载、内核操作和授权弹窗统一使用共享输入框/按钮组件及按压反馈；共享输入框补充 IME Go 动作支持；加载超时与下载提示只显示网站主机名，避免把完整下载链接或参数直接展示在 Toast/诊断文本中。
 - ManualAccountingScreen.kt：项目、USD、原生币种和精度输入统一迁移到 AppTextField；输入错误态统一使用共享字段状态；展开/收起改用 AppTextButton；保存改用 AppButton 的统一按压、禁用和加载反馈。保留原来的校验、账单字段、个人账本保存接口及实际金额规则。
 - BrowserAccountingToolbar.kt：本轮完成复核；此前 10sp 辅助文字和硬编码卡片圆角已在 1696766 修正，本轮确认未发现 10sp 回退，记账操作仍通过共享按钮并保留真实反馈。
-- 共享组件与浏览器紧凑操作同步收口：`AppTextField` 输入正文/占位文字统一 14sp；`AppButton` 默认字号统一 14sp；新增 6dp 小圆角 Token；浏览器标题栏和记账工具栏的紧凑按钮字号统一 14sp，触控高度不低于 44dp。
-- 本轮源码提交：a97827a、b7e1d92、ec337f8、46bfcbe、20de3e5、b6f5de1、cb13325、f0c02c7、78eab55。
+- 共享组件与浏览器紧凑操作同步收口：`AppTextField` 输入正文/占位文字统一 14sp，并支持键盘动作；`AppButton` 默认字号统一 14sp；新增 6dp 小圆角 Token；浏览器标题栏和记账工具栏的紧凑按钮字号统一 14sp，触控高度不低于 44dp。
+- 本轮源码提交：a97827a、b7e1d92、ec337f8、46bfcbe、20de3e5、b6f5de1、cb13325、f0c02c7、78eab55、ce29b12、28d54fd、2142f20。
 - 状态：源码已提交；仅完成源码级核对，尚未执行 Gradle 编译、Android 单元测试、后端测试、APK 构建或真机验收。最终统一构建前不得标记为已验收。
 - 本轮按用户要求不触发单项 APK 构建；待本批 UI 工作收口后统一测试与构建。
