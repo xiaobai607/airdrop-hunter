@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.ui.components.AppTextButton
@@ -115,7 +116,7 @@ fun ProfileScreen(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("我的", modifier = Modifier.weight(1f).semantics { heading() },
                 color = MaterialTheme.colorScheme.onBackground,
-                style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+                fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             AppIconButton(
                 icon = Icons.Default.Settings,
                 contentDescription = "打开设置",
@@ -136,8 +137,8 @@ fun ProfileScreen(
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(if (isGuest) "游客模式" else (state.profile?.username ?: "账户中心"),
-                    color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold, maxLines = 1,
+                    color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium, maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 Text(
                     when {
@@ -146,16 +147,16 @@ fun ProfileScreen(
                         state.isLoading -> "正在加载账户信息…"
                         else -> "账户信息暂时无法加载"
                     },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
-                    style = MaterialTheme.typography.bodySmall, maxLines = 2,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp, maxLines = 2,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("数据概览", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+            Text("数据概览", color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 4.dp))
         Card(
             modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
@@ -216,7 +217,7 @@ fun ProfileScreen(
         ) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("数据迁移", color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 AppButton(
                     text = if (backupBusy) "正在处理…" else "备份我的数据",
                     onClick = { showBackupPasswordDialog = true },
@@ -231,8 +232,8 @@ fun ProfileScreen(
                 )
                 Text(
                     "支持 .ahbackup 和 .hunter 文件。备份文件经过密码加密；换机时选择文件并输入相同密码即可恢复，请妥善保存文件和密码。",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
-                    style = MaterialTheme.typography.bodySmall
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
                 )
             }
         }
@@ -251,8 +252,8 @@ fun ProfileScreen(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("设置与管理", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+            Text("设置与管理", color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 4.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -382,13 +383,13 @@ fun ProfileScreen(
 private fun StatCell(label: String, value: String, modifier: Modifier, suffix: String = "") {
     Column(modifier.padding(horizontal = 12.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.Center) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium,
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp,
             maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         Text(
             text = if (suffix.isBlank()) value else "$value $suffix",
             color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
             softWrap = true
         )
     }
@@ -410,7 +411,7 @@ private fun SettingRow(
             Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         }
         Text(title, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium)
+            fontSize = 16.sp, fontWeight = FontWeight.Medium)
         Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
     }
 }
