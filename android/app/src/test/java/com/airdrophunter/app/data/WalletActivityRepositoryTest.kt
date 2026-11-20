@@ -121,11 +121,16 @@ class WalletActivityRepositoryTest {
         repository.refresh(wallet, guest = true, accessToken = null)
         assertEquals(1, remote.chainCalls.size)
 
-        val firstManual = repository.refresh(wallet, guest = true, accessToken = null, manual = true)
+        // A successful earlier fetch starts the selected cooldown; zero disables it for this call.
+        val firstManual = repository.refresh(
+            wallet, guest = true, accessToken = null, manual = true, manualCooldownMillis = 0L
+        )
         assertEquals(2, remote.chainCalls.size)
         assertTrue(!firstManual.throttled)
 
-        val repeatedManual = repository.refresh(wallet, guest = true, accessToken = null, manual = true)
+        val repeatedManual = repository.refresh(
+            wallet, guest = true, accessToken = null, manual = true, manualCooldownMillis = 30 * 60 * 1000L
+        )
         assertEquals(2, remote.chainCalls.size)
         assertTrue(repeatedManual.throttled)
         assertEquals(1, metadata.size)
@@ -199,3 +204,20 @@ class WalletActivityRepositoryTest {
     }
 
 }
+
+    @Test
+    fun manualRefreshCooldownUsesLastSuccessfulRefreshAndSelectedInterval() {
+        val now = 10_000_000L
+        val lastSuccess = now - 10 * 60 * 1000L
+        assertEquals(
+            20 * 60 * 1000L,
+            walletActivityCooldownRemainingMillis(lastSuccess, now, 30 * 60 * 1000L)
+        )
+        assertEquals(
+            50 * 60 * 1000L,
+            walletActivityCooldownRemainingMillis(lastSuccess, now, 60 * 60 * 1000L)
+        )
+        assertEquals(0L, walletActivityCooldownRemainingMillis(0L, now, 30 * 60 * 1000L))
+        assertEquals(0L, walletActivityCooldownRemainingMillis(lastSuccess, now, 0L))
+        assertEquals(0L, walletActivityCooldownRemainingMillis(lastSuccess, lastSuccess - 1L, 30 * 60 * 1000L))
+    }
