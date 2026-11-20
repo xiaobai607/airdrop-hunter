@@ -1,6 +1,7 @@
 package com.airdrophunter.app
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.airdrophunter.app.ui.components.BaseCard
+import com.airdrophunter.app.ui.theme.AppDesignTokens
 
 enum class ProfileDestination(val title: String) {
     SETTINGS("设置"),
