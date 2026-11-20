@@ -146,8 +146,9 @@ class BrowserActivity : ComponentActivity() {
             return
         }
         if (!intent.getBooleanExtra(EXTRA_FORCE_SYSTEM_WEBVIEW, false)) {
-            // Ordinary browsing now uses Tencent X5. The system WebView is retained
-            // only for pages explicitly marked as requiring the origin-restricted wallet bridge.
+            // Ordinary browsing prefers Tencent X5 and automatically falls back to Android
+            // System WebView if the vendor kernel is unavailable. The legacy wallet bridge
+            // remains on its separate, explicitly selected system-WebView route.
             startActivity(
                 Intent(this, X5BrowserActivity::class.java)
                     .putExtra(EXTRA_URL, url)
