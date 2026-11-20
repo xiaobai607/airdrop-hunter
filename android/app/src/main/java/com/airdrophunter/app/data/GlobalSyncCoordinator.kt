@@ -152,11 +152,14 @@ object GlobalSyncScheduler {
         .build()
 
     fun ensurePeriodic(context: Context) {
+        val workManager = WorkManager.getInstance(context.applicationContext)
+        // Cancel any one-time wallet-activity request persisted by older app versions.
+        // Wallet activity is now fetched only from the explicit in-screen refresh action.
+        workManager.cancelUniqueWork("global-sync-wallet-activity")
         val request = PeriodicWorkRequestBuilder<GlobalSyncDispatcherWorker>(15, TimeUnit.MINUTES)
             .setConstraints(constraints())
             .build()
-        WorkManager.getInstance(context.applicationContext)
-            .enqueueUniquePeriodicWork(PERIODIC_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
+        workManager.enqueueUniquePeriodicWork(PERIODIC_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
     }
 
     internal const val FORCE_KEY = "force_sync"
