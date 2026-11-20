@@ -203,7 +203,6 @@ class WalletActivityRepositoryTest {
         assertTrue(local.sessionRows.keys.none { it.startsWith("guest:") })
     }
 
-}
 
     @Test
     fun manualRefreshCooldownUsesLastSuccessfulRefreshAndSelectedInterval() {
@@ -221,3 +220,4 @@ class WalletActivityRepositoryTest {
         assertEquals(0L, walletActivityCooldownRemainingMillis(lastSuccess, now, 0L))
         assertEquals(0L, walletActivityCooldownRemainingMillis(lastSuccess, lastSuccess - 1L, 30 * 60 * 1000L))
     }
+}
