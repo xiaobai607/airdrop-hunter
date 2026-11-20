@@ -34,6 +34,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.data.Web3TransactionRepository
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppTextField
 import com.airdrophunter.app.ui.theme.AirdropHunterTheme
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 import com.reown.appkit.client.AppKit
@@ -359,63 +363,76 @@ private fun X5BrowserScreen(
                 verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onExit, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                        Text("返回")
-                    }
+                    AppTextButton(onClick = onExit) { Text("返回") }
                     Text(
                         title,
                         modifier = Modifier.weight(1f),
                         maxLines = 1,
                         color = MaterialTheme.colorScheme.onBackground,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
-                    TextButton(
+                    AppButton(
+                        text = "连接钱包",
                         onClick = { onConnectWallet(currentUrl) },
-                        contentPadding = PaddingValues(horizontal = 8.dp)
-                    ) { Text("连接钱包") }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = addressInput,
-                        onValueChange = { addressInput = it },
-                        modifier = Modifier.weight(1f).onFocusChanged { isAddressEditing = it.isFocused },
-                        singleLine = true,
-                        placeholder = { Text("输入网址") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-                        keyboardActions = KeyboardActions(onGo = { navigate() })
+                        style = AppButtonStyle.SECONDARY,
+                        fullWidth = false,
+                        heightDp = 44
                     )
-                    Spacer(Modifier.width(6.dp))
-                    Button(onClick = { navigate() }, contentPadding = PaddingValues(horizontal = 12.dp)) {
-                        Text("前往")
-                    }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)
                 ) {
-                    OutlinedButton(
+                    AppTextField(
+                        value = addressInput,
+                        onValueChange = { addressInput = it },
+                        modifier = Modifier.weight(1f).onFocusChanged { isAddressEditing = it.isFocused },
+                        placeholder = "输入网址",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+                        keyboardActions = KeyboardActions(onGo = { navigate() })
+                    )
+                    AppButton(
+                        text = "前往",
+                        onClick = { navigate() },
+                        fullWidth = false,
+                        heightDp = 48
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)
+                ) {
+                    AppButton(
+                        text = "后退",
                         onClick = { browser?.takeIf { it.canGoBack() }?.goBack() },
                         enabled = browser?.canGoBack() == true,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                    ) { Text("后退") }
-                    OutlinedButton(
+                        style = AppButtonStyle.SECONDARY,
+                        fullWidth = false,
+                        heightDp = 44
+                    )
+                    AppButton(
+                        text = "前进",
                         onClick = { browser?.takeIf { it.canGoForward() }?.goForward() },
                         enabled = browser?.canGoForward() == true,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                    ) { Text("前进") }
-                    OutlinedButton(
+                        style = AppButtonStyle.SECONDARY,
+                        fullWidth = false,
+                        heightDp = 44
+                    )
+                    AppButton(
+                        text = "刷新",
                         onClick = {
                             pageState = X5PageState.Loading
                             pageError = null
                             browser?.reload()
                         },
                         enabled = isX5InstanceConfirmed,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                    ) { Text("刷新") }
+                        style = AppButtonStyle.SECONDARY,
+                        fullWidth = false,
+                        heightDp = 44
+                    )
                     Spacer(Modifier.weight(1f))
                     Text(
                         when (kernelState) {
@@ -877,17 +894,20 @@ private fun X5BrowserScreen(
                                 Text("网页无法打开", color = MaterialTheme.colorScheme.error,
                                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                                 Text(pageError ?: "X5 页面加载失败，请重试。", color = MaterialTheme.colorScheme.onBackground)
-                                Button(onClick = {
-                                    if (browser != null && isX5InstanceConfirmed) {
-                                        pageState = X5PageState.Loading
-                                        pageError = null
-                                        browser?.reload()
-                                    } else {
-                                        webViewGeneration += 1
-                                        pageState = X5PageState.Loading
-                                        pageError = null
+                                AppButton(
+                                    text = "重新加载",
+                                    onClick = {
+                                        if (browser != null && isX5InstanceConfirmed) {
+                                            pageState = X5PageState.Loading
+                                            pageError = null
+                                            browser?.reload()
+                                        } else {
+                                            webViewGeneration += 1
+                                            pageState = X5PageState.Loading
+                                            pageError = null
+                                        }
                                     }
-                                }) { Text("重新加载") }
+                                )
                             }
                         } else if (pageState == X5PageState.Loading && browser != null) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
