@@ -184,9 +184,9 @@ fun WalletManagerScreen(
     var editWalletTags by remember { mutableStateOf("") }
     var editWalletNotes by remember { mutableStateOf("") }
     var selectedWallet by remember { mutableStateOf<WalletDto?>(null) }
-    var ecosystemFilter by remember { mutableStateOf("全部") }
+    var ecosystemFilter by remember { mutableStateOf("ALL") }
     val filteredWallets = remember(state.wallets, ecosystemFilter) {
-        if (ecosystemFilter == "全部") state.wallets
+        if (ecosystemFilter == "ALL") state.wallets
         else state.wallets.filter { it.ecosystem == ecosystemFilter }
     }
     val addressValidation = remember(selectedEcosystem, address) { WalletAddressValidator.validate(selectedEcosystem, address) }
@@ -301,7 +301,7 @@ fun WalletManagerScreen(
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(stringResource(R.string.wallet_ui_5), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                         Text("${state.wallets.size}", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Text("个地址", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.wallet_ui_address_count_unit), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                 }
                 Surface(
@@ -313,7 +313,7 @@ fun WalletManagerScreen(
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(stringResource(R.string.wallet_ui_6), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                         Text("${state.wallets.map { it.ecosystem }.distinct().size}", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Text("种网络类型", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.wallet_ui_network_type_count_unit), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -487,11 +487,11 @@ fun WalletManagerScreen(
                                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                listOf("全部", WalletEcosystem.EVM, WalletEcosystem.TRON, WalletEcosystem.SOL, WalletEcosystem.BTC).forEach { filter ->
+                                listOf("ALL", WalletEcosystem.EVM, WalletEcosystem.TRON, WalletEcosystem.SOL, WalletEcosystem.BTC).forEach { filter ->
                                     FilterChip(
                                         selected = ecosystemFilter == filter,
                                         onClick = { ecosystemFilter = filter },
-                                        label = { Text(filter) },
+                                        label = { Text(if (filter == "ALL") stringResource(R.string.wallet_ui_filter_all) else filter) },
                                         shape = RoundedCornerShape(50)
                                     )
                                 }
