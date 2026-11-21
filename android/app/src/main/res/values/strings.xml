@@ -549,4 +549,14 @@
     <string name="loc_detail_85">No valuation</string>
     <string name="loc_detail_86">Actual gas · USD valuation</string>
     <string name="loc_detail_87">Actual earnings · USD valuation</string>
+    <string name="loc_detail_claim_title">%1$s · Claim eligibility</string>
+    <string name="loc_detail_linked_wallet_count">%1$d linked</string>
+    <string name="loc_detail_usd_valuation">USD valuation $%1$.2f</string>
+    <string name="loc_detail_estimated_reward">Estimated reward: USD $%1$.2f</string>
+    <string name="loc_detail_asset_breakdown">Assets: %1$s</string>
+    <string name="loc_detail_transaction_hash">Transaction: %1$s…</string>
+    <string name="loc_detail_period_day">Day</string>
+    <string name="loc_detail_period_week">Week</string>
+    <string name="loc_detail_period_month">Month</string>
+    <string name="loc_detail_ledger_period_title">%1$s</string>
 </resources>
