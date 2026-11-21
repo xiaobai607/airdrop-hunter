@@ -670,4 +670,9 @@
     <string name="loc_wallet_tron_scope">TRON 当前展示 TRX 和已识别的 USDT；其他 TRC20 暂未纳入。</string>
     <string name="loc_wallet_assets_scope">仅展示链上读取到的资产；未验证代币不计入估值。</string>
     <string name="loc_wallet_cooldown_minutes">%1$d分钟</string>
+    <string name="loc_wallet_pending_count_full">该地址有 %1$d 笔待确认</string>
+    <string name="loc_wallet_30m">30分钟</string>
+    <string name="loc_wallet_1h">1小时</string>
+    <string name="loc_wallet_usd_unavailable">美元估值暂不可用</string>
+    <string name="loc_wallet_unverified_suffix"> · 未验证</string>
 </resources>
