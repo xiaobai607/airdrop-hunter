@@ -136,7 +136,7 @@ fun AirdropCampaignsScreen(
                 }
                 item {
                     Text(
-                        "${state.items.size} 个公开活动",
+                        context.getString(R.string.loc_campaign_count, state.items.size),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelMedium
                     )
