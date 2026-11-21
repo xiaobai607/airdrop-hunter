@@ -184,6 +184,7 @@ private fun AddAirdropDialog(
     onDismiss: () -> Unit,
     onSave: (AirdropWriteRequest) -> Unit
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var chain by remember { mutableStateOf("") }
