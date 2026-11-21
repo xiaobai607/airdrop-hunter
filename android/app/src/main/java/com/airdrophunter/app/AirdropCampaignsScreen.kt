@@ -200,6 +200,7 @@ fun AirdropCampaignsScreen(
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
+    val context = LocalContext.current
     Card(
         modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = onClick, scale = 0.96f),
         shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
