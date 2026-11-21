@@ -382,7 +382,7 @@ fun WalletManagerScreen(
                     AppKit.disconnect(
                         onSuccess = { WalletConnectSessionDelegate.clearSession() },
                         onError = { error ->
-                            android.widget.Toast.makeText(context, stringResource(R.string.wallet_ui_16), android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.wallet_ui_16), android.widget.Toast.LENGTH_LONG).show()
                         }
                     )
                 }) { Text(stringResource(R.string.wallet_ui_17), color = MaterialTheme.colorScheme.error) }
