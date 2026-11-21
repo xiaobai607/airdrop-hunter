@@ -121,3 +121,5 @@ Bilingual localization validation: project management, profile settings, airdrop
 Bilingual build retry after Android string-resource apostrophe escaping fix (2026-11-21).
 
 Retry APK after backup-dialog resource formatting fix (2026-11-21).
+
+Fix Kotlin Compose resource calls in toolbar/home/profile/project-detail/wallet manager; rebuild bilingual APK (2026-11-21).
