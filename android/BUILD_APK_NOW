@@ -117,3 +117,5 @@ Wallet activity manual-refresh policy (2026-11-20): wallet detail opens cache-on
 Wallet refresh migration safety (2026-11-20): cancel any persisted one-time wallet-activity WorkManager request left by older app versions at startup, so upgrades cannot perform one last passive chain fetch. Re-run Android unit tests and Debug APK packaging.
 
 Bilingual localization validation: project management, profile settings, airdrop records, public campaigns, official announcements, and project detail/ledger screens. Run Android unit tests and package Debug APK for review (2026-11-21).
+
+Bilingual build retry after Android string-resource apostrophe escaping fix (2026-11-21).
