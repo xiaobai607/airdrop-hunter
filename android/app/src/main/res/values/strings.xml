@@ -607,4 +607,6 @@
     <string name="loc_profile_46">Confirm import</string>
     <string name="loc_profile_47">Backup time: %1$s
 Contains %2$d local records. Importing will replace this session's data on this device. This action cannot be automatically undone.</string>
+    <string name="loc_profile_stats_line">%1$d projects · Net earnings %2$s · %3$d completed · %4$d interaction days</string>
+    <string name="loc_profile_backup_help">Supports .ahbackup and .hunter files. Backups are encrypted with your password. To restore on a new device, select the file and enter the same password. Keep both the file and password safe.</string>
 </resources>
