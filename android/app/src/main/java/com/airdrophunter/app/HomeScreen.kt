@@ -535,7 +535,7 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        stringResource(R.string.home_airdrop_directory),
+                        context.getString(R.string.home_airdrop_directory),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
@@ -809,7 +809,7 @@ private object HomeDashboardLayoutStore {
     )
     private val supported = listOf("airdrop_navigation", "accounting", "wallet_management", "tron_energy", "project_library")
     fun title(id: String) = when (id) {
-        "airdrop_navigation" -> stringResource(R.string.home_airdrop_directory)
+        "airdrop_navigation" -> context.getString(R.string.home_airdrop_directory)
         "accounting" -> "记账"
         "wallet_management" -> "钱包管理"
         "tron_energy" -> "TRON 能量租赁"
