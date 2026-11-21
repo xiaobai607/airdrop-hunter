@@ -261,4 +261,27 @@
     <string name="acct_ui_gas_usd_pending">Actual Gas retrieved · USD value pending</string>
     <string name="acct_ui_pending_explanation">. On-chain receipts, manual entries and failed-transaction fee checks are handled here. They are never marked complete automatically.</string>
     <string name="acct_ui_not_recorded">Not recorded</string>
+    <string name="acct_ui_gas_usd_pending">Actual Gas retrieved · USD value pending</string>
+    <string name="acct_ui_actual_gas_short">Actual Gas $%1$.2f</string>
+    <string name="acct_ui_manual_nonchain">Manual entry (not an on-chain transaction)</string>
+    <string name="acct_ui_reward_usd_incomplete">  ·  Reward USD valuation incomplete</string>
+    <string name="acct_ui_entry_method">Entry method: %1$s</string>
+    <string name="acct_ui_incomplete_reward_summary">%1$d entries have incomplete reward USD valuations. Net profit is not totaled to avoid treating unvalued amounts as zero.</string>
+    <string name="acct_ui_project_save_failed">Failed to save project. Try again.</string>
+    <string name="acct_ui_wallet_required">Select a wallet in Accounting before adding a manual entry.</string>
+    <string name="acct_ui_create_failed">Failed to create ledger entry. Try again.</string>
+    <string name="acct_ui_delete_failed">Failed to delete. Try again.</string>
+    <string name="acct_ui_add_tool">Add tool</string>
+    <string name="acct_ui_sync_transaction">Sync on-chain transaction</string>
+    <string name="acct_ui_sync_txhash_help">Paste the submitted TxHash from your wallet. The app checks the sender, recipient, amount and calldata against the draft's chain RPC. A mismatch will not be linked.</string>
+    <string name="acct_ui_verify_sync">Verify &amp; sync</string>
+    <string name="acct_ui_txhash_verified">TxHash verified. Syncing on-chain receipt.</string>
+    <string name="acct_ui_txhash_mismatch">TxHash mismatch or transaction not found on-chain.</string>
+    <string name="acct_ui_manage_tools">Manage tools</string>
+    <string name="acct_ui_tool_manager_help">Select the tools to display. Use the arrows to change their order.</string>
+    <string name="acct_ui_tool_minimum">Select at least one tool, or restore the defaults later.</string>
+    <string name="acct_ui_done">Done</string>
+    <string name="acct_ui_restore_defaults">Restore defaults</string>
+    <string name="acct_ui_estimated_gas_label">Estimated Gas: %1$s</string>
+    <string name="acct_ui_estimated_reward_label">Estimated reward: %1$s</string>
 </resources>
