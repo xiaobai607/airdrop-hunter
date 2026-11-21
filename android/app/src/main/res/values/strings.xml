@@ -454,4 +454,12 @@
     <string name="loc_hub_cannot_open_announcement">Unable to open announcement link</string>
     <string name="loc_hub_cannot_open_binance">Unable to open the original Binance page</string>
     <string name="loc_hub_announcement_count">%1$d airdrop announcements</string>
+    <string name="loc_airdrop_read_error">Read failed: %1$s</string>
+    <string name="loc_airdrop_reward_value">Reward · %1$s</string>
+    <string name="loc_airdrop_eligibility_value">Eligibility · %1$s</string>
+    <string name="loc_airdrop_source_value">Source · %1$s</string>
+    <string name="loc_airdrop_official_url">Official URL: %1$s</string>
+    <string name="loc_airdrop_source_url">Source URL: %1$s</string>
+    <string name="loc_airdrop_manual_entry">Manual entry</string>
+    <string name="loc_campaign_count">%1$d public campaigns</string>
 </resources>
