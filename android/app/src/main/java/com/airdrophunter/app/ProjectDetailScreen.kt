@@ -381,7 +381,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             FilterChip(
                                 selected = ledgerPeriod == option,
                                 onClick = { ledgerPeriod = option },
-                                label = { Text(option.label) },
+                                label = { Text(stringResource(option.labelRes)) },
                                 shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp),
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
