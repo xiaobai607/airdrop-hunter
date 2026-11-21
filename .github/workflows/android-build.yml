@@ -184,29 +184,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Prepare stable DropPilot signing key
-        shell: bash
-        env:
-          KEYSTORE_BASE64: ${{ secrets.DROPPILOT_KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.DROPPILOT_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.DROPPILOT_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.DROPPILOT_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
-            if [[ -z "${!name}" ]]; then
-              echo "Missing required GitHub Actions secret for stable DropPilot signing: $name" >&2
-              exit 1
-            fi
-          done
-          KEYSTORE_PATH="$RUNNER_TEMP/droppilot-stable-signing.jks"
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
-          test -s "$KEYSTORE_PATH"
-          echo "DROPPILOT_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
-          echo "DROPPILOT_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "DROPPILOT_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
-          echo "DROPPILOT_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
-      - name: Build stable-signed debug APK and run unit tests
+      - name: Build debug APK and run unit tests
         working-directory: android
         env:
           API_BASE_URL: ${{ vars.API_BASE_URL }}
