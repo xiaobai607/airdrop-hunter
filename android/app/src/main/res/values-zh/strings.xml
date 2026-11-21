@@ -283,5 +283,4 @@
     <string name="acct_ui_restore_defaults">恢复默认</string>
     <string name="acct_ui_estimated_gas_label">理论 Gas：%1$s</string>
     <string name="acct_ui_estimated_reward_label">理论收益：%1$s</string>
-    <string name="acct_ui_actual_gas_short">真实 Gas $%1$.2f</string>
 </resources>
