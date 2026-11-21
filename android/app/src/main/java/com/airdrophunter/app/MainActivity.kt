@@ -220,11 +220,14 @@ private fun AirdropHunterApp(
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
     val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.WALLET_MANAGER, AppOverlay.PROJECT_LIBRARY, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
 
-    BackHandler(hasSecondaryDestination) {
-        activeOverlay = AppOverlay.NONE
-        selectedProject = null
-        selectedCommunityProject = null
+    val navigateBack: () -> Unit = {
+        when {
+            selectedCommunityProject != null -> selectedCommunityProject = null
+            selectedProject != null -> selectedProject = null
+            else -> activeOverlay = AppOverlay.NONE
+        }
     }
+    BackHandler(hasSecondaryDestination) { navigateBack() }
 
     val destinations = listOf(
         Destination(R.string.tab_home, Icons.Default.Home),
@@ -249,9 +252,9 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "global-search"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "market-detail"
         activeOverlay == AppOverlay.WALLET_MANAGER -> "wallet-manager"
-        activeOverlay == AppOverlay.PROJECT_LIBRARY -> "project-library"
         selectedCommunityProject != null -> "community:${selectedCommunityProject!!.id}"
         selectedProject != null -> "project:${selectedProject!!.id}"
+        activeOverlay == AppOverlay.PROJECT_LIBRARY -> "project-library"
         else -> "tab:$tab"
     }
     val secondaryTitle = when {
@@ -259,11 +262,12 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.AIRDROP_HUB -> stringResource(R.string.main_overlay_airdrop_discovery)
         activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> stringResource(R.string.main_overlay_airdrop_events)
         activeOverlay == AppOverlay.WALLET_MANAGER -> stringResource(R.string.main_overlay_wallet_manager)
-        activeOverlay == AppOverlay.PROJECT_LIBRARY -> stringResource(R.string.wallet_project_library)
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> stringResource(R.string.main_overlay_global_search)
         activeOverlay == AppOverlay.MARKET_DETAIL -> stringResource(R.string.main_market_detail_title, selectedMarketSymbol)
         activeOverlay == AppOverlay.TRON_ENERGY -> stringResource(R.string.main_overlay_tron_energy)
         selectedCommunityProject != null -> stringResource(R.string.main_overlay_project_community)
+        selectedProject != null -> stringResource(R.string.project_detail)
+        activeOverlay == AppOverlay.PROJECT_LIBRARY -> stringResource(R.string.wallet_project_library)
         else -> stringResource(R.string.project_detail)
     }
 
@@ -287,11 +291,7 @@ private fun AirdropHunterApp(
                         com.airdrophunter.app.ui.components.AppIconButton(
                             icon = Icons.Default.ArrowBack,
                             contentDescription = stringResource(R.string.back),
-                            onClick = {
-                                activeOverlay = AppOverlay.NONE
-                                selectedProject = null
-                                selectedCommunityProject = null
-                            }
+                            onClick = navigateBack
                         )
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
