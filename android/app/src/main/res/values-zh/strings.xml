@@ -283,4 +283,12 @@
     <string name="acct_ui_restore_defaults">恢复默认</string>
     <string name="acct_ui_estimated_gas_label">理论 Gas：%1$s</string>
     <string name="acct_ui_estimated_reward_label">理论收益：%1$s</string>
+    <string name="acct_ui_copy_address">复制地址</string>
+    <string name="acct_ui_refresh_page">刷新网页</string>
+    <string name="acct_ui_copy_url">复制网址</string>
+    <string name="acct_ui_open_external">外部打开</string>
+    <string name="acct_ui_ledger_load_error">读取本地账本失败，请稍后重试</string>
+    <string name="acct_ui_wallet_load_error">读取钱包失败，请稍后重试</string>
+    <string name="auth_verification_code">验证码</string>
+    <string name="auth_get_code">获取验证码</string>
 </resources>
