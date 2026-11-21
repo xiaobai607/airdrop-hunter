@@ -140,4 +140,7 @@
     <string name="wallet_ui_address_hint">%1$s 地址</string>
     <string name="wallet_ui_connection_source">来源：%1$s · EVM 链 %2$s</string>
     <string name="wallet_ui_connection_disclaimer">保存只记录公开地址，不授予网站交易或签名权限。每笔交易仍需在外部钱包单独确认。</string>
+    <string name="wallet_ui_filter_all">全部</string>
+    <string name="wallet_ui_address_count_unit">个地址</string>
+    <string name="wallet_ui_network_type_count_unit">种网络类型</string>
 </resources>
