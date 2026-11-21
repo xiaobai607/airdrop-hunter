@@ -1391,7 +1391,7 @@ fun AccountingCenterScreen(
                                         Text(stringResource(R.string.acct_ui_transaction_hash, row.tx_hash.take(10), row.tx_hash.takeLast(6)),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                         Text(
-                                            "理论 Gas：${row.expected_gas_cost_usd?.let { "$%.2f".format(Locale.US, it) } ?: stringResource(R.string.acct_ui_85)}  ·  理论收益：${row.expected_reward_usd?.let { "$%.2f".format(Locale.US, it) } ?: stringResource(R.string.acct_ui_85)}",
+                                            stringResource(R.string.acct_ui_estimated_values, row.expected_gas_cost_usd?.let { "$%.2f".format(Locale.US, it) } ?: stringResource(R.string.acct_ui_85), row.expected_reward_usd?.let { "$%.2f".format(Locale.US, it) } ?: stringResource(R.string.acct_ui_85)),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
                                         )
                                         val assets = formatLedgerAssetBreakdown(row.extra["asset_breakdown"])
