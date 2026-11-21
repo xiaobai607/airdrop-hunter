@@ -123,3 +123,5 @@ Bilingual build retry after Android string-resource apostrophe escaping fix (202
 Retry APK after backup-dialog resource formatting fix (2026-11-21).
 
 Fix Kotlin Compose resource calls in toolbar/home/profile/project-detail/wallet manager; rebuild bilingual APK (2026-11-21).
+
+Final compile validation after callback/context and enum label fixes (2026-11-21).
