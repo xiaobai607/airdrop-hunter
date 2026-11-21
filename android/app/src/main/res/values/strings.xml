@@ -290,6 +290,4 @@
     <string name="acct_ui_ledger_load_error">Failed to load local ledger. Try again later.</string>
     <string name="acct_ui_wallet_load_error">Failed to load wallets. Try again later.</string>
     <string name="tab_projects">Project Library</string>
-    <string name="auth_verification_code">Verification code</string>
-    <string name="auth_get_code">Get code</string>
 </resources>
