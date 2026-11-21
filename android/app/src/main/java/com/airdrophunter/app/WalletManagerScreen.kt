@@ -153,7 +153,8 @@ fun WalletManagerScreen(
     sessionScopeKey: String = "guest",
     vm: WalletManagerViewModel? = null,
     launchConnectOnStart: Boolean = false,
-    onConnectLaunchHandled: () -> Unit = {}
+    onConnectLaunchHandled: () -> Unit = {},
+    onOpenProjectLibrary: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as AirdropHunterApplication
@@ -286,6 +287,13 @@ fun WalletManagerScreen(
                 leadingIcon = Icons.Default.Add,
                 fontSizeSp = 14
             )
+        }
+
+        TextButton(
+            onClick = onOpenProjectLibrary,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+        ) {
+            Text(context.getString(R.string.wallet_project_library))
         }
 
         if (connectedAccounts.isNotEmpty()) {
