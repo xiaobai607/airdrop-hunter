@@ -669,4 +669,9 @@ Contains %2$d local records. Importing will replace this session's data on this 
     <string name="loc_wallet_tron_scope">TRON currently shows TRX and recognized USDT. Other TRC20 tokens are not included yet.</string>
     <string name="loc_wallet_assets_scope">Only assets read from the chain are shown. Unverified tokens are excluded from valuation.</string>
     <string name="loc_wallet_cooldown_minutes">%1$d minutes</string>
+    <string name="loc_wallet_pending_count_full">This address has %1$d pending confirmations</string>
+    <string name="loc_wallet_30m">30 minutes</string>
+    <string name="loc_wallet_1h">1 hour</string>
+    <string name="loc_wallet_usd_unavailable">USD valuation unavailable</string>
+    <string name="loc_wallet_unverified_suffix"> · Unverified</string>
 </resources>
