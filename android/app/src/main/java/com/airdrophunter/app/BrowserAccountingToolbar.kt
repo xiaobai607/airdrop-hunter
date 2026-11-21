@@ -1036,7 +1036,7 @@ fun BrowserAccountingToolbar(
                                         Toast.LENGTH_SHORT).show()
                                     if (!showDock) onCloseAccounting()
                                 } else {
-                                    Toast.makeText(context, stringResource(R.string.acct_ui_52), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.acct_ui_52), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
