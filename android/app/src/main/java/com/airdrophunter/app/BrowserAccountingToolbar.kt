@@ -200,7 +200,7 @@ fun BrowserAccountingToolbar(
                     selectedProjectLocalId = project.id
                     onSaved()
                 }
-                .onFailure { Toast.makeText(context, stringResource(R.string.acct_ui_project_save_failed), Toast.LENGTH_SHORT).show() }
+                .onFailure { Toast.makeText(context, context.getString(R.string.acct_ui_project_save_failed), Toast.LENGTH_SHORT).show() }
         }
     }
 
@@ -267,7 +267,7 @@ fun BrowserAccountingToolbar(
 
     fun createManualAccountingEntry() {
         if (walletAddress.isBlank()) {
-            Toast.makeText(context, stringResource(R.string.acct_ui_wallet_required), Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.acct_ui_wallet_required), Toast.LENGTH_LONG).show()
             return
         }
         scope.launch {
@@ -284,7 +284,7 @@ fun BrowserAccountingToolbar(
                 accountingRepository.addPendingBill(bill)
                 openBill(bill)
             } catch (_: Exception) {
-                Toast.makeText(context, stringResource(R.string.acct_ui_create_failed), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.acct_ui_create_failed), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -299,7 +299,7 @@ fun BrowserAccountingToolbar(
         if (!bill.txHash.startsWith("MANUAL-")) return
         scope.launch {
             val ok = runCatching { accountingRepository.deletePendingBill(bill.id) }.isSuccess
-            if (!ok) Toast.makeText(context, stringResource(R.string.acct_ui_delete_failed), Toast.LENGTH_SHORT).show()
+            if (!ok) Toast.makeText(context, context.getString(R.string.acct_ui_delete_failed), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -497,9 +497,9 @@ fun BrowserAccountingToolbar(
                                     if (accepted) {
                                         com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, id)
                                         showWeb3HashSync = false
-                                        Toast.makeText(context, stringResource(R.string.acct_ui_txhash_verified), Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.acct_ui_txhash_verified), Toast.LENGTH_SHORT).show()
                                     } else {
-                                        Toast.makeText(context, stringResource(R.string.acct_ui_txhash_mismatch), Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, context.getString(R.string.acct_ui_txhash_mismatch), Toast.LENGTH_LONG).show()
                                     }
                                 }
                             },
@@ -629,7 +629,7 @@ fun BrowserAccountingToolbar(
                                                             web3Repository.createPendingAccountingBill(draft.id)
                                                         }.getOrNull()
                                                         if (bill != null) openBill(bill)
-                                                        else Toast.makeText(context, stringResource(R.string.acct_ui_15), Toast.LENGTH_SHORT).show()
+                                                        else Toast.makeText(context, context.getString(R.string.acct_ui_15), Toast.LENGTH_SHORT).show()
                                                     }
                                                 }) { Text(stringResource(R.string.acct_ui_16)) }
                                             }
@@ -644,7 +644,7 @@ fun BrowserAccountingToolbar(
                                                                 web3Repository.createManualReviewBillFromDraft(draft.id)
                                                             }.getOrNull()
                                                             if (bill != null) openBill(bill)
-                                                            else Toast.makeText(context, stringResource(R.string.acct_ui_18), Toast.LENGTH_SHORT).show()
+                                                            else Toast.makeText(context, context.getString(R.string.acct_ui_18), Toast.LENGTH_SHORT).show()
                                                         }
                                                     }) { Text(stringResource(R.string.acct_ui_19)) }
                                                 }
@@ -660,7 +660,7 @@ fun BrowserAccountingToolbar(
                                                                 web3Repository.createManualReviewBillFromDraft(draft.id)
                                                             }.getOrNull()
                                                             if (bill != null) openBill(bill)
-                                                            else Toast.makeText(context, stringResource(R.string.acct_ui_18), Toast.LENGTH_SHORT).show()
+                                                            else Toast.makeText(context, context.getString(R.string.acct_ui_18), Toast.LENGTH_SHORT).show()
                                                         }
                                                     }) { Text(stringResource(R.string.acct_ui_19)) }
                                                 }
@@ -678,7 +678,7 @@ fun BrowserAccountingToolbar(
                                                                 web3Repository.createManualReviewBillFromDraft(draft.id)
                                                             }.getOrNull()
                                                             if (bill != null) openBill(bill)
-                                                            else Toast.makeText(context, stringResource(R.string.acct_ui_18), Toast.LENGTH_SHORT).show()
+                                                            else Toast.makeText(context, context.getString(R.string.acct_ui_18), Toast.LENGTH_SHORT).show()
                                                         }
                                                     }) { Text(stringResource(R.string.acct_ui_19)) }
                                                 }
