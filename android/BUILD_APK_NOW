@@ -127,3 +127,5 @@ Fix Kotlin Compose resource calls in toolbar/home/profile/project-detail/wallet 
 Final compile validation after callback/context and enum label fixes (2026-11-21).
 
 Rebuild after removing unused dashboard label helpers causing Kotlin compilation failure (2026-11-21).
+
+Rebuild after adding missing BrowserActivity diagnostic resources (2026-11-22).
