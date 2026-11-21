@@ -833,7 +833,7 @@ private fun X5BrowserScreen(
                                                 }
                                             }
                                             setDownloadListener { downloadUrl, _, _, _, _ ->
-                                                Toast.makeText(context, "检测到下载链接，请使用外部浏览器处理：${Uri.parse(downloadUrl).host.orEmpty().ifBlank { "未知网站" }}", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, context.getString(R.string.loc_x5_download_detected, Uri.parse(downloadUrl).host.orEmpty().ifBlank { context.getString(R.string.loc_x5_unknown_site) }), Toast.LENGTH_LONG).show()
                                             }
                                             isUsingX5Core = getIsX5Core()
                                             isBrowserInstanceReady = true
