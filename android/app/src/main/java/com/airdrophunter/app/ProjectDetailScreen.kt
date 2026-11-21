@@ -824,7 +824,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                         .build().toString()
                                     context.startActivity(Intent(context, BrowserActivity::class.java)
                                         .putExtra(BrowserActivity.EXTRA_URL, url)
-                                        .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取")
+                                        .putExtra(BrowserActivity.EXTRA_TITLE, context.getString(R.string.loc_detail_claim_title, project.name))
                 )
                                 } else Toast.makeText(context, context.getString(R.string.loc_detail_83), Toast.LENGTH_LONG).show()
                             } else projectDetailViewModel.requestClaimUrl(project.id, wallet.id)
