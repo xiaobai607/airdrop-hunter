@@ -369,4 +369,5 @@
     <string name="profile_settings">设置</string>
     <string name="profile_security">安全中心</string>
     <string name="profile_notifications">消息通知</string>
+    <string name="loc_profile_chain">网络：%1$s</string>
 </resources>
