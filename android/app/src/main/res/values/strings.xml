@@ -782,4 +782,6 @@
     <string name="loc_browser_switch_site_notice">You are about to switch to %1$s. Check the domain. Never enter a recovery phrase or private key.</string>
     <string name="loc_browser_security_notice">Security reminder: this app does not store private keys. Signing and transactions are confirmed by your external wallet. Check the website domain.</string>
     <string name="loc_browser_origin_label">Source website: %1$s</string>
+    <string name="loc_browser_unknown">Unknown</string>
+    <string name="loc_browser_system_not_provided">Not provided by the system</string>
 </resources>
