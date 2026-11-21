@@ -34,7 +34,7 @@ enum class ProfileDestination(val titleRes: Int) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String = "未知", onDismiss: () -> Unit) {
+fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String = "", onDismiss: () -> Unit) {
     val context = LocalContext.current
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -73,6 +73,7 @@ fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String
 
 @Composable
 private fun SettingsDestinationContent(appVersion: String) {
+    val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             context.getString(R.string.loc_profile_dest_01),
@@ -156,6 +157,7 @@ private fun SettingsInfoRow(
 
 @Composable
 private fun SecurityDestinationContent() {
+    val context = LocalContext.current
     val accounts by WalletConnectSessionDelegate.accounts.collectAsState()
     val origins by DappOriginPermissionStore.authorizedOrigins.collectAsState()
 
@@ -198,7 +200,7 @@ private fun SecurityDestinationContent() {
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            "网络：${account.chainId}",
+                            context.getString(R.string.loc_profile_chain, account.chainId),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp
                         )
@@ -285,6 +287,7 @@ private fun DestinationSectionTitle(title: String, modifier: Modifier = Modifier
 
 @Composable
 private fun NotificationsDestinationContent() {
+    val context = LocalContext.current
     DestinationInfoCard {
         Column(
             Modifier.fillMaxWidth().padding(vertical = 16.dp),
