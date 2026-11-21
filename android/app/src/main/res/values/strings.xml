@@ -283,4 +283,13 @@
     <string name="acct_ui_restore_defaults">Restore defaults</string>
     <string name="acct_ui_estimated_gas_label">Estimated Gas: %1$s</string>
     <string name="acct_ui_estimated_reward_label">Estimated reward: %1$s</string>
+    <string name="acct_ui_copy_address">Copy address</string>
+    <string name="acct_ui_refresh_page">Refresh page</string>
+    <string name="acct_ui_copy_url">Copy URL</string>
+    <string name="acct_ui_open_external">Open externally</string>
+    <string name="acct_ui_ledger_load_error">Failed to load local ledger. Try again later.</string>
+    <string name="acct_ui_wallet_load_error">Failed to load wallets. Try again later.</string>
+    <string name="tab_projects">Project Library</string>
+    <string name="auth_verification_code">Verification code</string>
+    <string name="auth_get_code">Get code</string>
 </resources>
