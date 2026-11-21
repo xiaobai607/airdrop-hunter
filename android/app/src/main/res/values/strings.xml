@@ -290,8 +290,7 @@
     <string name="acct_ui_ledger_load_error">Failed to load local ledger. Try again later.</string>
     <string name="acct_ui_wallet_load_error">Failed to load wallets. Try again later.</string>
     <string name="tab_projects">Project Library</string>
-</resources>
-    <string name="loc_projects_01">Project management</string>
+<string name="loc_projects_01">Project management</string>
     <string name="loc_projects_02">Track participation and realized P&amp;L</string>
     <string name="loc_projects_03">Create project</string>
     <string name="loc_projects_04">Unable to load projects</string>
@@ -343,3 +342,4 @@
     <string name="loc_projects_50">Enter the project\'s official eligibility page. Do not use untrusted third-party links.</string>
     <string name="loc_projects_51">Save project</string>
     <string name="loc_projects_filter_empty">No projects in “%1$s”. Change the filter to view other projects.</string>
+</resources>
