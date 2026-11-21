@@ -214,7 +214,7 @@ private fun WalletActivityPanel(
             ) {
                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("该地址有 ${walletPendingBills.size} 笔待确认", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                        Text(context.getString(R.string.loc_wallet_pending_count_full, walletPendingBills.size), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                         Text(context.getString(R.string.loc_wallet_detail_13), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                     AppButton(context.getString(R.string.loc_wallet_detail_14), onClick = { onOpenPendingAccounting(wallet.address) }, fullWidth = false, heightDp = 38, fontSizeSp = 12)
@@ -235,7 +235,7 @@ private fun WalletActivityPanel(
                 }
                 DropdownMenu(expanded = showCooldownMenu, onDismissRequest = { showCooldownMenu = false }) {
                     DropdownMenuItem(
-                        text = { Text("30分钟") },
+                        text = { Text(context.getString(R.string.loc_wallet_30m)) },
                         onClick = {
                             cooldownMinutes = 30
                             refreshPreferences.edit().putInt("cooldown_minutes", 30).apply()
@@ -243,7 +243,7 @@ private fun WalletActivityPanel(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("1小时") },
+                        text = { Text(context.getString(R.string.loc_wallet_1h)) },
                         onClick = {
                             cooldownMinutes = 60
                             refreshPreferences.edit().putInt("cooldown_minutes", 60).apply()
@@ -403,7 +403,7 @@ private fun WalletActivityPanel(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        tx.gas_cost_usd?.let { context.getString(R.string.loc_wallet_approx_usd, it) } ?: "美元估值暂不可用",
+                                        tx.gas_cost_usd?.let { context.getString(R.string.loc_wallet_approx_usd, it) } ?: context.getString(R.string.loc_wallet_usd_unavailable),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelSmall
                                     )
@@ -624,7 +624,7 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            asset.symbol + if (asset.isVerified) "" else " · 未验证",
+                            asset.symbol + if (asset.isVerified) "" else context.getString(R.string.loc_wallet_unverified_suffix),
                             color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
