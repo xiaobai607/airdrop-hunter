@@ -49,10 +49,10 @@ fun WalletDetailScreen(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AppIconButton(Icons.Default.ArrowBack, "返回", onBack)
+            AppIconButton(Icons.Default.ArrowBack, context.getString(R.string.loc_wallet_detail_01), onBack)
             Column(Modifier.weight(1f)) {
                 Text(
-                    wallet.wallet_name.ifBlank { "钱包详情" },
+                    wallet.wallet_name.ifBlank { context.getString(R.string.loc_wallet_detail_02) },
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
@@ -63,9 +63,9 @@ fun WalletDetailScreen(
                     style = MaterialTheme.typography.labelSmall
                 )
             }
-            AppIconButton(Icons.Default.ContentCopy, "复制地址", haptic = AppHaptic.MEDIUM, onClick = {
+            AppIconButton(Icons.Default.ContentCopy, context.getString(R.string.loc_wallet_detail_03), haptic = AppHaptic.MEDIUM, onClick = {
                 clipboard.setText(AnnotatedString(wallet.address))
-                android.widget.Toast.makeText(context, "已复制钱包地址", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, context.getString(R.string.loc_wallet_detail_04), android.widget.Toast.LENGTH_SHORT).show()
             })
         }
         WalletAssetsPanel(wallet, isGuest)
@@ -113,8 +113,8 @@ private fun WalletActivityPanel(
     val canManuallyRefresh = !isLoading && cooldownRemainingMillis == 0L
     val cooldownLabel = if (cooldownRemainingMillis > 0L) {
         val totalSeconds = (cooldownRemainingMillis + 999L) / 1000L
-        String.format(Locale.US, "%02d:%02d 后可刷新", totalSeconds / 60L, totalSeconds % 60L)
-    } else "可刷新"
+        context.getString(R.string.loc_wallet_countdown, totalSeconds / 60L, totalSeconds % 60L)
+    } else context.getString(R.string.loc_wallet_detail_05)
 
     LaunchedEffect(lastSuccessfulRefreshAt, cooldownMinutes) {
         cooldownUntilEpochMillis = if (lastSuccessfulRefreshAt > 0L) {
@@ -129,7 +129,7 @@ private fun WalletActivityPanel(
         nowEpochMillis = System.currentTimeMillis()
     }
 
-    var activityFilter by remember(wallet.address, sessionToken) { mutableStateOf("总交易活动") }
+    var activityFilter by remember(wallet.address, sessionToken) { mutableStateOf(context.getString(R.string.loc_wallet_detail_06)) }
     val sentTransactions = remember(transactions, wallet.address, wallet.ecosystem) {
         transactions.filter { isWalletActivityAddress(it.from_address, wallet) }
     }
@@ -138,8 +138,8 @@ private fun WalletActivityPanel(
     }
     val visibleTransactions = remember(transactions, sentTransactions, receivedTransactions, activityFilter) {
         when (activityFilter) {
-            "发送" -> sentTransactions
-            "接收" -> receivedTransactions
+            context.getString(R.string.loc_wallet_detail_07) -> sentTransactions
+            context.getString(R.string.loc_wallet_detail_08) -> receivedTransactions
             else -> transactions
         }
     }
@@ -156,7 +156,7 @@ private fun WalletActivityPanel(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            errorMessage = error.message ?: "读取本地交易缓存失败"
+            errorMessage = error.message ?: context.getString(R.string.loc_wallet_detail_09)
         } finally {
             isLoading = false
         }
@@ -177,17 +177,17 @@ private fun WalletActivityPanel(
             transactions = result.transactions
             networksUnavailable = result.networksUnavailable
             if (result.throttled) {
-                android.widget.Toast.makeText(context, "刷新冷却中，请稍后再试", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, context.getString(R.string.loc_wallet_detail_10), android.widget.Toast.LENGTH_SHORT).show()
             } else if (!result.stale && result.errorMessage == null) {
                 lastSuccessfulRefreshAt = result.fetchedAtEpochMillis
                 nowEpochMillis = System.currentTimeMillis()
             } else {
-                errorMessage = result.errorMessage ?: "刷新未成功，请稍后重试"
+                errorMessage = result.errorMessage ?: context.getString(R.string.loc_wallet_detail_11)
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            errorMessage = error.message ?: "读取交易记录失败，请稍后重试"
+            errorMessage = error.message ?: context.getString(R.string.loc_wallet_detail_12)
         } finally {
             isLoading = false
         }
@@ -215,9 +215,9 @@ private fun WalletActivityPanel(
                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("该地址有 ${walletPendingBills.size} 笔待确认", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                        Text("核对实际 Gas 与收益后再完成入账", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(context.getString(R.string.loc_wallet_detail_13), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
-                    AppButton("去确认", onClick = { onOpenPendingAccounting(wallet.address) }, fullWidth = false, heightDp = 38, fontSizeSp = 12)
+                    AppButton(context.getString(R.string.loc_wallet_detail_14), onClick = { onOpenPendingAccounting(wallet.address) }, fullWidth = false, heightDp = 38, fontSizeSp = 12)
                 }
             }
         }
@@ -226,12 +226,12 @@ private fun WalletActivityPanel(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text("链上交易", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                Text("仅手动刷新 · $cooldownLabel", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                Text(context.getString(R.string.loc_wallet_detail_15), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                Text(context.getString(R.string.loc_wallet_manual_refresh, cooldownLabel), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
             Box {
                 TextButton(onClick = { showCooldownMenu = true }) {
-                    Text("${cooldownMinutes}分钟", style = MaterialTheme.typography.labelMedium)
+                    Text(context.getString(R.string.loc_wallet_minutes, cooldownMinutes), style = MaterialTheme.typography.labelMedium)
                 }
                 DropdownMenu(expanded = showCooldownMenu, onDismissRequest = { showCooldownMenu = false }) {
                     DropdownMenuItem(
@@ -254,7 +254,7 @@ private fun WalletActivityPanel(
             }
             AppIconButton(
                 Icons.Default.Refresh,
-                if (canManuallyRefresh) "刷新交易" else "冷却中",
+                if (canManuallyRefresh) context.getString(R.string.loc_wallet_detail_16) else context.getString(R.string.loc_wallet_detail_17),
                 onClick = { if (canManuallyRefresh) refreshNonce++ },
                 enabled = canManuallyRefresh
             )
@@ -264,9 +264,9 @@ private fun WalletActivityPanel(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             listOf(
-                "总交易活动" to transactions.size,
-                "发送" to sentTransactions.size,
-                "接收" to receivedTransactions.size
+                context.getString(R.string.loc_wallet_detail_06) to transactions.size,
+                context.getString(R.string.loc_wallet_detail_07) to sentTransactions.size,
+                context.getString(R.string.loc_wallet_detail_08) to receivedTransactions.size
             ).forEach { (label, count) ->
                 FilterChip(
                     selected = activityFilter == label,
@@ -278,7 +278,7 @@ private fun WalletActivityPanel(
         }
         if (networksUnavailable.isNotEmpty()) {
             Text(
-                "部分网络暂时不可用：${networksUnavailable.joinToString()}",
+                context.getString(R.string.loc_wallet_unavailable_networks, networksUnavailable.joinToString()),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelSmall
@@ -297,14 +297,14 @@ private fun WalletActivityPanel(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text("暂时无法读取交易记录", color = MaterialTheme.colorScheme.onSurface,
+                Text(context.getString(R.string.loc_wallet_detail_18), color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
                 Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(16.dp))
                 AppButton(
-                    text = "重试",
+                    text = context.getString(R.string.loc_wallet_detail_19),
                     onClick = { if (!isLoading) refreshNonce++ },
                     enabled = canManuallyRefresh,
                     loading = isLoading,
@@ -318,21 +318,21 @@ private fun WalletActivityPanel(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    if (transactions.isEmpty()) "暂无链上交易记录" else "该分类暂无交易",
+                    if (transactions.isEmpty()) context.getString(R.string.loc_wallet_detail_20) else context.getString(R.string.loc_wallet_detail_21),
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (transactions.isEmpty()) "当前地址还没有可展示的交易，稍后可再次刷新。" else "切换「总交易活动、发送、接收」查看其他交易。",
+                    if (transactions.isEmpty()) context.getString(R.string.loc_wallet_empty_hint) else context.getString(R.string.loc_wallet_filter_hint),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
                 if (transactions.isEmpty()) {
                     Spacer(Modifier.height(16.dp))
                     AppButton(
-                        text = "刷新交易",
+                        text = context.getString(R.string.loc_wallet_detail_16),
                         onClick = { if (!isLoading) refreshNonce++ },
                         enabled = canManuallyRefresh,
                         loading = isLoading,
@@ -372,9 +372,9 @@ private fun WalletActivityPanel(
                                 )
                                 Text(
                                     when (tx.status.lowercase()) {
-                                        "success" -> "成功"
-                                        "failed" -> "失败（已产生费用）"
-                                        else -> "待确认"
+                                        "success" -> context.getString(R.string.loc_wallet_detail_26)
+                                        "failed" -> context.getString(R.string.loc_wallet_detail_27)
+                                        else -> context.getString(R.string.loc_wallet_detail_28)
                                     },
                                     color = if (tx.status.equals("failed", true)) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.labelSmall
@@ -386,37 +386,37 @@ private fun WalletActivityPanel(
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
-                                "哈希：${shortAddress(tx.hash)}",
+                                context.getString(R.string.loc_wallet_hash, shortAddress(tx.hash)),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                                 style = MaterialTheme.typography.labelSmall
                             )
                             Text(
-                                "时间：${formatWalletActivityTime(tx.timestamp)}",
+                                context.getString(R.string.loc_wallet_time, formatWalletActivityTime(tx.timestamp)),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(
-                                        "费用：${tx.gas_cost_native} ${tx.native_symbol}",
+                                        context.getString(R.string.loc_wallet_fee, tx.gas_cost_native, tx.native_symbol),
                                         color = MaterialTheme.colorScheme.onSurface,
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        tx.gas_cost_usd?.let { "约 \$${it}" } ?: "美元估值暂不可用",
+                                        tx.gas_cost_usd?.let { context.getString(R.string.loc_wallet_approx_usd, it) } ?: "美元估值暂不可用",
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 }
                                 if (!tx.fee_paid_by_wallet) {
-                                    Text("付款归属待核对", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                                    Text(context.getString(R.string.loc_wallet_detail_29), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                             AppButton(
                                 text = when {
-                                    alreadyPending -> "已在待确认账单"
-                                    tx.status.equals("pending", true) -> "等待链上确认"
-                                    else -> "加入待确认账单"
+                                    alreadyPending -> context.getString(R.string.loc_wallet_detail_30)
+                                    tx.status.equals("pending", true) -> context.getString(R.string.loc_wallet_detail_31)
+                                    else -> context.getString(R.string.loc_wallet_detail_32)
                                 },
                                 onClick = {
                                     if (addingHash != null || alreadyPending || tx.status.equals("pending", true)) return@AppButton
@@ -427,7 +427,7 @@ private fun WalletActivityPanel(
                                                 tx.chain, wallet.address, tx.hash
                                             )
                                             if (recorded) {
-                                                android.widget.Toast.makeText(context, "这笔交易已经记过账", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, context.getString(R.string.loc_wallet_detail_33), android.widget.Toast.LENGTH_SHORT).show()
                                             } else {
                                                 val id = WalletTransactionIdentity.pendingBillId(
                                                     tx.chain, wallet.address, tx.hash, wallet.ecosystem
@@ -463,12 +463,12 @@ private fun WalletActivityPanel(
                                                 )
                                                 android.widget.Toast.makeText(
                                                     context,
-                                                    "已加入待确认账单，请在浏览器记账工具栏选择项目并确认实际金额",
+                                                    context.getString(R.string.loc_wallet_added_pending),
                                                     android.widget.Toast.LENGTH_LONG
                                                 ).show()
                                             }
                                         } catch (_: Exception) {
-                                            android.widget.Toast.makeText(context, "加入待确认账单失败，请重试", android.widget.Toast.LENGTH_SHORT).show()
+                                            android.widget.Toast.makeText(context, context.getString(R.string.loc_wallet_detail_34), android.widget.Toast.LENGTH_SHORT).show()
                                         } finally {
                                             addingHash = null
                                         }
@@ -480,7 +480,7 @@ private fun WalletActivityPanel(
                             )
                             if (suggestedGas.isBlank()) {
                                 Text(
-                                    "系统无法确认该钱包是否承担完整费用，Gas 不会自动填入；入账时请人工核对。",
+                                    context.getString(R.string.loc_wallet_detail_35),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -521,7 +521,7 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
 
     LaunchedEffect(wallet.id, wallet.address, token, refreshNonce) {
         if (chains.isEmpty()) {
-            error = "该地址类型暂不支持余额查询"
+            error = context.getString(R.string.loc_wallet_detail_36)
             return@LaunchedEffect
         }
         isLoading = true
@@ -554,9 +554,9 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
                 }
             }
             if (failures.isNotEmpty()) {
-                error = "部分网络余额暂时不可用：${failures.joinToString()}"
+                error = context.getString(R.string.loc_wallet_balance_unavailable, failures.joinToString())
             }
-            if (assets.isEmpty() && failures.isEmpty()) error = "当前地址暂无可展示资产"
+            if (assets.isEmpty() && failures.isEmpty()) error = context.getString(R.string.loc_wallet_detail_37)
         } finally {
             isLoading = false
         }
@@ -577,9 +577,9 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("资产余额", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                    Text(context.getString(R.string.loc_wallet_detail_38), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                     Text(
-                        if (valued.isNotEmpty()) "已估值资产 · ${valued.size} 项" else "读取链上真实余额",
+                        if (valued.isNotEmpty()) context.getString(R.string.loc_wallet_valued_assets, valued.size) else context.getString(R.string.loc_wallet_detail_39),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -593,7 +593,7 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
                 }
                 AppIconButton(
                     Icons.Default.Refresh,
-                    "刷新余额",
+                    context.getString(R.string.loc_wallet_detail_22),
                     onClick = { if (!isLoading) refreshNonce++ },
                     enabled = !isLoading
                 )
@@ -601,7 +601,7 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
             if (isLoading && assets.isEmpty()) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                    Text("正在读取链上余额…", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                    Text(context.getString(R.string.loc_wallet_detail_23), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                 }
             }
             error?.let {
@@ -644,7 +644,7 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
                         )
                         Text(
                             if (asset.isVerified && asset.usdValue != null) "$" + String.format(Locale.US, "%,.2f", asset.usdValue)
-                            else "估值暂不可用",
+                            else context.getString(R.string.loc_wallet_detail_25),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.labelSmall
                         )
@@ -653,21 +653,21 @@ private fun WalletAssetsPanel(wallet: WalletDto, isGuest: Boolean) {
             }
             if (assets.size > displayAssets.size) {
                 Text(
-                    "共读取 ${assets.size} 项资产，覆盖 ${networkCount} 条网络；此处先展示估值靠前的 5 项。",
+                    context.getString(R.string.loc_wallet_assets_count, assets.size, networkCount),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall
                 )
             }
             if (lastUpdated > 0L) {
                 Text(
-                    "数据更新时间：${SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(lastUpdated))}",
+                    context.getString(R.string.loc_wallet_updated, SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(lastUpdated))),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                     style = MaterialTheme.typography.labelSmall
                 )
             }
             Text(
-                if (wallet.ecosystem == WalletEcosystem.TRON) "TRON 当前展示 TRX 和已识别的 USDT；其他 TRC20 暂未纳入。"
-                else "仅展示链上读取到的资产；未验证代币不计入估值。",
+                if (wallet.ecosystem == WalletEcosystem.TRON) context.getString(R.string.loc_wallet_tron_scope)
+                else context.getString(R.string.loc_wallet_detail_40),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                 style = MaterialTheme.typography.labelSmall
             )
