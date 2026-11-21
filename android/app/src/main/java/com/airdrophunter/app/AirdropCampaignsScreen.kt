@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,11 +52,11 @@ fun AirdropCampaignsScreen(
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("查看已收录的公开活动与参与条件", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Text(context.getString(R.string.loc_campaign_intro), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall)
                 }
                 AppTextButton(onClick = vm::refresh, enabled = !state.isRefreshing) {
-                    Text(if (state.isRefreshing) "刷新中…" else "刷新", color = MaterialTheme.colorScheme.primary)
+                    Text(if (state.isRefreshing) context.getString(R.string.loc_refreshing) else "刷新", color = MaterialTheme.colorScheme.primary)
                 }
             }
             Row(
@@ -88,11 +89,11 @@ fun AirdropCampaignsScreen(
                 ) {
                     Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("活动目录暂时不可用", color = MaterialTheme.colorScheme.onSurface,
+                        Text(context.getString(R.string.loc_campaign_unavailable), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("请检查网络后重试。\n${state.error.orEmpty()}", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Text(context.getString(R.string.loc_network_retry), color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall)
-                        AppButton("重新加载", onClick = vm::load, enabled = !state.isLoading, fullWidth = false)
+                        AppButton(context.getString(R.string.loc_reload), onClick = vm::load, enabled = !state.isLoading, fullWidth = false)
                     }
                 }
             }
@@ -110,11 +111,11 @@ fun AirdropCampaignsScreen(
                 ) {
                     Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("暂时没有公开活动", color = MaterialTheme.colorScheme.onSurface,
+                        Text(context.getString(R.string.loc_no_public_campaigns), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("当前筛选条件下没有可展示的记录。稍后可以刷新再查看。",
+                        Text(context.getString(R.string.loc_filter_empty),
                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                        AppButton("刷新活动", onClick = vm::refresh, enabled = !state.isRefreshing, fullWidth = false)
+                        AppButton(context.getString(R.string.loc_refresh_campaigns), onClick = vm::refresh, enabled = !state.isRefreshing, fullWidth = false)
                     }
                 }
             }
@@ -156,14 +157,14 @@ fun AirdropCampaignsScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)) {
-                                Text("币安", Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                Text(context.getString(R.string.loc_binance_label), Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                                     color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold)
                             }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("币安官方活动", color = MaterialTheme.colorScheme.onSurface,
+                                Text(context.getString(R.string.loc_binance_official_campaigns), color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                Text("查看 Binance 官方公告与活动", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                Text(context.getString(R.string.loc_view_binance_announcements), color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.bodySmall)
                             }
                             Text("›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge)
@@ -175,7 +176,7 @@ fun AirdropCampaignsScreen(
                         CampaignCard(campaign) {
                         val url = campaign.official_url
                         if (url.isNullOrBlank()) {
-                            Toast.makeText(context, "该活动暂未提供已核验的官方链接", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.loc_campaign_link_unverified), Toast.LENGTH_SHORT).show()
                         } else {
                             runCatching {
                                 context.startActivity(
@@ -184,7 +185,7 @@ fun AirdropCampaignsScreen(
                                         .putExtra(BrowserActivity.EXTRA_TITLE, campaign.name)
                                 )
                             }.onFailure {
-                                Toast.makeText(context, "无法打开活动链接", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.loc_open_link_failed), Toast.LENGTH_SHORT).show()
                             }
                         }
                         }
@@ -246,12 +247,12 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 CampaignTag("Binance 官方")
-                CampaignTag(campaign.chain ?: "链待确认")
+                CampaignTag(campaign.chain ?: context.getString(R.string.loc_chain_pending))
                 CampaignTag(campaignStatusText(campaign.campaign_status))
-                CampaignTag(if (campaign.requires_kyc == true) "需要 KYC" else if (campaign.requires_kyc == false || campaign.is_kyc_free == true) "免 KYC" else "KYC 未知")
+                CampaignTag(if (campaign.requires_kyc == true) context.getString(R.string.loc_kyc_required) else if (campaign.requires_kyc == false || campaign.is_kyc_free == true) context.getString(R.string.loc_kyc_free) else context.getString(R.string.loc_kyc_unknown))
             }
             Text(
-                if (campaign.official_url.isNullOrBlank()) "官方链接待核验" else "打开官方活动 ↗",
+                if (campaign.official_url.isNullOrBlank()) context.getString(R.string.loc_official_link_pending) else context.getString(R.string.loc_open_official_campaign),
                 color = if (campaign.official_url.isNullOrBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f) else MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold
@@ -267,11 +268,12 @@ private fun CampaignTag(value: String) {
     }
 }
 
+@Composable
 private fun campaignStatusText(status: String): String = when (status) {
-    "upcoming" -> "即将开始"
-    "ongoing" -> "进行中"
-    "snapshot" -> "快照相关"
-    "claim_open" -> "开放领取"
-    "ended" -> "已结束"
-    else -> "状态待确认"
+    "upcoming" -> stringResource(R.string.loc_campaign_upcoming)
+    "ongoing" -> stringResource(R.string.loc_campaign_ongoing)
+    "snapshot" -> stringResource(R.string.loc_campaign_snapshot)
+    "claim_open" -> stringResource(R.string.loc_campaign_claim_open)
+    "ended" -> stringResource(R.string.loc_campaign_ended)
+    else -> stringResource(R.string.loc_campaign_status_pending)
 }
