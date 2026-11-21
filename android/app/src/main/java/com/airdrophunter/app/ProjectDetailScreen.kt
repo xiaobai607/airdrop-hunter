@@ -856,6 +856,8 @@ private fun NativeAssetPeriodSection(
     title: String,
     totals: List<com.airdrophunter.app.data.LedgerAssetPeriodTotal>
 ) {
+    val context = LocalContext.current
+
     if (totals.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold,
@@ -880,6 +882,8 @@ private fun NativeAssetPeriodSection(
 
 @Composable
 private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
+    val context = LocalContext.current
+
     val time = remember(interaction.timestamp) {
         SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(interaction.timestamp))
     }
@@ -963,7 +967,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
 
 @Composable
 private fun LedgerPeriodMetric(
-    modifier: Modifier, label: String, value: Double?, color: Color, emptyLabel: String = context.getString(R.string.loc_detail_23)
+    modifier: Modifier, label: String, value: Double?, color: Color, emptyLabel: String? = null
 ) {
     Column(
         modifier.background(MaterialTheme.colorScheme.background, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
@@ -977,7 +981,7 @@ private fun LedgerPeriodMetric(
 
 @Composable
 private fun ProjectMetric(
-    modifier: Modifier = Modifier, label: String, value: Double?, emptyLabel: String = "估值未完整"
+    modifier: Modifier = Modifier, label: String, value: Double?, emptyLabel: String? = null
 ) {
     Column(modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
