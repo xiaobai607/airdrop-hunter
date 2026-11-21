@@ -283,5 +283,4 @@
     <string name="acct_ui_restore_defaults">Restore defaults</string>
     <string name="acct_ui_estimated_gas_label">Estimated Gas: %1$s</string>
     <string name="acct_ui_estimated_reward_label">Estimated reward: %1$s</string>
-    <string name="acct_ui_actual_gas_short">Actual Gas $%1$.2f</string>
 </resources>
