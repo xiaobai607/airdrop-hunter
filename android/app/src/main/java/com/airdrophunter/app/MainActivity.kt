@@ -455,16 +455,16 @@ private fun AirdropHunterApp(
                         HomeScreen(
                             modifier = Modifier.fillMaxSize(),
                             onOpenSources = { activeOverlay = AppOverlay.SOURCES },
-                            onOpenWallet = { tab = 2 }
+                            onOpenWallet = { tab = 2 },
                             onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
                             onOpenMarketDetail = { symbol ->
                                 selectedMarketSymbol = symbol
                                 activeOverlay = AppOverlay.MARKET_DETAIL
                             },
-                            onOpenProjects = { tab = 2; activeOverlay = AppOverlay.PROJECT_LIBRARY }
+                            onOpenProjects = { tab = 2; activeOverlay = AppOverlay.PROJECT_LIBRARY },
                             onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
                             onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
-                            onOpenAccounting = { tab = 3 }
+                            onOpenAccounting = { tab = 3 },
                             isGuest = isGuest,
                             onRequireAuth = onRequireAuth,
                             sessionScopeKey = sessionScopeKey
