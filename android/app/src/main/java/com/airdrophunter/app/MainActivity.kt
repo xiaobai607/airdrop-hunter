@@ -1,5 +1,7 @@
 package com.airdrophunter.app
 
+import android.content.Context
+
 import android.content.Intent
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideOutHorizontally
@@ -56,6 +58,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     @Volatile private var startupReady = false
     private val startupTokenState = mutableStateOf<String?>(null)
 
