@@ -432,4 +432,27 @@
     <string name="loc_campaign_claim_open">开放领取</string>
     <string name="loc_campaign_ended">已结束</string>
     <string name="loc_campaign_status_pending">状态待确认</string>
+    <string name="loc_hub_official_announcements">官方公告</string>
+    <string name="loc_hub_latest_official_airdrops">来自官方来源的最新空投动态</string>
+    <string name="loc_hub_refreshing">刷新中…</string>
+    <string name="loc_hub_refresh">刷新</string>
+    <string name="loc_hub_announcement_load_failed">暂时无法加载空投公告</string>
+    <string name="loc_hub_check_network_retry">请检查网络后重试。</string>
+    <string name="loc_hub_reload">重新加载</string>
+    <string name="loc_hub_no_new_announcements">暂时没有新的公告</string>
+    <string name="loc_hub_announcement_empty_hint">官方公告目录暂时没有可展示的新内容。可以稍后刷新查看。</string>
+    <string name="loc_hub_refresh_announcements">刷新公告</string>
+    <string name="loc_hub_announcement_time">公告时间：%1$s</string>
+    <string name="loc_hub_open_full_announcement">点击查看公告完整内容</string>
+    <string name="loc_hub_view_details">查看详情 →</string>
+    <string name="loc_hub_announcement_body_failed">公告正文暂时加载失败，请重试或打开币安原文。</string>
+    <string name="loc_hub_back_to_list">返回列表</string>
+    <string name="loc_hub_announcement_details">公告详情</string>
+    <string name="loc_hub_binance_official_original">Binance 官方公告原文</string>
+    <string name="loc_hub_announcement_body_unavailable">公告正文暂不可用</string>
+    <string name="loc_hub_announcement_link">公告链接</string>
+    <string name="loc_hub_open_binance_original">在币安打开原文</string>
+    <string name="loc_hub_cannot_open_announcement">无法打开公告链接</string>
+    <string name="loc_hub_cannot_open_binance">无法打开 Binance 原文</string>
+    <string name="loc_hub_announcement_count">%1$d 条空投公告</string>
 </resources>
