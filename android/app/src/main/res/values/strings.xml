@@ -261,7 +261,6 @@
     <string name="acct_ui_gas_usd_pending">Actual Gas retrieved · USD value pending</string>
     <string name="acct_ui_pending_explanation">. On-chain receipts, manual entries and failed-transaction fee checks are handled here. They are never marked complete automatically.</string>
     <string name="acct_ui_not_recorded">Not recorded</string>
-    <string name="acct_ui_gas_usd_pending">Actual Gas retrieved · USD value pending</string>
     <string name="acct_ui_actual_gas_short">Actual Gas $%1$.2f</string>
     <string name="acct_ui_manual_nonchain">Manual entry (not an on-chain transaction)</string>
     <string name="acct_ui_reward_usd_incomplete">  ·  Reward USD valuation incomplete</string>
