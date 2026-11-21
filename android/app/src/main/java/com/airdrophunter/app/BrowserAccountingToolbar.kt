@@ -165,11 +165,11 @@ fun BrowserAccountingToolbar(
     // Keep separate preferences so its reduced tool set cannot overwrite the legacy
     // wallet browser's dock configuration.
     val toolOptions = listOfNotNull(
-        if (showWalletTools) "copy_address" to "复制地址" else null,
+        if (showWalletTools) "copy_address" to stringResource(R.string.acct_ui_copy_address) else null,
         "pending_bills" to stringResource(R.string.acct_ui_97),
-        "refresh_page" to "刷新网页",
-        "copy_url" to "复制网址",
-        "open_external" to "外部打开"
+        "refresh_page" to stringResource(R.string.acct_ui_refresh_page),
+        "copy_url" to stringResource(R.string.acct_ui_copy_url),
+        "open_external" to stringResource(R.string.acct_ui_open_external)
     )
     val preferences = remember(context, showWalletTools) {
         context.getSharedPreferences(
@@ -441,7 +441,7 @@ fun BrowserAccountingToolbar(
                             }
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                "添加",
+                                stringResource(R.string.acct_ui_add_tool),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.labelSmall,
                                 maxLines = 1
@@ -1153,7 +1153,7 @@ fun AccountingCenterScreen(
         try {
             ledgerRows = accountingRepository.loadPersonalLedger()
         } catch (_: Exception) {
-            ledgerLoadError = "读取本地账本失败，请稍后重试"
+            ledgerLoadError = context.getString(R.string.acct_ui_ledger_load_error)
         } finally {
             isLoadingLedger = false
         }
@@ -1169,7 +1169,7 @@ fun AccountingCenterScreen(
         } catch (_: Exception) {
             wallets = emptyList()
             selectedWallet = null
-            walletLoadError = "读取钱包失败，请稍后重试"
+            walletLoadError = context.getString(R.string.acct_ui_wallet_load_error)
         } finally {
             isLoadingWallets = false
         }
