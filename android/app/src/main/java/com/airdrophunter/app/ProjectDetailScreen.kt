@@ -56,7 +56,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.DayOfWeek
 
-enum class LedgerPeriod(val label: String) { DAY("日"), WEEK("周"), MONTH("月") }
+enum class LedgerPeriod(val labelRes: Int) { DAY(R.string.loc_detail_period_day), WEEK(R.string.loc_detail_period_week), MONTH(R.string.loc_detail_period_month) }
 
 @Composable
 fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGuest: Boolean = false,
@@ -134,7 +134,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         if (parsed != null && parsed.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrBlank()) {
             context.startActivity(Intent(context, BrowserActivity::class.java)
                 .putExtra(BrowserActivity.EXTRA_URL, claimUrl)
-                .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取")
+                .putExtra(BrowserActivity.EXTRA_TITLE, context.getString(R.string.loc_detail_claim_title, project.name))
                 )
         } else Toast.makeText(context, context.getString(R.string.loc_detail_02), Toast.LENGTH_LONG).show()
         projectDetailViewModel.consumeClaimUrl()
@@ -272,7 +272,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             Text(context.getString(R.string.loc_detail_15),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                         }
-                        Text("${assignedWalletIds.size} 个", color = MaterialTheme.colorScheme.primary,
+                        Text(context.getString(R.string.loc_detail_linked_wallet_count, assignedWalletIds.size), color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     }
                     when {
@@ -871,7 +871,7 @@ private fun NativeAssetPeriodSection(
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    total.usdValuation?.let { "USD估值 $%.2f".format(Locale.US, it) } ?: context.getString(R.string.loc_detail_84),
+                    total.usdValuation?.let { context.getString(R.string.loc_detail_usd_valuation, it) } ?: context.getString(R.string.loc_detail_84),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -905,7 +905,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
             )
             interaction.expectedRewardUsd?.let {
-                Text("预估奖励：USD $%.2f".format(Locale.US, it), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                Text(context.getString(R.string.loc_detail_estimated_reward, it), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(
@@ -937,7 +937,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                 }
             }
             formatLedgerAssetBreakdown(interaction.assetBreakdownJson).takeIf { it.isNotBlank() }?.let {
-                Text("币种明细：$it", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                Text(context.getString(R.string.loc_detail_asset_breakdown, it), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
             if (interaction.publicContributionOptIn) {
                 val statusColor = when (interaction.publicContributionStatus) {
@@ -958,7 +958,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                 }
             }
             if (interaction.txHash.isNotBlank()) {
-                Text("交易：${interaction.txHash.take(10)}…",
+                Text(context.getString(R.string.loc_detail_transaction_hash, interaction.txHash.take(10)),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
         }
@@ -974,7 +974,7 @@ private fun LedgerPeriodMetric(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 2)
-        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: emptyLabel, color = color,
+        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: (emptyLabel ?: stringResource(R.string.loc_detail_23)), color = color,
             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
     }
 }
@@ -986,7 +986,7 @@ private fun ProjectMetric(
     Column(modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 2)
-        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: "估值未完整", color = MaterialTheme.colorScheme.onPrimaryContainer,
+        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: (emptyLabel ?: stringResource(R.string.loc_detail_23)), color = MaterialTheme.colorScheme.onPrimaryContainer,
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
     }
 }
