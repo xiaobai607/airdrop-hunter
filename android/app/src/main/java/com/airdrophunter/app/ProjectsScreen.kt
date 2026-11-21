@@ -73,7 +73,7 @@ fun ProjectsScreen(
     val savedProjects by CacheStore.observeUserProjects().collectAsState(initial = emptyList())
     val allRatings by CacheStore.observeAllProjectRatings().collectAsState(initial = emptyList())
     var communityDirectory by remember { mutableStateOf(emptyList<com.airdrophunter.app.data.CommunityProjectCatalogDto>()) }
-    var selectedFilter by remember { mutableStateOf("全部") }
+    var selectedFilter by remember { mutableStateOf(context.getString(R.string.loc_projects_all)) }
     var showAddDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
     var newProjectDescription by remember { mutableStateOf("") }
@@ -166,7 +166,7 @@ fun ProjectsScreen(
         project.copy(communityDelisted = project.communityOfficialId in delistedOfficialIds)
     }
 
-    val filterOptions = listOf("全部" to visibleProjects.size) +
+    val filterOptions = listOf(context.getString(R.string.loc_projects_all) to visibleProjects.size) +
         listOf(
             context.getString(R.string.loc_projects_15) to visibleProjects.count { it.status == "tracking" },
             context.getString(R.string.loc_projects_17) to visibleProjects.count { it.status == "upcoming" },
@@ -457,7 +457,7 @@ fun ProjectsScreen(
             onDismissRequest = { deletingProject = null },
             containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(context.getString(R.string.loc_projects_38), color = MaterialTheme.colorScheme.onSurface) },
-            text = { Text("将从项目列表中移除“${project.name}”。已确认的 Gas、收益和历史账本不会被删除。", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            text = { Text(context.getString(R.string.loc_projects_delete_message, project.name), color = MaterialTheme.colorScheme.onSurfaceVariant) },
             confirmButton = {
                 AppTextButton(onClick = {
                     projectsViewModel.deleteProject(project, isGuest)
