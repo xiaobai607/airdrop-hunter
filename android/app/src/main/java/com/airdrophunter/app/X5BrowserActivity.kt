@@ -73,7 +73,7 @@ class X5BrowserActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val initialUrl = normalizeX5BrowserUrl(intent.getStringExtra(BrowserActivity.EXTRA_URL).orEmpty())
         if (initialUrl == null) {
-            Toast.makeText(this, "网址无效，请检查链接后重试", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.loc_x5_invalid_start_url), Toast.LENGTH_LONG).show()
             finish()
             return
         }
@@ -148,7 +148,7 @@ private fun X5BrowserScreen(
             X5KernelInitializer.state.value == X5KernelState.NOT_STARTED
         ) {
             X5KernelInitializer.activateSystemWebViewFallback(
-                "X5 内核初始化超时，已自动切换系统 WebView"
+                context.getString(R.string.loc_x5_01)
             )
         }
     }
@@ -271,9 +271,9 @@ private fun X5BrowserScreen(
     val navigate = {
         val target = normalizeX5BrowserUrl(addressInput)
         if (target == null) {
-            Toast.makeText(context, "网址无效，请输入正确的网址", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.loc_x5_02), Toast.LENGTH_SHORT).show()
         } else if (!isBrowserInstanceReady || browser == null) {
-            Toast.makeText(context, "浏览器正在准备，请稍后重试", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.loc_x5_03), Toast.LENGTH_LONG).show()
         } else {
             isAddressEditing = false
             currentUrl = target
@@ -376,7 +376,7 @@ private fun X5BrowserScreen(
                 verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    AppTextButton(onClick = onExit) { Text("返回") }
+                    AppTextButton(onClick = onExit) { Text(context.getString(R.string.loc_x5_04)) }
                     Text(
                         title,
                         modifier = Modifier.weight(1f),
@@ -386,7 +386,7 @@ private fun X5BrowserScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     AppButton(
-                        text = "连接钱包",
+                        text = context.getString(R.string.loc_x5_05),
                         onClick = { onConnectWallet(currentUrl) },
                         style = AppButtonStyle.SECONDARY,
                         fullWidth = false,
@@ -402,12 +402,12 @@ private fun X5BrowserScreen(
                         value = addressInput,
                         onValueChange = { addressInput = it },
                         modifier = Modifier.weight(1f).onFocusChanged { isAddressEditing = it.isFocused },
-                        placeholder = "输入网址",
+                        placeholder = context.getString(R.string.loc_x5_06),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = { navigate() })
                     )
                     AppButton(
-                        text = "前往",
+                        text = context.getString(R.string.loc_x5_07),
                         onClick = { navigate() },
                         fullWidth = false,
                         heightDp = 48
@@ -419,7 +419,7 @@ private fun X5BrowserScreen(
                     horizontalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)
                 ) {
                     AppButton(
-                        text = "后退",
+                        text = context.getString(R.string.loc_x5_08),
                         onClick = { browser?.takeIf { it.canGoBack() }?.goBack() },
                         enabled = browser?.canGoBack() == true,
                         style = AppButtonStyle.SECONDARY,
@@ -427,7 +427,7 @@ private fun X5BrowserScreen(
                         heightDp = 44
                     )
                     AppButton(
-                        text = "前进",
+                        text = context.getString(R.string.loc_x5_09),
                         onClick = { browser?.takeIf { it.canGoForward() }?.goForward() },
                         enabled = browser?.canGoForward() == true,
                         style = AppButtonStyle.SECONDARY,
@@ -435,7 +435,7 @@ private fun X5BrowserScreen(
                         heightDp = 44
                     )
                     AppButton(
-                        text = "刷新",
+                        text = context.getString(R.string.loc_x5_10),
                         onClick = {
                             pageState = X5PageState.Loading
                             pageError = null
@@ -449,9 +449,9 @@ private fun X5BrowserScreen(
                     Spacer(Modifier.weight(1f))
                     Text(
                         when (kernelState) {
-                            X5KernelState.AVAILABLE -> if (!isBrowserInstanceReady) "浏览器准备中" else if (isUsingX5Core) "腾讯 X5" else "系统内核备用"
-                            X5KernelState.INITIALIZING, X5KernelState.NOT_STARTED -> "浏览器准备中"
-                            X5KernelState.UNAVAILABLE -> "浏览器内核异常"
+                            X5KernelState.AVAILABLE -> if (!isBrowserInstanceReady) context.getString(R.string.loc_x5_11) else if (isUsingX5Core) context.getString(R.string.loc_x5_12) else context.getString(R.string.loc_x5_13)
+                            X5KernelState.INITIALIZING, X5KernelState.NOT_STARTED -> context.getString(R.string.loc_x5_11)
+                            X5KernelState.UNAVAILABLE -> context.getString(R.string.loc_x5_14)
                         },
                         color = if (kernelState == X5KernelState.AVAILABLE && isBrowserInstanceReady)
                             MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
@@ -474,8 +474,8 @@ private fun X5BrowserScreen(
                     X5KernelState.NOT_STARTED, X5KernelState.INITIALIZING -> {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Md.dp)) {
                             CircularProgressIndicator()
-                            Text("正在准备浏览器", color = MaterialTheme.colorScheme.onBackground)
-                            Text("若 X5 初始化较慢，将自动切换系统内核，不会阻止打开网页", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Text(context.getString(R.string.loc_x5_15), color = MaterialTheme.colorScheme.onBackground)
+                            Text(context.getString(R.string.loc_x5_16), color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall)
                         }
                     }
@@ -485,10 +485,10 @@ private fun X5BrowserScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Md.dp)
                         ) {
-                            Text("浏览器内核初始化异常", color = MaterialTheme.colorScheme.error,
+                            Text(context.getString(R.string.loc_x5_17), color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                             Text(
-                                kernelDiagnostics.lastFailure ?: "系统浏览器内核暂时无法启动，请稍后重试。",
+                                kernelDiagnostics.lastFailure ?: context.getString(R.string.loc_x5_18),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -524,7 +524,7 @@ private fun X5BrowserScreen(
                                                     val target = url ?: return true
                                                     val scheme = runCatching { Uri.parse(target).scheme?.lowercase() }.getOrNull()
                                                     if (scheme == "https" || scheme == "http") return false
-                                                    Toast.makeText(context, "已阻止不支持的链接协议；仅允许安全网页链接", Toast.LENGTH_LONG).show()
+                                                    Toast.makeText(context, context.getString(R.string.loc_x5_19), Toast.LENGTH_LONG).show()
                                                     return true
                                                 }
 
@@ -860,11 +860,11 @@ private fun X5BrowserScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Md.dp)
                             ) {
-                                Text("网页无法打开", color = MaterialTheme.colorScheme.error,
+                                Text(context.getString(R.string.loc_x5_20), color = MaterialTheme.colorScheme.error,
                                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                                Text(pageError ?: "X5 页面加载失败，请重试。", color = MaterialTheme.colorScheme.onBackground)
+                                Text(pageError ?: context.getString(R.string.loc_x5_21), color = MaterialTheme.colorScheme.onBackground)
                                 AppButton(
-                                    text = "重新加载",
+                                    text = context.getString(R.string.loc_x5_22),
                                     onClick = {
                                         if (browser != null && isBrowserInstanceReady) {
                                             pageState = X5PageState.Loading
@@ -881,7 +881,7 @@ private fun X5BrowserScreen(
                         } else if (pageState == X5PageState.Loading && browser != null) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 CircularProgressIndicator()
-                                Text(if (isUsingX5Core) "正在使用腾讯 X5 加载网页" else "正在使用系统内核加载网页", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(if (isUsingX5Core) context.getString(R.string.loc_x5_23) else context.getString(R.string.loc_x5_24), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -891,17 +891,17 @@ private fun X5BrowserScreen(
                 walletAddress = "",
                 chainName = "unknown",
                 onCopyAddress = {
-                    Toast.makeText(context, "钱包相关操作请从原有钱包 DApp 入口进入", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.loc_x5_25), Toast.LENGTH_SHORT).show()
                 },
                 onRefreshPage = { browser?.reload() },
                 onCopyPageUrl = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText("Page URL", currentUrl))
-                    Toast.makeText(context, "网址已复制", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.loc_x5_26), Toast.LENGTH_SHORT).show()
                 },
                 onOpenPageExternally = {
                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl))) }
-                        .onFailure { Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show() }
+                        .onFailure { Toast.makeText(context, context.getString(R.string.loc_x5_27), Toast.LENGTH_SHORT).show() }
                 },
                 modifier = Modifier.fillMaxWidth().height(72.dp).navigationBarsPadding(),
                 showWalletTools = false
@@ -915,11 +915,11 @@ private fun X5BrowserScreen(
                 DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                 pendingDappConnection = null
             },
-            title = { Text("网站请求连接钱包") },
+            title = { Text(context.getString(R.string.loc_x5_28)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("来源网站：$requestedHost", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                    Text("确认后，该网站才能读取当前外部钱包的公开地址。本次不会签名消息或发送交易。")
+                    Text(context.getString(R.string.loc_x5_29))
                 }
             },
             confirmButton = {
@@ -933,13 +933,13 @@ private fun X5BrowserScreen(
                         waitingDappWalletApproval = true
                         onConnectWallet(currentUrl)
                     }
-                }) { Text(if (connectedDappAccounts.isEmpty()) "连接钱包并授权" else "确认授权") }
+                }) { Text(if (connectedDappAccounts.isEmpty()) context.getString(R.string.loc_x5_30) else context.getString(R.string.loc_x5_31)) }
             },
             dismissButton = {
                 AppTextButton(onClick = {
                     DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                     pendingDappConnection = null
-                }) { Text("拒绝") }
+                }) { Text(context.getString(R.string.loc_x5_32)) }
             }
         )
     }
