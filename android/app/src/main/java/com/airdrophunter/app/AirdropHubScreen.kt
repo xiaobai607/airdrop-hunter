@@ -71,13 +71,13 @@ fun AirdropHubScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("官方公告", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
+                Text(context.getString(R.string.loc_hub_official_announcements), modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("来自官方来源的最新空投动态", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(context.getString(R.string.loc_hub_latest_official_airdrops), color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall)
             }
             AppTextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
-                Text(if (state.isRefreshing) "刷新中…" else "刷新", color = MaterialTheme.colorScheme.primary)
+                Text(if (state.isRefreshing) context.getString(R.string.loc_hub_refreshing) else context.getString(R.string.loc_hub_refresh), color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -101,11 +101,11 @@ fun AirdropHubScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("暂时无法加载空投公告", color = MaterialTheme.colorScheme.onSurface,
+                Text(context.getString(R.string.loc_hub_announcement_load_failed), color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("请检查网络后重试。", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(context.getString(R.string.loc_hub_check_network_retry), color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
-                AppButton("重新加载", onClick = hubViewModel::refresh, enabled = !state.isRefreshing)
+                AppButton(context.getString(R.string.loc_hub_reload), onClick = hubViewModel::refresh, enabled = !state.isRefreshing)
             }
 
             state.projects.isEmpty() -> Box(
@@ -119,11 +119,11 @@ fun AirdropHubScreen(
                 ) {
                     Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("暂时没有新的公告", color = MaterialTheme.colorScheme.onSurface,
+                        Text(context.getString(R.string.loc_hub_no_new_announcements), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("官方公告目录暂时没有可展示的新内容。可以稍后刷新查看。",
+                        Text(context.getString(R.string.loc_hub_announcement_empty_hint),
                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                        AppButton("刷新公告", onClick = hubViewModel::refresh, enabled = !state.isRefreshing, fullWidth = false)
+                        AppButton(context.getString(R.string.loc_hub_refresh_announcements), onClick = hubViewModel::refresh, enabled = !state.isRefreshing, fullWidth = false)
                     }
                 }
             }
@@ -134,7 +134,7 @@ fun AirdropHubScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Text("${state.projects.size} 条空投公告",
+                    Text(context.getString(R.string.loc_hub_announcement_count, state.projects.size),
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                 }
                 itemsIndexed(state.projects, key = { _, item -> item.id }) { index, item ->
@@ -172,13 +172,13 @@ fun AirdropHubScreen(
                                     DateFormat.getDateTimeInstance().format(Date(Instant.parse(publishedAt).toEpochMilli()))
                                 }.getOrNull()
                                 if (formattedDate != null) {
-                                    Text("公告时间：$formattedDate",
+                                    Text(context.getString(R.string.loc_hub_announcement_time, formattedDate),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                                 }
                             }
-                            Text("点击查看公告完整内容",
+                            Text(context.getString(R.string.loc_hub_open_full_announcement),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                            Text("查看详情 →", color = MaterialTheme.colorScheme.primary,
+                            Text(context.getString(R.string.loc_hub_view_details), color = MaterialTheme.colorScheme.primary,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold)
                         }
@@ -197,6 +197,8 @@ private fun AirdropAnnouncementDetail(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+
+    val context = LocalContext.current
     var detail by remember(item.id) { mutableStateOf<AirdropHubDetailDto?>(null) }
     var loading by remember(item.id) { mutableStateOf(true) }
     var error by remember(item.id) { mutableStateOf<String?>(null) }
@@ -208,7 +210,7 @@ private fun AirdropAnnouncementDetail(
         try {
             detail = ApiClient.service.getAirdropHubDetail(item.id)
         } catch (_: Exception) {
-            error = "公告正文暂时加载失败，请重试或打开币安原文。"
+            error = context.getString(R.string.loc_hub_announcement_body_failed)
         } finally {
             loading = false
         }
@@ -221,10 +223,10 @@ private fun AirdropAnnouncementDetail(
         ) {
             com.airdrophunter.app.ui.components.AppIconButton(
                 icon = Icons.Default.ArrowBack,
-                contentDescription = "返回列表",
+                contentDescription = context.getString(R.string.loc_hub_back_to_list),
                 onClick = onBack
             )
-            Text("公告详情", color = MaterialTheme.colorScheme.onSurface,
+            Text(context.getString(R.string.loc_hub_announcement_details), color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         Text(
@@ -237,7 +239,7 @@ private fun AirdropAnnouncementDetail(
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            "Binance 官方公告原文",
+            context.getString(R.string.loc_hub_binance_official_original),
             Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
             style = MaterialTheme.typography.labelSmall
@@ -252,8 +254,8 @@ private fun AirdropAnnouncementDetail(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(error ?: "公告正文暂不可用", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                AppButton("重新加载", onClick = { reloadKey += 1 }, style = AppButtonStyle.SECONDARY)
+                Text(error ?: context.getString(R.string.loc_hub_announcement_body_unavailable), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppButton(context.getString(R.string.loc_hub_reload), onClick = { reloadKey += 1 }, style = AppButtonStyle.SECONDARY)
             }
             else -> {
                 detail!!.release_date?.let { timestamp ->
@@ -293,12 +295,12 @@ private fun AirdropAnnouncementDetail(
                                             viewContext.startActivity(
                                                 Intent(viewContext, BrowserActivity::class.java)
                                                     .putExtra(BrowserActivity.EXTRA_URL, target.toString())
-                                                    .putExtra(BrowserActivity.EXTRA_TITLE, "公告链接")
+                                                    .putExtra(BrowserActivity.EXTRA_TITLE, context.getString(R.string.loc_hub_announcement_link))
                                             )
                                         }.fold(
                                             onSuccess = { true },
                                             onFailure = {
-                                                Toast.makeText(viewContext, "无法打开公告链接", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(viewContext, context.getString(R.string.loc_hub_cannot_open_announcement), Toast.LENGTH_SHORT).show()
                                                 true
                                             }
                                         )
@@ -324,13 +326,13 @@ private fun AirdropAnnouncementDetail(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AppButton(
-                text = "返回列表",
+                text = context.getString(R.string.loc_hub_back_to_list),
                 onClick = onBack,
                 modifier = Modifier.weight(1f),
                 style = AppButtonStyle.SECONDARY
             )
             AppButton(
-                text = "在币安打开原文",
+                text = context.getString(R.string.loc_hub_open_binance_original),
                 onClick = {
                     runCatching {
                         context.startActivity(
@@ -339,7 +341,7 @@ private fun AirdropAnnouncementDetail(
                                 .putExtra(BrowserActivity.EXTRA_TITLE, item.name)
                         )
                     }.onFailure {
-                        Toast.makeText(context, "无法打开 Binance 原文", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.loc_hub_cannot_open_binance), Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier.weight(1f)
