@@ -1032,7 +1032,7 @@ fun BrowserAccountingToolbar(
                                     showConfirm = false
                                     activeBill = null
                                     Toast.makeText(context,
-                                        if (autoContribute) stringResource(R.string.acct_ui_50) else stringResource(R.string.acct_ui_51),
+                                        if (autoContribute) context.getString(R.string.acct_ui_50) else context.getString(R.string.acct_ui_51),
                                         Toast.LENGTH_SHORT).show()
                                     if (!showDock) onCloseAccounting()
                                 } else {
@@ -1368,7 +1368,7 @@ fun AccountingCenterScreen(
                                         }
                                         Surface(color = MaterialTheme.colorScheme.secondaryContainer,
                                             shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
-                                            Text(stringResource(R.string.acct_ui_51), modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                            Text(context.getString(R.string.acct_ui_51), modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                                 style = MaterialTheme.typography.labelSmall)
                                         }
