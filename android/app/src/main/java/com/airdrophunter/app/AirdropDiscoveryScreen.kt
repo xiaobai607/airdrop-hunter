@@ -37,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Alignment
@@ -65,20 +66,20 @@ fun AirdropDiscoveryScreen(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("空投记录", modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+        Text(context.getString(R.string.loc_airdrop_records), modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
         Text(
-            "这里只展示已保存的活动记录。请核对官方链接；未验证记录不会被标记为官方确认。",
+            context.getString(R.string.loc_airdrop_records_intro),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AppButton(
-                text = "刷新", onClick = { airdropsViewModel.loadAirdrops() },
+                text = context.getString(R.string.loc_refresh), onClick = { airdropsViewModel.loadAirdrops() },
                 enabled = !state.isLoading, loading = state.isLoading,
                 style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 44, fontSizeSp = 14
             )
             AppButton(
-                text = "添加空投", onClick = { showAddDialog = true },
+                text = context.getString(R.string.loc_add_airdrop), onClick = { showAddDialog = true },
                 enabled = !state.isSaving, fullWidth = false, heightDp = 44, fontSizeSp = 14
             )
         }
@@ -100,10 +101,10 @@ fun AirdropDiscoveryScreen(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(if (state.error != null) "暂时无法读取空投记录" else "还没有空投记录", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Text(if (state.error != null) "请检查网络后重试；已保存的记录不会因此被删除。" else "添加你找到的项目和官方来源链接，集中管理参与条件与奖励信息。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (state.error != null) AppButton("重新加载", onClick = { airdropsViewModel.loadAirdrops() }, fullWidth = false)
-                    else AppButton("添加第一条记录", onClick = { showAddDialog = true }, fullWidth = false)
+                    Text(if (state.error != null) context.getString(R.string.loc_airdrop_load_failed) else context.getString(R.string.loc_empty_airdrops), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(if (state.error != null) context.getString(R.string.loc_airdrop_retry_hint) else context.getString(R.string.loc_airdrop_empty_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (state.error != null) AppButton(context.getString(R.string.loc_reload), onClick = { airdropsViewModel.loadAirdrops() }, fullWidth = false)
+                    else AppButton(context.getString(R.string.loc_add_first_airdrop), onClick = { showAddDialog = true }, fullWidth = false)
                 }
             }
         } else {
@@ -143,7 +144,7 @@ fun AirdropDiscoveryScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                listOf(airdropStatusLabel(item.status), item.chain.ifBlank { "链未填写" }).forEach { tag ->
+                                listOf(airdropStatusLabel(item.status), item.chain.ifBlank { context.getString(R.string.loc_chain_unspecified) }).forEach { tag ->
                                     Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                                         Text(tag, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
@@ -194,24 +195,24 @@ private fun AddAirdropDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text("添加空投记录", color = MaterialTheme.colorScheme.onSurface) },
+        title = { Text(context.getString(R.string.loc_add_airdrop_record), color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(
                 Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                AppTextField(name, { name = it }, placeholder = "项目名称 *")
-                AppTextField(description, { description = it }, placeholder = "项目简介", singleLine = false)
-                AppTextField(chain, { chain = it }, placeholder = "所属链，例如 Base")
-                AppTextField(reward, { reward = it }, placeholder = "奖励说明", singleLine = false)
-                AppTextField(eligibility, { eligibility = it }, placeholder = "参与条件", singleLine = false)
-                AppTextField(officialUrl, { officialUrl = it }, placeholder = "官方活动链接")
-                AppTextField(sourceUrl, { sourceUrl = it }, placeholder = "信息来源链接")
+                AppTextField(name, { name = it }, placeholder = context.getString(R.string.loc_project_name_required))
+                AppTextField(description, { description = it }, placeholder = context.getString(R.string.loc_project_intro), singleLine = false)
+                AppTextField(chain, { chain = it }, placeholder = context.getString(R.string.loc_chain_example))
+                AppTextField(reward, { reward = it }, placeholder = context.getString(R.string.loc_reward_details), singleLine = false)
+                AppTextField(eligibility, { eligibility = it }, placeholder = context.getString(R.string.loc_eligibility_requirements), singleLine = false)
+                AppTextField(officialUrl, { officialUrl = it }, placeholder = context.getString(R.string.loc_official_campaign_url))
+                AppTextField(sourceUrl, { sourceUrl = it }, placeholder = context.getString(R.string.loc_source_url))
             }
         },
         confirmButton = {
             AppButton(
-                text = "保存",
+                text = context.getString(R.string.loc_save),
                 enabled = name.isNotBlank() && !saving,
                 loading = saving,
                 onClick = {
@@ -234,19 +235,21 @@ private fun AddAirdropDialog(
                 }
             )
         },
-        dismissButton = { AppTextButton(onClick = onDismiss, enabled = !saving) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = onDismiss, enabled = !saving) { Text(context.getString(R.string.loc_cancel)) } }
     )
 }
 
+@Composable
 private fun airdropStatusLabel(status: String): String = when (status) {
-    "upcoming" -> "即将开始"
-    "ongoing" -> "进行中"
-    "ended" -> "已结束"
-    else -> "待确认"
+    "upcoming" -> stringResource(R.string.loc_status_upcoming_label)
+    "ongoing" -> stringResource(R.string.loc_status_ongoing_label)
+    "ended" -> stringResource(R.string.loc_status_ended_label)
+    else -> stringResource(R.string.loc_status_pending_label)
 }
 
+@Composable
 private fun verificationLabel(status: String): String = when (status) {
-    "verified" -> "已核实"
-    "source_linked" -> "已附来源，待核实"
-    else -> "未核实"
+    "verified" -> stringResource(R.string.loc_verification_verified)
+    "source_linked" -> stringResource(R.string.loc_verification_source_pending)
+    else -> stringResource(R.string.loc_verification_unverified)
 }
