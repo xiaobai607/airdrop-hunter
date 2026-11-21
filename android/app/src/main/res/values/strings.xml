@@ -272,7 +272,7 @@
     <string name="acct_ui_delete_failed">Failed to delete. Try again.</string>
     <string name="acct_ui_add_tool">Add tool</string>
     <string name="acct_ui_sync_transaction">Sync on-chain transaction</string>
-    <string name="acct_ui_sync_txhash_help">Paste the submitted TxHash from your wallet. The app checks the sender, recipient, amount and calldata against the draft's chain RPC. A mismatch will not be linked.</string>
+    <string name="acct_ui_sync_txhash_help">"Paste the submitted TxHash from your wallet. The app checks the sender, recipient, amount and calldata against the draft's chain RPC. A mismatch will not be linked."</string>
     <string name="acct_ui_verify_sync">Verify &amp; sync</string>
     <string name="acct_ui_txhash_verified">TxHash verified. Syncing on-chain receipt.</string>
     <string name="acct_ui_txhash_mismatch">TxHash mismatch or transaction not found on-chain.</string>
@@ -339,7 +339,7 @@
     <string name="loc_projects_47">Linked · Change</string>
     <string name="loc_projects_48">Project overview</string>
     <string name="loc_projects_49">Official eligibility URL (optional)</string>
-    <string name="loc_projects_50">Enter the project\'s official eligibility page. Do not use untrusted third-party links.</string>
+    <string name="loc_projects_50">"Enter the project's official eligibility page. Do not use untrusted third-party links."</string>
     <string name="loc_projects_51">Save project</string>
     <string name="loc_projects_filter_empty">No projects in “%1$s”. Change the filter to view other projects.</string>
     <string name="loc_projects_all">All</string>
@@ -522,7 +522,7 @@
     <string name="loc_detail_58">Community directory projects participate in de-identified statistics by default. Entries without a transaction hash are counted as self-reported; entries with a hash must pass on-chain verification. Private projects are included only in your personal ledger.</string>
     <string name="loc_detail_59">Verification network</string>
     <string name="loc_detail_60">Select a network</string>
-    <string name="loc_detail_61">This wallet's network does not support on-chain verification. Eligible community project entries are still included as self-reported data; private projects remain in your personal ledger only.</string>
+    <string name="loc_detail_61">"This wallet's network does not support on-chain verification. Eligible community project entries are still included as self-reported data; private projects remain in your personal ledger only."</string>
     <string name="loc_detail_62">Without a transaction hash, the entry is included in public totals as self-reported. If provided, the transaction is verified before inclusion.</string>
     <string name="loc_detail_63">Save ledger entry</string>
     <string name="loc_detail_64">Enter the USD reward</string>
@@ -543,7 +543,7 @@
     <string name="loc_detail_79">Task name</string>
     <string name="loc_detail_80">Save</string>
     <string name="loc_detail_81">Choose a claim wallet</string>
-    <string name="loc_detail_82">The selected wallet's public address will be used to open the project's eligibility page. No signature or transaction will be sent automatically.</string>
+    <string name="loc_detail_82">"The selected wallet's public address will be used to open the project's eligibility page. No signature or transaction will be sent automatically."</string>
     <string name="loc_detail_83">Invalid claim link</string>
     <string name="loc_detail_84">USD valuation incomplete</string>
     <string name="loc_detail_85">No valuation</string>
