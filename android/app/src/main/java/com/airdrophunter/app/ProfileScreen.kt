@@ -74,7 +74,7 @@ fun ProfileScreen(
     var activeProfileDestination by remember { mutableStateOf<ProfileDestination?>(null) }
     val appVersion = remember(context) {
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
-            .getOrNull() ?: "未知"
+            .getOrNull() ?: ""
     }
 
     val createBackupLauncher = rememberLauncherForActivityResult(
@@ -87,8 +87,8 @@ fun ProfileScreen(
             coroutineScope.launch {
                 backupBusy = true
                 runCatching { LocalBackupRepository.writeBackup(context, uri, password) }
-                    .onSuccess { Toast.makeText(context, "备份文件已保存", Toast.LENGTH_LONG).show() }
-                    .onFailure { Toast.makeText(context, it.message ?: "备份失败", Toast.LENGTH_LONG).show() }
+                    .onSuccess { Toast.makeText(context, context.getString(R.string.loc_profile_01), Toast.LENGTH_LONG).show() }
+                    .onFailure { Toast.makeText(context, it.message ?: context.getString(R.string.loc_profile_02), Toast.LENGTH_LONG).show() }
                 backupBusy = false
             }
         }
@@ -117,12 +117,12 @@ fun ProfileScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("我的", modifier = Modifier.weight(1f).semantics { heading() },
+            Text(context.getString(R.string.loc_profile_03), modifier = Modifier.weight(1f).semantics { heading() },
                 color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             AppIconButton(
                 icon = Icons.Default.Settings,
-                contentDescription = "打开设置",
+                contentDescription = context.getString(R.string.loc_profile_04),
                 onClick = { activeProfileDestination = ProfileDestination.SETTINGS }
             )
         }
@@ -139,16 +139,16 @@ fun ProfileScreen(
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(if (isGuest) "游客模式" else (state.profile?.username ?: "账户中心"),
+                Text(if (isGuest) context.getString(R.string.loc_profile_05) else (state.profile?.username ?: context.getString(R.string.loc_profile_06)),
                     color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp,
                     fontWeight = FontWeight.Medium, maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 Text(
                     when {
-                        isGuest -> "当前以游客身份使用"
+                        isGuest -> context.getString(R.string.loc_profile_07)
                         state.profile != null -> "ID: " + state.profile!!.uid
-                        state.isLoading -> "正在加载账户信息…"
-                        else -> "账户信息暂时无法加载"
+                        state.isLoading -> context.getString(R.string.loc_profile_08)
+                        else -> context.getString(R.string.loc_profile_09)
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp, maxLines = 2,
@@ -158,7 +158,7 @@ fun ProfileScreen(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("数据概览", color = MaterialTheme.colorScheme.onSurface,
+            Text(context.getString(R.string.loc_profile_10), color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 4.dp))
         Card(
@@ -170,36 +170,36 @@ fun ProfileScreen(
                 val hasLedgerEntries = stats.total_interactions > 0 || stats.ledger_project_count > 0
                 val hasWinRateSample = stats.evaluated_projects > 0
                 Row(Modifier.fillMaxWidth().heightIn(min = 76.dp)) {
-                    StatCell("跟踪项目", stats.tracked_projects.toString(), Modifier.weight(1f))
+                    StatCell(context.getString(R.string.loc_profile_11), stats.tracked_projects.toString(), Modifier.weight(1f))
                     Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
                     StatCell(
-                        if (!hasWinRateSample) "胜率样本" else if (stats.usd_profit_complete) "胜率" else "已估值胜率",
-                        if (hasWinRateSample) String.format(Locale.US, "%.1f%%", stats.win_rate) else "暂无样本",
+                        if (!hasWinRateSample) context.getString(R.string.loc_profile_12) else if (stats.usd_profit_complete) context.getString(R.string.loc_profile_13) else context.getString(R.string.loc_profile_14),
+                        if (hasWinRateSample) String.format(Locale.US, "%.1f%%", stats.win_rate) else context.getString(R.string.loc_profile_15),
                         Modifier.weight(1f)
                     )
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth().heightIn(min = 76.dp)) {
                     StatCell(
-                        "累计 Gas",
-                        if (hasLedgerEntries) String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost) else "暂无记账",
+                        context.getString(R.string.loc_profile_16),
+                        if (hasLedgerEntries) String.format(Locale.US, "%.2f", stats.ledger_total_gas_cost) else context.getString(R.string.loc_profile_17),
                         Modifier.weight(1f), if (hasLedgerEntries) "USD" else ""
                     )
                     Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
                     StatCell(
-                        "实际收益",
+                        context.getString(R.string.loc_profile_18),
                         when {
-                            !hasLedgerEntries -> "暂无记账"
+                            !hasLedgerEntries -> context.getString(R.string.loc_profile_17)
                             stats.usd_profit_complete -> String.format(Locale.US, "%.2f", stats.ledger_total_actual_reward)
-                            else -> "估值未完整"
+                            else -> context.getString(R.string.loc_profile_19)
                         },
                         Modifier.weight(1f), if (hasLedgerEntries && stats.usd_profit_complete) "USD" else ""
                     )
                 }
                 val netProfitLabel = when {
-                    !hasLedgerEntries -> "暂无记账"
+                    !hasLedgerEntries -> context.getString(R.string.loc_profile_17)
                     stats.usd_profit_complete -> String.format(Locale.US, "%.2f", stats.ledger_net_profit) + " USD"
-                    else -> "估值未完整"
+                    else -> context.getString(R.string.loc_profile_19)
                 }
                 Text(
                     "参与项目 ${stats.ledger_project_count} · 净收益 $netProfitLabel · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
@@ -219,16 +219,16 @@ fun ProfileScreen(
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("数据迁移", color = MaterialTheme.colorScheme.onSurface,
+                Text(context.getString(R.string.loc_profile_20), color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 AppButton(
-                    text = if (backupBusy) "正在处理…" else "备份我的数据",
+                    text = if (backupBusy) context.getString(R.string.loc_profile_21) else context.getString(R.string.loc_profile_22),
                     onClick = { showBackupPasswordDialog = true },
                     enabled = !backupBusy,
                     loading = backupBusy
                 )
                 AppButton(
-                    text = "导入数据",
+                    text = context.getString(R.string.loc_profile_23),
                     onClick = { openBackupLauncher.launch(arrayOf("*/*")) },
                     enabled = !backupBusy,
                     style = AppButtonStyle.SECONDARY
@@ -243,19 +243,19 @@ fun ProfileScreen(
 
         if (isGuest) {
             Text(
-                "当前版本暂不开放注册/登录。个人数据同步能力仍在完善中；为避免换机或设备故障造成数据丢失，请定期使用上方加密备份功能保存数据。",
+                context.getString(R.string.loc_profile_25),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.bodySmall
             )
         }
 
         if (state.hasError && !isGuest) {
-            Text("账户或统计数据暂时无法加载，服务器繁忙。", color = MaterialTheme.colorScheme.error,
+            Text(context.getString(R.string.loc_profile_26), color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("设置与管理", color = MaterialTheme.colorScheme.onSurface,
+            Text(context.getString(R.string.loc_profile_27), color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 4.dp))
             Card(
@@ -266,15 +266,15 @@ fun ProfileScreen(
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    SettingRow("设置", Icons.Default.Settings) { activeProfileDestination = ProfileDestination.SETTINGS }
+                    SettingRow(context.getString(R.string.loc_profile_28), Icons.Default.Settings) { activeProfileDestination = ProfileDestination.SETTINGS }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(context.getString(R.string.language_settings), Icons.Default.Language) { showLanguageDialog = true }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingRow("安全中心", Icons.Default.Security) { activeProfileDestination = ProfileDestination.SECURITY }
+                    SettingRow(context.getString(R.string.loc_profile_29), Icons.Default.Security) { activeProfileDestination = ProfileDestination.SECURITY }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingRow("消息通知", Icons.Default.NotificationsNone) { activeProfileDestination = ProfileDestination.NOTIFICATIONS }
+                    SettingRow(context.getString(R.string.loc_profile_30), Icons.Default.NotificationsNone) { activeProfileDestination = ProfileDestination.NOTIFICATIONS }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingRow("钱包管理", Icons.Default.Wallet, onManageWallets)
+                    SettingRow(context.getString(R.string.loc_profile_31), Icons.Default.Wallet, onManageWallets)
                 }
             }
         }
@@ -316,18 +316,18 @@ fun ProfileScreen(
         if (showBackupPasswordDialog) {
             AlertDialog(
                 onDismissRequest = { showBackupPasswordDialog = false; backupPassword = ""; backupPasswordConfirm = "" },
-                title = { Text("设置备份密码") },
+                title = { Text(context.getString(R.string.loc_profile_32)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("备份文件会使用此密码加密。换手机导入时必须输入相同密码，密码不会保存在应用中。")
+                        Text(context.getString(R.string.loc_profile_33))
                         AppTextField(
                             value = backupPassword, onValueChange = { backupPassword = it },
-                            placeholder = "备份密码（至少8位）",
+                            placeholder = context.getString(R.string.loc_profile_34),
                             visualTransformation = PasswordVisualTransformation()
                         )
                         AppTextField(
                             value = backupPasswordConfirm, onValueChange = { backupPasswordConfirm = it },
-                            placeholder = "再次输入密码",
+                            placeholder = context.getString(R.string.loc_profile_35),
                             visualTransformation = PasswordVisualTransformation()
                         )
                     }
@@ -339,22 +339,22 @@ fun ProfileScreen(
                             showBackupPasswordDialog = false
                             createBackupLauncher.launch("AirdropHunter-backup.ahbackup")
                         }
-                    ) { Text("继续") }
+                    ) { Text(context.getString(R.string.loc_profile_36)) }
                 },
-                dismissButton = { AppTextButton(onClick = { showBackupPasswordDialog = false; backupPassword = ""; backupPasswordConfirm = "" }) { Text("取消") } }
+                dismissButton = { AppTextButton(onClick = { showBackupPasswordDialog = false; backupPassword = ""; backupPasswordConfirm = "" }) { Text(context.getString(R.string.loc_profile_37)) } }
             )
         }
 
         if (showImportPasswordDialog) {
             AlertDialog(
                 onDismissRequest = { showImportPasswordDialog = false; importPassword = ""; selectedBackupUri = null },
-                title = { Text("输入备份密码") },
+                title = { Text(context.getString(R.string.loc_profile_38)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("请输入创建该备份文件时设置的密码。")
+                        Text(context.getString(R.string.loc_profile_39))
                         AppTextField(
                             value = importPassword, onValueChange = { importPassword = it },
-                            placeholder = "备份密码",
+                            placeholder = context.getString(R.string.loc_profile_40),
                             visualTransformation = PasswordVisualTransformation()
                         )
                     }
@@ -370,14 +370,14 @@ fun ProfileScreen(
                                 backupBusy = true
                                 runCatching { LocalBackupRepository.readBackup(context, uri, password) }
                                     .onSuccess { pendingBackup = it; showRestoreConfirmDialog = true }
-                                    .onFailure { Toast.makeText(context, it.message ?: "备份文件无法读取", Toast.LENGTH_LONG).show() }
+                                    .onFailure { Toast.makeText(context, it.message ?: context.getString(R.string.loc_profile_41), Toast.LENGTH_LONG).show() }
                                 backupBusy = false
                             }
                             importPassword = ""
                         }
-                    ) { Text("验证备份") }
+                    ) { Text(context.getString(R.string.loc_profile_42)) }
                 },
-                dismissButton = { AppTextButton(onClick = { showImportPasswordDialog = false; importPassword = ""; selectedBackupUri = null }) { Text("取消") } }
+                dismissButton = { AppTextButton(onClick = { showImportPasswordDialog = false; importPassword = ""; selectedBackupUri = null }) { Text(context.getString(R.string.loc_profile_37)) } }
             )
         }
 
@@ -385,9 +385,9 @@ fun ProfileScreen(
             val backup = pendingBackup!!
             AlertDialog(
                 onDismissRequest = { showRestoreConfirmDialog = false; pendingBackup = null; selectedBackupUri = null },
-                title = { Text("确认导入并替换数据？") },
+                title = { Text(context.getString(R.string.loc_profile_43)) },
                 text = {
-                    Text("备份时间：${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(backup.createdAt))}\n包含 ${backup.totalRecords} 条本地记录。导入后将替换当前设备此会话的数据，此操作不能自动撤销。")
+                    Text(context.getString(R.string.loc_profile_47, java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(backup.createdAt)), backup.totalRecords))
                 },
                 confirmButton = {
                     AppTextButton(
@@ -399,17 +399,17 @@ fun ProfileScreen(
                                 runCatching { LocalBackupRepository.restore(backup) }
                                     .onSuccess {
                                         profileViewModel.load(isGuest)
-                                        Toast.makeText(context, "数据导入成功", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, context.getString(R.string.loc_profile_44), Toast.LENGTH_LONG).show()
                                     }
-                                    .onFailure { Toast.makeText(context, it.message ?: "导入失败，原数据未更改", Toast.LENGTH_LONG).show() }
+                                    .onFailure { Toast.makeText(context, it.message ?: context.getString(R.string.loc_profile_45), Toast.LENGTH_LONG).show() }
                                 backupBusy = false
                                 pendingBackup = null
                                 selectedBackupUri = null
                             }
                         }
-                    ) { Text("确认导入") }
+                    ) { Text(context.getString(R.string.loc_profile_46)) }
                 },
-                dismissButton = { AppTextButton(onClick = { showRestoreConfirmDialog = false; pendingBackup = null; selectedBackupUri = null }) { Text("取消") } }
+                dismissButton = { AppTextButton(onClick = { showRestoreConfirmDialog = false; pendingBackup = null; selectedBackupUri = null }) { Text(context.getString(R.string.loc_profile_37)) } }
             )
         }
     }
