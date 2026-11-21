@@ -202,7 +202,7 @@ fun ProfileScreen(
                     else -> context.getString(R.string.loc_profile_19)
                 }
                 Text(
-                    "参与项目 ${stats.ledger_project_count} · 净收益 $netProfitLabel · 已完成 ${stats.completed_projects} · 交互 ${stats.ledger_interaction_days} 天",
+                    context.getString(R.string.loc_profile_stats_line, stats.ledger_project_count, netProfitLabel, stats.completed_projects, stats.ledger_interaction_days),
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.labelSmall
@@ -234,7 +234,7 @@ fun ProfileScreen(
                     style = AppButtonStyle.SECONDARY
                 )
                 Text(
-                    "支持 .ahbackup 和 .hunter 文件。备份文件经过密码加密；换机时选择文件并输入相同密码即可恢复，请妥善保存文件和密码。",
+                    context.getString(R.string.loc_profile_backup_help),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
