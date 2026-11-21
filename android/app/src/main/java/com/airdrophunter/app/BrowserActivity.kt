@@ -141,7 +141,7 @@ class BrowserActivity : ComponentActivity() {
         val site = intent.getStringExtra(EXTRA_TITLE).orEmpty()
         if (url == null) {
             Log.e(TAG, "Rejected invalid browser URL host: ${displayHost(receivedUrl)}")
-            Toast.makeText(this, "网址无效，请检查链接后重试", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.loc_browser_01), Toast.LENGTH_LONG).show()
             finish()
             return
         }
@@ -269,7 +269,7 @@ private fun BrowserScreen(
     val navigateToAddress: () -> Unit = {
         val targetUrl = normalizeBrowserHttpsUrl(addressInput.trim())
         if (targetUrl == null) {
-            Toast.makeText(context, "网址无效，请输入正确的网址", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.loc_browser_02), Toast.LENGTH_SHORT).show()
         } else {
             isAddressEditing = false
             addressInput = targetUrl
@@ -282,7 +282,7 @@ private fun BrowserScreen(
                 activeWebView.loadUrl(targetUrl)
                 Log.i("AirdropBrowser", "User address navigation requested: " + displayHost(targetUrl))
             } else {
-                Toast.makeText(context, "浏览器还在初始化，请稍后再试", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.loc_browser_03), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -323,7 +323,7 @@ private fun BrowserScreen(
             kotlinx.coroutines.delay(30_000)
             if (pageState == BrowserPageState.Loading) {
                 pageState = BrowserPageState.Error
-                pageErrorMessage = "错误类型：页面加载超时\n等待时间：30 秒\n当前网站：${displayHost(currentPageUrl)}\n说明：WebView 在等待时间内没有提交可显示的首屏内容。可能原因包括 DNS 解析失败、网络/VPN 连接受阻、服务器无响应或网站验证页面未完成。"
+                pageErrorMessage = context.getString(R.string.loc_browser_timeout_detail, displayHost(currentPageUrl))
                 Log.w("AirdropBrowser", "Main-frame load timed out after 30 seconds; host=${displayHost(currentPageUrl)}")
             }
         }
@@ -414,7 +414,7 @@ private fun BrowserScreen(
             pending.web3DraftId?.let { draftId ->
                 web3Repository.markWalletTimedOut(draftId)
             }
-            DappProviderBridge.error(pending.replyProxy, requestId, 4001, "外部钱包请求超时或已取消；链上状态仍需同步核对")
+            DappProviderBridge.error(pending.replyProxy, requestId, 4001, context.getString(R.string.loc_browser_network_error_detail, context.getString(R.string.loc_browser_21), requestId, context.getString(R.string.loc_browser_22), "WalletConnect", currentPageUrl))
             pendingDappExternalRequest = null
         }
     }
@@ -438,7 +438,7 @@ private fun BrowserScreen(
                     pending.web3DraftId?.let { draftId ->
                         dappRequestScope.launch { web3Repository.markWalletTimedOut(draftId) }
                     }
-                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4100, "外部钱包会话已变化；交易草稿保留并等待同步核对")
+                    DappProviderBridge.error(pending.replyProxy, pending.request.id, 4100, context.getString(R.string.loc_browser_network_error_detail, context.getString(R.string.loc_browser_23), pending.request.id, context.getString(R.string.loc_browser_24), "WalletConnect", currentPageUrl))
                     pendingDappExternalRequest = null
                 }
                 val accountsChanged = JSONObject()
@@ -495,17 +495,17 @@ private fun BrowserScreen(
                     title = { Text(title, color = MaterialTheme.colorScheme.onBackground,
                         style = MaterialTheme.typography.titleLarge, maxLines = 1) },
                     navigationIcon = {
-                        AppIconButton(Icons.Default.ArrowBack, "返回", onExit)
+                        AppIconButton(Icons.Default.ArrowBack, context.getString(R.string.loc_browser_46), onExit)
                     },
                     actions = {
                         AppButton(
-                            text = if (walletConnectReady) "连接外部钱包" else "初始化钱包…",
+                            text = if (walletConnectReady) context.getString(R.string.loc_browser_05) else context.getString(R.string.loc_browser_06),
                             onClick = {
                                 if (walletConnectReady) {
                                     walletNavController.openAppKit()
                                 } else {
                                     WalletConnectInitializer.ensureInitialized(context.applicationContext as android.app.Application)
-                                    Toast.makeText(context, "钱包服务正在初始化，请稍后再试", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.loc_browser_07), Toast.LENGTH_SHORT).show()
                                 }
                             },
                             style = AppButtonStyle.SECONDARY,
@@ -516,7 +516,7 @@ private fun BrowserScreen(
                         )
                         if (selectedWallet != null) {
                             AppButton(
-                                text = "钱包 · ${selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }}",
+                                text = context.getString(R.string.loc_browser_wallet_title, selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }),
                                 onClick = { showWalletPicker = true },
                                 modifier = Modifier.widthIn(max = 124.dp),
                                 style = AppButtonStyle.TEXT,
@@ -544,7 +544,7 @@ private fun BrowserScreen(
                                 isAddressEditing = focusState.isFocused
                             },
                             singleLine = true,
-                            placeholder = { Text("输入网址或域名") },
+                            placeholder = { Text(context.getString(R.string.loc_browser_08)) },
                             textStyle = MaterialTheme.typography.bodyMedium,
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
@@ -560,7 +560,7 @@ private fun BrowserScreen(
                             keyboardActions = KeyboardActions(onGo = { navigateToAddress() })
                         )
                         IconButton(onClick = navigateToAddress) {
-                            Icon(Icons.Default.ArrowForward, contentDescription = "访问网址",
+                            Icon(Icons.Default.ArrowForward, contentDescription = context.getString(R.string.loc_browser_09),
                                 tint = MaterialTheme.colorScheme.primary)
                         }
                     }
@@ -609,9 +609,9 @@ private fun BrowserScreen(
                                     modifier = Modifier.size(18.dp))
                                 Text(
                                     if (targetHost != null)
-                                        "即将切换网站：$targetHost。请核对域名，不要输入助记词或私钥。"
+                                        context.getString(R.string.loc_browser_switch_site_notice, targetHost)
                                     else
-                                        "安全提醒：本 App 不保存私钥。签名和交易由外部钱包确认；请核对网站域名。",
+                                        context.getString(R.string.loc_browser_security_notice),
                                     Modifier.weight(1f),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.labelSmall,
@@ -623,9 +623,9 @@ private fun BrowserScreen(
                                     AppTextButton(onClick = {
                                         pendingNavigationUrl = null
                                         browser?.loadUrl(targetUrl)
-                                    }) { Text("确认访问") }
+                                    }) { Text(context.getString(R.string.loc_browser_10)) }
                                     AppTextButton(onClick = { pendingNavigationUrl = null }) {
-                                        Text("留在当前网站")
+                                        Text(context.getString(R.string.loc_browser_11))
                                     }
                                 }
                             } else {
@@ -633,7 +633,7 @@ private fun BrowserScreen(
                                     markBrowserSecurityBannerShown(context)
                                     showSecurityBanner = false
                                 }) {
-                                    Text("知道了")
+                                    Text(context.getString(R.string.loc_browser_12))
                                 }
                             }
                         }
@@ -736,24 +736,24 @@ private fun BrowserScreen(
                                                     }
                                                     when {
                                                         !authorized || connectedDappAccounts.isEmpty() ->
-                                                            DappProviderBridge.error(replyChannel, request.id, 4100, "请先在当前网站授权连接外部钱包")
+                                                            DappProviderBridge.error(replyChannel, request.id, 4100, context.getString(R.string.loc_browser_25))
                                                         sessionTopic.isNullOrBlank() ->
-                                                            DappProviderBridge.error(replyChannel, request.id, 4200, "当前钱包连接方式暂不支持 DApp 签名转发，请使用 WalletConnect 外部钱包连接")
+                                                            DappProviderBridge.error(replyChannel, request.id, 4200, context.getString(R.string.loc_browser_26))
                                                         pendingDappExternalRequest != null ->
-                                                            DappProviderBridge.error(replyChannel, request.id, -32002, "已有一笔外部钱包请求正在等待确认")
+                                                            DappProviderBridge.error(replyChannel, request.id, -32002, context.getString(R.string.loc_browser_27))
                                                         !DappProviderBridge.isAuthorizedAccountRequest(
                                                             request.method, firstRequestParam, secondRequestParam,
                                                             transactionFrom, connectedAddresses
                                                         ) ->
-                                                            DappProviderBridge.error(replyChannel, request.id, 4100, "请求使用的钱包地址未在当前外部钱包会话中授权")
+                                                            DappProviderBridge.error(replyChannel, request.id, 4100, context.getString(R.string.loc_browser_28))
                                                         account == null ->
-                                                            DappProviderBridge.error(replyChannel, request.id, 4901, "请求账户未在当前外部钱包的活动网络中授权，请切换网络或重新连接")
+                                                            DappProviderBridge.error(replyChannel, request.id, 4901, context.getString(R.string.loc_browser_29))
                                                         !DappProviderBridge.isTransactionChainCompatible(
                                                             request.method,
                                                             request.params.optJSONObject(0)?.optString("chainId"),
                                                             account.chainId
                                                         ) ->
-                                                            DappProviderBridge.error(replyChannel, request.id, 4901, "交易参数指定的网络与当前授权网络不一致，已阻止转发")
+                                                            DappProviderBridge.error(replyChannel, request.id, 4901, context.getString(R.string.loc_browser_30))
                                                         else -> {
                                                             val chainReference = account.chainId.let {
                                                                 if (it.startsWith("eip155:")) it else "eip155:$it"
@@ -772,7 +772,7 @@ private fun BrowserScreen(
                                                                     val transaction = request.params.optJSONObject(0)
                                                                     val chainNumber = chainReference.removePrefix("eip155:").toLongOrNull()
                                                                     if (transaction == null || chainNumber == null) {
-                                                                        DappProviderBridge.error(replyChannel, request.id, -32602, "交易参数或链 ID 无效")
+                                                                        DappProviderBridge.error(replyChannel, request.id, -32602, context.getString(R.string.loc_browser_31))
                                                                         pendingDappExternalRequest = null
                                                                         return@launch
                                                                     }
@@ -785,7 +785,7 @@ private fun BrowserScreen(
                                                                         ).id
                                                                     }.getOrElse {
                                                                         Log.e("AirdropBrowser", "Failed to persist Web3 transaction draft", it)
-                                                                        DappProviderBridge.error(replyChannel, request.id, -32000, "无法安全保存交易草稿，本次交易请求已阻止")
+                                                                        DappProviderBridge.error(replyChannel, request.id, -32000, context.getString(R.string.loc_browser_32))
                                                                         pendingDappExternalRequest = null
                                                                         return@launch
                                                                     }
@@ -815,7 +815,7 @@ private fun BrowserScreen(
                                                                                         }
                                                                                         DappProviderBridge.error(
                                                                                             replyChannel, request.id, 4200,
-                                                                                            "无法确认外部钱包请求编号，已安全取消本次请求"
+                                                                                            context.getString(R.string.loc_browser_22)
                                                                                         )
                                                                                         pendingDappExternalRequest = null
                                                                                     } else {
@@ -832,7 +832,7 @@ private fun BrowserScreen(
                                                                                             }
                                                                                             DappProviderBridge.error(
                                                                                                 replyChannel, request.id, 4200,
-                                                                                                "交易草稿与钱包请求关联失败；请通过链上同步核对"
+                                                                                                context.getString(R.string.loc_browser_23)
                                                                                             )
                                                                                             pendingDappExternalRequest = null
                                                                                         } else {
@@ -857,7 +857,7 @@ private fun BrowserScreen(
                                                                                     }
                                                                                     DappProviderBridge.error(
                                                                                         replyChannel, request.id, 4001,
-                                                                                        error.localizedMessage ?: "外部钱包请求失败或被拒绝"
+                                                                                        error.localizedMessage ?: context.getString(R.string.loc_browser_21)
                                                                                     )
                                                                                     pendingDappExternalRequest = null
                                                                                 }
@@ -877,7 +877,7 @@ private fun BrowserScreen(
                                                                         }
                                                                         DappProviderBridge.error(
                                                                             replyChannel, request.id, 4001,
-                                                                            error.localizedMessage ?: "无法打开外部钱包请求"
+                                                                            error.localizedMessage ?: context.getString(R.string.loc_browser_20)
                                                                         )
                                                                         pendingDappExternalRequest = null
                                                                     }
@@ -887,7 +887,7 @@ private fun BrowserScreen(
                                                     }
                                                 }
                                                 DappProviderBridge.isBlockedRawSubmissionMethod(request.method) ->
-                                                    DappProviderBridge.error(replyChannel, request.id, 4200, "不支持原始已签名交易或批量智能账户提交；请使用由外部钱包审核的标准签名/交易请求")
+                                                    DappProviderBridge.error(replyChannel, request.id, 4200, context.getString(R.string.loc_browser_33))
                                                 else ->
                                                     DappProviderBridge.error(replyChannel, request.id, 4200, "Unsupported wallet method: ${request.method}")
                                             }
@@ -1011,14 +1011,14 @@ private fun BrowserScreen(
                                     }
                                     if (scheme == "wc") {
                                         if (!walletConnectReady) {
-                                            Toast.makeText(context, "钱包连接服务尚未就绪，请稍后重试", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, context.getString(R.string.loc_browser_13), Toast.LENGTH_LONG).show()
                                         } else {
                                             runCatching {
                                                 AppKit.handleDeepLink(target.toString()) { error ->
                                                     Log.e("AirdropWallet", "WalletConnect deep link failed", error.throwable)
                                                 }
                                             }.onFailure {
-                                                Toast.makeText(context, "无法处理 WalletConnect 链接", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, context.getString(R.string.loc_browser_14), Toast.LENGTH_LONG).show()
                                             }
                                         }
                                         return true
@@ -1037,7 +1037,7 @@ private fun BrowserScreen(
                                                 Log.e("AirdropBrowser", "Could not persist wallet transaction draft", it)
                                             }.getOrNull()
                                         } else if (parsed != null) {
-                                            Toast.makeText(context, "该网络暂未接入安全 RPC 自动核验，钱包仍可打开；请使用手动记账", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, context.getString(R.string.loc_browser_15), Toast.LENGTH_LONG).show()
                                         }
                                         draftId?.let {
                                             com.airdrophunter.app.data.Web3DraftTimeoutScheduler.enqueue(
@@ -1047,13 +1047,13 @@ private fun BrowserScreen(
                                         val walletIntent = Intent(Intent.ACTION_VIEW, target)
                                         if (walletIntent.resolveActivity(context.packageManager) == null) {
                                             draftId?.let { web3Repository.markWalletUnavailable(it) }
-                                            Toast.makeText(context, "未找到可处理此钱包链接的应用", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, context.getString(R.string.loc_browser_16), Toast.LENGTH_LONG).show()
                                         } else {
                                             runCatching {
-                                                context.startActivity(Intent.createChooser(walletIntent, "选择外部钱包"))
+                                                context.startActivity(Intent.createChooser(walletIntent, context.getString(R.string.loc_browser_17)))
                                             }.onFailure {
                                                 draftId?.let { id -> web3Repository.markWalletTimedOut(id) }
-                                                Toast.makeText(context, "无法打开外部钱包；交易草稿已保留待核对", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, context.getString(R.string.loc_browser_18), Toast.LENGTH_LONG).show()
                                             }
                                         }
                                     }
@@ -1087,7 +1087,7 @@ private fun BrowserScreen(
                                             pending.web3DraftId?.let { draftId ->
                                                 dappRequestScope.launch { web3Repository.markWalletTimedOut(draftId) }
                                             }
-                                            DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "网页已跳转；交易草稿保留并等待链上同步核对")
+                                            DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, context.getString(R.string.loc_browser_19))
                                         }
                                         pendingDappConnection = null
                                         pendingDappExternalRequest = null
@@ -1141,7 +1141,7 @@ private fun BrowserScreen(
                                         WebViewClient.ERROR_UNKNOWN -> "未知网络错误"
                                         else -> "WebView 网络错误"
                                     }
-                                    pageErrorMessage = "错误类型：$errorName\n网络错误码：${code ?: "未知"}\n错误描述：${error?.description ?: "系统未提供"}\n请求方式：${request?.method ?: "未知"}\n主框架：是\n完整网址：${request?.url ?: view?.url ?: currentPageUrl}"
+                                    pageErrorMessage = context.getString(R.string.loc_browser_network_error_detail, errorName, code ?: context.getString(R.string.loc_browser_unknown), error?.description ?: context.getString(R.string.loc_browser_system_not_provided), request?.method ?: context.getString(R.string.loc_browser_unknown), request?.url ?: view?.url ?: currentPageUrl)
                                     Log.e("AirdropBrowser", "Main-frame load error: code=$code, name=$errorName, description=${error?.description}, url=${request?.url}, method=${request?.method}")
                                 }
                             }
@@ -1154,7 +1154,7 @@ private fun BrowserScreen(
                                 super.onReceivedHttpError(view, request, errorResponse)
                                 if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 200) >= 400) {
                                     pageState = BrowserPageState.Error
-                                    pageErrorMessage = "错误类型：HTTP 服务器响应错误\nHTTP 状态码：${errorResponse?.statusCode ?: "未知"}\n原因：${errorResponse?.reasonPhrase ?: "服务器未提供"}\n请求方式：${request?.method ?: "未知"}\n完整网址：${request?.url ?: view?.url ?: currentPageUrl}"
+                                    pageErrorMessage = context.getString(R.string.loc_browser_http_error_detail, errorResponse?.statusCode ?: context.getString(R.string.loc_browser_unknown), errorResponse?.reasonPhrase ?: context.getString(R.string.loc_browser_system_not_provided), request?.method ?: context.getString(R.string.loc_browser_unknown), request?.url ?: view?.url ?: currentPageUrl)
                                     Log.e("AirdropBrowser", "Main-frame HTTP error: status=${errorResponse?.statusCode}, reason=${errorResponse?.reasonPhrase}, url=${request?.url}, method=${request?.method}")
                                 }
                             }
@@ -1163,7 +1163,7 @@ private fun BrowserScreen(
                                 // Never allow a WebView page to bypass TLS certificate validation.
                                 handler?.cancel()
                                 pageState = BrowserPageState.Error
-                                pageErrorMessage = "错误类型：HTTPS/SSL 证书验证失败\n证书错误码：${error?.primaryError ?: "未知"}\n证书错误说明：${when (error?.primaryError) {
+                                pageErrorMessage = context.getString(R.string.loc_browser_ssl_error_detail, error?.primaryError ?: context.getString(R.string.loc_browser_unknown), when (error?.primaryError) {
                                     android.net.http.SslError.SSL_NOTYETVALID -> "证书尚未生效"
                                     android.net.http.SslError.SSL_EXPIRED -> "证书已过期"
                                     android.net.http.SslError.SSL_IDMISMATCH -> "证书域名与访问网址不匹配"
@@ -1171,7 +1171,7 @@ private fun BrowserScreen(
                                     android.net.http.SslError.SSL_DATE_INVALID -> "证书日期无效"
                                     android.net.http.SslError.SSL_INVALID -> "证书无效"
                                     else -> "系统未提供更详细说明"
-                                }}\n完整网址：${error?.url ?: currentPageUrl}\n安全处理：已阻止连接，没有跳过证书验证。"
+                                }, error?.url ?: currentPageUrl)
                                 Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed; primaryError=${error?.primaryError}, url=${error?.url}")
                             }
 
@@ -1190,7 +1190,7 @@ private fun BrowserScreen(
                                             pending.replyProxy,
                                             pending.request.id,
                                             4001,
-                                            "网页渲染进程已退出，请重新加载页面"
+                                            context.getString(R.string.loc_browser_24)
                                         )
                                     }
                                 }
@@ -1203,7 +1203,7 @@ private fun BrowserScreen(
                                             pending.replyProxy,
                                             pending.request.id,
                                             4001,
-                                            "网页渲染进程已退出；交易草稿保留并等待链上同步核对"
+                                            context.getString(R.string.loc_browser_25)
                                         )
                                     }
                                 }
@@ -1213,7 +1213,7 @@ private fun BrowserScreen(
                                 DappOriginPermissionStore.revokeAll()
                                 browser = null
                                 pageState = BrowserPageState.Error
-                                pageErrorMessage = "错误类型：WebView 渲染进程退出\n是否崩溃：${detail?.didCrash() ?: "未知"}\n退出优先级：${detail?.rendererPriorityAtExit() ?: "未知"}\n当前网站：${displayHost(currentPageUrl)}\n处理结果：已准备重建页面，请点击重新加载。"
+                                pageErrorMessage = context.getString(R.string.loc_browser_renderer_error_detail, detail?.didCrash()?.toString() ?: context.getString(R.string.loc_browser_unknown), detail?.rendererPriorityAtExit()?.toString() ?: context.getString(R.string.loc_browser_unknown), displayHost(currentPageUrl))
                                 webViewGeneration += 1
                                 return true
                             }
@@ -1234,7 +1234,7 @@ private fun BrowserScreen(
                         runCatching {
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(currentPageUrl)))
                         }.onFailure {
-                            Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.loc_browser_26), Toast.LENGTH_SHORT).show()
                         }
                     },
                     onRetry = {
@@ -1250,25 +1250,25 @@ private fun BrowserScreen(
                 chainName = selectedWallet?.chain.orEmpty(),
                 onCopyAddress = {
                     val address = quickCopyAddress.ifBlank { selectedWallet?.address.orEmpty() }
-                    if (address.isBlank()) Toast.makeText(context, "当前没有可复制的钱包地址", Toast.LENGTH_SHORT).show()
+                    if (address.isBlank()) Toast.makeText(context, context.getString(R.string.loc_browser_27), Toast.LENGTH_SHORT).show()
                     else {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", address))
-                        Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.loc_browser_28), Toast.LENGTH_SHORT).show()
                     }
                 },
                 onRefreshPage = { browser?.reload() },
                 onCopyPageUrl = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText("Page URL", currentPageUrl))
-                    Toast.makeText(context, "网址已复制", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.loc_browser_29), Toast.LENGTH_SHORT).show()
                 },
                 onOpenPageExternally = {
                     val uri = Uri.parse(currentPageUrl)
                     try {
                         context.startActivity(Intent(Intent.ACTION_VIEW, uri))
                     } catch (_: Exception) {
-                        Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.loc_browser_26), Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
@@ -1285,11 +1285,11 @@ private fun BrowserScreen(
                 DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                 pendingDappConnection = null
             },
-            title = { Text("网站请求连接钱包", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
+            title = { Text(context.getString(R.string.loc_browser_30), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("来源网站：$requestedHost", color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
-                    Text("该网站请求读取已连接钱包的公开地址。只有您确认后才会授权；本次不会签名消息、发送交易或读取助记词。", color = MaterialTheme.colorScheme.onSurface)
+                    Text(context.getString(R.string.loc_browser_origin_label, requestedHost), color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
+                    Text(context.getString(R.string.loc_browser_31), color = MaterialTheme.colorScheme.onSurface)
                 }
             },
             confirmButton = {
@@ -1305,13 +1305,13 @@ private fun BrowserScreen(
                         waitingDappWalletApproval = true
                         if (walletConnectReady) walletNavController.openAppKit()
                     }
-                }) { Text(if (connectedDappAccounts.isEmpty() && !walletConnectReady) "钱包连接服务初始化中…" else "确认并连接", color = MaterialTheme.colorScheme.primary) }
+                }) { Text(if (connectedDappAccounts.isEmpty() && !walletConnectReady) context.getString(R.string.loc_browser_32) else context.getString(R.string.loc_browser_33), color = MaterialTheme.colorScheme.primary) }
             },
             dismissButton = {
                 AppTextButton(onClick = {
                     DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                     pendingDappConnection = null
-                }) { Text("拒绝") }
+                }) { Text(context.getString(R.string.loc_browser_34)) }
             }
         )
     }
@@ -1335,14 +1335,14 @@ private fun BrowserScreen(
         Dialog(onDismissRequest = { showWalletPicker = false }) {
             Surface(shape = RoundedCornerShape(AppDesignTokens.Radius.Xl.dp), color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("选择钱包", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    if (wallets.isEmpty()) Text("尚未保存钱包地址", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(context.getString(R.string.loc_browser_35), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    if (wallets.isEmpty()) Text(context.getString(R.string.loc_browser_36), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     wallets.forEach { wallet ->
                         AppTextButton(onClick = { selectedWallet = wallet; showWalletPicker = false }, modifier = Modifier.fillMaxWidth()) {
                             Text("${wallet.walletName.ifBlank { wallet.chain }}  ·  ${shortAddress(wallet.address)}")
                         }
                     }
-                    AppTextButton(onClick = { showWalletPicker = false }, modifier = Modifier.align(Alignment.End)) { Text("关闭") }
+                    AppTextButton(onClick = { showWalletPicker = false }, modifier = Modifier.align(Alignment.End)) { Text(context.getString(R.string.loc_browser_37)) }
                 }
             }
         }
@@ -1370,8 +1370,8 @@ private fun markBrowserSecurityBannerShown(context: Context) {
 
 private fun displayHost(rawUrl: String): String {
     return runCatching {
-        Uri.parse(rawUrl).host.orEmpty().lowercase().ifBlank { "未知主机" }
-    }.getOrDefault("未知主机")
+        Uri.parse(rawUrl).host.orEmpty().lowercase().ifBlank { "unknown host" }
+    }.getOrDefault("unknown host")
 }
 
 private enum class BrowserPageState { Loading, Success, Error }
