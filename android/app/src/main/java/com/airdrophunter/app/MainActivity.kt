@@ -229,6 +229,7 @@ private fun AirdropHunterApp(
     }
     BackHandler(hasSecondaryDestination) { navigateBack() }
 
+    // Canonical bottom navigation: Home, Airdrop Hub, Wallet, Accounting, Profile.
     val destinations = listOf(
         Destination(R.string.tab_home, Icons.Default.Home),
         Destination(R.string.tab_community, Icons.Default.Public),
