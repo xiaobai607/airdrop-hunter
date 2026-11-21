@@ -197,8 +197,6 @@ private fun AirdropAnnouncementDetail(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-
-    val context = LocalContext.current
     var detail by remember(item.id) { mutableStateOf<AirdropHubDetailDto?>(null) }
     var loading by remember(item.id) { mutableStateOf(true) }
     var error by remember(item.id) { mutableStateOf<String?>(null) }
