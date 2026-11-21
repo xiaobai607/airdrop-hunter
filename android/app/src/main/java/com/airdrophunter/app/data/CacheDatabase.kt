@@ -17,12 +17,20 @@ import org.json.JSONObject
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.time.Instant
+import java.util.Locale
+
+@Entity(tableName = "market_dashboard_preferences")
+data class MarketDashboardPreferenceEntity(
+    @PrimaryKey val id: Int = 1,
+    val symbolsCsv: String,
+    val updatedAt: Long
+)
 
 @Entity(tableName = "cached_payloads")
 data class CachedPayload(@PrimaryKey val cacheKey: String, val payload: String, val savedAtEpochMillis: Long)
 
 @Entity(tableName = "pending_bills", primaryKeys = ["accountScope", "id"])
-data class PendingBillEntity(val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest", @ColumnInfo(defaultValue = "'unknown'") val network: String = "unknown", val assetBreakdownJson: String? = null)
+data class PendingBillEntity(val id: String, val txHash: String, val walletAddress: String, val gasCostUsd: Double, val interactionMethod: String, val timestamp: Long, @ColumnInfo(defaultValue = "'unknown'") val chain: String = "unknown", @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest", @ColumnInfo(defaultValue = "'unknown'") val network: String = "unknown", val assetBreakdownJson: String? = null, val draftFormJson: String? = null)
 
 @Entity(
     tableName = "pnl_records",
@@ -94,6 +102,8 @@ data class CommunitySyncOutboxEntity(
     val lastAttemptAt: Long? = null, val lastError: String? = null,
     val assetBreakdownJson: String? = null,
     @ColumnInfo(defaultValue = "0") val terminalFailure: Boolean = false,
+    @ColumnInfo(defaultValue = "1") val actualRewardConfirmed: Boolean = true,
+    val expectedRewardUsd: Double? = null,
     val network: String? = null,
     val walletAddress: String? = null,
     val txHash: String? = null,
@@ -138,6 +148,14 @@ data class ProjectRatingEntity(
     val timestamp: Long,
     @ColumnInfo(defaultValue = "'guest'") val accountScope: String = "guest"
 )
+
+@Dao
+interface MarketDashboardPreferenceDao {
+    @Query("SELECT * FROM market_dashboard_preferences WHERE id = 1 LIMIT 1")
+    suspend fun get(): MarketDashboardPreferenceEntity?
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(preference: MarketDashboardPreferenceEntity)
+}
 
 @Dao
 interface CacheDao {
@@ -204,6 +222,8 @@ interface PendingBillDao {
     fun observeAll(accountScope: String): Flow<List<PendingBillEntity>>
     @Query("SELECT * FROM pending_bills WHERE id = :id AND accountScope = :accountScope LIMIT 1")
     suspend fun findById(id: String, accountScope: String): PendingBillEntity?
+    @Query("UPDATE pending_bills SET draftFormJson = :draftJson WHERE id = :id AND accountScope = :accountScope")
+    suspend fun updateDraftFormJson(id: String, accountScope: String, draftJson: String): Int
     @Query("DELETE FROM pending_bills WHERE id = :id AND accountScope = :accountScope")
     suspend fun delete(id: String, accountScope: String)
 }
@@ -354,10 +374,15 @@ interface LocalBackupDao {
  @Query("SELECT * FROM project_wallet_assignments WHERE accountScope=:scope") suspend fun projectWalletAssignments(scope:String):List<ProjectWalletAssignmentEntity>
  @Query("DELETE FROM project_wallet_assignments WHERE accountScope=:scope") suspend fun clearProjectWalletAssignments(scope:String)
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertProjectWalletAssignments(rows:List<ProjectWalletAssignmentEntity>)
+ @Query("SELECT * FROM web3_transaction_drafts WHERE accountScope=:scope") suspend fun web3Drafts(scope:String):List<Web3TransactionDraftEntity>
+ @Query("DELETE FROM web3_transaction_drafts WHERE accountScope=:scope") suspend fun clearWeb3Drafts(scope:String)
+ @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun insertWeb3Drafts(rows:List<Web3TransactionDraftEntity>)
 }
 
-@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class], version = 20, exportSchema = false)
+@Database(entities = [CachedPayload::class, PendingBillEntity::class, PnlRecordEntity::class, ProjectRatingEntity::class, UserProjectEntity::class, UserInteractionEntity::class, CommunitySyncOutboxEntity::class, CommunityFavoriteEntity::class, ProjectWalletAssignmentEntity::class, MarketCoinEntity::class, HotCoinCacheEntity::class, SearchHistoryEntity::class, UnifiedAssetEntity::class, CacheMetadataEntity::class, MarketDashboardPreferenceEntity::class, Web3TransactionDraftEntity::class], version = 25, exportSchema = false)
 abstract class CacheDatabase : RoomDatabase() {
+    abstract fun marketDashboardPreferenceDao(): MarketDashboardPreferenceDao
+    abstract fun web3TransactionDraftDao(): Web3TransactionDraftDao
     abstract fun cacheDao(): CacheDao
     abstract fun pendingBillDao(): PendingBillDao
     abstract fun pnlRecordDao(): PnlRecordDao
@@ -653,15 +678,83 @@ object CacheStore {
             db.execSQL("ALTER TABLE user_interactions ADD COLUMN publicContributionError TEXT")
         }
     }
+    private val MIGRATION_20_21 = object : Migration(20, 21) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN actualRewardConfirmed INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE community_sync_outbox ADD COLUMN expectedRewardUsd REAL")
+        }
+    }
+    private val MIGRATION_21_22 = object : Migration(21, 22) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS market_dashboard_preferences (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    symbolsCsv TEXT NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+            """.trimIndent())
+        }
+    }
+    private val MIGRATION_22_23 = object : Migration(22, 23) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS web3_transaction_drafts (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    accountScope TEXT NOT NULL,
+                    origin TEXT NOT NULL,
+                    chainId INTEGER NOT NULL,
+                    walletAddress TEXT,
+                    toAddress TEXT,
+                    valueWei TEXT,
+                    dataHex TEXT,
+                    callbackState TEXT NOT NULL,
+                    walletConnectRequestId INTEGER,
+                    txHash TEXT,
+                    status TEXT NOT NULL,
+                    estimatedGas TEXT,
+                    gasUsed TEXT,
+                    effectiveGasPrice TEXT,
+                    l1Fee TEXT,
+                    totalFeeWei TEXT,
+                    receiptStatus INTEGER,
+                    lastError TEXT,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_web3_transaction_drafts_accountScope_createdAt ON web3_transaction_drafts(accountScope, createdAt)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_web3_transaction_drafts_accountScope_status ON web3_transaction_drafts(accountScope, status)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_web3_transaction_drafts_accountScope_chainId_txHash ON web3_transaction_drafts(accountScope, chainId, txHash)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_web3_transaction_drafts_accountScope_walletConnectRequestId ON web3_transaction_drafts(accountScope, walletConnectRequestId)")
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN nativeSymbol TEXT")
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN nativePriceUsd REAL")
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN nativePriceTimestamp INTEGER")
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN actualGasUsd REAL")
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN operatorFeeWei TEXT")
+        }
+    }
+    private val MIGRATION_23_24 = object : Migration(23, 24) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE web3_transaction_drafts ADD COLUMN walletConnectSessionTopic TEXT")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_web3_transaction_drafts_accountScope_walletConnectRequestId_walletConnectSessionTopic ON web3_transaction_drafts(accountScope, walletConnectRequestId, walletConnectSessionTopic)")
+        }
+    }
+    private val MIGRATION_24_25 = object : Migration(24, 25) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE pending_bills ADD COLUMN draftFormJson TEXT")
+        }
+    }
     @Volatile private var appContext: Context? = null
     fun initialize(context: Context) {
         appContext = context.applicationContext
         if (database != null) return
         synchronized(this) {
             if (database == null) database = Room.databaseBuilder(context.applicationContext, CacheDatabase::class.java, "airdrop_hunter_cache")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25).build()
         }
     }
+    fun web3TransactionDraftDao(): Web3TransactionDraftDao? = database?.web3TransactionDraftDao()
+
     fun schedulePrivateLedgerSync() {
         appContext?.let { PersonalLedgerSyncScheduler.enqueue(it) }
     }
@@ -684,6 +777,11 @@ object CacheStore {
     fun observePendingBills(): Flow<List<PendingBillEntity>> = observeAccountScope().flatMapLatest { scope ->
         database?.pendingBillDao()?.observeAll(scope) ?: flowOf(emptyList())
     }
+
+    fun observeWeb3TransactionDrafts(): Flow<List<Web3TransactionDraftEntity>> =
+        observeAccountScope().flatMapLatest { scope ->
+            database?.web3TransactionDraftDao()?.observeAll(scope) ?: flowOf(emptyList())
+        }
     fun observePnlRecords(): Flow<List<PnlRecordEntity>> = observeAccountScope().flatMapLatest { scope ->
         database?.pnlRecordDao()?.observeAll(scope) ?: flowOf(emptyList())
     }
@@ -795,6 +893,7 @@ object CacheStore {
      * remain fixed for the entire operation, including a concurrent account switch.
      */
     suspend fun syncCommunityFavorites(): Boolean = withContext(Dispatchers.IO) {
+        if (!CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED) return@withContext false
         val token = TokenStore.readTokenBlocking()
         val scope = accountScopeFromToken(token)
         if (token.isNullOrBlank() || scope == "guest" || scope == "invalid-session") return@withContext false
@@ -876,8 +975,9 @@ object CacheStore {
             if (guestEntries.isNotEmpty()) result += CommunitySyncBatch("guest", "", guestEntries)
             if (activeScope != "guest" && activeScope != "invalid-session") {
                 val accountEntries = dao.getPending(activeScope, limit)
-                if (accountEntries.isNotEmpty() && !token.isNullOrBlank()) {
-                    result += CommunitySyncBatch(activeScope, "Bearer $token", accountEntries)
+                if (accountEntries.isNotEmpty()) {
+                    // Current-release contributions are anonymous; no account bearer is attached.
+                    result += CommunitySyncBatch(activeScope, "", accountEntries)
                 }
             }
             result
@@ -970,8 +1070,47 @@ object CacheStore {
         db.projectRatingDao().insert(ProjectRatingEntity(java.util.UUID.randomUUID().toString(), projectOfficialId, walletAddress, score, System.currentTimeMillis(), scope))
         true
     }
+    suspend fun findPendingBill(id: String, accountScope: String = currentAccountScope()): PendingBillEntity? =
+        withContext(Dispatchers.IO) {
+            database?.pendingBillDao()?.findById(id, accountScope)
+        }
+
     suspend fun addPendingBill(bill: PendingBillEntity) = withContext(Dispatchers.IO) {
         database?.pendingBillDao()?.insert(bill.copy(accountScope = currentAccountScope()))
+    }
+
+    /** Stores only local, unconfirmed form input; never enters personal-ledger cloud payloads. */
+    suspend fun savePendingBillDraft(id: String, draftJson: String): Boolean = withContext(Dispatchers.IO) {
+        if (id.isBlank() || draftJson.length > 32_768) return@withContext false
+        val db = database ?: return@withContext false
+        db.pendingBillDao().updateDraftFormJson(id, currentAccountScope(), draftJson) == 1
+    }
+
+    /**
+     * Atomically materializes a Web3 ledger candidate in the scope captured by its
+     * transaction draft. Never substitute the currently selected account here:
+     * WorkManager may resume after the user has switched accounts.
+     *
+     * The draft-state check and bill insert share one Room transaction with
+     * confirmPendingBill(), preventing a late worker from resurrecting a bill
+     * after the user has already confirmed it.
+     */
+    suspend fun materializeWeb3PendingBill(
+        bill: PendingBillEntity,
+        draftId: String,
+        accountScope: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (accountScope.isBlank() || draftId.isBlank()) return@withContext false
+        val db = database ?: return@withContext false
+        db.withTransaction {
+            val draft = db.web3TransactionDraftDao().find(draftId, accountScope)
+                ?: return@withTransaction false
+            if (!Web3DraftStatus.canConfirmAccounting(draft.status) ||
+                !draft.txHash.equals(bill.txHash, ignoreCase = true)
+            ) return@withTransaction false
+            db.pendingBillDao().insert(bill.copy(accountScope = accountScope))
+            true
+        }
     }
     suspend fun hasRecordedTransaction(network: String, walletAddress: String, txHash: String): Boolean =
         withContext(Dispatchers.IO) {
@@ -995,9 +1134,20 @@ object CacheStore {
         if (projectLocalId.isBlank() || !gas.isFinite() || !reward.isFinite() || gas < 0.0 || reward < 0.0) return@withContext false
         val db = database ?: return@withContext false
         val scope = currentAccountScope()
+        val requestedOfficialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
+        val directoryDelisted = CommunityCatalogRepository.isExplicitlyDelisted(requestedOfficialId)
         db.withTransaction {
             val bill = db.pendingBillDao().findById(id, scope) ?: return@withTransaction false
-            val canonicalOfficialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
+            val web3DraftId = id.takeIf { it.startsWith("WEB3-") }?.removePrefix("WEB3-")
+            if (web3DraftId != null) {
+                val web3Draft = db.web3TransactionDraftDao().find(web3DraftId, scope)
+                    ?: return@withTransaction false
+                if (!Web3DraftStatus.canConfirmAccounting(web3Draft.status)) {
+                    return@withTransaction false
+                }
+            }
+            val canonicalOfficialId = requestedOfficialId
+            val effectiveContributionOptIn = publicContributionOptIn && !directoryDelisted
             val effectiveNetwork = bill.network.takeIf { it.isNotBlank() && !it.equals("unknown", true) }
                 ?: when (bill.chain.trim().lowercase()) {
                     "ethereum", "erc20" -> "ethereum"
@@ -1006,10 +1156,11 @@ object CacheStore {
                     "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche" -> bill.chain.trim().lowercase()
                     else -> "unknown"
                 }
-            if (publicContributionOptIn && (
-                    canonicalOfficialId == null ||
-                    !ManualProjectAccountingPolicy.isTransactionHashFormatValid(effectiveNetwork, bill.txHash)
-                )) return@withTransaction false
+            if (publicContributionOptIn && canonicalOfficialId == null) return@withTransaction false
+            if (effectiveContributionOptIn && bill.txHash.isNotBlank() &&
+                !ManualProjectAccountingPolicy.isTransactionHashFormatValid(effectiveNetwork, bill.txHash)) {
+                return@withTransaction false
+            }
             val effectiveAssetBreakdown = assetBreakdownJson ?: bill.assetBreakdownJson
             if (
                 bill.txHash.isNotBlank() && bill.walletAddress.isNotBlank() &&
@@ -1038,8 +1189,8 @@ object CacheStore {
                 occurred_at = Instant.ofEpochMilli(bill.timestamp).toString(),
                 extra = mapOf(
                     "project_official_id" to (canonicalOfficialId ?: ""),
-                    "public_contribution_opt_in" to publicContributionOptIn.toString(),
-                    "public_contribution_status" to if (publicContributionOptIn) "pending_verification" else "private",
+                    "public_contribution_opt_in" to effectiveContributionOptIn.toString(),
+                    "public_contribution_status" to if (effectiveContributionOptIn) "pending_verification" else "private",
                     // Demo transactions remain available for local UI testing but are never synced.
                     "is_demo" to isDemoAccountingTransaction(bill.txHash, bill.walletAddress, bill.interactionMethod).toString()
                 ) + (effectiveAssetBreakdown?.let { mapOf("asset_breakdown" to it) } ?: emptyMap())
@@ -1087,11 +1238,11 @@ object CacheStore {
                     assetBreakdownJson = effectiveAssetBreakdown,
                     expectedGasCostUsd = bill.gasCostUsd.takeIf { it.isFinite() && it > 0.0 },
                     expectedRewardUsd = null,
-                    publicContributionOptIn = publicContributionOptIn,
-                    publicContributionStatus = if (publicContributionOptIn) "pending_verification" else "private"
+                    publicContributionOptIn = effectiveContributionOptIn,
+                    publicContributionStatus = if (effectiveContributionOptIn) "pending_verification" else "private"
                 )
             )
-            if (publicContributionOptIn) {
+            if (effectiveContributionOptIn) {
                 db.communitySyncOutboxDao().insert(
                     CommunitySyncOutboxEntity(
                         id = bill.id,
@@ -1102,11 +1253,20 @@ object CacheStore {
                         createdAt = recordedAt,
                         assetBreakdownJson = effectiveAssetBreakdown,
                         network = effectiveNetwork,
-                        walletAddress = bill.walletAddress,
-                        txHash = bill.txHash,
-                        occurredAt = recordedAt
+                        walletAddress = bill.walletAddress.takeIf { bill.txHash.isNotBlank() },
+                        txHash = bill.txHash.takeIf { it.isNotBlank() },
+                        occurredAt = recordedAt,
+                        actualRewardConfirmed = true,
+                        expectedRewardUsd = ledgerEntry.expected_reward_usd?.toDouble()
                     )
                 )
+            }
+            if (web3DraftId != null) {
+                check(
+                    db.web3TransactionDraftDao().markAccounted(
+                        web3DraftId, scope, System.currentTimeMillis()
+                    ) == 1
+                ) { "Web3 transaction draft could not be marked accounted" }
             }
             db.pendingBillDao().delete(id, scope)
             true
@@ -1128,6 +1288,7 @@ object CacheStore {
         if (scope == "invalid-session") return@withContext false
         val officialId = projectOfficialId?.trim()?.takeIf { it.isNotEmpty() && it.length <= 120 }
         if (batch.entries.any { it.publicContributionOptIn } && officialId == null) return@withContext false
+        val directoryDelisted = CommunityCatalogRepository.isExplicitlyDelisted(officialId)
         val timestamp = System.currentTimeMillis()
         val rowIds = batch.entries.map { entry ->
             java.util.UUID.nameUUIDFromBytes("$batchId:${entry.walletId}".toByteArray(Charsets.UTF_8)).toString()
@@ -1149,6 +1310,7 @@ object CacheStore {
             }.orEmpty().toMutableList()
             batch.entries.forEachIndexed { index, entry ->
                 val reward = entry.reward
+                val contributionOptIn = entry.publicContributionOptIn && !directoryDelisted
                 val rewardUsd = entry.actualRewardUsd?.toDouble()
                 val complete = rewardUsd != null
                 val gas = entry.gasCostUsd.toDouble()
@@ -1183,8 +1345,8 @@ object CacheStore {
                     "reward_quote_source" to (reward.quoteSource ?: ""),
                     "reward_quote_timestamp" to (reward.quoteTimestamp?.toString() ?: ""),
                     "usd_profit_complete" to complete.toString(),
-                    "public_contribution_opt_in" to entry.publicContributionOptIn.toString(),
-                    "public_contribution_status" to if (entry.publicContributionOptIn && complete && officialId != null) "pending_verification" else if (entry.publicContributionOptIn) "not_eligible" else "private",
+                    "public_contribution_opt_in" to contributionOptIn.toString(),
+                    "public_contribution_status" to if (contributionOptIn && officialId != null) "pending_verification" else if (contributionOptIn) "not_eligible" else "private",
                     "project_official_id" to (officialId ?: ""),
                     "asset_breakdown" to (assetJson ?: "")
                 )
@@ -1218,10 +1380,10 @@ object CacheStore {
                     rewardAmount = reward.amount?.toDouble(), rewardUnit = reward.unit,
                     rewardUsdValuation = rewardUsd, rewardQuoteSource = reward.quoteSource,
                     rewardQuoteTimestamp = reward.quoteTimestamp, usdProfitComplete = complete,
-                    publicContributionOptIn = entry.publicContributionOptIn,
-                    publicContributionStatus = if (entry.publicContributionOptIn && complete && officialId != null) "pending_verification" else if (entry.publicContributionOptIn) "not_eligible" else "private"
+                    publicContributionOptIn = contributionOptIn,
+                    publicContributionStatus = if (contributionOptIn && officialId != null) "pending_verification" else if (contributionOptIn) "not_eligible" else "private"
                 ))
-                if (entry.publicContributionOptIn && complete) {
+                if (contributionOptIn) {
                     db.communitySyncOutboxDao().insert(
                         CommunitySyncOutboxEntity(
                             id = id,
@@ -1232,9 +1394,11 @@ object CacheStore {
                             createdAt = recordedAt,
                             assetBreakdownJson = assetJson,
                             network = entry.network,
-                            walletAddress = entry.walletAddress,
-                            txHash = entry.txHash,
-                            occurredAt = recordedAt
+                            walletAddress = entry.walletAddress.takeIf { entry.txHash.isNotBlank() },
+                            txHash = entry.txHash.takeIf { it.isNotBlank() },
+                            occurredAt = recordedAt,
+                            actualRewardConfirmed = complete,
+                            expectedRewardUsd = null
                         )
                     )
                 }
@@ -1243,7 +1407,7 @@ object CacheStore {
             true
         }
         if (saved && scope.startsWith("user:")) schedulePrivateLedgerSync()
-        if (saved && batch.entries.any { it.publicContributionOptIn && it.actualRewardUsd != null }) {
+        if (saved && batch.entries.any { it.publicContributionOptIn }) {
             appContext?.let { CommunityContributionSyncScheduler.enqueue(it) }
         }
         saved
@@ -1377,7 +1541,8 @@ object CacheStore {
             projectRatings = dao.projectRatings(scope), userProjects = dao.userProjects(scope),
             userInteractions = dao.userInteractions(scope), communityOutbox = dao.communityOutbox(scope),
             communityFavorites = dao.communityFavorites(scope),
-            projectWalletAssignments = dao.projectWalletAssignments(scope)
+            projectWalletAssignments = dao.projectWalletAssignments(scope),
+            web3Drafts = dao.web3Drafts(scope)
         )
     }
 
@@ -1394,7 +1559,8 @@ object CacheStore {
             snapshot.userInteractions.all { it.accountScope == snapshot.sourceScope } &&
             snapshot.communityOutbox.all { it.accountScope == snapshot.sourceScope } &&
             snapshot.communityFavorites.all { it.accountScope == snapshot.sourceScope } &&
-            snapshot.projectWalletAssignments.all { it.accountScope == snapshot.sourceScope }) {
+            snapshot.projectWalletAssignments.all { it.accountScope == snapshot.sourceScope } &&
+            snapshot.web3Drafts.orEmpty().all { it.accountScope == snapshot.sourceScope }) {
             "备份文件包含不一致的账户数据"
         }
         val sourcePrefixes = backupCachePrefixes(snapshot.sourceScope)
@@ -1410,6 +1576,7 @@ object CacheStore {
             dao.clearProjectRatings(targetScope); dao.clearUserProjects(targetScope)
             dao.clearUserInteractions(targetScope); dao.clearCommunityOutbox(targetScope)
             dao.clearCommunityFavorites(targetScope); dao.clearProjectWalletAssignments(targetScope)
+            dao.clearWeb3Drafts(targetScope)
             targetPrefixes.forEach { dao.deleteCachedPayloadsByPrefix(it) }
             dao.insertPendingBills(snapshot.pendingBills.map { it.copy(accountScope = targetScope) })
             dao.insertPnlRecords(snapshot.pnlRecords.map { it.copy(accountScope = targetScope) })
@@ -1419,6 +1586,7 @@ object CacheStore {
             dao.insertCommunityOutbox(snapshot.communityOutbox.map { it.copy(accountScope = targetScope) })
             dao.insertCommunityFavorites(snapshot.communityFavorites.map { it.copy(accountScope = targetScope) })
             dao.insertProjectWalletAssignments(snapshot.projectWalletAssignments.map { it.copy(accountScope = targetScope) })
+            dao.insertWeb3Drafts(snapshot.web3Drafts.orEmpty().map { it.copy(accountScope = targetScope) })
             dao.insertCachedPayloads(remapped)
         }
     }
@@ -1427,6 +1595,24 @@ object CacheStore {
         if (scope == "guest") listOf("guest:", "signed-out:")
         else listOf("$scope:", "${scope.removePrefix("user:")}:")
 
+
+    suspend fun readMarketDashboardSymbols(): List<String> = withContext(Dispatchers.IO) {
+        val saved = database?.marketDashboardPreferenceDao()?.get()?.symbolsCsv
+            ?.split(",")?.map { it.trim().uppercase(Locale.US) }
+            ?.filter { it in setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP") }
+            .orEmpty()
+        saved.ifEmpty { listOf("BTC", "ETH", "SOL", "BNB", "TRX") }
+    }
+    suspend fun saveMarketDashboardSymbols(symbols: List<String>) = withContext(Dispatchers.IO) {
+        val allowed = listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP")
+        val selected = symbols.map { it.uppercase(Locale.US) }.toSet()
+        val normalized = allowed.filter { it in selected }
+        require(normalized.isNotEmpty()) { "至少选择一个行情币种" }
+        database?.marketDashboardPreferenceDao()?.save(
+            MarketDashboardPreferenceEntity(1, normalized.joinToString(","), System.currentTimeMillis())
+        )
+        Unit
+    }
 
     suspend fun readMarketCoins(): List<MarketCoinEntity> = withContext(Dispatchers.IO) {
         database?.marketCoinDao()?.getAll().orEmpty()
@@ -1520,6 +1706,18 @@ object CacheStore {
         }
         Unit
     }
+    suspend fun getOrCreateAnonymousContributorId(): String = withContext(Dispatchers.IO) {
+        val scope = currentAccountScope()
+        val db = database ?: return@withContext java.util.UUID.randomUUID().toString()
+        val key = "$scope:local:community_contributor_id"
+        val existing = db.cacheDao().read(key)?.trim()
+        val validExisting = existing?.let { runCatching { java.util.UUID.fromString(it) }.isSuccess } == true
+        if (validExisting) return@withContext existing!!
+        val generated = java.util.UUID.randomUUID().toString()
+        db.cacheDao().write(CachedPayload(key, generated, System.currentTimeMillis()))
+        generated
+    }
+
     // Public community snapshots are shared across guest and signed-in sessions.
     suspend fun readPublic(key: String): String? = withContext(Dispatchers.IO) {
         runCatching { database?.cacheDao()?.read("public:community:$key") }.getOrNull()

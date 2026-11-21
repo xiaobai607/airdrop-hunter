@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, func, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -11,6 +11,7 @@ class Project(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", name="fk_projects_user_id_users", ondelete="CASCADE"), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    client_project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="upcoming")
     official_url: Mapped[str] = mapped_column(String(1000), nullable=False, default="")
@@ -22,3 +23,5 @@ class Project(Base):
     actual_income: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+Index("uq_projects_user_client_project_id", Project.user_id, Project.client_project_id, unique=True)

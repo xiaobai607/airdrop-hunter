@@ -1,7 +1,572 @@
 # Airdrop Hunter — Product Requirements & Progress Ledger
+# 2026-11-13 — free airdrop source diagnostics (active)
+
+The user needs to know why the public airdrop catalog is empty or stale without paying for commercial APIs. Keep the existing no-paid-service rule. The importer already records per-source status in the database, but the app previously exposed only an aggregate sync result and did not show which free source succeeded, failed, or is disabled. A sanitized public status endpoint, Android DTO/repository/ViewModel path, and shared expandable source-health panel are now implemented in both the official announcement hub and the main campaign library; backend tests cover the public response shape and disabled optional sources, while an Android repository test covers the new status fetch path. Tests have been authored but not yet run. The DexScreener empty-config fallback now matches the documented zero-key terms `SOL,ETH,USDC` instead of broad `airdrop`.
+
+Add a public, privacy-safe source-health summary for the app:
+- expose only source name, last attempt/success timestamps, status, item count, and a short sanitized error label;
+- do not expose source URLs, credentials, response bodies, admin review candidates, or GitHub approval payloads;
+- render the same expandable source-health summary in both the official airdrop hub and the main public campaign library so the user can distinguish no new records, a failed provider, an unconfigured optional provider, and a stale last-known-good cache;
+- keep CoinGecko Demo key and GitHub Raw approvals optional; do not require paid plans, proxies, or third-party scraping services;
+- DexScreener remains market-lead evidence only; Binance official announcements remain source evidence, not invented campaign details.
+
+# 2026-11-13 — browser compatibility follow-up (active)
+
+A source review after the UI pass found the browser still forces a fixed Chrome 131 / Pixel 7 User-Agent at WebView creation, rewrites the same User-Agent again on page-finished and retry, and marks the page failed after a 15-second watchdog. This contradicts the earlier intent to avoid mid-navigation identity changes and can cause compatibility failures with current sites or slow redirects.
+
+Implemented in source: WebView now keeps the provider-native User-Agent without post-load or retry rewrites; the main-frame watchdog now allows 30 seconds while still showing a slow-load state after 5 seconds; initial and in-page HTTP links are upgraded to HTTPS (cross-origin navigation still requires user confirmation); and URL logs are reduced to host-only diagnostics. Manifest INTERNET permission is present and cleartext traffic remains disabled. TLS fail-closed, mixed-content blocking, file/content access restrictions, Safe Browsing, and DApp origin/WalletConnect checks remain unchanged. The timeout overlay title now matches the 30-second watchdog. Runtime behavior still requires real-device acceptance; no browser fix is claimed as device-verified.
+
+# 2026-11-13 — Apple × Xiaomi UI system-wide refactor (active)
+
+User direction: perform a thorough UI redesign using an Apple + Xiaomi visual language. Every newly added screen/control must follow the same system. Interaction feedback is part of the design, not an optional polish pass.
+
+Design contract:
+- Calm, restrained surfaces: clear hierarchy, generous but controlled spacing, consistent rounded geometry, subtle borders/elevation, and semantic accent colors. Avoid oversized empty areas, decorative gradients, and mixed visual styles.
+- Apple influence: clean typography, restrained hierarchy, predictable navigation, carefully aligned controls, native-feeling transitions and clear focus states.
+- Xiaomi influence: practical information density, clear action affordances, compact but readable cards, useful status chips and fast-access controls.
+- Use shared design tokens and shared components for buttons, text actions, fields, chips, cards, icon tiles, and feedback. Do not invent a one-off style for each feature.
+- All interactive controls must provide immediate pressed feedback (scale/opacity or an equivalent state), visible enabled/disabled states, and loading/progress feedback for asynchronous actions. Use accessible touch targets and semantic labels. Avoid haptic feedback on every tap if it creates noise; use it only for meaningful actions where supported.
+- Lists/cards should have consistent radius, border, spacing and content hierarchy. Keep developer-controlled card dimensions; do not add end-user resize controls.
+- Support light/dark themes through MaterialTheme semantic colors; do not hardcode white/black surfaces in reusable components.
+- Preserve real product behavior and data. No simulated balances, fake ratings, fake ledger records, or placeholder actions masquerading as completed features.
+- Keep wallet, accounting, browser, campaign, project, community and profile screens within this shared system. New UI must comply from its first commit.
+
+Refactor sequence:
+1. Audit and consolidate shared UI primitives and design tokens.
+2. Apply them across wallet/accounting and browser surfaces.
+3. Apply them across home, campaign/library, project/community, and profile surfaces.
+4. Check dark/light theme, loading/empty/error states, touch feedback, accessibility and narrow-screen layouts.
+5. Only after the refactor is complete, run the full Android/backend test and APK build batch. Do not claim runtime/device acceptance from source inspection alone.
+
+Progress update: shared button/field/text-action primitives are now applied across browser toolbar/accounting inputs, wallet manager, wallet detail transaction import, wallet asset dialog, wallet eligibility dialog, campaign library, official announcement list/detail, market detail, and project detail. Wallet detail/asset/eligibility surfaces now use semantic MaterialTheme colors; wallet cards and market/project picker cards use shared radius/border/pressed states; external WalletConnect's forced light theme has been narrowed to its own navigation graph so it no longer overrides the wallet-management screen. Project detail's claim, official-site, X/Twitter, real manual accounting, task, wallet-assignment and reward-selection actions now use shared components with loading/disabled feedback; the claim-wallet picker now uses tactile card rows. Micro-community join/rating actions use the same shared buttons, and each star target has immediate press feedback. The manual airdrop-entry form now uses shared fields and a scrollable dialog; the source directory uses semantic surfaces and pressed-card feedback. Community verification-tier legends now use theme-aware text colors, and the TRON energy assistant already uses the shared BaseCard/field/button system. Legacy auth UI remains untouched because registration/login is outside the current approved feature scope. Shared text fields can grow for multiline content instead of clipping it at a fixed single-line height. Shared primary buttons now retain the action label beside the progress indicator while loading; text actions and filter chips also have explicit disabled-state styling. Import/package declarations on the touched screens were audited and corrected where required. Existing real data and accounting actions are preserved. This remains a staged refactor, not a completed global redesign; remaining screens and compile compatibility still need review.
+
+
+## UI refactor progress tracking
+
+The detailed Apple × Xiaomi visual implementation checklist and page-by-page progress is maintained in [`docs/UI_REFACTOR_PROGRESS.md`](./UI_REFACTOR_PROGRESS.md). For UI-specific scope, completion status, remaining work, and commit-by-commit history, that ledger is authoritative. Update it in the same commit whenever a UI component, screen, or interaction is changed. This product requirements document remains authoritative for product behavior, feature scope, data rules, and security invariants.
 
 > This is the project-wide source of truth. Before each implementation step, compare the current code and plan against this document. User-confirmed requirements override implementation assumptions. Cancelled and deferred items must not be reintroduced without explicit approval.
 
+## 2026-11-13 — browser stability findings
+
+- Confirmed source-level defect: the browser's loading watchdog currently fires after only 3 seconds, switches the User-Agent, retries once, and reports failure after another 3 seconds. This can misclassify slow DNS/TLS/redirect/server responses as a failed page load and can change the browser identity during an in-flight session.
+- Planned correction: use a bounded 30-second initial-load watchdog with an explicit timeout diagnostic; do not silently change User-Agent or replay a page request. A user retry remains available.
+- Planned correction: handle Android WebView renderer-process termination by disposing the dead WebView and recreating the AndroidView instance; preserve existing origin permission revocation and pending wallet-request cleanup.
+- Security invariants: keep TLS errors fail-closed, keep mixed content blocked, keep file/content access disabled, keep wallet deep links gesture-gated, and do not loosen DApp origin authorization or enable third-party cookies globally as a speculative workaround.
+- This is a source inspection finding, not proof of the user's exact device failure. Browser acceptance remains pending a real-device test with the failing URL and visible diagnostic.
+- No Gradle build, test, APK build, or CI run is performed mid-batch; final verification remains deferred until the browser, approved free discovery pipeline, and agreed UI batch are ready.
+
+## 2026-11-13 — browser stability corrections committed
+
+- Implemented a 30-second loading watchdog with an explicit timeout message. Removed the 3-second User-Agent swap/reload behavior; a slow page is no longer silently re-requested under a different browser identity.
+- Implemented WebView renderer-process recovery: clear bridge proxies, fail pending DApp UI requests safely, mark an in-flight WalletConnect draft for later reconciliation, revoke site-origin permissions, dispose the dead view and recreate the AndroidView instance.
+- Kept TLS certificate failures fail-closed, mixed content blocked, file/content access disabled, and third-party cookies disabled by default. No permission or wallet-origin boundary was relaxed.
+- Static source assertions passed for the new timeout, renderer recovery, view recreation, strict TLS cancellation and retained third-party-cookie restriction. These are source checks only; Gradle compilation, unit tests, CI and physical-device acceptance have not yet been run.
+- This does not establish that the user's reported browser failure is fully resolved. The actual failing URL and on-device diagnostic are still needed to isolate DNS, TLS, HTTP rejection, redirect, login/cookie or WebView-provider-specific failures.
+
+## 2026-11-13 — critical gap found in the free discovery-to-library path
+
+- The approved provider adapters in `airdrop_hub_sync.py` currently normalize provider responses into `AirdropProject`, `AirdropDiscoveryCandidate` and append-only discovery observations. They do **not** create or update `AirdropCampaign` rows.
+- The Android Airdrop Library reads `/api/airdrop-campaigns`, and that endpoint returns only `AirdropCampaign` rows that have already passed publication gates. Campaign scoring and market-enrichment jobs operate on that separate table, but the current scheduled importer does not bridge approved source evidence into it.
+- Therefore, successful provider smoke tests or a populated candidate queue do not prove that the user's Airdrop Library can display those records. The missing link is campaign-level ingestion/promotion with evidence, stable identity, source snapshots, status history and publication gates.
+- Keep all source leads as leads. DexScreener and CoinGecko cannot become confirmed airdrops from token/pool presence. GitHub lists remain manually approved, commit-pinned and license-attributed. Binance announcements need official article detail and explicit campaign evidence; do not turn every announcement headline into a campaign.
+- Next implementation must connect only explicitly supported campaign evidence to the campaign table, preserve unknown fields as null, keep unverified candidates out of the public endpoint, and provide a visible reason when no campaigns qualify. No fabricated/sample records.
+- Scheduled sync remains disabled until this campaign bridge and end-to-end real-data validation are complete.
+
+## 2026-11-13 — approved campaign bridge implementation plan
+
+- Binance catalog IDs are explicitly mapped by the maintained announcement adapter: `128 = Crypto Airdrop`, `93 = Latest Activities`. Only the official Crypto Airdrop category (128) is eligible for campaign-level ingestion; Latest Activities remains an observation/review lead and is never promoted merely because it is a Binance announcement.
+- For category 128, require the official Binance CMS detail response to contain an article body and require the resulting official link to remain HTTPS on the Binance host. Preserve source article code and original body evidence; derive plain text only for the compact campaign description, with no AI rewriting.
+- Campaign records use stable source keys, source snapshots and status history. Fields not reliably present in the official source (chain, eligibility/KYC, start/end dates, reward amounts, current status) remain unknown/null rather than guessed.
+- The publication gate may accept this one explicit official campaign category as an ordinary listing only when the detail body and official URL are present, the source identity is exact, and no corroborated risk/source conflict blocks publication. No heat, reward, KYC or active-status values are fabricated.
+- CoinGecko/GitHub/DexScreener remain leads only. No paid API, proxy, scraper, or new credential is introduced. Scheduled sync remains disabled pending end-to-end verification.
+
+## 2026-11-13 — Binance campaign bridge implementation committed
+
+- Added a campaign ingestion path for Binance catalog 128 only (`Crypto Airdrop`). Catalog 93 (`Latest Activities`) and all other provider records remain discovery observations; they are not promoted by this bridge.
+- The bridge fetches the official CMS article detail using the existing public Binance endpoint, requires a non-empty article body and a valid HTTPS Binance-host URL, and writes a stable `AirdropCampaign` source key.
+- Each new campaign records an initial `unknown` status history entry and a deduplicated source snapshot with the article code, source date, content hash and text excerpt. The compact description is extracted from the original HTML; no AI rewriting or invented reward/chain/KYC/date/status values are used.
+- Added a narrow publication rule for the exact `binance-crypto-airdrop` source + `airdrop` type + verified official HTTPS URL. It can publish as ordinary with a null score when no heat score exists; unknown fields remain unknown. Corroborated risk and source conflict still block publication.
+- Added backend tests for category isolation, official-host/body requirements, source snapshot/status history, no fabricated heat, risk gates and scoring source identity. These tests are authored but have **not** been executed yet.
+- Live provider detail responses, exact-head backend tests, campaign API output and Android real-data rendering remain unverified. Scheduled sync remains disabled.
+
+## 2026-11-13 — final static audit for browser and campaign bridge batch
+
+- Browser disposal now guards stop/load/remove/destroy calls so a dead renderer cannot throw while Compose disposes the old WebView instance.
+- Campaign bridge now excludes the provider-only `catalog_name` field from the legacy `AirdropProject` constructor, validates a non-empty detail category when supplied, and strips script/style contents from compact campaign descriptions.
+- Static source assertions and code-path review were completed. Backend unit tests, Gradle compilation, Android unit tests, CI and real-device browser acceptance are deliberately still pending; no APK was built during this batch.
+
+## 2026-11-13 — UI refresh scope before implementation
+
+- Start with the Home dashboard's shortcut-card icon treatment: each function icon sits inside a consistently sized, generously rounded colored tile; use restrained per-function color accents and keep text hierarchy/spacing aligned.
+- Improve the campaign Library cards for phone-width readability: cap long descriptions, allow metadata tags to wrap instead of overflowing, and keep official-link actions clear.
+- Preserve developer-owned dashboard card dimensions. Users may add/remove/reorder shortcut cards, but must not resize cards.
+- Keep the existing single global search entry below the market dashboard; do not add a second search box to quick shortcuts. Keep Airdrop Library as the bottom-navigation destination, not a duplicate Home shortcut.
+- Continue the same compact, rounded, low-noise visual language across Projects, Wallet and Profile after the Home/campaign pass. Do not alter data behavior or add login/registration flows as part of visual work.
+
+## 2026-11-13 — first UI refresh pass committed
+
+- Home dashboard shortcuts now use consistently sized, generously rounded icon tiles with restrained function-specific colors. Existing developer-owned width/height specs and user add/remove/reorder behavior are unchanged.
+- Campaign cards now limit long announcement descriptions to three lines and wrap source/chain/status/KYC tags to multiple rows on narrow phones. The card identifies the verified Binance source explicitly.
+- Profile settings rows now use compact rounded accent tiles for their icons.
+- This is the first visual pass, not the full UI acceptance. Projects, Wallet, browser dock and complete profile/settings scrolling still need review on device. No APK/build/test was run mid-batch.
+
+## 2026-11-13 — bounded official detail fetch
+
+- Limit automatic Binance article-detail enrichment to the newest 12 Crypto Airdrop entries per source sync and use an 8-second per-detail timeout. This bounds provider load and keeps the scheduled job within its existing five-minute ceiling; failed details remain observations and are not promoted.
+
+## 2026-11-13 — simplify project library list cards
+
+- Keep the project list cards concise: project name, lifecycle/status markers, a short description when available, a compact actual net-P&L summary and the community/local binding indicator.
+- Move detailed Gas/reward breakdown and direct interaction entry out of the list card; selecting a project should open its detail page, where full information and the website action belong.
+- Preserve all accounting values and project actions; this is a presentation-only change. Keep private/community project contribution and delisting rules unchanged.
+
+## 2026-11-13 — project library visual simplification committed
+
+- Project list cards now prioritize project name/status, optional short description, one actual net-P&L value and the local/community binding state. Gas and reward totals plus the direct “go interact” action are no longer crowded into the list card; tapping the card opens the detail page.
+- Removed the old synthetic 4.9 rating / 96% positive-rate fallback. When there are no ratings, the card now displays “暂无评价” and no star score. This prevents the list UI from presenting fabricated community metrics.
+- Accounting records, project actions, community linkage and delisting behavior are unchanged. Device review remains pending.
+
+## 2026-11-13 — close the campaign publication and manual-refresh gap
+
+- The read-only campaign API is not itself a sync trigger. The existing Android Home warmup calls `POST /api/airdrops/sync`, but that endpoint previously stopped after candidate ingestion and did not run campaign scoring. Newly ingested Binance campaigns therefore remained unpublished.
+- The Airdrop Campaign Library's refresh button previously performed only a GET through its cache coordinator; it did not request provider sync. This left the list refresh disconnected from the approved free source pipeline.
+- Required correction: run campaign scoring after successful source sync in the API route, and make explicit user refresh invoke the same sync endpoint before re-reading the filtered campaign list. Preserve the existing shared 30-second client throttle and server-side 5-minute sync cooldown; surface cooldown/failure without clearing last-known-good cached rows.
+
+## 2026-11-13 — refresh the Room campaign snapshot after background sync
+
+- The Home warmup currently loads the campaign Room snapshot before it performs the 6-hour Binance source refresh. If the campaign cache is still fresh, the newly published campaigns can remain invisible until the next TTL expiry.
+- After a successful server-side source sync, force one bounded GET of the published campaign endpoint through the shared cache coordinator and save the new Room snapshot. Do not repeat source sync for this cache read.
+- Keep the initial last-known-good cache warmup. Force-refresh the published campaign snapshot after a successful scheduled source sync, and otherwise revalidate that snapshot on its own six-hour cadence. Map server 429 cooldowns to a user-facing non-retryable message instead of hammering the sync endpoint.
+
+## 2026-11-13 — publication, manual refresh and Room cache wired together
+
+- The public sync endpoint now runs campaign scoring immediately after successful provider ingestion, so eligible official Binance category-128 campaigns can pass the publication gate in the same request.
+- The Airdrop Campaign Library's explicit refresh now calls the same public sync endpoint first, then fetches the filtered published list. Server 429 cooldown is mapped to a non-retryable user message; stale Room rows are retained and the error is surfaced.
+- Background Home warmup retains its initial last-known-good read. After a successful six-hour provider sync it force-refreshes the published campaign GET into Room without repeating provider ingestion; the published snapshot also has its own six-hour revalidation cadence.
+- This closes the source-ingest → scoring/publication → public API → Room cache path in code. Live endpoint behavior, backend tests and Android tests remain pending.
+
+## 2026-11-13 — UI redesign authority and acceptance gate
+
+- The user-designated `空投猎人-UI与动效重构设计说明书.docx v1.1` is the sole visual and interaction authority for this redesign. The earlier isolated visual tweaks are not considered completion and must be reconciled with the specification.
+- Design direction is Apple-style hierarchy/material/motion plus Xiaomi-style information density, capsule controls and tactile feedback. Apply the same tokens across all existing and newly added UI; do not invent a parallel style.
+- Scope is presentation and interaction feedback only: preserve business logic, data structures, API behavior, existing feature set and navigation semantics. Do not add product features as part of the redesign. Do not modify WalletConnect SDK internal screens or third-party WebView page content; unify only their surrounding container.
+- Phase 1 is mandatory before page-by-page redesign: centralize exact light/dark color tokens, typography, spacing (4/8/12/16/20/24/32 only), four radii (28/20/12/full), surface hierarchy, icon rules, motion specs and reusable button/input/card/chip/tab components. Every tappable element must provide visual press feedback and the specified haptic class within 150ms; honor Android reduced-motion settings.
+- Phase 2: rebuild Home, Search, Projects, Community, Profile and data presentation using list-density/detail-spacing rules, 40ms stagger (max 6), 400ms tabular-number transitions, 320ms page push and 250ms tab/chip transitions.
+- Phase 3: rebuild browser shell, Airdrop navigation sheet, wallet manager/add-wallet sheet, WalletConnect outer wrapper, TRON Energy page, login flow, app icon/splash and full dark-mode pass. Keep the WebView TLS/origin security and wallet-accounting behavior unchanged. Browser security warning must be a single non-blocking banner; no duplicate blocking dialog.
+- Critical quality gates: input height 52; primary/secondary buttons 52; icon hit area at least 44; cards use solid surface + hairline and no shadow; glass/blur only on floating layers and no more than two simultaneously; no emoji mixed with icon family; no large gradients/glow/decorative looping motion; tab bar fixed four items with moving indicator; no duplicated page title; reduced-motion and 1.3x font-scale checks.
+- The document's listed page specs and component parameters are binding. Do not mark the UI redesign complete based on token-only or isolated-card changes. Final acceptance requires a page-by-page checklist, screenshot/device review and functional regression; no APK build until the current agreed batch is complete.
+
+## 2026-11-13 — UI foundation and first page migrations
+
+- Centralized the v1.1 light/dark color palettes, four radius tiers, seven spacing steps, typography sizes, motion durations/scales and control dimensions in `AppDesignTokens`; MaterialTheme now uses the shared typography and semantic light/dark schemes.
+- Added shared tactile primitives: `appPressFeedback` (press scale/opacity + light/medium/warning haptics), `AppButton` (primary/secondary/text/danger/loading/compact icon-label variants), `AppIconButton` (44dp target), `AppTextField` (52dp standard, compact search, secure transformation), `AppChip`, `AppBottomBar` and solid `BaseCard`.
+- Main shell now uses the fixed four-item bottom bar with a moving 16x4 selection indicator; status/navigation bars follow system light/dark mode.
+- First page migrations: Home shortcut cards/search entry, Projects filter/card/editor fields, Community ranking/filter/search/submission fields/cards, Profile settings rows and backup-password fields, Wallet Manager/add-wallet sheet/edit fields, and TRON Energy Assistant. TRON's duplicate in-page title is removed because the shared secondary navigation header owns the title.
+- Community ranking emoji labels were removed; the ranking labels now follow the linear icon/capsule visual family. Cards use solid surfaces, hairline borders and no resting elevation. Main interactive cards/chips/shortcuts use immediate press/haptic feedback.
+- This is a foundation plus first migration batch, not full UI acceptance. Remaining: finish Home controls and all button feedback, Profile/Wallet action controls, Airdrop Library/detail, wallet detail/transaction/ledger/accounting screens, browser shell warning/loading/toolbar, Airdrop navigation and WalletConnect outer wrapper, TRON/browser visual states, app icon/splash, dark-mode sweep, reduced-motion, 1.3x font scale, accessibility hit-target and screenshot/device review. No Gradle build, tests or APK build was run in this batch.
+
+## 0.0 Current master checklist — authoritative status and remaining work (2026-11-12)
+
+> This is the first place to check for project status and remaining work. It consolidates the still-valid user requirements and current evidence. Detailed specifications remain in their original sections below; historical progress notes are evidence, not a new source of requirements. When a historical note conflicts with this checklist or the latest user correction, this checklist and the latest correction win.
+
+### Status definitions
+
+- **Complete in code + CI:** implementation exists and the exact relevant commit has passing automated checks. This does not imply production deployment or physical-device acceptance.
+- **Partial:** a foundation or part of the flow exists, but the complete user workflow is not proven.
+- **Pending verification:** implementation exists, but required real-device, live-data, production, or recovery verification has not passed.
+- **Pending implementation:** confirmed requirement has not yet been implemented end to end.
+- **Deferred / cancelled:** explicitly not part of the current release; do not reintroduce without user approval.
+
+### Current repository checkpoint
+
+- Repository: `xiaobai607/airdrop-hunter`; active delivery branch: `feature/mobile-browser-home-dock-batch`.
+- PR #135 remains **Draft / Open / not merged**. Latest code head at this checkpoint: `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1`. This is the latest code revision; requirements-ledger commits are recorded in the continuation checkpoint below.
+- Historical exact-head backend push workflow #43022038023 passed on `c51a5e1256c7b29071cbb0b4f10062b4a81a04bd`: **244 passed, 3 warnings, 0 failed**. Android was correctly skipped because that batch changed backend files only. Current branch head and latest CI are recorded in the 2026-11-12 checkpoint below.
+- The previous backend fix in workflow #43004421135 also passed: 232 passed, 3 warnings, 0 failed. It introduced a guard so a Binance item rejected by the central filter cannot be fetched directly by guessing its detail ID.
+- Android source changes at `9b081f9ff7553c7843260b120fefc6a8c37283aa` passed Android unit tests, Debug APK assembly, and artifact upload in workflow #43002913809. Later commits changed only backend API/tests and documentation; Android source is unchanged.
+- Airdrop Hub has a Room-backed public cache: show cached rows first, refresh the four-source pipeline in the background after 8 hours, retain last-known-good rows after failures, and apply a 5-minute retry cooldown. Manual refresh remains available; physical-device behavior still needs verification.
+- The public Binance detail API now applies the same central-filter visibility rule as the list API. Filtered Binance records remain stored as provenance but cannot be opened through the public detail route.
+- The pending review queue excludes records already rejected by the central filter. The explicit `status=all` view still includes them for audit/provenance; they are not deleted.
+- Review-queue title search (`q`) and stable `limit`/`offset` pagination are implemented. This is backend support only; the separate review APP remains deferred.
+- The four approved source adapters and central filtering/identity pipeline write candidate observations. A new, unverified bridge now promotes only detailed Binance Crypto Airdrop catalog (128) articles into AirdropCampaign; CoinGecko/GitHub/DexScreener remain leads. Real provider configuration, exact-head tests, live detail verification, public API output and device rendering remain incomplete; scheduled production sync stays disabled.
+- The branch includes the current Airdrop Library, browser dock, community/accounting, campaign discovery and Binance announcement changes. None of these branch changes are part of `main` until PR #135 is reviewed and explicitly merged.
+- CI success does not imply physical-device acceptance, production live-sync, or backup/recovery verification.
+
+### Current product decisions — do not regress
+
+- Public discovery destination and page heading: **“空投库”**. Do not display “微社区广场” or the Steam-style discovery subtitle. The personal project destination remains **“库管理”**.
+- The Airdrop Library's primary purpose is to discover and display actual airdrop campaigns, not to act as a token screener, source-monitoring console, or moderation dashboard.
+- The only currently approved discovery sources are the four zero-cash-cost sources in Section 0.2: CoinGecko Demo API, GitHub Raw Content, DexScreener public API, and Binance public announcements. CoinMarketCal, DropsTab, Airdrops.io, paid APIs, paid scraping, paid proxies, and metered services are excluded.
+- CoinGecko/GitHub/DexScreener results are project/market leads only. They must not be displayed as confirmed campaigns without explicit campaign evidence. The campaign feed's only current auto-publication exception is a detailed article from Binance's official Crypto Airdrop catalog (128); Latest Activities (93) remains a lead.
+- The in-app Binance detail page must show the official CMS body without AI rewriting or invented terms. JavaScript stays disabled; do not weaken WebView security or guess image lazy-loading behavior.
+- Current-release personal wallets, personal ledger, personal project/task records and personal P&L remain local-only. Only eligible anonymous/de-identified aggregate contribution data may reach the public community service. Registration/login and private cloud restore are not current-release features.
+- Demo data must remain isolated from real data and public statistics. No mock record may enter real mode, publication APIs, or community aggregates.
+
+### Remaining work — authoritative delivery checklist
+
+#### A. Automatic airdrop discovery and publication — **PARTIAL; highest product priority**
+
+- [ ] Implement and validate the four approved adapters against their current documented free endpoints and terms:
+  - [ ] CoinGecko Demo API: discover the Airdrop category and cache token/project leads.
+  - [ ] GitHub Raw Content: fetch only manually reviewed source records with repository identity, a commit-pinned Raw URL, license identifier/reference, explicit attribution, approved status and review date; URL-only configuration must fail closed.
+  - [ ] DexScreener: implement the user-approved latest/search discovery flow with bounded queries and thresholds; keep all results as market leads. Existing contract-address market enrichment is not a substitute for this adapter.
+  - [ ] Binance CMS: validate the official Crypto Airdrop and Latest Activities feeds with the approved keyword filter, stable article IDs and last-known-good behavior.
+- [ ] Verify the free-use path, rate limits, reuse rights, hosting/database limits and zero-cost guardrails for each adapter before enabling it. No paid fallback, card requirement, automatic upgrade or hidden metered dependency.
+- [ ] Complete campaign-level normalization, project/campaign identity linking, evidence snapshots, source attribution, deduplication, unknown/null semantics and status history.
+- [ ] Complete deterministic, versioned, explainable scoring and publication gates. Official HTTPS link verification and attributable evidence are mandatory; DEX liquidity/volume or project-list presence never proves an airdrop.
+- [ ] Connect the real campaign publication API to the Android Airdrop Library and Room cache. Real mode must show only approved real campaign records; demo mode remains separate.
+- [ ] Validate real source data end to end, including outages, malformed/empty responses, retries, idempotency, last-known-good cache and no false publication.
+- [ ] Keep scheduled production sync disabled until source rights, zero-cost hosting, database migrations, exact-head CI and real-data APP rendering are verified.
+
+Current evidence: campaign models, migrations, scoring/persistence foundations, publication API, Android campaign client/list, Binance announcement feed/detail code and a category-128 campaign bridge exist on PR #135. The bridge has not yet been tested against a live CMS detail response or run through the public API, and scheduled sync is disabled. The campaign UI may therefore still show an honest empty state. The trusted-provider refactor remains fail-closed when no eligible evidence is configured. This feature is **not end-to-end complete**.
+
+#### B. Existing core app features — **CODE FOUNDATION LARGELY COMPLETE; DEVICE ACCEPTANCE PENDING**
+
+- [ ] Install the exact-head APK on the user's Android phone and exercise every main destination: Home, 空投库, 库管理, 我的.
+- [ ] Run the reported cross-screen crash regression across browser, chain/coin search, wallet management, project management, Airdrop Library and profile destinations.
+- [ ] Verify wallet address/network handling and external-wallet DApp handoff with MetaMask, OKX Wallet and Trust Wallet: connect, sign, send, reject, cancel, timeout and return callback. Airdrop Hunter never holds private keys or signs for the user.
+- [ ] Verify accounting end to end: manual bill entry, pending/confirmation flow, actual-vs-estimated separation, wallet/chain association, local persistence and totals.
+- [ ] Verify project/task lifecycle and “库管理”: private project isolation, official catalog binding, delisted-project marker, local accounting/history retention and eligible anonymous contribution rules.
+- [ ] Verify offline encrypted backup/export/import on a real device, including wrong password, corrupt file, duplicate import, version compatibility and post-restore data integrity.
+- [ ] Verify current-release privacy at runtime: no personal wallet addresses, personal ledger rows, transaction hashes, account identity or private project/task details are uploaded.
+- [ ] Verify cache-first behavior, stale-while-revalidate, refresh throttling, background responsiveness, last-known-good retention and source failure states on device/network interruption.
+
+#### C. Browser dock and UI acceptance — **IMPLEMENTED IN PR #135; DEVICE VERIFICATION PENDING**
+
+- [x] Refactor the dock so a single outer Box owns the capsule background and LazyRow; its offset and long-press drag move the complete component together.
+- [x] Clip the inner translucent capsule container with RoundedCornerShape(50), including the LazyRow, so icons cannot render outside the pill boundary.
+- [x] Use detectDragGesturesAfterLongPress on the outer Box so ordinary horizontal swipes remain available to LazyRow; use Animatable for animated left/right edge snapping after drag end/cancel.
+- [ ] Confirm the long horizontal glass dock proportions on the actual phone.
+- [ ] Confirm inner horizontal scrolling and long-press whole-dock dragging do not conflict on the actual phone.
+- [ ] Confirm edge snapping, safe-area bounds, add/remove/reorder/restore actions and all six tool actions on device.
+- [ ] Confirm dock position is transient and resets to the bottom after leaving/re-entering the browser; only selected tool IDs/order persist.
+- [ ] Confirm Home dashboard card layout/drag behavior and developer-controlled card dimensions.
+- [ ] Confirm the Airdrop Library heading is “空投库”, the obsolete Steam subtitle is absent, and demo/real datasets never mix.
+
+#### D. Binance announcement detail — **CODE + UNIT TESTS COMPLETE; REAL HTML/DEVICE VERIFICATION PENDING**
+
+- [ ] Inspect an actual Binance CMS detail response and confirm whether announcement images use direct `src`, `data-src`, or another loading pattern.
+- [ ] Verify HTTPS images load with JavaScript disabled. Do not add speculative HTML rewriting or enable JavaScript without a real fixture and security review.
+- [ ] Verify wide tables scroll horizontally, images scale to viewport, and long content remains readable on the user's phone.
+- [ ] Verify explicit user-clicked HTTPS links open the in-app browser and Back returns to the announcement detail; automatic redirects and non-HTTPS navigation remain blocked.
+
+#### E. Production deployment, operations and recovery — **PARTIAL**
+
+- [ ] Complete production environment variables/secrets, database, object/static storage and CDN configuration using verified $0 tiers.
+- [ ] Run production readiness smoke checks against the actual deployment and verify migrations at the real database head.
+- [ ] Perform an isolated PostgreSQL backup and restore drill, verify restored data and record evidence.
+- [ ] Verify deployment rollback and recovery procedures.
+- [ ] Activate scheduled community snapshots and airdrop sync only after configuration, cost, permissions and live-data checks pass. Skipped cron runs do not count as successful publishing.
+- [ ] Confirm monitoring/error visibility and safe behavior when providers, database, CDN or network fail.
+
+#### F. Final release gate — **PENDING**
+
+- [ ] Reconcile every still-valid requirement in Sections 1–10 against implementation and tests.
+- [ ] Close all device acceptance items in B–D and production/recovery items in E.
+- [ ] Run exact-head Android unit tests/build and backend tests after the final coherent change set.
+- [ ] Generate and install the final release candidate APK; complete a full regression pass.
+- [ ] Verify privacy, zero-cost operation, source permissions, data integrity, backup/restore and rollback.
+- [ ] Keep PR #135 Draft/Open until the user explicitly authorizes merge. Do not declare the project finished before all required gates pass.
+
+### 2026-11-12 — cache-engine force-throttle regression and wallet-data scope audit
+
+- Exact-head CI #43144096009 for `d82ac14579cb3538fb990508448f0cf3ce8ddbbb` failed: Android compilation and Debug APK assembly succeeded, but 1 of 169 unit tests failed. The failing test was `manualRefreshThrottleBlocksManualButForceRefreshBypassesIt`.
+- Root cause confirmed in `CacheRefreshCoordinator.load()`: both the pre-lock and in-lock manual-throttle guards omitted the `!force` condition. Corrected both guards in commit `f9cdb10dbd0503806ba58e99661afc0bad4ac572`; exact-head CI #43144624372 passed Android build, all unit tests and Debug APK artifact upload.
+- A source comparison against the parent of the wallet-cache integration confirms the generic coordinator was added specifically in commit `bdd69b17`. The current wallet activity payload still uses session-scoped local read/write, but its metadata and refresh lifecycle were incorrectly routed through the public/shared TTL engine. Per the public-only cache boundary above, the next code correction is to remove that coordinator integration while preserving the pre-existing session-scoped wallet transaction storage and worker call compatibility. No wallet data, account behavior or pending-sync state may be modified.
+- Added a coordinator-level regression test proving a fresh cached payload suppresses an ordinary refresh without calling the provider. Removed the now-unused wallet-asset generic cache-key helper and its isolated policy test after the private-wallet scope correction. Commit `cfa162e85126118e9120a8586f6cf66146f13bd4`; exact-head CI #43145433344 passed Android compilation, all unit tests, Debug APK assembly and artifact upload. Backend tests were skipped because this commit changed Android code only.
+- Follow-up integration audit: the shared coordinator is currently used by Airdrop Hub (`FeatureRepositories.kt`), public campaign directory (`AirdropCampaignRepository.kt`), official community catalog (`CommunityCatalogRepository.kt`), public community snapshots (`CommunitySnapshotRepository.kt`), market search/hot coins (`MarketSearchRepository.kt`) and OKX market detail (`OkxMarketRepository.kt`). These are public/shared datasets. Wallet activity and wallet balances are now excluded. `CoinGeckoPriceRepository` has no current call site and remains intentionally unintegrated.
+- Cache-engine source review confirms: TTL is checked only when a cached payload exists; same source/key work is serialized through bounded mutex stripes; retryable errors are limited to IO and HTTP 408/425/429/5xx with three total attempts; last-known-good data is retained on failure; cancellation is rethrown and metadata reset to idle. The new fresh-cache regression test is included in the passing exact-head CI above.
+- Superseded by the latest 2026-11-12 continuation checkpoint below. PR #135 remains Draft/Open/unmerged.
+
+### Latest continuation checkpoint — 2026-11-12
+
+- PR #135 remains **Draft / Open / unmerged**. Latest code head: `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1`.
+- Exact-head Android workflow **#43152173285** passed on `a7dc2647596f6a2f2c41cec900dfb0a49578560f`: Android build and unit tests passed; backend tests were skipped by change filtering.
+- Code commit `66b5e0b89b59cb7922824c7d60057361edb039b8` adds wallet-balance scheduled refresh and campaign-directory background warming/cache-first display; exact-head Android workflow #43151808498 passed.
+- Code commit `a7dc2647596f6a2f2c41cec900dfb0a49578560f` removes remaining manual-refresh cooldown bypasses and surfaces throttled results; exact-head Android workflow #43152173285 passed.
+- Requirements-first audit found that wallet workers could treat a stale last-known-good fallback as a successful refresh and advance the 8-hour cadence after a provider failure. The defect and acceptance criteria were added to this document before code changes.
+- Code commit `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1` preserves `stale` and `errorMessage` in wallet activity/balance snapshots and prevents either worker from marking cadence success for stale/error/throttled results. Added wallet-activity stale-fallback regression coverage and pure cadence-success policy tests.
+- Exact-head Android workflow **#43152987166** completed successfully on `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1`: Android build, unit tests, Debug APK assembly and artifact upload passed. Backend tests were skipped because this batch changes Android files only.
+- Live provider verification remains pending. No production database writes, campaign publications, production deployment or physical-device acceptance are claimed. Scheduled discovery sync remains disabled.
+- Updated estimate after the passing exact-head batch: **code/CI implementation ~73%**; **overall release readiness ~45%**. These are rounded project-level estimates, not test coverage.
+- Next actions after CI: if green, update the completion ledger and continue the all-caller/background-scope audit; if red, inspect the failing job and repair before another code batch.
+
+### Delivery batch summary
+
+| Area | Current status |
+|---|---|
+| Core product batches 01–13 | Code-level foundation recorded as complete; cross-screen/device regression still required |
+| Batch 14 — production operations/recovery | Partial; live configuration, restore drill and rollback evidence remain |
+| Batch 15 — navigation, account-scope UI and backup hardening | Code/CI complete; physical-device acceptance remains |
+| Airdrop discovery pipeline | Partial; adapters/provider configuration and real publication flow remain |
+| Binance announcement detail | Code/CI and wrapper unit tests complete; real HTML and device checks remain |
+| Final release | Pending |
+
+**Progress reporting rule:** do not use one unqualified percentage as a release-completion claim. Report code/CI progress separately from real-data, physical-device, production and final-release acceptance. A completed PR or successful CI is not a finished product.
+
+---
+
+
+### 2026-11-12 — requirements-first workflow and unified cache engine checkpoint
+
+**Requirements-first rule (user reaffirmed 2026-11-12):**
+- This file is the source of truth. Every newly requested feature or changed behavior must be recorded here first, with scope, priority, dependencies, acceptance criteria and status, before implementation begins.
+- After the requirements entry is updated, compare the actual branch code against it, implement only the next approved slice, run the relevant tests, and update this ledger with the exact commit and CI result.
+- Never silently turn an implementation assumption into a product requirement. If a request conflicts with an existing decision, record the conflict and follow the user's latest explicit correction.
+- Current release registration is disabled. Do not add registration/login, account switching, guest-to-login migration, or private cloud restore flows. Do not reopen account architecture as part of cache work.
+- Do not alter, clear, re-key, or migrate offline-created personal records or pending-sync queues as a side effect of cache changes. Personal ledger and personal project/task records are durable user data, not ordinary expiring cache entries.
+
+**Unified cache engine — scope and requirements:**
+- Use one shared cache refresh coordinator for approved cache-backed data sources; keep per-source TTL, cache key, validation, and persistence semantics explicit.
+- Required behavior: cache-first/stale-while-revalidate where the existing screen contract requires it; per-source TTL; single-flight refresh for the same source/key; force refresh for an explicit manual refresh; bounded retry/error cooldown; preserve last-known-good payload on failure; expose stale/error/refresh metadata; propagate coroutine cancellation rather than treating it as a provider error.
+- Cache-engine acceptance tests must explicitly prove: two overlapping same-source/key callers perform one fetch; a fresh cache suppresses an ordinary refresh; a manual-refresh throttle blocks only non-forced manual calls; force refresh bypasses TTL, cooldown and manual throttle; retryable failures retry only within the configured attempt bound; non-retryable failures do not retry; Retry-After is honored within a documented cap; failure cooldown suppresses background retries but does not block an explicit force refresh.
+- Cache metadata is not the payload store. Existing Room/cache payload persistence and source-specific validators must remain authoritative.
+- The shared coordinator governs refresh scheduling/concurrency/status for approved public data and wallet balance/transaction refreshes. Wallet payloads remain private and account/wallet/chain-scoped in their existing local Room stores; coordinator metadata keys must preserve that isolation. Do not place wallet payloads in a shared public cache. Personal ledger, private project/task records, offline additions and pending-sync queues remain durable local records, never ordinary TTL cache entries. Preserve user-data semantics.
+- Do not add an unused repository to the active path solely to claim cache coverage. CoinGeckoPriceRepository remains out of scope until a real call site exists.
+
+**Implementation recorded at branch head `a647f7b3af517fe90b004ad774e8053be2513e88`:**
+- Shared `CacheRefreshCoordinator` supports forced refresh; Airdrop Hub and Community Snapshot repositories use the shared coordinator while retaining their source-specific persistence/validation behavior.
+- Scope-audit finding (2026-11-12): `WalletActivityRepository.refresh()` had routed per-wallet transaction snapshots through the generic `CacheRefreshCoordinator` (`source = wallet-activity`, 8-hour TTL). Although payload reads/writes remained session-scoped, wallet transaction history is private wallet data and outside the approved public/shared reference-data scope. Corrected in commit `0d4f5b6ab049db3007ff843d17015f73c35810c6`: removed the generic coordinator dependency and restored direct refresh with the existing `readForSession`/`writeForSession` payload persistence. The `force` parameter remains accepted for worker call compatibility; the existing separate 8-hour WorkManager cadence is unchanged. Exact-head CI #43144871849 passed Android build, unit tests and Debug APK artifact upload. A second scope-audit finding: `WalletAssetRepository` also routed per-wallet balances through the generic coordinator and read its global refresh metadata. Wallet balances are private user-specific wallet data even though the underlying chain records are publicly observable. Corrected in commit `719b739eb7a36f1e947f8d31db91564eced0650e`: removed the generic coordinator, kept existing account-scoped Room payload persistence, and retained cached-first display followed by the screen's existing direct fetch path. Exact-head CI #43145084727 passed Android build, unit tests and Debug APK artifact upload. No private wallet payloads or keys were cleared, re-keyed, migrated or deleted. Neither correction changes account switching, guest-to-login migration or pending-sync queues.
+- Airdrop campaign refresh validates records and verifies manual-refresh cache write/readback before accepting the replacement payload; invalid or incomplete refreshes must not overwrite last-known-good data.
+- Community snapshot refresh preserves HTTPS CDN host validation, ETag/Last-Modified behavior and snapshot-version checks; cancellation is propagated.
+- Added coordinator lifecycle tests for same-key reuse, last-known-good retention after failure, cancellation metadata recovery/propagation, and source+key metadata isolation.
+- Exact-head Actions run #43142917658 for `a647f7b3af517fe90b004ad774e8053be2513e88` passed: Android build, unit tests and Debug APK artifact upload succeeded. Backend tests were skipped because this was an Android-only change. This is automated validation, not device acceptance.
+- Previous exact-head Android validations: #43142399397 passed for `e39c2c22a4174d1f04b765dff44a3811257cd026`; #43140663969 passed for `d5732d1d299d8ca0ce58829ce8695a2994893abc`.
+
+**Current cache-engine status:**
+- Shared engine foundation and selected integrations: implemented in code and CI.
+- Full concurrency semantics, force/manual-refresh throttling, retry/backoff edge cases and complete source-by-source audit: partial; additional tests/review required.
+- Physical-device checks for cache-first rendering, background responsiveness, refresh interaction, offline/network interruption and last-known-good behavior: pending.
+- Public data provider live verification remains a separate gate; CI does not prove Binance/CoinGecko/GitHub/DexScreener live availability or campaign publication.
+
+**Progress reporting — 2026-11-12 (estimate, not a release claim):**
+- Code/CI implementation coverage: approximately **68%** across the currently approved scope; this reflects existing core modules plus partial discovery, UI, cache and detail-page implementation.
+- End-to-end release readiness: approximately **41%** using the six delivery areas A–F in the master checklist, with the weakest areas (live discovery, device acceptance, production/recovery and final release gate) weighted explicitly rather than counting source files or commits.
+- Live-data, physical-device, production/recovery acceptance: still substantially behind code/CI. Do not collapse these into one “finished” percentage. Recalculate these figures whenever a delivery area changes, and state the evidence and outstanding gates.
+- PR #135 must remain Draft/Open/unmerged unless the user explicitly authorizes otherwise.
+
+## 0.2 Latest user-confirmed data-discovery strategy — four-source, zero-budget standard (2026-11-11)
+
+The user approved four free public data sources for backend discovery: CoinGecko Demo API, manually approved GitHub Raw Content, DexScreener public API, and Binance public announcements. SolvoHQ was explicitly retired after its snapshot was found stale. CoinMarketCal, DropsTab, Airdrops.io, paid APIs, paid trials, paid proxies, and paid scraping services are excluded.
+
+### Product experience — simple airdrop discovery (latest correction)
+- The primary Airdrop Discovery page exists to find and display airdrop activities. It is not a source-monitoring dashboard, token screener, project directory, or moderation console.
+- The user-facing list shows only explicit airdrop campaign/announcement evidence. Binance Crypto Airdrop catalog entries and Latest Activities headlines explicitly matching airdrop-related terms (Airdrop, Launchpool, HODLer, Megadrop) may appear as official-announcement cards linking to the original Binance announcement.
+- CoinGecko Airdrop category membership, GitHub open-source list entries, and DexScreener token/pool observations are discovery leads only. They must stay out of the primary airdrop activity list unless a separate explicit campaign announcement/evidence is obtained. Trading volume, liquidity, category membership, or appearing in a repository list does not prove an airdrop exists.
+- Keep the main page focused: activity title, concise official-source attribution, and a clear action to open the original announcement. Do not show source health, trust codes, publication-state codes, internal scoring, market-pool metrics, or technical error details to ordinary users. Do not label a project lead as an active airdrop.
+- Do not build additional review queues, moderation dashboards, multi-layer scoring, or source-status UI for this discovery page. Retain only the backend provenance, deduplication, caching, URL validation, and per-source failure isolation needed for reliable operation.
+- Never invent campaign dates, reward amounts, eligibility, KYC, chain, or claim links. If the official announcement does not state a field, leave it unknown rather than guessing.
+- The main user flow is: open Airdrop Discovery → browse official airdrop announcements → open an in-app detail page showing the complete original Binance announcement content → optionally open the original Binance page to participate.
+- The in-app detail page must display Binance CMS article body as supplied, preserving its headings, paragraphs, lists, tables and embedded images where possible. Do not replace the body with an AI summary or selectively omit terms. Show title and publication timestamp only when supplied by Binance. Keep the original Binance URL available as a separate action.
+- The detail API fetches the article by the exact Binance article code. If Binance does not return a body or the request fails, show a retry/original-link fallback; never fabricate a replacement body or campaign terms.
+
+### 1. CoinGecko Demo API — Airdrop category
+- Use the CoinGecko Demo API key only from the backend environment variable `COINGECKO_DEMO_API_KEY`; never hardcode, commit, or package credentials in the Android APK.
+- Query `GET /coins/categories/list` to identify the Airdrop category, then `GET /coins/markets?vs_currency=usd&category={category_id}` for at most 20 market-ranked leads. Resolve each candidate's actual official homepage through `GET /coins/{id}`; the markets response itself does not provide the website.
+- **License gate:** CoinGecko's free Demo plan is for testing/exploration and does not itself grant commercial public-display or redistribution rights. Attribution alone is not sufficient permission. Keep Demo-derived records internal for research/filtering only; do not publish CoinGecko market data or reproduce it in the public campaign feed unless the operator first obtains a plan or written license that explicitly permits the intended display/use. Never resell or redistribute raw API data.
+- Normalize token name, CoinGecko URL, category ID, source ID, and fetch timestamp. These rows are internal discovery leads, not active claim campaigns, and are not shown in the primary activity list.
+- If the Airdrop category is absent or the API key/quota is unavailable, record the source failure and continue the other adapters.
+
+### 2. GitHub Raw Content — open-source lists
+- Support only `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS`, a JSON array of complete manually reviewed source records. Require a unique source ID, matching `owner/repo` identity, HTTPS `raw.githubusercontent.com` URL pinned to a full 40-character commit SHA, license identifier, HTTPS license reference, explicit attribution text, `review_status: approved`, and an ISO review date. Reject the legacy URL-only `AIRDROP_GITHUB_RAW_SOURCES` setting; do not scrape GitHub search or private repositories.
+- Parse JSON arrays/objects and Markdown project links/bullets. Extract only an explicit project name and HTTPS website URL; do not infer an official website from a repository name or arbitrary text.
+- Keep repository/file URL as provenance, use stable source keys and deduplicate across configured files. Bound URL count, response size, request timeout, and polling frequency.
+- The operator must inspect the repository license, README attribution and redistribution terms before setting the record to approved. The importer validates required metadata but does not make a legal determination or automatically trust/fetch the license URL. Reject incomplete, unapproved, duplicate, unpinned or unsafe records as a whole; cap the configuration at 20 sources. Pinning a commit makes content changes require a new explicit review. Preserve the reviewed license and attribution details with each imported lead.
+- Imported entries are internal project leads and are not shown as confirmed airdrop activities without separate campaign evidence. A malformed or unavailable file must not block other sources; retain last-known-good rows.
+
+### 3. DexScreener — recent active pool observations
+- Use the documented public `GET /latest/dex/search?q={query}` endpoint. Search terms are operator-configurable via `DEXSCREENER_SEARCH_QUERIES`; use a small bounded query list and cache responses.
+- The centralized filter excludes pools older than 7 days, requires liquidity strictly greater than USD 10,000, sorts eligible rows by liquidity then 24h volume then combined 24h buys/sells, and keeps at most 10. Volume and trades are ranking signals only; they are not separate eligibility thresholds or proof of an airdrop.
+- Deduplicate by chain ID + token address. These rows are market/pool leads only and never appear in the primary airdrop activity list solely because they are active or liquid. Do not claim an airdrop, contract safety, or token legitimacy from trading activity.
+
+### 4. Binance public announcements — official activity feed
+- Use the existing public CMS article-list endpoint for catalog IDs 128 (Crypto Airdrop) and 93 (Latest Activities). Catalog 93 must be keyword-filtered for Airdrop, Launchpool, HODLer, and Megadrop.
+- Parse article title and announcement code; construct the canonical Binance announcement URL from the code. Keep original title, source, and stable announcement code as backend provenance.
+- These explicit official announcement entries are the primary visible discovery feed. The original Binance article is the source of truth for all campaign terms. Do not infer rewards, deadlines, eligibility, claim links, or user qualification from a headline.
+- Treat CMS failures/format changes as a per-source failure and retain last-known-good records.
+
+### Shared backend rules and exclusions
+- The five adapters are independent: one failure must not stop the others. Persist source provenance and status internally; retain last-known-good records after empty/error responses.
+- Keep stable source keys, HTTPS URL validation, bounded fields, deduplication, conservative polling, and caching.
+- Do not send personal wallet addresses, private ledger rows, transaction hashes, or identity data to these providers.
+- The primary public Airdrop Discovery API must return only explicit Binance airdrop announcement entries. CoinGecko, GitHub, and DexScreener observations remain excluded from that feed.
+
+
+## 0.1 Latest user-confirmed corrections — 2026-11-11 (authoritative overrides)
+
+The following decisions are newer than the older baseline below. Where older sections conflict, this section and the explicit replacements noted in those sections win.
+
+### Current-release personal data boundary — local-only
+- All detailed personal data for every user, including guests and any existing authenticated session, is stored on the phone in the local Room database for this release.
+- Do not upload personal ledgers, personal wallet lists, personal project records, task details, transaction details, or personal P&L to a private cloud service. Do not build or expose private-ledger cloud sync, account-based personal-data persistence, or cross-device cloud restore in this phase.
+- The server receives only the minimum anonymous/de-identified aggregate contribution data required for public community statistics. Never include wallet addresses, transaction hashes, individual ledger rows, account identity, or personal details in public payloads.
+- Project ratings in this release are also local-only: eligibility is checked against the user's locally stored confirmed participation record, and the 1–5 star choice is saved in Room. Do not sync a private ledger or submit a rating through the authenticated/global-rating endpoint. Public rating aggregates remain read-only until a separate anonymous, privacy-preserving eligibility-proof flow is designed and validated; do not weaken real-participant or anti-abuse checks to work around this boundary.
+- Do not expose registration or login in the current release. Existing authentication/account/private-sync code may remain in the repository for a later phase, but it is not an active current-release personal-data path and must not be expanded or presented as available. The app starts in local mode; a legacy token may remain only as a local Room namespace key and must never be sent to the server. The approved device-migration path is the encrypted local backup/import file in Section 1.
+
+### Community public dashboard — confirmed presentation and aggregation
+- Gas: show one community-wide total in USD plus a per-chain Gas breakdown. Also show a participant Gas-spend range distribution (bucket counts/percentages), without exposing individual records.
+- Rewards/income: show one community-wide total in USD and a participant reward-range distribution. Do not split reward totals by chain.
+- Community contributor counts: show cumulative distinct contributors and distinct contributors active in the last 30 days. Count a contributor once per period; do not expose identity or wallet address.
+- Do not show net profit, net Gas-minus-reward, reward-versus-Gas comparison, correlation between individual Gas and reward ranges, personal profit rankings/leaderboards, individual financial details, project-participation counts, project-participation frequency, or independent-wallet counts.
+- Public income is an approximate community overview and may include both theoretical/estimated rewards and user-confirmed actual rewards. It is not a precise financial statement and does not require every event to have a manually confirmed final settlement before an estimate can appear. Personal records must still keep theoretical and actual values in separate fields. Mock/demo records never enter real public aggregates.
+- Distribution buckets are aggregate-only; choose sensible ranges from the observed data and do not create a personal ranking.
+
+### Gas / reward comparison bar — single continuous two-color bar
+- The visual is one horizontal proportional bar per metric row: red represents Gas cost and green represents reward/income. It is a single continuous bar with adjacent red and green segments, not two separate bars, not two independent numeric KPI tiles, and not a replacement by percentage numbers.
+- Keep the accompanying textual amounts/currency breakdown as supporting information, but the comparison visualization itself must remain one bar. Use exact proportional widths; a zero-valued side has zero width; missing/zero-denominator data shows an honest empty state, never a fabricated 50:50 bar or minimum-width segment.
+- The public project list and Micro Community Square overview do not show a Gas/reward comparison bar. Keep those surfaces concise and show only their approved aggregate metrics. The Gas/reward comparison belongs only in the individual community project detail page, inside one unified card container. Replace the four separately stacked period cards with a segmented tab selector containing exactly three options: “总览”, “近3天”, and “近1小时”; default to “总览”. Do not show a “近7天” tab or a separate “总体” card. Animate tab content changes with AnimatedContent or Crossfade. The existing backend 7d snapshot may remain for compatibility, but it is not a visible detail-page option.
+- The “Today” window is cancelled and must not return. Do not add a manual refresh button to these community snapshot rows; use the existing Room-first cache and silent CDN revalidation schedule.
+- List cards remain concise. Do not reintroduce the cancelled standalone 24-hour community heat metric, project participation counts, or independent-wallet counts merely because an older visual reference contains them.
+
+
+### Community project detail — unified animated Gas/reward card (latest 2026-11-11 override)
+- Delete the four individually stacked period cards. Render one single card container with a full-width segmented tab row at the top and exactly three options: “总览”, “近3天”, “近1小时”. “总览” is selected by default. There is no visible “近7天” option.
+- Selected tab: full-pill solid brand purple #7A58FF with white text. Unselected tabs: transparent background with dark/neutral text. All tabs use fully rounded pill ends.
+- Below the tabs, use a two-column metric layout. Left: red/orange flame icon and “Gas 支出”, bold large compact USD amount (e.g. $12.8K), then tiny native-token hint (e.g. ≈ 3.2 ETH). Right: green gift icon and “收益”, bold large compact USD amount (e.g. $18.5K), then tiny token hint (e.g. ≈ 4.6 ETH).
+- Under both columns, render exactly one continuous proportional red/green comparison bar, 16.dp high with fully rounded ends. Red is Gas share; green is reward share. Put white percentage text inside each segment when that segment is at least 15%; hide the label for smaller segments rather than forcing a minimum segment width. Zero and missing data must remain honest and must not create a fabricated 50:50 bar.
+- Collapse the data-updated timestamp to tiny muted text at the lower-right edge/bottom of this same card.
+- Animate switching between tabs with Compose AnimatedContent or Crossfade.
+- Support both lightColorScheme and darkColorScheme. Use the same semantic roles in both schemes: Gas red, reward green, purple selected tab, readable primary text, muted secondary text, and suitable card/track surfaces. Selected-tab brand purple remains #7A58FF in light mode; use an accessible lighter purple variant in dark mode if needed.
+- This unified card is in the individual project detail page only. Do not add it to project list cards, personal ledger, or Micro Community Square overview.
+
+### Airdrop Library UI and isolated test mode
+- The public discovery page is named “空投库”. Do not use “微社区广场” as its page heading and do not show the Steam-style discovery subtitle. Keep the “提交新空投项目” entry, search by project name/chain/tag, the “测试演示 / 全网真实” switch, ranking chips (吸金榜 / 避坑榜 / 新星榜), project filters, cached-snapshot warning, and honest empty state.
+- Test mode must include clearly labeled fictional airdrop projects as well as fictional metrics so the user can test list rendering, search, chain/tag filters, rankings, project detail navigation, and the Gas/reward bar. All demo projects and metrics are local UI fixtures only: no API submission, no local personal-ledger mutation, no public contribution, no real community rating, and no public statistics contamination. The “全网真实” mode must show only real catalog/snapshot data.
+- Demo/real mode must be clearly labeled and must never silently mix the two datasets.
+
+### Project-detail visual reference
+- The Airdrop Library project list/detail layout follows the user's supplied two-screen reference, but all previously cancelled metrics remain excluded. The detail page includes project identity/description, task list, safety guidance, community rating, and the Gas/reward comparison module described above. The comparison module belongs in the detail screen, separate from the star-rating section; do not confuse the red/green Gas/reward bar with positive/negative reviews.
+- The single-bar requirement is authoritative even if a generated mockup or earlier assistant draft shows two large amount tiles or percentage numerals in place of the bar.
+
+
+### Reference-image-matched browser dock — detailed UI and behavior (2026-11-10)
+
+The user's latest reference image is the visual source of truth. This is a **mobile app-launcher dock**, not a row of tiny floating action buttons:
+- Outer frame: one long horizontal glass-effect capsule with a semi-transparent white fill (about 35% opacity), a 1 dp white highlight border (about 60% opacity), a 12 dp black-tinted ambient/spot shadow, and a 50%-rounded capsule shape. Keep the target height about 100 dp and width about 94% of the available phone width (capped at 420 dp); leave about 24 dp below it.
+- Inner tools: each action keeps an approximately 68 dp touch target and contains a 48 dp rounded-square app icon with a 16 dp corner radius, a saturated solid-color background unique to the action, and a centered 24 dp solid white Material icon. Do not use thin line glyphs, emoji, pale icon backgrounds, or circular-only icon buttons. Keep the action label below the icon.
+- The tray scrolls horizontally internally. A final plus tile opens an add/manage dialog. Available actions include mock bill, copy wallet address, pending bills, refresh page, copy page URL and open current page externally. The selected tool set is saved independently of the dock's position.
+- Long-press and drag the tray itself to reposition it; release snaps its horizontal position to the nearest screen side and keeps it within the safe vertical area. Normal horizontal swipes should scroll the inner tool row.
+- The tray defaults to the bottom of the browser viewport. Its coordinates are transient Compose state only and must not be written to preferences/database; leaving and re-entering the browser resets it to the bottom.
+- Acceptance still requires Android build plus physical-device checks: visual proportions on the user's phone, internal scroll vs long-press drag distinction, edge snap, plus/add/remove, all six tool actions, and bottom reset after exit/re-entry.
+
+### Implementation progress — browser dock source audit and implementation (feature branch; PR #135)
+
+- The earlier progress notes above this section overstated implementation: GitHub source audit found that the toolbar was still the original three-action accounting capsule, and PR #135 did not yet include the toolbar source. Treat those earlier claims as superseded by this audit.
+- Implemented the horizontal browser dock in `BrowserAccountingToolbar.kt`: semi-transparent white glass capsule with white highlight border and 12 dp shadow, 100 dp height, 94% width (maximum 420 dp), 48 dp saturated-color rounded-square app icons with 16 dp corners and solid white pictograms, 68 dp touch targets, horizontal internal scrolling, and a white/light plus tile with a dark-gray icon.
+- The plus tile opens tool management. Users can add/remove the six supported tools, reorder them with up/down controls, and restore the default set. Only selected tool IDs/order are saved in app preferences.
+- The six actions are connected: create mock bill (retains the existing accounting confirmation workflow), copy current wallet address, open pending bills, refresh the current WebView, copy current page URL, and open the current page externally.
+- The entire dock is hosted as an overlay within the browser viewport. Long-press drag moves it vertically; release constrains it to the safe browser viewport and snaps horizontally to the nearest side. Ordinary horizontal swipes remain available to scroll the inner tool row.
+- Drag coordinates exist only in Compose `remember` state and are not saved. A fresh browser entry recreates the composable and returns the dock to its bottom default. Selected tools persist independently.
+- Source cleanup audit found no obsolete vertical rail, orientation selector, persisted dock-position keys, duplicate toolbar capsule, search entry, or unused imports in the current toolbar source. Existing bill/accounting state and dialogs remain referenced and are intentionally retained.
+- Edge-snap correction: every completed/cancelled long-press drag now snaps horizontally to the nearest side, including short drags; the prior 15% movement threshold that could leave the dock floating off-center has been removed.
+- The old accounting dialogs and data operations remain in the same composable; this change replaces only the visible action capsule and adds the browser utility actions.
+- **Not yet validated:** exact-head Android build/unit tests and physical-device checks for internal scroll vs long-press drag, edge snap, vertical bounds, add/remove/reorder, all six actions, and bottom reset after exit/re-entry. Do not claim acceptance until those checks pass.
+- Scope deliberately excludes the website loading failure and browser-page WalletConnect no-response issue, which the user asked to defer. Do not weaken HTTPS/TLS/origin checks or spend this batch reopening those investigations.
+
+**Current implementation checkpoint:** browser dock code commit `c51395144f66216f914c2411560017b7998f1ca2` includes the saturated app-icon/glass-capsule styling and unconditional edge snap. The prior visual-only code commit passed Android debug build and unit tests in Actions run `42773766449` (run #783). The exact edge-snap commit's Actions run `42779422216` (run #786) was cancelled when the following documentation-only commit updated the same PR; GitHub rejected retrying that cancelled run, so the edge-snap correction is not yet covered by an exact-commit build. Physical-device acceptance remains pending. PR #135 remains draft/unmerged.
+
+---
+
+## Implementation progress after the user's 11:40–11:45 device test (feature branch; not yet merged)
+
+- The new test corrections are recorded above in the authoritative requirements document before implementation.
+- Home search correction: remove only the duplicate “全局搜索” quick card from 快捷入口. Keep exactly one global coin/DApp search field below the quick-entry cards; tapping it opens the existing GlobalSearchScreen. Preserve its coin/DApp search, local/remote results, search history, and result navigation. Do not remove the search field or its underlying destination.
+- Source audit confirmed the public project-discovery screen still rendered “微社区广场” and the Steam analogy. The visible heading is now “空投库” and the analogy sentence is removed. Project discovery, search, tags, rankings, and submission remain intact.
+- The 我的 page previously exposed only toast-only “消息通知” and “安全设置” rows. It now has separate “设置”, “安全中心”, and “消息通知” destinations with truthful initial information/empty states; wallet management remains available. These are initial destination shells, not a claim that all settings, security-permission controls, or push notifications are implemented.
+- The external-wallet top-bar action now gives immediate launch feedback and catches/logs launch exceptions; the DApp-origin approval path also returns an error to the requesting page if AppKit launch fails. This is a diagnostic/feedback improvement, **not proof that the user's no-response issue is fixed**. Device verification is still required.
+- The configurable horizontal dock is now implemented in the feature branch with the six agreed actions, internal scrolling, tool add/remove/reorder/reset, and transient drag/edge-snap positioning. Address QR/explorer utilities, address picker, and broader browser page utilities remain outside this six-action dock pass.
+- The Home desktop-style card grid was implemented in the feature branch: add/remove/reorder/persist/restore. Card dimensions are developer-defined and fixed per card type; end users cannot resize cards.
+- Website loading and browser-page WalletConnect remain deferred at the user's request. Preserve HTTPS/TLS/origin protections; do not investigate or modify these flows until the user explicitly resumes them.
+- The browser dock and host integration are now in this feature branch. Exact-head CI and physical-device acceptance are tracked separately; do not mark either passed without evidence.
+
+**Current branch:** `feature/mobile-browser-home-dock-batch`; the browser dock implementation is now in the branch after the earlier `9ffd05c2ee7c64e2c3ff3260e62fcdc504ca3321` checkpoint. Requirements/documentation and Android edits are not yet merged to main. Keep release completion pending.
+
+---
+
+### Home dashboard drag feedback completion (2026-11-10)
+
+- During edit mode, the long-pressed card now follows the user's finger visually with elevated shadow and foreground z-order. The existing nearest-card target calculation still commits the new order on release.
+- Card dimensions remain developer-controlled and fixed by card type; no user resize control or size preference is present.
+- Exact-head Android CI and physical-device gesture validation are pending. Confirm long-press activation, finger-following translation, reorder target, tap behavior outside edit mode, and persistence on a real device.
+
+### User correction — Home card dimensions are developer-controlled (2026-11-10)
+
+- End users must not see or use any card resize control. Remove small/medium/large cycling from the UI and from persisted card state.
+- Card dimensions and spans are chosen and adjusted by the developer in code, using fixed per-card design rules. End users may add/remove supported cards, reorder them, and restore defaults only.
+
+### Home dashboard implementation — configurable local card layout (2026-11-10)
+
+- Added a responsive quick-entry card layout while retaining the BTC/ETH market dashboard and its existing cache/freshness/error rendering unchanged.
+- The three default cards remain 空投导航、钱包管理、TRON 能量租赁. Users can add the existing 空投库 and 库管理 destinations, remove cards, and long-press/drag cards to reorder them. Card sizes and spans are fixed by the app's design, not user-configurable. A restore-default-layout action is available in edit mode.
+- Card order is stored in app-private SharedPreferences and remains local to this installation. Card dimensions are fixed in code by card type. Empty layouts are preserved, so removing every card is not silently undone on relaunch. No account, cloud, or public contribution data is involved.
+- The single global search field remains below the quick-entry cards and continues to call the existing global-search destination. No duplicate search card is offered.
+- Implementation submitted; exact-head Android build/unit tests and physical-device layout/drag acceptance are pending. Verify portrait/landscape, narrow widths, drag target selection, add/remove/reorder persistence, and restore defaults before marking accepted.
+
+### Home global-search entry correction (2026-11-10)
+
+- The user clarified that “remove duplicate global search from quick entries” means remove only the duplicate quick-entry card, **not** remove the Home search field.
+- Home must show exactly one global search field below 快捷入口. It opens the existing GlobalSearchScreen and preserves coin/DApp search, history, local/remote lookup, and result navigation.
+- No separate global-search card belongs inside the quick-entry grid. The dedicated search screen and all search functionality remain required.
+
+### Floating browser toolbar — latest explicit layout correction (2026-11-10)
+
+This correction supersedes the earlier vertical-dock inspiration where it conflicts:
+- The floating toolbar **must be horizontal**, not vertical: a long, single-row rounded bar with icons arranged left-to-right.
+- Make it visibly longer and more balanced than the current tiny three-button capsule. Give it a substantial phone-friendly width, comfortable icon targets and spacing, and a polished translucent rounded-rectangle surface. When the number of tools exceeds available width, scroll the icons horizontally inside the bar.
+- The **whole bar** can be dragged to different screen positions independently of the internal icon scrolling. On release it snaps neatly to the nearest suitable screen edge/side, avoiding system bars and important browser controls.
+- The toolbar's default position on every fresh entry to Airdrop Navigation is at the **bottom of the screen**.
+- **Never persist or remember the dragged position.** Leaving/exiting Airdrop Navigation discards that position; the next time the user enters a website, the toolbar starts at the bottom again.
+- Tool selection/configuration (if implemented) is separate from position: it may retain the user's selected/reordered tools, but must not persist the last dragged coordinates.
+- Acceptance: drag from bottom to left/right/top-area and release; verify edge snapping; horizontally scroll icons without moving the bar; exit and reopen the page and verify the bar returns to bottom.
+
+## Latest user-confirmed mobile test corrections (2026-11-10; supersedes conflicting UI assumptions)
+
+These requirements were added from the user's physical-device test screenshots and observations on 2026-11-10. They are additive: preserve every unrelated existing feature, data rule, and security boundary.
+
+### A. Browser loading and in-page WalletConnect — explicitly deferred by the user
+
+- The website-loading failure and the browser-page “连接钱包” action that appears unresponsive are **deferred**. Do not make them the next task, reopen their investigation, or treat them as a release-blocking priority unless the user explicitly asks to resume them.
+- Preserve the existing HTTPS/TLS validation, allowed-origin rules, DApp bridge allowlist, and external-wallet signing security. Never bypass certificate errors, loosen origin checks, fake a successful connection, or move signing/private keys into the app.
+- Existing wallet-management address connection/selection and browser-page DApp WalletConnect are separate flows. Do not claim one proves the other works.
+
+### B. Airdrop Navigation horizontal floating dock — current approved scope
+
+- The dock is one horizontal glass-effect capsule with a 35%-opacity white fill, 60%-opacity white highlight border, 12 dp black-tinted shadow, 50%-rounded capsule shape, approximately 100 dp high, 94% of available width (maximum 420 dp), and about 24 dp bottom spacing. Each approximately 68 dp tool target contains a 48 dp, 16 dp-rounded saturated solid-color icon tile with a centered 24 dp solid white Material icon; labels sit below.
+- Tool tiles scroll horizontally inside the tray. The add tile uses a white/light translucent background and a dark-gray plus icon, and opens tool management. Users can add/remove the six currently approved actions, reorder them, and restore defaults.
+- The six approved actions are: mock bill, copy current wallet address, pending bills, refresh current page, copy current page URL, and open current page externally.
+- The whole tray moves only after a long press and drag; normal horizontal swipes scroll its inner row. On release, it snaps horizontally to the nearest side and stays within the browser viewport's safe vertical bounds.
+- The dock starts at the bottom on every fresh browser entry. Only selected tool IDs/order may persist; drag coordinates and position/orientation must never be persisted.
+- Do not implement the superseded vertical rail, user-selectable horizontal/vertical presentation, persisted dock position/orientation, or the earlier expanded list of QR/explorer/bookmark/tab/cookie tools without new user approval.
+- Keep the existing mock-bill, pending-bill, and manual accounting-confirmation workflows. Replacing the old three-button visual capsule does not authorize deleting those accounting operations.
+- Acceptance requires exact-head Android build/tests and physical-device checks for proportions, internal scrolling vs drag, edge snapping, safe bounds, tool management, all six actions, and bottom reset after leaving/re-entering.
+
+### C. Home becomes a phone-desktop card dashboard
+- Keep exactly one global coin/DApp search field **below the quick-entry cards**, opening the existing GlobalSearchScreen. Remove only any duplicate global-search shortcut card from the quick-entry grid. Preserve search history, local/remote search, result navigation, and the dedicated search destination; do not delete the search field or search capability.
+- Keep the three default quick functions readily accessible: **空投导航、钱包管理、TRON 能量租赁**.
+- Rebuild the Home quick-entry area as a responsive phone-desktop card grid: users can add/remove supported cards and reorder by drag. **Card size and grid span are developer-defined fixed design values; users cannot resize cards.** Layout adapts to screen width/orientation and does not overlap or clip. Persist card selection/order locally and provide a restore-default-layout action.
+- Retain the existing BTC/ETH market dashboard and its cache/freshness/error behavior unless the user later changes it. The card dashboard must coexist with it without duplicate search UI. The three default quick-function cards must remain readily accessible; do not remove the underlying wallet management or TRON energy-rental capabilities.
+
+### D. Public discovery navigation and Micro Community Square heading — latest screenshot wins
+- The bottom navigation destination and the page heading are both named **“空投库”**. Do not display the heading “微社区广场” or any Steam-style discovery subtitle. This is the current naming rule and overrides all older screenshot-matching wording that used “微社区广场”.
+- Keep project discovery, submission, search, ranking chips, tags/favorites, cached-snapshot warning, and honest empty state.
+
+### E. “我的” page entry points
+- Add clearly visible navigation entries for **“设置”**, **“安全中心”**, and **“消息通知”** to the 我的 page.
+- Each entry must open a real destination, not be a dead button. If a destination's full feature scope is not yet implemented, provide a coherent placeholder/settings shell with its scope clearly labeled as in development; do not claim unavailable controls are active.
+- Settings should own app preferences (theme/appearance, language if supported, browser/dock preferences, cache and notification preferences, data/diagnostics where supported).
+- Security Center should explain the app's non-custodial boundary, saved-wallet-address permissions, connected external-wallet sessions, site/origin permissions, and provide safe session/site permission management. It must never ask for or store seed phrases/private keys.
+- Notifications should provide an inbox/list with read/unread state and empty/loading/error states. Do not fabricate notifications or enable unsolicited push delivery without an implemented and consented channel.
+
+### F. Coherent implementation and acceptance order
+1. Keep website loading and browser-page WalletConnect deferred unless the user explicitly resumes them.
+2. Complete exact-head CI and physical-device acceptance for the six-action horizontal dock; retain existing accounting flows.
+3. Finish/verify the responsive Home card dashboard, exactly one global search field, Airdrop Library wording, and the three 我的 destinations.
+4. Continue the remaining user-confirmed product batches in dependency order, updating this ledger and minimizing Actions runs.
+
+**Initial status for all newly added items:** requirements confirmed; implementation status pending code audit. Do not describe any as implemented until source inspection, tests, and device evidence support that status.
+
+---
 
 ## 0. Highest-priority continuation rule — mandatory whenever the user says “继续”, including a new chat
 
@@ -50,16 +615,17 @@ This checkpoint is the current handoff state and must be refreshed whenever impl
 ### Current-release account and recovery scope (user-confirmed, 2026-11-10)
 
 - Do not allow new users to register in the current release. Hide or disable registration entry points; if a user reaches one, show **“注册功能开发中，请等待后续更新”** and do not start an account-creation request.
-- Guest mode must not be blocked by forced login: guests can use the app's full non-cloud product experience, including Home, Micro Community, Airdrop Library, personal library/projects, tasks, wallet-address management, accounting, and eligible anonymous public contribution. Login is only for account-scoped cloud storage/sync and future account services; it is not a prerequisite for core use. Guest private ledger, wallets, and project data remain app-private/local; clearing app data or uninstalling loses those details.
-- Defer user-facing cross-device private-cloud restore. Do not advertise cloud recovery, show a restore entry point, or make cross-device recovery a release acceptance condition.
-- Do not delete already-implemented authentication, account-isolation, or sync code merely because registration/restore is deferred. Preserve it for a later phase; any existing account flow must not be expanded or described as offering cross-device restore.
+- The current release has no registration or login entry point. All users use local mode and the complete non-cloud product experience, including Home, Micro Community, Airdrop Library, personal library/projects, tasks, wallet-address management, accounting, and eligible anonymous public contribution.
+- Every user's private ledger, wallets, projects, tasks, favorites, and personal records remain in the phone's local Room database. Clearing app data or uninstalling loses those details unless the user has made an encrypted local backup.
+- Defer all private cloud storage, private-ledger upload/sync, account-based personal-data persistence, and cross-device cloud restore. Do not advertise cloud recovery or make it a release acceptance condition.
+- Do not delete already-implemented authentication, account-isolation, or sync code merely because these features are deferred. Preserve it for a later phase, but guard it so current-release user flows cannot invoke private cloud sync.
 - This deferral applies to cloud-based private user data recovery only. Offline encrypted file backup/import is separately approved below. It does not cancel the separate PostgreSQL backup/restore drill for production operations, nor anonymous public aggregate contribution.
 
 
 - Product: Airdrop Hunter, an Android application for airdrop projects, task tracking, wallet-address management, Gas/reward accounting, and community project statistics.
 - Stack: Android Kotlin + Jetpack Compose, FastAPI, PostgreSQL/Neon, Render, and GitHub Actions APK builds.
 - Keep the project affordable for a solo developer. Prefer free tiers, cache responsibly, batch coherent changes, and avoid unnecessary CI runs.
-- Guest use is the primary experience. **New-user registration is disabled for the current release**; if a registration entry is reached, show exactly: “注册功能开发中，请等待后续更新”. Do not submit registration requests or imply that account creation is available. Keep the existing guest experience fully usable. Existing authentication/backend code is retained, but registration and cross-device cloud recovery are deferred.
+- Local mode is the only current-release experience. Do not expose registration or login UI or submit authentication requests. Keep the existing authentication/backend code dormant for a future phase; all current personal records remain in local Room storage.
 - Never build an in-app custodial wallet or collect/store seed phrases or private keys. DApp connection and user-requested signing must be routed to an external wallet app (for example MetaMask, OKX Wallet, or Trust Wallet); the user reviews and approves there, and signing/broadcast happens outside Airdrop Hunter. Airdrop Hunter must never sign with an app-held key. Do not add a standalone in-app custody, transfer, or swap service.
 - Public wallet addresses and read-only public chain data only.
 - Test data must never contaminate real private ledgers or public statistics.
@@ -82,24 +648,24 @@ This checkpoint is the current handoff state and must be refreshed whenever impl
 
 This policy is authoritative across Android storage, API requests, database models, sync workers, tests, and UI explanations.
 
-| Data layer | Guest | Logged-in user |
+| Data layer | All current-release users |
 |---|---|---|
-| Detailed personal ledger (wallet addresses, Gas details, rewards, project participation, transaction references, timestamps) | Stored in app-private local storage only | Stored locally and uploaded to the user's private cloud ledger |
-| Private cloud restore | Not available; clearing app data or uninstalling loses guest details | Cross-device restore is deferred and must not be offered or promised in the current release |
-| Portable local backup | User can export an encrypted backup file and import it on another device; file/password remain under the user's control | Same, scoped to the active session; no credentials are exported |
-| Public community contribution | Valid confirmed Gas, actual rewards, and project participation may contribute | Same |
-| Public contribution storage | Anonymous aggregate only; no wallet address, tx hash, personal ledger row, or account identity | Same; must not be linked to the user's account |
-| Clearing/uninstalling app data | Local private data is lost; no server copy exists | Do not promise cross-device recovery in the current release; explain that this capability is deferred |
+| Detailed personal ledger (wallet addresses, Gas details, rewards, project participation, transaction references, timestamps) | Stored on the phone in the local Room database only |
+| Private cloud restore | Not available; clearing app data or uninstalling loses local details |
+| Portable local backup | User can export an encrypted backup file and import it on another device; file/password remain under the user's control |
+| Public community contribution | Eligible anonymous statistics from official community projects may contribute by default |
+| Public contribution storage | Anonymous aggregate only; no wallet address, tx hash, personal ledger row, or account identity |
+| Clearing/uninstalling app data | Local private data is lost; no server copy exists |
 
 Additional rules:
-- Guest personal details are saved in the app-private local database only. They are not uploaded to a private cloud vault. Clearing app data or uninstalling the app loses guest personal details.
+- Every user's personal details are saved in the app-private local database only. They are not uploaded to a private cloud vault. Clearing app data or uninstalling the app loses those details unless a local backup exists.
 - Public aggregate data is separate from the private ledger. Never expose individual bills, addresses, hashes, or account identifiers in public project statistics.
-- Only user-confirmed actual Gas/reward values are eligible for public totals. Estimates and mock/demo records are excluded.
+- Public Gas totals use eligible anonymous contribution records and retain their provenance tiers. Public reward/income overviews may include both theoretical estimates and user-confirmed actual rewards as an approximate community picture. Mock/demo records are always excluded.
 - Contributions must be idempotent and retry-safe.
-- Logged-in private ledger endpoints require authentication and must scope every read, update, and delete to the authenticated account.
-- Switching accounts must not expose another account's local private cache.
-- The accounting dialog includes an unchecked-by-default opt-in checkbox: “将本笔数据匿名贡献至全网大盘”. Unchecked means the entry remains private/local (or follows the existing private-ledger sync policy for authenticated users) and creates no public contribution.
-- When the user opts in, a transaction hash (Tx Hash) is mandatory. The user must select the chain/network and the wallet address already associated with the accounting row; validate hash syntax locally, but treat the backend as authoritative.
+- Existing authenticated private-ledger endpoints/code may be retained for a later phase, but current-release personal records remain local-only and must not be uploaded or synced. If those dormant endpoints are reactivated in a later release, authentication and account scoping remain mandatory.
+- The current release has no account switching; use one local data scope. Historical account-scoped code remains dormant.
+- Community-directory projects are opted into anonymous aggregate contribution by default; users do not manually authorize each bill. A project created privately by the user (communityOfficialId = null) remains private and never contributes. A user-created project only becomes eligible after it is explicitly linked to a stable official community project ID.
+- For an eligible community-directory project, public contribution is the default. A transaction hash and selected chain/network are used when available for verification; if no hash is supplied, keep the data in the user-reported tier rather than pretending it is verified. A supplied hash that is invalid, replayed, or fails payer/finality checks must not be shown as verified; keep the private local row intact.
 - The backend verifies on the correct chain that the transaction exists and is sufficiently confirmed/finalized, and that its chain-specific fee-payer/sender identity matches the selected address. Use deterministic chain adapters (for example EVM transaction from-address, TRON owner address, and Solana fee payer). For chains/transactions where the fee payer cannot be attributed unambiguously (including ambiguous multi-input Bitcoin cases), reject public contribution and keep the private accounting entry.
 - Enforce global replay protection using a unique key for the normalized chain/network + transaction hash across all users and projects. A transaction hash already used by any contribution cannot be submitted again. Retries of the same idempotent contribution are accepted without double counting; a different payload reusing the same hash is rejected.
 - Keep the raw transaction hash and selected wallet address out of public aggregate tables, public snapshots, public APIs, analytics, and ordinary logs. The verifier may use them transiently to query the chain; persist only a server-keyed HMAC/fingerprint of the normalized chain+hash for global replay protection, plus minimal verification metadata. Do not attach the contribution to a user account.
@@ -111,13 +677,13 @@ Additional rules:
 - For USD comparison, convert the calculated native fee using a reliable historical price corresponding to the transaction timestamp. Do not use the current spot price to revalue historical transactions. Persist enough source/timestamp/asset metadata to explain the calculation and reproduce it.
 - **Chain-specific completeness matters:** Etherscan-compatible receipt parsing is EVM-only. TRON, Solana, Bitcoin, and other ecosystems require their own deterministic adapters/providers before being eligible for Tier 3. Some L2 networks (including networks where an additional L1 data fee applies) may have fee components beyond `gasUsed × effectiveGasPrice`; if the provider/API does not expose and validate all applicable components, do not call the result “100% precise”. The transaction may remain Tier 2 if its linkage is verified.
 - **Amount comparison tolerance:** compare the user's entered Gas amount with the backend-calculated transaction fee using a ±20% tolerance after converting both to the same asset/currency basis and applying the historical quote. Within tolerance, accept Tier 3 and use the backend-calculated chain amount as the public aggregate amount (not the user-entered amount). Outside tolerance, reject high-trust amount contribution and show **“金额与链上不符”**; retain the private ledger entry and its user-entered amount. Do not silently overwrite the private ledger.
-- A verified transaction fee verifies Gas only. It does not verify reward/token income, reward valuation, project participation, or the user's realized profit. Those values retain their own provenance and only user-confirmed actual values are eligible under the existing public contribution rules.
+- A verified transaction fee verifies Gas only. It does not verify reward/token income, reward valuation, project participation, or the user's realized profit. Public community income may include theoretical estimates and user-confirmed actual rewards as an approximate overview; keep their provenance separate in personal records and do not describe estimates as realized profit.
 - Provider/API timeout, rate limit, outage, or incomplete response means **pending verification with retry**, not a false rejection and not an automatic downgrade to a falsely verified amount. Invalid hash, wrong payer, insufficient finality, unsupported attribution, or replay conflict is a terminal public-contribution rejection; the private ledger remains intact.
-- Dashboard visualization must distinguish provenance: Tier 1 user-reported values use lighter/semitransparent bars; Tier 2 transaction-linked values use a separate explicit “链上已确认” state and must not be visually conflated with Tier 3; Tier 3 receipt/fee-verified values use solid/high-confidence bars. Show labels and totals by provenance so unverified and verified amounts are never silently blended as if equally trustworthy.
+- Dashboard data may show approximate aggregate income that includes estimates and actual rewards; retain provenance labels where available, especially for Gas verification tiers. Do not imply the whole dashboard is a precise financial statement. This provenance display must not replace the single continuous red/green Gas/reward comparison bar.
 - Keep the existing anonymous outbox/idempotency path; do not create a second contribution pipeline. Preserve global replay protection and privacy: raw Tx Hash/address must not appear in public tables, snapshots, public APIs, analytics, or ordinary logs; persist only server-keyed fingerprints plus minimal verification metadata.
 - This verification flow never auto-completes an event or settlement. Actual final results remain pending until the user manually enters and confirms the realized amount under Section 5.
-- Only after successful chain verification and replay checks may the opted-in anonymous aggregate enter the public contribution pipeline. Invalid/missing hash, unsupported chain attribution, failed/unconfirmed transaction, or replay conflict must not create a public contribution; the user private ledger entry remains intact and can be corrected/retried.
-- The checkbox is per accounting entry/batch row. For multi-wallet batch entry, each wallet row must have its own matching transaction hash; never reuse one hash across several selected addresses. Preserve atomic private-ledger batch behavior, but public verification failures must not erase or roll back private accounting data.
+- Eligible official-project aggregate data enters the public contribution pipeline by default. If a transaction hash is supplied, only successful verification may be labeled as chain-linked/precisely verified; a failed or replayed hash must not be shown as verified. A missing hash may remain user-reported. The private local ledger entry remains intact and can be corrected/retried.
+- Contribution eligibility is evaluated per accounting entry/batch row. For multi-wallet batch entry, each wallet row must have its own matching transaction hash; never reuse one hash across several selected addresses. Preserve atomic private-ledger batch behavior, but public verification failures must not erase or roll back private accounting data.
 
 ## 3. Wallet and address management
 
@@ -160,7 +726,7 @@ Additional rules:
 - Link imported chain transactions to a project only with user selection; never infer a project without evidence.
 - Prefill actual Gas only when payer attribution is reliable. Ambiguous/shared fees require manual review.
 - Project-level accounting, cost, actual rewards, net P&L, interaction history, and day/week/month statistics.
-- Guest private accounting remains local-only. Logged-in private accounting syncs to the authenticated account-scoped cloud ledger.
+- All private accounting remains local-only for this release. Private cloud ledger sync is deferred.
 
 ## 5.1 Quick manual accounting and batch wallet entry (new user-confirmed requirements, 2026-11-10)
 
@@ -177,22 +743,22 @@ Additional rules:
 - **Historical quote immutability:** for a priced token entry, persist token symbol, token quantity, unit USD price, total USD valuation, quote source, quote observation timestamp, and record timestamp. Later market-price updates must never rewrite historical entries or previously computed contribution payloads.
 - Batch submission is atomic: either every selected-wallet ledger row and its dependent aggregates/outbox rows are committed, or none are. A partial batch is forbidden. Repeated taps must be idempotent and must not duplicate rows.
 - Keep the existing manual-confirmation boundary: a record is considered realized only when the user explicitly submits the actual result. Estimates, points, and unissued rewards remain separately typed and cannot automatically close a pending event.
-- Preserve guest-local private ledger behavior and existing account isolation. Guest private rows never upload to a private vault. Cross-device private-ledger restore is deferred for the current release; do not expose or promise it. Retain existing authentication/cloud code without expanding this feature until registration and recovery are deliberately resumed. Only eligible confirmed anonymous aggregates may enter the public contribution outbox; no address, transaction hash, account identity, or private ledger row may be sent.
+- Preserve local private-ledger behavior for all users. No private ledger row or personal detail is uploaded. Only eligible anonymous aggregate contributions for official community projects may enter the public outbox; no address, transaction hash, account identity, or private ledger row may be stored in public aggregate records.
 - For USD totals and net P&L, unknown/unissued/points rewards must be represented as incomplete rather than treated as "$0" realized income. Preserve the native token/points detail even when USD valuation is unknown.
 
-## 5.2 Explicit opt-in and transaction-linked public contribution verification (new user-confirmed requirements, 2026-11-10)
+## 5.2 Community-project default contribution and transaction-linked verification
 
-- The accounting dialog includes an unchecked-by-default opt-in checkbox: “将本笔数据匿名贡献至全网大盘”. Unchecked means the entry remains private/local (or follows the existing private-ledger sync policy for authenticated users) and creates no public contribution.
-- When the user opts in, a transaction hash (Tx Hash) is mandatory. The user must select the chain/network and the wallet address already associated with the accounting row; validate hash syntax locally, but treat the backend as authoritative.
+- Community-directory projects are opted into anonymous aggregate contribution by default; users do not manually authorize each bill. A project created privately by the user (communityOfficialId = null) remains private and never contributes. A user-created project only becomes eligible after it is explicitly linked to a stable official community project ID.
+- For an eligible community-directory project, contribution is enabled by default per accounting row; no per-bill consent checkbox is required. If a Tx Hash is supplied, that wallet row must also supply its selected chain/network and matching wallet address, pass local syntax checks, and pass backend chain verification before it can be labeled transaction-linked or amount-verified. If no Tx Hash is supplied, submit the eligible USD-valued row as `user_reported` using the user-entered Gas amount; do not send a wallet address, do not claim chain verification, and do not create a transaction fingerprint. A supplied but malformed, replayed, wrong-payer, unconfirmed, or unsupported-chain hash must be rejected from public contribution rather than silently downgraded; the private ledger row remains intact.
 - The backend verifies on the correct chain that the transaction exists and is sufficiently confirmed/finalized, and that its chain-specific fee-payer/sender identity matches the selected address. Use deterministic chain adapters (for example EVM transaction from-address, TRON owner address, and Solana fee payer). For chains/transactions where the fee payer cannot be attributed unambiguously (including ambiguous multi-input Bitcoin cases), reject public contribution and keep the private accounting entry.
 - Enforce global replay protection using a unique key for the normalized chain/network + transaction hash across all users and projects. A transaction hash already used by any contribution cannot be submitted again. Retries of the same idempotent contribution are accepted without double counting; a different payload reusing the same hash is rejected.
 - Keep the raw transaction hash and selected wallet address out of public aggregate tables, public snapshots, public APIs, analytics, and ordinary logs. The verifier may use them transiently to query the chain; persist only a server-keyed HMAC/fingerprint of the normalized chain+hash for global replay protection, plus minimal verification metadata. Do not attach the contribution to a user account.
-- Verification authority: use the three-tier provenance, half-automated receipt parsing, historical-price valuation, chain-specific fee completeness, ±20% tolerance, pending/retry behavior, mismatch handling, and privacy rules defined in Section 2. This section only defines when the accounting UI may enqueue an opted-in public contribution; do not retain the superseded hash-link-only/no-receipt-parsing rule.
-- Only after successful chain verification and replay checks may the opted-in anonymous aggregate enter the public contribution pipeline. Invalid/missing hash, unsupported chain attribution, failed/unconfirmed transaction, or replay conflict must not create a public contribution; the user private ledger entry remains intact and can be corrected/retried.
-- The checkbox is per accounting entry/batch row. For multi-wallet batch entry, each wallet row must have its own matching transaction hash; never reuse one hash across several selected addresses. Preserve atomic private-ledger batch behavior, but public verification failures must not erase or roll back private accounting data.
+- Verification authority: use the three-tier provenance, half-automated receipt parsing, historical-price valuation, chain-specific fee completeness, ±20% tolerance, pending/retry behavior, mismatch handling, and privacy rules defined in Section 2. This section defines when the accounting UI may enqueue an eligible community-project contribution; there is no per-bill opt-in checkbox. Do not retain the superseded hash-link-only/no-receipt-parsing rule.
+- Eligible official-project rows with no supplied Tx Hash may enter the public pipeline as `user_reported` (not verified); rows with a supplied Tx Hash enter only after successful chain verification and replay checks. A supplied invalid hash, unsupported chain attribution, failed/unconfirmed transaction, or replay conflict must not create a public contribution; the local private ledger entry remains intact and can be corrected/retried.
+- Contribution eligibility is evaluated per accounting entry/batch row. For multi-wallet batch entry, each wallet row must have its own matching transaction hash; never reuse one hash across several selected addresses. Preserve atomic private-ledger batch behavior, but public verification failures must not erase or roll back private accounting data.
 
 - Keep theoretical estimates, user-entered actual amounts, and transaction-verification status as separate fields. A valid transaction link must not automatically confirm an event or replace the user's existing manual final-result confirmation.
-- The public dashboard may aggregate only eligible values from a canonical public/official project that the accounting row is explicitly linked to. A user-created custom project has `projectOfficialId = null`: its bills and ledger remain private/local and must never be uploaded to or counted in Micro Community public statistics. Only a bill explicitly associated with an official public project and manually confirmed by the user may enter the anonymous public contribution flow. The dashboard must disclose that Gas/reward amounts are user-declared unless a receipt parser verifies them; do not infer a Gas amount from transaction existence alone.
+- The public dashboard may aggregate only eligible values from a canonical public/official project that the accounting row is explicitly linked to. A user-created custom project has `projectOfficialId = null`: its bills and ledger remain private/local and must never be uploaded to or counted in Micro Community public statistics. Official-project community income may include separately typed theoretical estimates as well as manually confirmed actual rewards for a coarse overview; estimated values never mark an event complete or become personal realized profit. Gas provenance must remain explicit; do not infer a Gas amount from transaction existence alone.
 
 ## 6. Projects and tasks
 
@@ -216,9 +782,9 @@ Additional rules:
 
 - Public project directory/cards, categories, tags, and project details. Project metadata may be populated from approved external APIs/RSS and user submissions; project skeleton (name, logo, official links, funding/tokenomics metadata) is distinct from community-generated participation metrics.
 - **Project list card UI (user-confirmed):** keep cards concise for browsing, showing project avatar/logo, name, brief 1–5-star rating and reputation label (for example, “好评如潮” / “褒贬不一”), plus an **overall Gas cost vs actual reward** summary with separate USD valuations and a red/green comparison bar (red = Gas cost, green = actual reward). Tapping a card opens the full project detail page. The detail page exposes the underlying per-token amounts; native units are never added across different symbols.
-- **Project detail UI (user-confirmed):** use a single vertically scrolling waterfall/stacked layout, not tabs. From top to bottom show project avatar, name, URL, and description; overall star rating and derived reputation wording; then four simultaneously visible Gas-vs-actual-reward comparison rows: overall, last 7 days, last 3 days, and last 1 hour. Each row shows per-currency amounts and comparable USD valuation where available, plus a red/green proportional bar only when there are comparable non-zero amounts; never render a fabricated 50/50 bar for missing or zero-denominator data.
-- **Metric integrity:** public project metrics use only eligible, user-confirmed actual Gas and actual rewards from anonymous aggregate contributions; theoretical/estimated rewards remain separate and are never displayed as realized rewards. Do not add unlike tokens together without per-token breakdown; USD estimates must be labeled as valuations. Missing/zero-denominator data must be represented honestly; proportional bars must use exact ratios and a zero-valued side must have zero width, never an artificial minimum-width segment. Reputation labels are derived from real rating aggregates and distribution, never hard-coded.
-- Public aggregate Gas, actual rewards, and net P&L presentation.
+- **Project detail UI (user-confirmed):** use a single vertically scrolling waterfall/stacked layout, not tabs. From top to bottom show project avatar, name, URL, and description; overall star rating and derived reputation wording; then one unified Gas/reward statistics card with three animated segmented tabs: total overview, last 3 days, and last 1 hour. Each row shows per-currency amounts and comparable USD valuation where available, plus a red/green proportional bar only when there are comparable non-zero amounts; never render a fabricated 50/50 bar for missing or zero-denominator data.
+- **Metric integrity:** Gas and reward values are anonymous community aggregates. Public reward/income overviews may include theoretical estimates and user-confirmed actual rewards as approximate community context; they are not a precise realized-profit statement. Personal ledgers must still separate theoretical and actual fields. Do not add unlike tokens together without per-token breakdown; USD estimates must be labeled as valuations. Missing/zero-denominator data must be represented honestly; the single red/green comparison bar must use exact ratios and a zero-valued side must have zero width, never an artificial minimum-width segment. Reputation labels are derived from real rating aggregates and distribution, never hard-coded.
+- Public aggregate Gas and approximate reward/income presentation only; public net P&L is not displayed.
 - Rankings: 吸金榜、避坑榜、新星榜.
 - Categories/tags may include L2, zero-cost, testnet-required, high-Gas, confirmed airdrop, and similar classifications.
 - Favorites/following and personal to-do tracking.
@@ -305,7 +871,7 @@ Additional rules:
 
 - Full OKX-style portfolio/dashboard.
 - In-app seed phrase/private-key wallet creation or custody, app-owned private-key signing, and standalone native transfer/swap execution are cancelled. External-wallet DApp signing and transaction requests remain required: the user approves and signs only inside their chosen external wallet.
-- Self-written arbitrary-site crawling/scraping is cancelled. Free verified provider APIs, free allowlisted RSS/Atom feeds, freely accessible third-party airdrop platform listings, and user submissions are preferred discovery channels. Telegram/Discord are optional only when free and authorized. Paid X/API integrations and paid data services are out of scope unless the user explicitly changes the zero-cost rule.
+- Self-written arbitrary-site crawling/scraping, RSS/Atom discovery feeds, unapproved third-party airdrop directories, paid X/API integrations and paid data services are out of scope. The only currently approved discovery sources are CoinGecko Demo API, operator-configured GitHub Raw Content lists, DexScreener public API, and Binance public announcements, subject to the source-specific evidence, license, attribution and zero-cost rules in Section 0.2. Do not add Telegram/Discord or another provider without the user's explicit approval.
 - Automatic address recognition (deferred).
 - Community chat, groups, DMs, mentoring, and teaching/social features (deferred).
 - AI analysis is not a confirmed requirement.
@@ -320,7 +886,12 @@ These later user statements supersede any earlier conflicting draft text or assi
 - **Custom project privacy (user-confirmed 2026-11-07):** a custom project has `projectOfficialId = null`; its bills stay private/local, are never uploaded, and never enter Micro Community public metrics. Only manually confirmed bills explicitly linked to an official public project can contribute anonymous aggregates. This rule is distinct from guest-vs-authenticated private-ledger ownership.
 - **Guest data boundary (latest explicit correction, 2026-11-09 00:09):** “游客的数据我们不保存，我只是游客参与空投的gas，收益 等空投收益 数据要贡献到大盘里面 他的数据我们不保存”. Therefore guest detailed personal records are not uploaded or retained by a private cloud vault; only eligible anonymous aggregate contribution data is sent to the public dashboard. This later correction supersedes the earlier 2026-11-08 request that guest detailed bills also be uploaded to cloud.
 - **Community time windows (user-confirmed 2026-11-09):** remove “今日” and the standalone “24小时热度” metric. Keep overall, last 7 days, last 3 days, and last 1 hour. A market coin's 24-hour price-change percentage is a separate market field and is not the cancelled community heat metric.
+- **Community contribution default (latest correction, 2026-11-10):** every project in the official community catalog contributes eligible data by default; do not ask users to authorize each bill or wallet row. A private user-created project (`communityOfficialId = null`) remains excluded. If a private project is explicitly linked to an official catalog record, only qualifying records from that point onward may contribute; do not backfill earlier private bills. Contribution remains per wallet row and requires a supported network, that wallet's own valid Tx Hash, confirmed actual USD-denominated reward input, backend chain verification, replay protection, and the existing anonymous outbox. Public storage contains aggregates only, never the private bill, wallet address, Tx Hash, or account identity. This correction supersedes every earlier unchecked-by-default consent/opt-in statement in historical PR notes and implementation checkpoints. Actual realized rewards still require the user's manual confirmation; estimates never count as actual.
 - **Crash regression (user-reported 2026-11-08):** the user reported that navigating to multiple areas (Airdrop navigation/site, coin/chain-browser search, wallet management, project management, and My) could close the entire app, while Micro Community worked. PR #103 fixed one confirmed WebView origin-rule crash at source level, but that does not prove every reported route is fixed. Keep a cross-screen physical-device crash regression gate open until every affected route is exercised on-device; do not mark the broad crash report resolved from the single WebView fix alone.
+
+## 11.1 Current-release override for historical sync implementation notes (2026-11-11)
+
+Older progress entries below describe code that was previously implemented for authenticated private cloud sync. They are historical implementation evidence only. The current release decision is local-only for all personal data: do not call those private-sync paths from current-release user flows, do not upload personal rows, and do not count the presence of those old endpoints/workers as an approved current feature. Preserve the source code for a future phase unless a separate safe removal is explicitly planned. The 2026-11-11 override in Section 0.1 is authoritative.
 
 ## 12. Verified implementation ledger (as of 2026-11-09)
 
@@ -412,8 +983,8 @@ The main data path is intentionally one-way at each boundary:
 
 1. **Wallet/address layer:** user adds a public address -> account/guest-scoped wallet repository -> read-only chain activity refresh/cache.
 2. **Accounting layer:** user selects a transaction or enters an interaction -> pending bill -> user manually reviews/enters actual Gas and actual reward -> one Room transaction updates the private ledger, project P&L, interaction history, and (only if eligible) public-contribution outbox.
-3. **Private sync layer:** existing authenticated API and account-isolation code is retained; guests do not sync private ledger details to any cloud endpoint. New-user registration and cross-device restore are deferred from the current release and must not be surfaced as available.
-4. **Public contribution layer:** both guest and authenticated sessions may send only project ID + confirmed aggregate Gas/actual reward + an opaque event ID for idempotency. The server stores public contribution rows with no account identity; idempotency prevents duplicate retries.
+3. **Private data layer:** every current-release user stores personal data locally only. Existing authenticated API/account-isolation code is dormant and retained for a future phase; no private ledger or personal record is uploaded.
+4. **Public contribution layer:** local sessions may send only eligible official project IDs, anonymous aggregate Gas/reward values, provenance metadata, and an opaque event ID for idempotency. The server stores public aggregate rows with no account identity; idempotency prevents duplicate retries.
 5. **Community presentation layer:** server-side scheduled jobs aggregate anonymous contributions into static JSON; Android Room cache renders first and CDN revalidation updates silently. Community UI must not bypass this path with live per-project aggregation.
 6. **Project/task layer:** project and task ownership, project-to-wallet assignments, and ledger links are separate from public project metadata. A transaction is linked to a project only by explicit user selection.
 7. **Discovery layer:** provider APIs/RSS candidates and user submissions populate project metadata only. They must never fabricate participation, Gas, rewards, ratings, or P&L.
@@ -483,7 +1054,7 @@ Recommended next implementation order, based on shared-code dependencies:
 - **Timestamp presentation:** under each non-overall comparison row show its own “更新于 …” timestamp. Overall may also show its generated time.
 - **Data integrity:** snapshots aggregate only eligible anonymous public contributions and confirmed actual Gas/actual rewards; theoretical estimates, demo fixtures, private user details, and unconfirmed outcomes are excluded. Keep per-token amounts separate and label any USD conversion as an estimate/valuation. Missing data is shown as missing, not fabricated.
 - **Operational boundary:** scheduled aggregation and CDN publication are backend/ops responsibilities. Do not add a public APK secret, do not calculate aggregate snapshots on app-open, and do not claim a production CDN/Cron is configured until the deployment is actually verified.
-- **UI hierarchy:** concise project-list cards show identity, brief rating/reputation, and overall Gas-vs-actual-reward bar. Tapping opens a vertically scrolling detail page with the four windows above simultaneously visible; no tabs.
+- **UI hierarchy (superseded by 2026-11-11 detail-card override):** concise project-list cards follow the latest library-list rules. Tapping opens the individual project detail page, where one unified animated card exposes exactly three visible tabs (总览、近3天、近1小时); no separately stacked period cards. Backend snapshot generation may retain overall/7d/3d/1h windows for compatibility, but 7d is not a visible detail-page tab.
 
 
 ### Static community snapshot implementation (PRs #67, #69, and #70 merged; #68 superseded)
@@ -492,7 +1063,7 @@ Recommended next implementation order, based on shared-code dependencies:
 - The scheduler computes due windows in Asia/Shanghai: overall + 7d daily at 08:00; 3d at 00:00/06:00/12:00/18:00; 1h every five minutes. Timestamps are stored/compared in UTC and presented in UTC+8.
 - Snapshot payloads contain project catalog metadata, confirmed USD valuations, and token-separated native aggregates only. They do not contain wallet addresses, transaction hashes, user IDs, or private ledger rows. Gas and reward token amounts are grouped independently by token symbol and decimals; unlike native units are never added together.
 - Versioned JSON objects are uploaded before the manifest is atomically switched. Android reads Room cache first, then silently revalidates the CDN using a dedicated unauthenticated HTTPS client restricted to the configured CDN host. Offline or invalid responses preserve the last good cache.
-- Project list and detail screens use static snapshots rather than per-project live stats calls. The detail screen shows the four windows vertically, with each non-overall window's own update time. There is no manual refresh affordance in the micro-community. Empty/zero-denominator data is not represented by a fabricated balanced bar.
+- Project list and detail screens use static snapshots rather than per-project live stats calls. The detail screen shows one unified three-tab card; the selected window's update time is collapsed to the card's lower-right edge. There is no manual refresh affordance in the micro-community. Empty/zero-denominator data is not represented by a fabricated balanced bar.
 - PR #67 merged the architecture requirement; PR #68 was closed as superseded; PR #69 merged the actual backend and Android implementation as `25035c83e6f69f125d0b336170fdd0e0d5c93316`; PR #70 merged the empty-data correction as `0c57de441fcfb668dbb6e4d639ea68f9e6c443ee`. Android and backend CI passed for the merged implementation and correction.
 - **Not production-complete:** the scheduled workflow is disabled until storage/CDN/database settings are configured. No production R2 bucket, public CDN endpoint, or scheduled publishing activation is claimed.
 
@@ -517,7 +1088,7 @@ Recommended next implementation order, based on shared-code dependencies:
 - Each confirmed accounting event may retain a structured asset breakdown: kind (gas or reward), native amount, token symbol, token decimals, USD valuation (nullable), valuation timestamp, and valuation source.
 - Imported Gas amounts use chain-native precision metadata (EVM 18, TRON 6, Bitcoin 8, Solana 9); a current USD quote is explicitly labelled with its provider and observation timestamp.
 - Reward token amounts and symbols are entered or confirmed by the user. Unknown token precision or unavailable USD valuation remains null; never fabricate either.
-- Private ledger asset detail is retained locally and in the authenticated account's cloud ledger. Guest details remain local; only confirmed anonymous aggregates enter public contribution rows.
+- Private ledger asset detail remains local-only for all current-release users; only eligible anonymous aggregate contributions enter public contribution rows.
 - Public snapshots group native amounts by kind, symbol, and decimals. ETH, BNB, BTC, TRX, SOL, and project tokens remain separate; USD valuations may be summed only as labelled USD estimates.
 - Project detail displays native token breakdowns for each confirmed time window; project list cards retain concise USD-valuation summaries.
 - PR #75 passed Android debug build/unit tests and backend tests before merge. Real-device verification of imported native precision, local persistence, account cloud restore, and token-separated public snapshot display remains pending.
@@ -601,7 +1172,7 @@ This is the user's latest confirmed rule and overrides any contradictory text in
 
 - One app-level WorkManager dispatcher replaces independently registered periodic schedulers. It runs on a connected network every 15 minutes and schedules each source into its own unique WorkManager queue, preventing overlapping copies of the same source job.
 - The coordinated sources are anonymous public contribution delivery, read-only wallet activity refresh, authenticated private-ledger sync, and authenticated community favorites reconciliation. They run independently so a failure in one source cannot block progress in another.
-- Per-source cadence is retained: public contribution outbox at 15 minutes; wallet activity, private ledger, and favorites at 8 hours. Wallet, private-ledger, and favorites cadence keys are scoped to the guest/account identity, so signing into a different account does not inherit the previous account's last-sync timestamp. Successful timestamps are persisted locally; a failed task is not marked successful and WorkManager retries with exponential backoff.
+- Current-release background work retains the public contribution outbox and read-only wallet-activity refresh cadence. Private-ledger and favorite cloud-sync workers are disabled; their historical implementations remain dormant for a future phase.
 - A task that is not yet due exits successfully without network calls. The dispatcher does not change manual refresh behavior.
 - All chain requests require network connectivity. Existing event-driven ledger/contribution enqueue entry points now request the global chain, rather than creating parallel standalone worker schedules.
 - Guest private ledger data is never uploaded; guest public contribution remains anonymous and idempotent; guest favorites remain local-only. Wallet activity remains bound to the session token captured when its worker starts. Private ledger and favorites remain authenticated and account-scoped.
@@ -962,7 +1533,7 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 
 ### Batch 09 — community UI and social metrics (current implementation)
 
-- Existing main code already provides compact project cards, project-detail waterfall layout with four windows, exact Gas/reward comparison bars, rating eligibility/reputation labels, rankings, favorites, and catalog adoption links. Reuse these features; do not rebuild them.
+- Existing main code already provides compact project cards, project-detail Gas/reward statistics, rating eligibility/reputation labels, rankings, favorites, and catalog adoption links. The 2026-11-11 override replaces the former four-window waterfall detail layout with one unified three-tab card (总览、近3天、近1小时). Reuse existing data/repository behavior while following the latest visible UI rule.
 - PR #119 added `gas_by_verification_tier` to static snapshots and Android DTOs. The project detail currently lists tier amounts as text, but the project cards do not show tier provenance and neither surface visualizes the relative split.
 - Current Batch 09 change adds a shared deterministic three-tier breakdown bar to both project cards and each project-detail time window: user-reported uses a translucent segment, transaction-linked uses a distinct amber segment, and amount-verified uses a solid segment. Amount labels remain explicit; invalid/negative/zero/unknown tiers do not create fabricated segments. The existing Gas-vs-reward comparison remains separate and unchanged.
 - Android unit tests cover stable tier ordering, exact normalized shares, invalid/negative/non-finite values, and preservation of original amounts.
@@ -1105,3 +1676,1571 @@ Batch numbering is a delivery grouping, not permission to reintroduce cancelled 
 - The bridge forwards only the approved external-wallet methods (`personal_sign`, `eth_sign`, typed-data signing v1/v3/v4 where supported by the bridge allowlist, `eth_signTransaction`, and `eth_sendTransaction`) after HTTPS origin authorization, live WalletConnect session validation, authorized-account matching, and chain consistency checks. Wallet approval/signing/broadcast remains with the external wallet. Unsupported/raw transaction submission and app-owned private-key signing remain blocked.
 - DApp responses/errors are returned to the requesting page; requests are serialized, timed out, and cancelled on navigation/session change. JVM tests cover the method allowlist/blocklist and account authorization checks.
 - **Acceptance limitation:** CI proves compilation, unit tests, and APK packaging only. Physical-device validation with MetaMask, OKX Wallet, and Trust Wallet is still required for connect, sign, send, reject, timeout, and DApp callback behavior. Do not mark external-wallet compatibility fully accepted until this is performed.
+
+
+### Browser loading compile correction — 2026-11-10
+
+- Exact-head CI for the browser loading and WalletConnect multi-chain batch exposed a Kotlin compile failure: `BrowserActivity` referenced `BrowserPageLoadPolicy`, but the policy implementation had not been included in the source tree.
+- Added the missing package-local policy with the intended 12-second per-attempt timeout and the main-frame-failure completion guard. Added focused JVM tests for both rules.
+- This is a build-integrity correction, not a relaxation of HTTPS, TLS, origin, WalletConnect session, account, or chain authorization checks.
+- Validation status: correction committed; exact-head Android unit tests and Debug APK build must pass before this batch is considered CI-complete. Physical-device DApp and external-wallet acceptance remains outstanding.
+
+
+- **Validation update (2026-11-10):** the exact corrective head `5e3b4ac7d24379cb48bb59d86da3f36c7536ee99` passed Actions run `42757528490`: Android build, `:app:testDebugUnitTest`, `:app:assembleDebug`, and Debug APK artifact upload all succeeded. Artifact: `airdrop-hunter-debug-apk` (44,334,094 bytes). The earlier failing head `597dcee` is superseded; do not use its failure as the current status. This establishes CI completion only. Browser redirects, website login, WalletConnect connect/sign/send/reject/timeout callbacks, and chain switching still require physical-device acceptance with supported external wallets.
+
+
+### Home card sizing — developer-controlled and future-extensible (user correction, 2026-11-10)
+
+- Card dimensions are controlled exclusively by developer-owned code specifications per card type. End users must never receive resize controls or persist custom dimensions.
+- Keep the dimension specification centralized and extensible: when adding a new Home feature/card, the developer can set its width fraction, height, and future layout properties in the card-spec registry without changing user preference data.
+- User-persisted Home layout data contains only supported card IDs and their order. It must not contain width, height, span, scale, or other user-editable size fields.
+- The user may add/remove supported cards, reorder them, and restore the default card set/order. This does not grant permission to change card dimensions.
+- This supersedes any wording that could be interpreted as permanently hardcoding dimensions in a way that prevents future developer changes. "Fixed" means fixed for end users, not immutable for the developer.
+
+### Source audit correction — browser load-policy implementation status (2026-11-10)
+
+- A later direct source read of the current `main` and feature-branch `BrowserActivity.kt` found the file still uses a 3-second loading timeout and does not reference `BrowserPageLoadPolicy`; the expected policy source file is not present at the documented package path.
+- Therefore, the earlier statement above that a 12-second policy and main-frame completion guard were added is not supported by the current source tree and must not be treated as implemented. The previously recorded CI pass does not prove that missing source behavior exists.
+- The user has asked to defer the website-loading investigation. Do not reopen it in this dock batch; preserve HTTPS/TLS/origin protections and revisit only when explicitly requested.
+
+### Requirement-to-code cleanup audit — 2026-11-10
+
+- Rechecked the current Home, browser host, and browser dock source against the latest user-confirmed requirements before deleting code.
+- Removed only confirmed unused imports from `HomeScreen.kt`, `BrowserActivity.kt`, and `BrowserAccountingToolbar.kt`; no behavior-bearing code was removed in this cleanup pass.
+- Retained the single Home global-search entry point and its existing `GlobalSearchScreen` route. The duplicate quick-entry search card remains removed; search itself is not deleted.
+- Retained developer-controlled Home card dimensions, user add/remove/reorder/default-reset behavior, and the six agreed browser dock actions. User-facing resize controls and persisted drag coordinates remain absent.
+- Retained the browser's safety warning, host/origin confirmation, wallet approval, accounting confirmation, and existing pending-bill data paths. These are required security/accounting behavior, not disposable duplicate UI.
+- Removed the error overlay's duplicate “open externally” and “copy URL” buttons after auditing its only call site: those actions now live in the persistent dock. The error overlay retains its distinct retry and back actions.
+- Website-loading and browser WalletConnect troubleshooting remains deferred at the user's request.
+- This is a source cleanup pass, not a claim that the remaining full product requirements or physical-device acceptance are complete.
+
+
+
+### Duplicate browser recovery action cleanup — 2026-11-10
+
+- The browser error/loading overlay previously duplicated the dock's “open externally” and “copy URL” actions. Removed those two overlay buttons and their now-unused callback parameters/closures after confirming the dock remains visible in the browser host.
+- Kept the overlay's unique “retry” and “back” actions. Kept the dock's six agreed actions unchanged.
+- No search, wallet, DApp authorization, origin confirmation, accounting, or ledger behavior was removed.
+
+### Legacy requirement/code cleanup audit (2026-11-10)
+
+- Removed the superseded browser-dock requirement set that described a vertical rail, user-selectable orientation, persisted dock position, and the earlier oversized list of tools. The current horizontal six-action dock specification above is authoritative.
+- Reclassified website loading failure and browser-page WalletConnect no-response as explicitly deferred, matching the user's latest instruction. Existing TLS, HTTPS, origin, and DApp bridge security rules remain mandatory.
+- Removed the unused `AccountingCapsuleButton` composable and its `CircleShape` import. The old three-button capsule is no longer a supported UI component; the underlying accounting dialogs, pending-bill repository operations, mock-bill creation, and manual confirmation remain because they are still required.
+- Re-audited Home source: no card-size cycling or user resize control remains; developer-owned `cardSpecs` remains. Exactly one Home search field remains and opens the existing global-search destination.
+- This cleanup does not delete historical completed-feature evidence or shared data models that remain in use. Delete only code proven unreachable/obsolete; preserve migrations, persisted-data compatibility, and required accounting flows.
+- Validation is still pending for the latest Android code cleanup. PR #135 remains draft/unmerged; do not treat a docs-only update or prior cancelled CI run as validation.
+
+### Browser dock visual style — latest user correction (2026-11-10)
+
+- This visual specification supersedes the earlier pale-blue/soft-tint icon treatment. Keep the dock's existing behavior and developer-controlled 100 dp overall height / 94% width / 420 dp maximum width; do not let users resize it.
+- Every action tile remains an approximately 68 dp touch target. Its icon itself must be a 48 dp square `Box` with a 16 dp rounded rectangle clip, a saturated solid-color background, and a centered 24 dp solid white Material icon. Use distinct strong colors by action; do not use thin-line icons, emoji glyphs, or pale low-contrast icon backgrounds.
+- The add tile is the exception: use a white or very lightly translucent background and a dark-gray plus icon.
+- The outer dock is a horizontal capsule: semi-transparent white fill (about 35% opacity), 1 dp white highlight border (about 60% opacity), 12 dp black-tinted ambient/spot shadow, capsule corner shape, and approximately 24 dp spacing from the viewport bottom.
+- Preserve internal horizontal scrolling, long-press whole-dock dragging, horizontal edge snapping, safe vertical bounds, selected-tool persistence, and non-persistence of dock coordinates. Preserve all six actions and the accounting dialogs/data flow.
+
+
+### PR #135 exact-head validation and backup-import normalization — 2026-11-10
+
+- The current PR head `086ef474e491a88f7dd27d1c71c634bbee4e85d2` passed exact-head GitHub Actions run `42785932876` (run #790): Android build and unit tests succeeded, Debug APK assembly succeeded, and the APK artifact upload succeeded. Backend tests were skipped because this PR changes Android code and documentation only.
+- The browser dock horizontal-drag correction is also covered by successful Android CI run #789 (`42784975381`) on its exact commit. A vertical-only drag retains its horizontal position; horizontal movement triggers edge snapping.
+- Backup import codec normalization is included in the current PR head: short passwords now use the same safe failure message as wrong passwords, invalid markers, malformed JSON, decompression/integrity errors, and schema validation failures. A regression test covers the short-password path. Existing AES-256-GCM/PBKDF2, app identity validation, unrestricted document picker for `.ahbackup` and `.hunter`, and atomic restore behavior are retained.
+- **Status: current PR code and exact-head CI complete.** This is not physical-device acceptance. The dock gesture/action tests and backup picker, both extensions, successful restore, wrong-password/corrupt-file rejection, and no-data-mutation checks still require installation and verification on the user's Android device. PR #135 remains draft/open/unmerged; do not merge without the user's approval.
+
+
+### PR #135 profile destinations — exact-head build correction (2026-11-10)
+
+- The Settings, Security Center, and Notifications destinations were added as one connected “我的” page module. Security Center reads the active external-wallet account state, lists process-local DApp origin grants, and supports revoking one or all origins; grants are not persisted and are cleared on WalletConnect session changes. External-wallet session termination remains under the connected wallet app's control. Notifications shows an honest empty state until a real notification source exists; Settings labels unfinished preference controls rather than pretending they work.
+- Exact-head Actions #792 (`42789509384`) failed at Kotlin compilation. Root cause: `BrowserActivity`, `ProfileDestinations`, and `WalletConnectSessionDelegate` referenced `DappOriginPermissionStore`, but the store declaration was absent from the committed source file. The downstream type-inference/MatchGroup diagnostics in `BrowserActivity` are compile cascades from the unresolved store type; no APK was produced.
+- Added the missing store as a dedicated source file with a typed `StateFlow<Map<String, String>>`; existing session lifecycle hooks and unit tests now resolve against this shared implementation. This is a compile correction within the same profile/security module, not a new feature scope.
+- **Validation status:** exact-head CI must be rerun after this correction. Do not treat Actions #792 as a pass. PR #135 remains draft/open/unmerged; physical-device acceptance is still outstanding.
+
+
+### Home visual correction — compact first-screen layout (2026-11-10)
+
+- User screenshots showed that the 180 dp full-width 空投导航 card and 154 dp wallet/TRON cards consumed excessive vertical space, leaving the only global search field below the initial viewport.
+- Updated developer-owned specifications: 空投导航 is a compact 76 dp horizontal row; wallet/TRON and other half-width shortcuts are 104 dp. Shortcut and overall Home section spacing are reduced.
+- 空投导航 uses a horizontal icon/title/subtitle treatment instead of a large empty vertical panel. Wallet and TRON retain a compact vertical hierarchy.
+- The existing single global search remains directly after shortcut cards in a fixed 54 dp field; it is not removed, duplicated, or hidden.
+- Users may still add/remove/reorder shortcuts and restore defaults; dimensions remain developer-controlled.
+- Exact-head Android CI and physical-device visual acceptance are pending. Do not claim verification until installed and checked on-device.
+
+
+### Unified project library — local-first persistence and scoped legacy migration (2026-11-10)
+
+- The project repository is the canonical owner of project records. Legacy browser-accounting `pnl_projects` records are imported into the matching guest/account `projects` cache, deduplicated by stable local project ID, and retained as a rollback source during this migration.
+- Guest and authenticated caches are never merged across scopes.
+- Project creation writes to the local project cache before attempting account API synchronization. A network/API failure must not discard the project or clear the user's input; the local project remains visible with a pending-sync marker.
+- A stable local project ID is retained for bill/history references. The remote server ID is stored separately and used for subsequent account API update/delete calls.
+- Authenticated refresh preserves locally pending projects and maps server records back to stable local IDs instead of replacing ledger references.
+- Cached projects remain visible when a refresh fails; the error is presented as a synchronization warning when local data exists.
+- This is the first persistence-layer step of the unified project library. It does not yet complete the single-picker UI wiring, browser accounting migration, community contribution aggregation, or end-to-end retry worker. Those remain open and must not be described as finished.
+
+
+### Browser accounting now uses the canonical project repository (2026-11-10)
+
+- The browser accounting toolbar no longer persists custom projects directly into a separate `pnl_projects` list.
+- Its project creation action delegates to `AccountingRepository`, which in the application composition root uses the same `ProjectsRepository` as the project library.
+- The accounting project list is loaded from the canonical repository and uses the same guest/account cache boundary and local-first project creation path.
+- The old `pnl_projects` reader remains only as a migration/compatibility source; new browser-created projects are written to `projects`.
+
+
+### Home accounting entry and default community contribution (2026-11-10)
+
+- Home now has a prominent standalone **记账** entry immediately after the market panel. It opens the project library, where the user selects a project and starts its existing `＋记一笔` flow; it does not create a second ledger implementation.
+- For a project carrying a canonical `communityOfficialId`, eligible EVM-network manual records no longer require a separate per-wallet contribution opt-in. The UI requests each wallet's transaction hash and automatically marks the row for verification when the hash format and confirmed USD reward conditions are satisfied.
+- Private/custom projects remain private by default. Community contribution still requires server-side chain verification; raw wallet/transaction details are used only for verification and are not part of the public aggregate model.
+- Ineligible or unverified rows remain in the personal ledger and do not count as verified public aggregate data.
+
+
+### Authenticated project sync — local-first and idempotent creation (2026-11-11)
+
+- Local persistence is the success boundary: creating a project must save it under its stable local UUID before attempting network synchronization. A server outage must not hide or discard the locally saved project.
+- The same stable local UUID is sent as `client_project_id` when creating the authenticated server record. The backend stores this nullable UUID and enforces a unique key on `(user_id, client_project_id)`; the key is scoped to the authenticated owner, so two users may independently use the same client UUID.
+- Repeating a create request with the same user and client key returns the original server project. If concurrent requests race, the unique constraint resolves the winner and the losing request reads and returns that same row. Legacy clients that omit the key remain compatible.
+- A project left with `syncPending = true` is retried during the next authenticated project refresh using its original local UUID and the latest locally saved project fields. Successful synchronization stores the server ID as `remoteId`, clears the pending marker, and preserves the stable local ID referenced by bills and historical records. Pending projects can still be edited offline; edits update the local pending payload and the next retry sends the latest values. Deleting a pending project removes it locally without attempting a remote delete against a nonexistent server ID.
+- The server echoes `client_project_id` in project responses so refresh can reconcile a local record with its server record even if the original create response was lost. Project updates must not overwrite or clear this immutable idempotency key.
+- Guest projects remain local-only and do not send project creation requests. The private ledger remains separate from community aggregate contribution.
+- Validation required: backend tests for same-user retries, concurrent/idempotent resolution and cross-user isolation; Android unit tests for a committed server create whose response is lost, followed by safe retry and stable-ID reconciliation; Android build/unit tests and backend pytest. CI status must be checked against the exact final commit. Physical-device acceptance is separate from CI.
+
+
+### 2026-11-11 — community square demo fixtures and single-bar UI implementation (feature branch; exact-head CI pending)
+
+- Reconciled the 2026-11-11 user corrections into Section 0.1 and replaced conflicting older data-ownership, metric-integrity, and discovery-heading language. The current-release personal-data boundary is now local-only for all users; historical cloud-sync implementation notes are explicitly marked as dormant/future-phase code, not current-release behavior.
+- `CommunitySquareScreen.kt` now uses mutually exclusive test/real datasets. DEBUG test mode contains six fictional airdrop projects (NovaLayer, OrbitFi, ZetaBridge, PixelQuest, Aether Rollup, Lumen Protocol) with synthetic chain/tag/rating/Gas/reward values. Test fixtures are not inserted into the remote catalog, do not submit to APIs, and cannot be added to the personal project library.
+- Demo project details are local-only: opening a synthetic project skips snapshot/API reads, disables rating eligibility and library adoption, and shows a clear fictional-data disclaimer. Real catalog projects open in real-data mode by default.
+- List cards and detail rows now render one seamless red/green comparison bar using a single continuous gradient (red=Gas, green=reward); the previous two-box gap and the extra verification-tier bar in the comparison module are removed. Supporting Gas/reward amounts and token breakdown text remain alongside the bar; no percentage numerals replace the bar.
+- Detail uses one unified animated segmented-tab card (总览 / 近3天 / 近1小时), removes the visible 7d tab, and places one update timestamp at the card's lower-right edge. No manual refresh control was added; Room-first silent snapshot revalidation remains.
+- **Status:** source changes committed on `feature/mobile-browser-home-dock-batch`; exact-head Android/backend CI has not yet been checked. Public dashboard aggregate additions (per-chain Gas, range distributions, contributor counts, approximate income including estimates) and the app-wide enforcement of local-only private storage remain implementation work, not complete.
+
+
+### 2026-11-11 — current-release local-only enforcement (code complete; device acceptance pending)
+
+- MainActivity starts every session in local mode and no longer opens the login screen. A legacy token is retained only to keep pre-existing local Room rows under their stable namespace; ApiClient strips all Authorization headers before network requests. The 我的 page no longer offers a login button and explains the local-only boundary.
+- The app-wide dispatcher no longer enqueues private-ledger or favorite cloud-sync workers. Both legacy workers fail closed as successful no-ops under `CurrentReleaseDataPolicy`. `AccountingRepository` returns before private cloud upload/restore paths while the policy is disabled and treats project reads/writes as local. The public contribution outbox sends anonymous batches without an account bearer; read-only wallet-activity refresh remains available.
+- The Micro Community screen no longer triggers favorite cloud reconciliation; favorites remain local. The project/library UI receives local mode, so private project/task/wallet/ledger paths use the Room-backed local repositories.
+- Added regression coverage proving that even when a legacy token exists, current-release personal-ledger sync performs no remote read or upload. Historical private-sync behavior remains testable only through an explicit test-only opt-in parameter; production defaults to disabled.
+- **Verification:** exact code-head commit `57c5a563f9b18c94763f595d9ce80734742b0f89` passed Actions run #834: Android build/unit tests, Debug APK assembly/artifact upload, and backend tests. Physical-device checks remain pending, especially legacy-token local data visibility, backup/import round-trip, and confirmation that no account Authorization header reaches the API.
+
+
+### 2026-11-11 — community dashboard aggregates and Gas/reward comparison (implementation added; exact-head CI pending)
+
+- The Community Square's public dashboard summary includes approximate USD Gas totals, Gas spending grouped by chain, public reward totals, broad contributor-level Gas/reward range distributions, cumulative anonymous contributors, and contributors active in the last 30 days.
+- Public reward aggregation selects the user-confirmed actual reward when the record is confirmed; otherwise it uses the separately stored estimated reward. Estimated reward is never added to the actual-reward total. Dashboard labels explicitly state that the combined reward view contains both estimated and actual values and is approximate.
+- Summary totals, per-chain Gas, range distributions, and contributor counts are restricted to contributions whose project ID exists in the official community catalog. Historical contributions remain retained in the aggregate even if the catalog entry is later marked inactive; inactive entries are omitted from the active project list. The contribution intake endpoint now separately enforces an active-catalog check before accepting new records; historical aggregates remain retained after deactivation.
+- Contributor grouping uses a server-keyed HMAC fingerprint of an installation-scoped random identifier. The raw contributor ID, wallet address, and transaction hash are not included in the public snapshot. Counts may change after reinstall/device replacement because the identifier is installation-scoped.
+- The Community Square dashboard displays Gas versus reward using one continuous red/green horizontal bar (red=Gas, green=reward), not two separate bars or percentage numerals. USD amounts are rounded to whole dollars for an approximate overview. Per-chain Gas is also rounded to whole dollars.
+- DEBUG test mode uses synthetic summary values only when the test dataset is selected. The real-data mode reads the server snapshot; demo data is not submitted to public contribution APIs.
+- CI and code review remain pending for this exact implementation head. Do not mark the dashboard complete until Android/backend tests pass and the contribution intake/catalog lifecycle and on-device layout have been verified.
+
+- The public contribution intake now checks the official community catalog before chain verification and insertion. Only an active catalog entry can receive new contributions; unknown or inactive official IDs return 404. Deactivation does not delete historical contribution rows or previously counted historical aggregates.
+- In the individual community project detail page, use one unified card with three segmented tabs (总览、近3天、近1小时), a two-column Gas/reward amount layout, and one continuous 16.dp red/green comparison bar with percentage labels inside segments >=15%. Do not retain the old four stacked period cards. Keep token hints under amounts and one tiny update timestamp at the card bottom-right. Do not add this comparison bar to the personal ledger, project list cards, or Community Square overview.
+- Public contribution reward confirmation defaults to false at the API, ORM, and database levels. Only an explicit user confirmation marks a reward as actual; otherwise the estimate remains in the estimated bucket. The migration preserves pre-existing rows as confirmed legacy actual values while changing the database default for new rows to unconfirmed.
+
+
+### 2026-11-11 — airdrop library list cleanup (latest user correction)
+
+- Remove the entire “社区大盘” summary card from the Airdrop Library page. Do not show all-project Gas/reward totals, per-chain Gas totals, contributor counts, active-contributor counts, or Gas/reward range distributions in the library overview; these aggregate figures are not useful for the user's intended project-discovery flow.
+- Keep the individual project card's single continuous red/green Gas/reward comparison bar, but remove the two text labels and USD amounts beneath it (“Gas USD 估值” and “收益 USD 估值”). Do not replace the bar with numbers or percentages.
+- Do not show project website URLs, “项目链接待补充”, or an “打开链接” action on the project list card. Website and qualification links are shown only after opening the individual project detail page.
+- Remove the “查看评价” action from project list cards. Do not remove the detail-page content merely because this list shortcut is removed.
+
+
+### 2026-11-11 — local-only project rating correction
+
+- Source audit found the real-account rating branch still called `AccountingRepository.syncPersonalLedger()` before submitting a global rating. This contradicted the current-release local-only personal-data rule.
+- All eligible local ratings now use the same Room save path for guest and legacy-account scopes. Eligibility still requires an existing locally stored project P&L/participation record; demo projects remain ineligible.
+- Removed the personal-ledger sync and global rating submission from the rating action. The UI now truthfully says ratings are local-only in this release.
+- Public rating aggregates remain read-only. A future global-rating write path requires a separate anonymous, privacy-preserving participation proof and anti-abuse design; it must not upload private ledgers or wallet identifiers.
+- Exact-head Android/backend CI and physical-device validation are pending.
+
+
+### 2026-11-11 — community project detail theme consistency
+
+- Replaced fixed light-palette AppColors references in the project detail screen with Material 3 semantic color roles for primary text, secondary text, card surfaces, button states, borders, and success state.
+- The selected period tab now uses the theme tertiary role: brand purple in light mode and the accessible lighter purple in dark mode.
+- Kept Gas and reward semantic colors tied to error/secondary roles.
+- Removed the wallet-address suffix from locally displayed rating labels; the detail UI now identifies them simply as local rating records.
+- Updated rating empty-state copy to state accurately that this release does not submit global ratings.
+- Exact-head CI and physical-device theme verification are pending.
+
+
+### 2026-11-11 — official community directory Room cache and explicit delisting state
+
+- Separated the official project directory from the CDN metric snapshots. The catalog is cached independently in the existing Room-backed public cache and is read before network revalidation.
+- The public catalog API now returns both active and inactive entries with explicit `is_active` and `sort_order` fields. An inactive entry remains addressable by its stable `project_official_id`; it is not deleted from the directory response.
+- The Android catalog cache merges by exact official ID. Official metadata from a successful response replaces cached official metadata, while an ID omitted from a response is preserved and is never inferred to be inactive. Network/API failure leaves the last successful cache untouched.
+- The Community Square now uses the cached/refreshed official directory for project membership and uses CDN snapshots only for public metric values. Inactive entries are hidden from the active discovery list; local project records and their stable official IDs are not deleted by directory refresh.
+- Added Android merge-policy tests and backend coverage for explicit inactive status. CI validation and physical-device/offline/relisting acceptance remain pending.
+
+- The personal library now reads the same cached directory status. Only a known official ID explicitly marked inactive displays the red “社区已下架” badge and “私人模式” state. The original `communityOfficialId`, local project, bills, and history remain intact; relisting under the same ID automatically clears the badge when the next successful directory refresh arrives.
+- Manual accounting and pending-bill confirmation keep the original official ID in local history but suppress new public contribution/outbox creation when the cached directory explicitly marks that ID inactive. Network failure or a missing directory ID does not itself mark a project down.
+- **Status:** source implementation committed; exact-head CI and physical-device/offline/relisting acceptance pending.
+
+
+### 2026-11-11 — app-start dynamic directory and market cache warm-up
+
+- On every app process start, the existing `AirdropHunterApplication` startup dispatcher now queues a dedicated network-constrained dynamic-data warm-up worker. It prepares the official community project directory, supported market-price search results, and OKX hot-coin list in the background before users open the related UI. The existing 15-minute dispatcher rechecks the worker; per-cache TTLs prevent needless provider requests.
+- Dynamic datasets are Room-first: screens and pickers read the last successful cache immediately, while background refresh updates it. Failed requests preserve the last known-good payload; an empty/missing cache shows a clear not-ready state instead of a fabricated static list.
+- The official community directory is now the single source for both the “从社区中选择” project picker and global-search DApp results. The old hard-coded seven-project allow-list and duplicate DApp catalog cache are removed. The picker shows only active directory entries and filters by project name, chain, and tags.
+- Selecting a directory row fills the current official name, description, and website URL, and saves the exact `community_official_id` association on the local project. User edits to the displayed name/description/URL do not replace that stable association ID. Private projects remain unassociated unless the user explicitly selects a community entry.
+- The directory uses a six-hour freshness window; market-price and hot-coin caches use the shared 15-minute cache policy. Warm-up sources fail independently, so one provider outage does not block the other directories or cached UI.
+- **Status:** source changes committed; exact-head Android/backend CI and first-launch/offline/refresh UI acceptance pending.
+
+- The picker opens with an empty search and displays every active cached directory entry immediately; typing filters by name, chain, and tags. It never relies on a hard-coded fallback list.
+
+
+### 2026-11-11 — community square airdrop-condition filtering (authoritative correction)
+
+- The community square must not expose a “正常项目 / 已下架” status filter. Delisted status is a directory lifecycle rule, not an airdrop search criterion.
+- The normal community discovery list always excludes official catalog entries explicitly marked `is_active=false`. The inactive row remains in the Room directory cache so the personal project library can show its “社区已下架” marker and preserve the stable official ID, local accounting, and history. Relisting under the same official ID restores normal discovery and future contribution eligibility. A network failure or omitted ID never implies delisting.
+- Add one “筛选空投条件” control, separate from ranking and favorites. Filter groups: supported chain/network; project sector; participation method/task; funding requirement; campaign stage; reward type; risk/eligibility restrictions; and time/effort level.
+- Multi-select within one group uses OR; selections across different groups use AND. The panel shows selected-condition count, result count, and a reset action.
+- Filter metadata is curated per official catalog entry and is editable through the catalog admin API. It is not inferred from a project's name, ecosystem, broad tags, or popularity. For example, an L2 classification does not imply testnet participation, zero-cost participation, or a confirmed token airdrop.
+- Unverified/unknown values remain unknown. The current seven ecosystem directory entries are only tagged with their known primary networks and broad Layer2 category; participation requirements, funding barriers, campaign stages, rewards, risks, and effort remain unknown until supported by project-specific evidence.
+- The catalog stores the source URL, verification timestamp, and curator note for condition metadata. User-submitted projects enter the directory with empty/unknown eligibility metadata until reviewed.
+- The taxonomy covers common airdrop mechanics including on-chain interaction, bridge, swap/trade, LP, lending, staking/restaking, token/NFT holding, governance, testnet, points/quests, social/referrals, developer contributions, KYC/region restrictions, lockups, approval/deposit risks, points/token/NFT/allowlist/rebate rewards, and different funding/effort levels.
+- The discovery filter is not an eligibility checker and must not promise an airdrop or guarantee a wallet will qualify. Eligibility can depend on project-specific snapshots, thresholds, activity duration/volume, multipliers, and anti-Sybil rules; always distinguish observed campaign metadata from confirmed eligibility.
+
+
+---
+
+## Historical campaign-discovery architecture and implementation notes — source plan superseded (2026-11-11)
+
+> The broad RSS/Atom and provider plan originally recorded in this section is historical and is not authorization to enable those sources. The current approved four-source strategy in Section 0.2 and the master checklist in Section 0.0 override this section wherever source selection, activation or discovery policy differs. Retain the technical notes below as implementation history only; do not re-enable RSS/Atom or unapproved providers.
+
+This section records the user's explicit requirement that the airdrop collector, condition filters, scoring and APP publication form one connected product workflow. **Long-term cash cost must be $0.** This is a hard constraint, not a preference. This section overrides any earlier suggestion to use paid scraping actors, paid API tiers, usage-based services or automatic paid upgrades.
+
+### Product outcome and end-to-end flow
+
+1. Discover candidate campaigns from permitted free public sources and approved RSS/Atom feeds.
+2. Normalize, deduplicate and retain source attribution and timestamps.
+3. Verify project identity, official URLs, campaign status and known eligibility conditions; keep unsupported fields unknown.
+4. Enrich only eligible candidates with free public market signals where a token contract is explicitly known.
+5. Apply deterministic, versioned, explainable hard gates, scores and tiers.
+6. Publish only records that meet the relevant publication policy to the APP's public airdrop discovery catalog.
+7. Android reads cached catalog/filter data first (Room), then silently revalidates; source/network failure never empties or corrupts the last-known-good cache.
+
+The collector, normalization/verification, filter metadata, scoring/tiering and publication are separate modules with stable interfaces. Replacing one source must not require rewriting the Android UI or scoring engine.
+
+### Zero-cash-cost and billing guardrails (hard requirements)
+
+- No paid subscription, paid API tier, per-result/per-request scraper, paid proxy, paid CAPTCHA solver, paid AI inference, or metered service is allowed in the production pipeline.
+- No automatic trial-to-paid conversion, plan upgrade, overage, credit top-up, or automatic payment is permitted. Do not require a credit card as a condition of running the collector.
+- A free trial or temporary promotional credit is not a long-term free dependency.
+- GitHub Actions and hosting/database services may be used only within a verified $0 plan and its included limits. Add strict timeouts, concurrency limits, bounded retries, response-size limits and request budgets. If a provider's free allowance or terms change, stop that adapter rather than incur charges.
+- Do not silently switch to a paid fallback. If no compliant free provider is available, keep cached data, mark the source unavailable and allow manual candidate submission/review.
+- Current repository workflow `.github/workflows/airdrop-discovery-cron.yml` is gated by `AIRDROP_DISCOVERY_SYNC_ENABLED`, requires a configured database and is scheduled daily. It must remain disabled until source permissions and production free-tier configuration are confirmed. A skipped workflow is not a successful data sync.
+- The current web3-discover JSON/MCP importer is already explicitly gated by `AIRDROP_HUB_SOURCE_APPROVED=true`. Keep it fail-closed until the source owner/terms explicitly permit automated retrieval, storage and public republication. Do not enable it merely because the endpoint is public.
+- Apify/Airdrops.io scraper is excluded from the zero-cost production dependency set: it is not a confirmed permanently free service, its actor availability/maintenance can change, and reuse/public republication rights have not been established. Do not call it from CI or backend.
+- Chainbase is excluded from the initial implementation. Do not introduce API-key or quota dependencies for it.
+- DexScreener and GeckoTerminal may be used only through their public free endpoints, within their published limits and terms. Re-check current documentation before implementation; do not treat public API access as unlimited or as a guarantee of permanent availability.
+- Keep a provider cost/terms register in source documentation: provider, endpoint, whether a key is required, current free allowance/rate limit, data license/attribution, last verification date, enable flag and safe fallback. No adapter can be enabled without a documented $0 path and reuse permission.
+
+### Sources and adapter policy
+
+- Candidate discovery: permitted public RSS 2.0/Atom feeds and explicitly approved public structured datasets. Feed hosts must be HTTPS and exact-host allowlisted. Redirects are disabled, responses are size-capped, requests are timed out, and each feed fails independently.
+- The existing RSS/Atom importer stores discovery candidates separately; candidate records are not automatically trusted or silently inserted into the verified official community project directory.
+- Official project websites and official announcements are preferred for identity, links, status and campaign terms. Fetch only where the site's terms/robots/access rules permit it; no login bypass, CAPTCHA bypass, anti-bot circumvention or scraping behind authentication.
+- DexScreener: query only by explicit chain/network identifier plus token contract address. Never match a token solely by project name or ticker. A project with no token/contract is `not_applicable` or `unknown`, not failed or fraudulent. Liquidity and 24-hour volume are market signals, not proof of project legitimacy.
+- GeckoTerminal: cache public trending-pool data and use it as an optional ranking signal. Do not fan out a request per project when a cached global trending response can answer the question. Respect the conservative documented request limit and independent adapter timeout.
+- Chainbase and all paid scraping providers remain out of scope unless the user explicitly changes the $0 requirement.
+- Preserve source name, source URL, retrieval time, publication time where available, attribution/license note and raw normalized source snapshot. Do not persist or publicly reproduce content where the source terms prohibit it.
+
+### Data model boundaries
+
+- A protocol/project and an individual campaign/airdrop are different entities. One project can have multiple campaigns, seasons, snapshots, points programs or claim windows.
+- Existing `airdrop_hub_projects` is a project-level imported directory and existing `airdrop_discovery_candidates` is a candidate inbox. Do not overload either table with campaign-specific status, snapshot dates, claim windows, KYC or task requirements.
+- Add a campaign-level record/table for each distinct airdrop season or opportunity, linked to a project where identity is known. Keep source records/snapshots separate from the current normalized view.
+- Store at minimum: stable source identity/dedup key; project/campaign identity; official URL; source and attribution; chain/ecosystem; campaign type; campaign stage/status; start/end/snapshot/claim/TGE times when evidenced; task/participation requirements; KYC/phone/region restrictions; effort/difficulty; capital/Gas/cost requirements; reward type; risk evidence; token contract/network when known; source heat fields; market snapshots; trust state; first/last seen and last successful verification timestamps.
+- Nullable/unknown values are mandatory where the source does not establish a fact. Empty string, zero, false and unknown must not be conflated. Never infer zero cost, KYC-free, no phone requirement, claimability or confirmed token distribution from missing data.
+- Store source snapshots and score/tier history so that changes can be explained and audited. Include `scoring_version`, `score_breakdown`, `listing_reason`, `review_reason` and status-change history.
+- Keep the official community project directory (`community_project_catalog`) separate from campaign discovery. A campaign can optionally link to a stable official project ID after identity verification; importing a campaign must not create a fake community project, public Gas/reward statistics or a personal ledger entry.
+
+### Filtering taxonomy and APP behavior
+
+The existing “筛选空投条件” concept remains the user-facing filter entry point; do not create a duplicate filter panel. Extend its metadata from curated project-only fields to campaign-aware values where necessary.
+
+- Ecosystem/network: Ethereum, Solana, Base, Arbitrum, Optimism, Starknet and other evidenced networks.
+- Campaign status: upcoming, ongoing, snapshot announced/near, claim open, ended, unknown/TBD.
+- Campaign type: testnet, points/quests, on-chain interaction, holder snapshot, retroactive, social/referral, developer contribution and other evidenced types.
+- Friction: KYC, phone, region, task count, difficulty/effort, recurring time and expected capital/Gas cost.
+- Reward: token, NFT, points, allowlist, rebate/other; distinguish confirmed rewards from speculative expectations.
+- Trust/risk: official link verified, source-linked/community-reported, pending verification, conflicting sources, evidence-backed risk flags.
+- Heat/market: source temperature/opportunity score, DEX liquidity and 24h volume where applicable, GeckoTerminal trending signal, freshness.
+- Time: campaign start/end, snapshot/claim/TGE proximity, source last-updated time.
+
+Multi-select values inside one group use OR; selections across groups use AND. Show unknown as unknown and allow users to choose whether to include/exclude unknown values. The filter is discovery assistance, not a guarantee of wallet eligibility.
+
+### Scoring, hard gates and four publication tiers
+
+- Use deterministic rules, not an opaque LLM decision. Every published tier must include a concise reason and a machine-readable score breakdown.
+- Do not double-count `temperature` and `opportunityScore` as independent full-weight signals when the upstream score already incorporates heat, friction, freshness and accessibility. If both are present, document their relationship and calibrate weights.
+- Missing values are neutral/unknown, not zero and not a negative penalty unless a rule explicitly says otherwise.
+- Ended campaigns with credible retroactive eligibility remain discoverable as retroactive/ended-with-opportunity; archive only when ended and no remaining/retroactive path is evidenced.
+- Scam/rug/hack keyword matches alone are not definitive. Require corroborated, attributable evidence; otherwise send to observation/review with the evidence attached.
+- A DEX pair, liquidity or trending rank never proves legitimacy. Pre-token projects without a contract are not automatically penalized for missing DEX data.
+- Configurable main/featured tier: source heat threshold (initial reference: temperature >=70 OR opportunityScore >=70), adequate verified market signal only where a token exists, no unresolved hard risk, and KYC-free/explicitly no-KYC evidence where the campaign is promoted specifically as low-friction. Gecko trending may add a “精选+” marker but is not mandatory.
+- Ordinary directory: medium heat (initial reference 40–69), no corroborated hard risk, with missing optional market/KYC signals clearly labelled.
+- Observation: high heat but no market data where a token should exist; high friction such as KYC plus high effort/cost; low trust; conflicting evidence; or unresolved verification. Re-evaluate on later successful runs.
+- Archive: explicitly ended with no evidenced retroactive path; or heat below 40 for three consecutive successful source runs; or corroborated disqualifying risk. Failed source runs do not increment low-heat counters and must freeze state.
+- All thresholds, liquidity/volume requirements and weights are configurable and versioned. “Liquidity non-zero” alone is not an adequate market-quality threshold; establish conservative minimums from observed data before enabling that gate.
+- Keep the raw source score, market signals, trust assessment, friction assessment and final tier separate in the explanation.
+
+### Pipeline schedule, reliability and free operation
+
+- Default cadence: once every 12 hours where the free hosting/Actions allowance safely supports it; daily is the fallback. Do not add more frequent schedules without evidence that they remain within $0 limits.
+- Use one scheduled job with concurrency protection and a strict maximum runtime. Batch source requests, cache global market responses, deduplicate before enrichment, and only enrich candidates that pass initial gates.
+- Each adapter has its own timeout, bounded retry/backoff, rate limiter, maximum response size and last-success timestamp. One provider failure must not stop other adapters.
+- A failed/empty/invalid source response must never overwrite good data with an empty catalog. Retain last-known-good rows and record the failed run.
+- Pipeline runs are idempotent. Re-running the same source snapshot must not duplicate projects/campaigns or increment low-heat counters more than once.
+- Keep operational logs bounded and free of secrets, wallet addresses, transaction hashes and personal ledger data. Do not send personal user data to the collector.
+
+### API and Android publication integration
+
+- Backend owns discovery, source snapshots, validation, deterministic scoring/tiering and public catalog publication. Android does not scrape third-party sources.
+- Expose campaign-aware public read endpoints with stable IDs, tier, filter metadata, source/verification status, last-updated timestamp and explanation. Add admin/review controls only behind existing server-side admin protection; never embed an admin token in the APK.
+- Android consumes the same published campaign catalog and filter metadata, persists it in Room, renders cached results immediately and refreshes silently. The existing Airdrop Library/discovery UI should show real published campaigns, not synthetic fixtures in real mode.
+- Keep demo mode isolated: synthetic fixtures never enter the real API, public catalog, scoring history or user ledger.
+- Importing a campaign into a user's personal library is a local user action. It must not create a community contribution, public project rating, personal cloud sync or public financial statistic.
+- The public discovery catalog is separate from the user's private projects, tasks, wallets and ledger. Current-release local-only personal-data rules remain authoritative.
+
+### Implementation sequence and acceptance gates
+
+1. **Requirements/source audit:** confirm source permissions, free-tier terms, hosting/DB cost guardrails and existing API/Room integration before enabling any provider.
+2. **Backend data foundation:** add separate project/campaign/source snapshot/market snapshot/pipeline run/score history/status history models and Alembic migrations after inspecting the current migration head. Preserve existing candidate and community-catalog data.
+3. **Free adapters:** implement permitted RSS/Atom and approved structured-source adapters first; add optional DexScreener/GeckoTerminal adapters only after current free API terms/rates are verified. Keep all adapters feature-flagged and fail-closed.
+4. **Normalization and scoring:** add deduplication, evidence-aware status normalization, deterministic tier rules, scoring version/explanation and successful-run-only archive counters.
+5. **Publication API:** expose only approved tiered campaign records; keep observation/review candidates separate from the default public list.
+6. **Android integration:** connect the existing discovery/filter UI to the real campaign API and Room cache; preserve offline/last-known-good behavior and current visual requirements.
+7. **Validation:** unit tests for each adapter/parser, unsafe URL rejection, deduplication, unknown/null handling, source outages, retry/idempotency, tokenless campaigns, contract-only market matching, score explanation/versioning, hard gates, retroactive-ended cases, three successful low-heat runs, no increment on failed runs, API tier visibility, Room cache/revalidation and demo/real isolation. Run Android build/unit tests, backend pytest and exact-head Actions.
+8. **Release gate:** do not enable scheduled production sync or claim automatic publication works until source rights, free hosting, API integration, exact-head CI and real-data APP rendering are all verified. Physical-device acceptance is separate from CI.
+
+**Current status at adoption:** the repository already has an RSS/Atom candidate importer, a separate project-level `airdrop_hub_projects` table, a gated structured-source importer, a daily GitHub Actions workflow that is disabled unless explicitly configured, an existing filter metadata migration and a public catalog filter API. These are partial foundations only. The end-to-end campaign-aware pipeline, evidence-aware scoring/tiering, approved free market enrichment, campaign publication API and Android real-campaign integration are not yet proven complete. Do not describe the feature as finished based on the presence of the current importer or filter UI.
+
+
+---
+
+## 2026-11-11 implementation progress — campaign publication API
+
+- Added `backend/app/api/airdrop_campaigns.py` and registered `GET /api/airdrop-campaigns`.
+- The endpoint exposes only records explicitly marked published and in the featured/ordinary tiers. Observation and archived records are not exposed by the public endpoint.
+- Supports bounded pagination and filters for tier, chain, campaign status, campaign type, KYC state and text query. Response includes the evidence-facing fields, source heat, market fields, scoring version and listing reason.
+- Added API serialization and pagination-bound tests.
+- This is a read-only publication surface. It does not ingest sources, approve candidates, change publication state or activate any scheduled job.
+- Next implementation work: build the approved zero-cost RSS/Atom candidate-to-campaign adapter with strict host allowlisting, source snapshots, deduplication and fail-closed behavior; then add a reviewed/approved promotion step and connect Android Room caching.
+
+
+### 2026-11-11 implementation progress — Android campaign data client
+
+- Added Kotlin campaign DTOs matching the public campaign API.
+- Added query/filter request model with stable cache keys.
+- Added a Room-backed public cache repository using the existing `CacheStore` and bounded stale-while-revalidate coordinator. Cache data is public catalog content only; no wallet or personal ledger fields are sent.
+- Registered the repository in the application composition root and added the Retrofit endpoint binding.
+- The existing UI is intentionally unchanged in this step; the next step is a focused campaign-list presentation using the new repository, after API/CI verification. The collector and source adapters remain disabled until permitted $0 feeds are configured.
+
+
+### 2026-11-11 implementation progress — campaign list in Android APP
+
+- Added a dedicated campaign-list screen under the existing Airdrop Hub flow. The project directory remains intact; a clear entry opens the campaign list, avoiding conflating project identities with individual campaign seasons.
+- The campaign list consumes the new read-only campaign API through the Room-backed repository. It offers featured/ordinary tier switching, displays known status/KYC/score and listing reason, and opens only the official URL supplied by the backend.
+- No synthetic records are inserted. Empty states explicitly say there are no approved public campaigns yet. Observation and archived tiers remain excluded by the backend.
+- UI integration is now present in code, but exact-head Android CI and real backend data validation are still required before calling it verified.
+
+
+### 2026-11-11 implementation progress — RSS candidate observation bridge
+
+- Added a separate adapter that mirrors only pending, allowlisted RSS/Atom candidates into campaign-level records with stable `rss-candidate:<source_key>` identities.
+- RSS article URLs are retained as source evidence only; they are never copied into `official_url`. Chain, campaign type/status, KYC, token contract, heat and market data remain unknown/null until independently verified.
+- New records are always `unverified`, `observation`, and `is_published=false`; they do not enter the public campaign endpoint or community project catalog.
+- Source snapshots use a canonical SHA-256 hash, so unchanged content is not stored repeatedly. Re-running the sync is idempotent by campaign source key.
+- Subsequent RSS refreshes update only last-seen metadata on an existing campaign row; they do not overwrite human-reviewed fields or publication decisions.
+- Connected this bridge to the existing daily sync script after RSS candidate intake. The cron remains gated by `AIRDROP_DISCOVERY_SYNC_ENABLED`, database configuration and source approval.
+- Added focused tests for unknown-field preservation, official-link separation, unpublished observation defaults and snapshot-hash stability.
+- This is a candidate-to-observation bridge, not a complete automated campaign verifier or publisher. No RSS source is enabled by this change, and no paid provider/API is introduced.
+
+
+### 2026-11-11 scoring safety correction — official URL is a publication gate
+
+- Tightened the scoring engine so both featured and ordinary campaigns require an explicitly verified official URL before `is_published=true`.
+- A score in the ordinary heat band (40–69) without official-link verification now remains in observation with an explicit review reason; it is not enough that a source reports the campaign or that the trust label alone is present.
+- Updated the retroactive-ended scoring fixture to represent a verified official URL, and added positive/negative tests for ordinary publication.
+- This is a fail-closed scoring rule. It does not imply that an RSS article link is an official URL or that the current RSS observation adapter can mark a campaign verified.
+
+
+### 2026-11-11 — persisted campaign scoring pipeline
+
+- Added a persistence adapter that translates campaign model fields into the existing evidence-aware scoring engine and stores score/tier/publication decisions.
+- The adapter treats an official URL as verified only when the campaign trust status is explicitly `verified` and the URL is HTTPS with a hostname and no embedded credentials. RSS item/source URLs are never used for this check.
+- Score changes create `AirdropCampaignScoreHistory` rows; unchanged decisions do not create duplicate history records. The operation is idempotent and records the scoring version, breakdown and listing reason.
+- The existing scheduled sync now runs scoring after RSS intake in a separate failure boundary, so an RSS outage does not prevent already-stored campaigns from being re-evaluated.
+- New RSS observations remain unverified and therefore stay unpublished. Only records whose stored evidence satisfies the scoring gates can be promoted to featured/ordinary.
+- Added tests for URL verification, RSS-link isolation, safe publication, score-history creation and idempotent re-runs.
+- This does not enable any RSS source or add a paid data provider. Live source configuration and physical production-database validation remain pending.
+
+
+### 2026-11-11 — free DEX market enrichment adapter
+
+- Added `backend/app/services/airdrop_market_data.py` using only public HTTP endpoints; no API key, paid plan, paid scraper or extra Python dependency is introduced.
+- DexScreener lookup is contract-address-only and chain-scoped. Requests use the documented `/tokens/v1/{chainId}/{tokenAddresses}` endpoint, batch at most 30 addresses, and never use project name/ticker search. The implementation also rechecks the returned chain and exact base/quote contract address before accepting a pair.
+- To avoid inflated market signals from adding overlapping pools together, the campaign's current liquidity/24h-volume fields use the strongest single matched pair; pair count is recorded separately. Individual market snapshots preserve the selected pair identity and source values.
+- The adapter uses a conservative 2-second spacing between DexScreener batch calls (maximum 30 calls/minute, below the published 300 calls/minute endpoint limit), bounded retries, response-size limits, timeouts and `Retry-After` handling.
+- GeckoTerminal uses one global `/networks/trending_pools` request per refresh cycle, not one request per campaign. Its result is cached in-process for five minutes; requests are spaced by at least six seconds and a 429 response is respected with a conservative minimum retry delay. The adapter sends the documented API version header.
+- Only supported explicit network identifiers and non-empty contract addresses are queried. Unsupported networks, missing contracts and tokenless campaigns do not trigger name-based discovery or per-campaign GeckoTerminal calls.
+- Provider errors preserve the last-known campaign market fields and do not create false zero-liquidity observations. A successful empty DexScreener pair list is represented separately as zero matched pairs.
+- The daily sync script now runs market enrichment after candidate intake and before scoring. Market enrichment has its own error boundary so provider outages do not block campaign scoring or the rest of the sync.
+- Added tests for 30-address batching, duplicate removal, exact chain/contract matching, best-pair selection, token relationship parsing, one global GeckoTerminal call and last-known-good preservation.
+- The adapter is code-complete but production use remains gated by the existing sync flag, real database/migration validation and exact-head CI. No source is automatically marked verified by market data; DEX liquidity and trending remain ranking signals only.
+
+### 2026-11-11 — source-aware successful heat-run accounting
+
+- Added a persistence boundary for campaign heat observations. It can only be called after a complete heat-provider batch has been fetched and validated; RSS intake and DEX market enrichment are explicitly not heat-success runs.
+- A stable caller-created pipeline run UUID is mandatory and reused on retries. Replaying an existing run does not increment counters or duplicate source snapshots.
+- Only explicit finite heat values in the 0–100 range are accepted. Missing heat is omitted, never synthesized as zero; invalid or duplicate campaign observations reject the batch before writes.
+- Successful observations update the campaign's canonical integer temperature, source snapshot, and last-success timestamp. A heat value below 40 increments the streak only when it comes from the same source; changing providers restarts the streak at one. Heat 40 or above resets it to zero.
+- Added last_heat_source_name with migration 0022_campaign_heat_source; existing campaign counters are not retroactively inferred from old snapshots.
+- The scoring engine already archives at three consecutive low-heat successes. This adapter supplies the missing persisted counter input, but no heat provider is currently configured or wired into the scheduled sync. Therefore no campaign will be newly archived by this adapter until an approved, free provider integration is added and validated.
+- Provider failures must use a failure path that marks the run failed and does not call the success recorder. Production database migration execution and exact-head CI remain required before deployment.
+
+- Follow-up scoring correction: the three-run archival threshold is evaluated against the latest persisted `temperature` observation, not the maximum of `temperature` and the separate `opportunity_score`. The latter remains part of ranking only; a stale/high opportunity score cannot suppress a verified low-temperature streak.
+- Migration-history regression test now expects the new linear head `0022_campaign_heat_source` and verifies its parent is `0021_airdrop_campaigns`.
+
+- Pipeline run lifecycle is now explicit: persist a `running` run before provider I/O; after a fully validated batch mark it `success`; on timeout, provider error or invalid payload mark it `failed`. Only a running run can be completed successfully, and failed/successful terminal runs cannot be converted into the other state.
+- Failure records preserve the run/error evidence but never touch campaign heat counters or temperature. Retrying a failed provider attempt must use a new run UUID; replaying a successful UUID is a no-op.
+
+
+### Implementation checkpoint — trusted-source discovery refactor (2026-11-11)
+
+- Removed RSS/Atom candidate intake and RSS-candidate promotion from the scheduled `sync_airdrop_hub.py` workflow. Legacy RSS parser/model code remains dormant for compatibility; it is not called by the scheduled sync.
+- Added catalog-level `trust_level` and `publication_status` fields with migration `0023_trusted_catalog_source`. Existing rows default conservatively to `TRUST_LEVEL_0` / `OBSERVATION`; no legacy row is silently upgraded.
+- The catalog importer now has a code-controlled `TRUSTED_AIRDROP_PROVIDER_LABELS` allowlist. Only a provider explicitly added after confirming a free documented airdrop-directory endpoint and reuse terms can map to `TRUST_LEVEL_1` / `PUBLISHED_SAFE`. Environment variables cannot elevate an arbitrary source.
+- The existing `web3-discover` JSON/MCP importer is now disabled because it is not approved as a head-tier provider and has no confirmed republication permission. No active trusted airdrop provider is configured yet; sync safely returns `no_trusted_free_airdrop_provider` without network calls.
+- `GET /api/airdrops/hub` now returns `data_source`, `trust_level`, and `publication_status`, and only exposes rows in `PUBLISHED_SAFE`.
+- Added regression tests for source allowlisting, automatic trust/publication state mapping, API provenance fields, and disabled sync with no approved free airdrop provider.
+- Provider availability research: DefiLlama free endpoints do not document an airdrop directory; CoinGecko free API is asset/market data, not airdrop discovery; CoinMarketCap's Airdrops endpoint is not in its free API plan; CryptoRank's Drophunting endpoint is Business-tier. These are not activated as free airdrop sources. The next engineering step is to identify and verify an eligible provider or keep discovery paused—never substitute scraping or paid calls.
+- Follow-up hardening: trusted catalog destinations must be HTTPS and must not embed URL credentials. The sync-status endpoint reports `source: "none"` and a non-successful refresh result while no eligible provider is active. Exact-head CI and production migration execution remain pending; do not treat this code checkpoint as validated deployment.
+### 2026-11-11 — full Binance announcement detail in the app
+
+- Added a backend detail endpoint keyed by the Binance CMS article code stored with each announcement. It reads the official public CMS detail endpoint and returns the original article title, HTML body, publication timestamp, catalog label and original URL.
+- The detail response preserves the original Binance HTML content rather than generating a summary or inventing missing reward/time/eligibility fields. Oversized or unavailable content fails closed and the client can retry or open the Binance original.
+- Added an in-app announcement detail view. It renders the full official body with JavaScript, file access, DOM storage and mixed content disabled; only HTTPS navigation is allowed. The original Binance page remains available as a separate action.
+- Added backend tests for original HTML/metadata normalization, detail endpoint retrieval and static /status route precedence.
+- This is an in-app rendering of the source announcement body, not a translation or independent verification of the claims. Any terms shown are exactly what Binance published.
+- Explicit user-clicked HTTPS links in the official announcement body open in the app's existing built-in browser, keeping the announcement detail screen available underneath. Non-HTTPS navigation, subframe navigation and automatic/non-gesture redirects are blocked; if the browser cannot be launched, the detail WebView does not silently navigate away.
+
+### 2026-11-11 — Binance announcement detail build verification
+
+- Fixed the Android WebView navigation gesture check to invoke `request.hasGesture()` correctly; the previous form failed Kotlin compilation.
+- Pull-request CI run #1044 for commit `9dc11f750a163cf2e918c41e3a5e40bd5e62b0ed` completed successfully: Android unit tests, debug APK build/artifact upload, and backend `pytest -q` all passed.
+- The workflow produced the `airdrop-hunter-debug-apk` artifact. This confirms a CI build artifact exists; it does not establish installation or runtime validation on a physical Android device.
+- A public Binance announcement page is discoverable, but the web inspection path did not expose the raw CMS HTML/image attributes. Therefore image lazy-loading behavior (for example, `src` versus `data-src`) and table scrolling remain unverified against a real announcement body. Do not change source HTML or enable JavaScript based on assumptions; validate with an actual CMS detail response or device test first.
+- PR #135 remains Draft/Open and unmerged.
+
+### 2026-11-11 — testable Binance announcement HTML policy
+
+- Extracted the in-app Binance announcement HTML wrapper into a package-internal pure Kotlin function so its rendering policy can be covered by local unit tests without launching Android WebView.
+- Added tests asserting that the official CMS body is embedded unchanged, the restrictive CSP continues to block scripts/connectivity/frames while allowing HTTPS/data images, and responsive media/table overflow styles remain present.
+- This is a regression test for the authored wrapper only. It does not prove that Binance's current CMS HTML uses directly loadable image attributes, that remote images load on a device, or that horizontal table scrolling behaves correctly on a physical phone.
+- JavaScript remains disabled. Do not add speculative data-src rewriting or relax the WebView policy without a real CMS response fixture and a security review.
+
+### 2026-11-11 — Browser Dock whole-component drag refactor
+
+- Rebuilt the floating browser Dock with one outer movable Box. The capsule background and horizontal LazyRow are children of that same Box, and the outer Box owns the offset and detectDragGesturesAfterLongPress gesture handler.
+- The inner capsule container clips its translucent background, border and LazyRow to RoundedCornerShape(50), preventing tool icons from painting outside the pill.
+- Normal horizontal scrolling remains assigned to LazyRow; moving the entire Dock requires a long press followed by a drag. Animatable drives the release/cancel snap animation to the left or right edge while keeping the vertical position within the available range.
+- Automated build/test and physical-device gesture acceptance are separate gates. Do not claim the gesture conflict or visual alignment is fixed on hardware until tested on the user's phone.
+
+
+### 2026-11-11 — Browser Dock import cleanup after source review
+
+- A follow-up source review found a literal escaped newline embedded in the `LazyColumn` import line and removed the duplicate `items` import.
+- Corrected the import without changing Dock gesture, layout, clipping, snapping, or persistence behavior.
+- Commit `81314ddd1d1dfe3297eba309965d29cf6afdb846` contains the source cleanup. A fresh exact-head CI run is required; the prior Dock run was still in progress and is not treated as a pass.
+
+
+### 2026-11-11 — Browser Dock ordinary-swipe cancellation guard
+
+- Added an explicit `dragStarted` guard around the outer `detectDragGesturesAfterLongPress` detector.
+- Edge snapping now runs only after `onDragStart` confirms the long-press whole-Dock drag actually began. A normal horizontal LazyRow swipe that cancels the parent detector must not trigger Dock movement or edge snapping.
+- Kept the outer Box as the single movable target, retained the clipped capsule/LazyRow child and Animatable edge-snap animation. This is source-level hardening; gesture arbitration and feel still require physical-device acceptance.
+- Commit `dfa1a0a39d3419d603bf2c520fb4a590c16f4ec8` contains the guard. The prior import cleanup is in `81314ddd1d1dfe3297eba309965d29cf6afdb846`.
+
+
+### 2026-11-11 — Browser Dock drag callback coroutine fix
+
+- CI run #1057 exposed a Kotlin compile error: `Animatable.snapTo` is suspending and was called directly from the non-suspending drag callback.
+- Moved both bounded `snapTo` updates into the existing composition coroutine scope. The gesture still consumes the drag event, updates both axes together in one launched coroutine, and retains Animatable for movement and edge snapping.
+- Backend tests passed in run #1057; Android build failed at the two direct `snapTo` calls. The correction is commit `1e6beda76d3b93a4f4b0be41107b4dd25c2c4823` and requires a fresh Android CI run.
+
+
+### 2026-11-11 — Home accounting/search navigation correction
+
+- Removed the standalone Home accounting card above Quick Entry. Accounting is now a first-class, default-visible Quick Entry shortcut with its own destination; tapping it opens the pending-bill/accounting flow, never the Project Library tab.
+- Added a dedicated Accounting overlay route and reused the existing pending-bill and confirmation workflow without rendering a browser Dock on the accounting-only screen.
+- Moved the single global coin/DApp search field directly below the market dashboard and above Quick Entry cards.
+- Existing saved Home layouts are migrated by inserting the accounting shortcut if it is missing; user card dimensions remain developer-controlled and user ordering/removal remains supported.
+- This is a navigation/layout correction. It does not establish physical-device visual acceptance; exact-head Android CI and on-device verification remain required.
+
+
+### 2026-11-11 — Dock whole-capsule drag gesture arbitration
+
+- Corrected the Dock gesture implementation after real-device feedback showed that the child LazyRow was scrolling its icons while the translucent capsule stayed stationary.
+- The outer Dock now observes pointer events in the Initial pass, waits for a stationary long press, and then consumes drag movement before the child LazyRow can claim it. Both X/Y Animatable offsets are updated from the outer pointer gesture coroutine, moving the capsule background, border, clipping region, and all tools as one unit.
+- A normal swipe that moves beyond touch slop before the long-press timeout is left to LazyRow, preserving horizontal tool scrolling.
+- This fix targets gesture ownership, not visual restyling. Exact-head CI and physical-device verification are still required; the prior device screenshot remains evidence that the earlier implementation was not acceptable.
+
+
+### 2026-11-11 — Dock gesture coroutine compile correction
+
+- Exact-head CI #1067 confirmed backend tests passed but Android Kotlin compilation failed because Animatable.snapTo() was called directly inside the restricted awaitEachGesture pointer scope.
+- Moved both bounded axis updates into the composition coroutine scope while keeping the parent pointer listener responsible for recognizing and consuming long-press Dock drags.
+- This is a compile correction only; the gesture still requires a fresh exact-head CI run and physical-device acceptance.
+
+
+### 2026-11-11 — Dock long-press cancellation boundary
+
+- Review of the first successful build for the parent-owned Dock drag found that the timeout block could report success after an early release or pre-timeout movement.
+- Corrected the rule: the Dock drag begins only when the stationary pointer remains pressed until the full long-press timeout expires. Early release or movement beyond touch slop cancels the parent drag and leaves normal LazyRow scrolling available.
+- The previous build artifact is not the final device-test build; exact-head CI must pass for this correction first.
+
+
+### 2026-11-11 — Repository-wide CI cost and batching policy
+
+- Historical Actions API reports 895 total workflow runs, with latest run number #1072. The run number is not the run count; run records may have gaps because of deleted/expired history or numbering semantics. The API's current total_count is the count to use for this repository's available run history.
+- Of the 895 recorded runs, 855 were named "Android debug build and backend tests"; 737 were pull_request events. Among all recorded runs, 397 concluded success, 160 failure, 302 cancelled, and 36 skipped.
+- The high pull-request run volume is not an acceptable development rhythm for a solo, zero-budget project. CI must be a final verification gate for a coherent module, not an interactive compiler.
+- From this point, related code edits must be reviewed and grouped into one coherent module change before committing. Do not create separate code commits for each small correction. Documentation-only updates should remain documentation-only and must not trigger Android builds (the workflow currently ignores docs/** and Markdown paths).
+- Before the single module validation run: inspect the full diff, call sites, imports, coroutine/suspend constraints, UI hierarchy/gesture ownership, and available local/static tests. Run Android and backend suites only when their corresponding code changed.
+- If CI fails, inspect the exact failing job and logs, fix the root cause, then perform one deliberate re-validation after the whole correction set is ready. Do not repeatedly rerun unchanged jobs or upload stale APKs.
+- Keep PR #135 Draft/Open/unmerged until the user explicitly authorizes merge. A successful CI build is not physical-device acceptance.
+
+
+
+### 2026-11-11 — Approved discovery source input hardening
+
+- Hardened GitHub Raw configuration to accept only HTTPS files on the exact `raw.githubusercontent.com` host, with a valid owner/repository/ref/file path and no credentials, query strings, or fragments.
+- GitHub JSON lists now require explicit `website`, `official_url`, or `officialUrl` fields; generic `url` values are not assumed to be official project websites. Markdown project links remain HTTPS-only.
+- Binance announcement article codes containing unexpected characters are rejected rather than silently rewritten into a potentially different article identifier.
+- Added backend regression tests for exact-host validation, explicit official-site fields, HTTPS Markdown links, and malformed Binance article codes.
+- This hardens ingestion boundaries only. It does not certify a GitHub repository's license, configure any external list, validate live provider terms, or mark the four-source discovery pipeline end-to-end complete.
+
+
+### 2026-11-11 — Incremental CI event-range validation
+
+- Same-repository branch pushes now use the exact GitHub push event range (before SHA to after SHA), which includes every commit in a multi-commit push and does not require querying previous workflow runs.
+- The corresponding same-repository PR synchronize event runs only the lightweight change-detection job; it does not duplicate Android/backend suites. PR opened/reopened and fork synchronize events retain a complete base-to-head diff because fork pushes do not trigger workflows in the base repository.
+- Push events ignore documentation and workflow-only paths. A mixed PR may still start a lightweight PR changes job because GitHub evaluates PR path filters against the cumulative PR diff.
+- Manual workflow dispatch continues to honor its explicit Android/backend/both scope. The change detector still runs Android and backend suites independently according to their respective file groups.
+- Acceptance passed on 2026-11-11: push run #1078 for commit `218981bc0c819153908dcfeb939a2cdc7fd3c60a` compared the exact range `ed5fb7d8df89af7525264f4666ef5a49661009d1..218981bc0c819153908dcfeb939a2cdc7fd3c60a`, ran Backend tests successfully, and skipped Android. PR synchronize run #1079 completed successfully with both heavy suites skipped.
+
+
+
+### 2026-11-11 — GitHub Raw source configuration edge-case hardening
+
+- The configured Raw URL parser now catches malformed port values when the parsed port is accessed, rejects user-info/port variants, and checks decoded path segments for traversal or encoded path separators.
+- Malformed percent escapes and whitespace/control characters are rejected before a configured source is fetched.
+- Removed redundant environment parsing in the fetch adapter; all configured URLs now pass through the single strict validator.
+- Added regressions for malformed/out-of-range ports, empty user-info, encoded traversal/separators, duplicate URLs, and the 20-source cap.
+
+
+### 2026-11-11 — Retire the unreachable legacy public-directory adapter
+
+- Removed the unused `web3-discover` JSON/MCP URLs, generic payload normalizer, MCP response parser and dead fetch function from the active airdrop hub service. The importer continues to use only its four explicitly listed source adapters.
+- Removed unit tests that only exercised the retired generic directory normalizer; retained the regression that confirms the legacy source label cannot be treated as trusted/publishable.
+- Renamed the scheduled workflow to describe configured source observations and removed unused RSS and legacy approval environment variables. The daily schedule remains gated by `AIRDROP_DISCOVERY_SYNC_ENABLED=true`; it runs the current four-source importer and its separate market-enrichment/scoring steps, not RSS ingestion.
+- RSS parser, candidate models and review endpoints remain dormant compatibility code; they are not invoked by the importer. No old RSS feed is re-enabled.
+
+
+### 2026-11-11 — GitHub Raw manual license and attribution approval gate
+
+- Replaced the URL-only GitHub Raw configuration with `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS`. A source is fetched only when the operator supplies a complete record containing unique source ID, matching repository identity, exact HTTPS Raw URL pinned to a full commit SHA, license identifier/reference, explicit attribution text, approved review status and review date.
+- The complete configuration fails closed on missing/invalid metadata, unapproved status, duplicate source IDs/URLs, unsafe URL/path, branch-name refs, malformed review dates or more than 20 entries. The legacy `AIRDROP_GITHUB_RAW_SOURCES` URL-only setting is ignored.
+- License URLs are recorded, not fetched or treated as legal proof. The operator must inspect the actual repository terms and decide whether automated retrieval, storage and public-catalog reuse are allowed. The code does not claim to perform legal review.
+- Reviewed license and attribution details are carried into imported lead provenance. These records remain internal observation leads and are not promoted into confirmed campaigns.
+- Removed the stale test that still called the deleted `web3-discover` generic normalizer; retained a direct regression that the retired source label remains untrusted.
+- This module has not yet passed exact-head CI at the time of this entry. The preceding run #1081 had 209 tests pass and one stale-test failure; a single batched backend validation is required after this complete change.
+
+
+### 2026-11-11 — Keep internal campaign scoring out of public discovery
+
+- The public campaign response and Android DTO no longer expose internal score, scoring version, listing rationale, trust flags, token contract identifiers, CoinGecko trend flags or DexScreener pool/liquidity/volume telemetry.
+- Removed the visible “综合评分 / 评分数据不足” row and internal listing-reason text from campaign cards. The visible card retains campaign name, concise description, chain, status, KYC information and official action.
+- Retained the backend scoring engine and persistence/history for internal publication decisions; this is a presentation/API-boundary cleanup, not deletion of the scoring gate.
+- Added API regression assertions that internal scoring, trust and market telemetry fields are absent from the public response.
+
+### 2026-11-11 — Home accounting entry and background airdrop refresh correction
+- The Home “记账” shortcut now opens the “确认本次记账” form directly by creating a local draft; it no longer opens or waits on the “待确认账单” picker. Existing drafts remain available through the separate pending-bills tool.
+- The dynamic catalog warm-up worker now refreshes the approved public Binance airdrop announcement hub in the background when the app enters the foreground, with a six-hour success cadence. It does not block the Home UI; failed refreshes preserve existing server data and are retried on a later foreground entry.
+- This refresh does not fabricate announcements: the visible hub continues to display only the approved Binance announcement records returned by the backend. An empty list after a successful refresh means the backend currently has no eligible announcement rows to show.
+- Exact-head Android build/unit tests and artifact upload are pending for this correction.
+
+### 2026-11-11 — Public campaign API regression-test correction
+- Final list-copy audit found and removed the remaining “数据来自已审核目录” implementation wording; the Android list count now shows only the public campaign count, matching the concise user-facing contract.
+
+- Exact-head Push workflow #1085 for commit dd69e9fdb57f158d1ab9603a6385719d3d900fa1 completed Android unit tests and Debug APK assembly successfully; artifact airdrop-hunter-debug-apk (artifact ID 13829965278) was uploaded.
+- Backend pytest reported one failure because the public API regression test both asserted that listing_reason was absent and later asserted that the same field contained a value. The latter assertion was stale and contradicted the intended public contract; the API response model was correct.
+- Corrected the regression test to assert absence of the complete set of internal scoring, trust, token-identity and market-telemetry fields. No internal field was restored to the public API.
+- Exact-head backend revalidation for this correction is pending. PR #135 remains Draft/Open/unmerged; the successful lightweight PR synchronize run #1086 skipped both heavy test suites and is not counted as full validation.
+
+
+### 2026-11-11 — homepage-triggered airdrop hub refresh reliability
+
+- Entering the Home screen now queues the public airdrop refresh worker without blocking navigation or foreground UI work. The existing six-hour successful-refresh cadence remains the request throttle.
+- The worker only records a successful refresh timestamp when the server response reports `ok=true`; unsuccessful server responses remain retryable on a later Home entry.
+- The airdrop hub repository retries an empty list when the server has no successful sync recorded, including the case where an earlier attempt exists but failed. A previously successful empty result is not repeatedly synchronized.
+- Added repository regression coverage for retry-after-failure and no-repeat-after-success. This is pending exact-head CI validation; server data availability and physical-device acceptance remain separate checks.
+
+
+### 2026-11-11 — place Binance official activities inside the airdrop library
+
+- The Home dashboard has one **空投列表** entry for the verified public campaign catalog (`AirdropCampaignsScreen`); it no longer has a separate Binance card.
+- Inside the airdrop library's fetched campaign list, **币安官方活动** occupies the first campaign-card position (the slot where the first fetched airdrop would otherwise appear). The original first airdrop is retained and follows it as the next list item; no campaign is deleted. Tapping the Binance entry opens the independent Binance announcement/activity hub (`AirdropHubScreen`).
+- Binance announcements remain separate from the verified public campaign list: separate screen, endpoint, data contract and refresh path. They are not inserted as ordinary campaign rows.
+- Existing saved Home layouts are migrated to remove the misplaced Binance shortcut while ensuring the airdrop library entry exists. Later user layout edits remain respected.
+- Home entry queues background dynamic catalog warmup without blocking navigation. The public campaign repository continues to use its Room-backed cache and six-hour TTL. Binance official feed remains independently refreshed by its own worker cadence.
+- Exact-head Android build and unit tests are pending; real device navigation and live-data verification remain pending.
+
+### 2026-11-11 — Correct Binance announcement category IDs
+
+- Exact-head CI for the prior `(128, 49)` change passed, but a subsequent comparison against Binance's own announcement category pages exposed a semantic mapping error: category `93` is **Latest Activities**, while `49` is **Latest Binance News**. Category `128` is **Crypto Airdrop**.
+- Corrected the importer and its regression test to request `(128, 93)`. The Latest Activities feed remains keyword-filtered; unrelated general Binance news is not added to the airdrop hub.
+- Official category pages checked: `/en/support/announcement/list/128` (Crypto Airdrop) and `/en/support/announcement/list/93` (Latest Activities); `/en/support/announcement/list/49` is Latest Binance News.
+- This correction supersedes the immediately preceding catalog mapping. Exact-head Push workflow #1111 for commit `2546778c` passed: `pytest -q` reported 213 passed, 3 warnings in 8.54s. Android build was skipped because this commit changed backend files only.
+
+### 2026-11-11 — Binance CMS list endpoint compatibility
+
+- Follow-up source review found the current RSSHub Binance announcement adapter using the newer observed `/bapi/apex/v1/public/apex/cms/article/list/query` route, while this importer still used the older `/bapi/composite/v1/public/cms/article/list/query` route.
+- Updated the importer to try the apex route first and fall back to the composite route per category. Added MockTransport regression tests for both primary and fallback paths.
+- The endpoint is an observed Binance web-CMS interface, not a documented supported Binance API. Exact-head backend CI and a real live-provider smoke test remain separate checks.
+
+### 2026-11-11 — Binance endpoint self-discovery
+
+- Implemented automatic endpoint-path discovery by reading the public RSSHub Binance announcement adapter source, the same kind of source-code inspection used during engineering investigation.
+- The backend extracts only a constrained Binance CMS list path, fixes the destination host to `www.binance.com`, and verifies the live response structure and requested catalog ID before importing anything.
+- The reference repository supplies no announcement content to Airdrop Hunter; all imported records and article detail HTML still come directly from Binance. Discovery is cached for six hours, with apex/composite fallback paths retained.
+- Added tests for safe path extraction, successful dynamic discovery, and fallback when the discovery reference is unavailable. Exact-head CI and real provider connectivity are pending.
+
+
+### 2026-11-11 — Endpoint discovery implementation note
+
+- Tightened the discovery parser to extract only the route path after the source adapter's `${baseUrl}` marker. The reference cannot supply or change the destination host.
+- Exact-head automated test status is pending after the final parser correction; do not treat the earlier cancelled workflow attempt as validation.
+- Live provider availability remains a separate requirement from MockTransport test success.
+
+
+### 2026-11-11 — Unified multi-source discovery queue
+- Connected the four configured observation adapters (Binance, CoinGecko, manually approved commit-pinned GitHub Raw lists, and DexScreener) to the shared `airdrop_discovery_candidates` queue.
+- Candidate records retain source attribution and original source links; each provider observation receives a stable provider-scoped SHA-256 key.
+- Candidate refreshes preserve manual review decisions. Non-HTTPS or missing item links are rejected before persistence.
+- This queue is not the public Airdrop Library: market/list observations remain unverified until official campaign evidence is checked. No source is automatically promoted to a published campaign.
+
+
+## 2026-11-11 — discovery pipeline responsibility correction
+
+The active architecture has exactly three stages: source acquisition; one centralized filter; and the Airdrop Library. Result organization belongs to the filter, not a separate stage. Adapters retain parseable observations and provenance; the central filter owns category selection, timestamp freshness, liquidity thresholds, top-N ranking, deduplication and merge decisions. Market-data providers (CoinGecko and DexScreener) are signals only and cannot independently prove an active airdrop campaign. Filtered observations remain stored with reasons and structured evidence separate from human review status.
+
+Project identity and campaign identity are distinct. Project-name similarity alone must never merge records; one project can have multiple campaigns and one campaign can have evidence from multiple providers. Full cross-provider clustering remains unfinished and must not be represented as complete.
+
+
+## 2026-11-11 — centralized identity classification
+
+Project and campaign identity classification is a responsibility of the unified discovery filter, not source adapters. Strong identity evidence is limited to chain+contract, exact HTTPS official project URL, and exact HTTPS campaign/activity URL. Never infer identity from names or tickers. Keep project and campaign identity separate. Store match status, evidence and matched source key without deleting, merging or suppressing raw source records. Same-project/different-campaign records remain distinct. No strong evidence means insufficient identity evidence, not a guessed match.
+## 2026-11-11 — DexScreener query fault isolation
+
+- A single failed DexScreener search term no longer aborts the entire provider run. Each configured term is requested independently; failures are logged and remaining terms continue.
+- Successful term results are retained when another term fails. The provider is marked failed only when no valid observation rows are produced; all-failed runs preserve the previous source data through the existing per-provider transaction boundary.
+- Added regression tests for partial success and all-term failure. Exact-head workflow #43006252003 passed: **234 passed, 3 warnings, 0 failed**. Android build was skipped because this batch changed backend code only.
+- Configuration review: CoinGecko discovery is disabled until COINGECKO_DEMO_API_KEY is configured; GitHub Raw discovery is disabled until at least one manually approved, license-reviewed, commit-pinned source is configured. The example DexScreener terms (SOL, ETH, USDC) are broad market searches, not proof of airdrop campaigns. Binance remains a separate official-announcement observation source.
+- No production live-data claim is made from unit tests. Real provider credentials/configuration, live responses, and the end-to-end filter-to-library display still require verification. Scheduled production sync remains disabled.
+
+
+### Latest continuation checkpoint — 2026-11-11 (detail-route guard revalidated)
+
+- Re-read the actual branch implementation and found the Binance detail endpoint did not enforce the same visibility conditions as the list endpoint, despite an older progress note claiming the guard was present.
+- Restored the guard: only Binance records with `publication_status == OBSERVATION` and `filter_status != filtered` can be opened through the public detail route. Other source records and filtered records return 404.
+- Added a regression assertion using a known UUID for a centrally filtered record. Exact-head backend push workflow #43007560087 passed: **234 passed, 3 warnings, 0 failed**. Android build was skipped because only backend API/tests changed.
+- Current code commit: `51b2b6cc49704388bf6f576a3b2abf38b98efecc`. PR #135 remains Draft/Open/unmerged.
+- Continue with source-specific readiness/status visibility and four-provider live-data validation. Do not claim live data until the actual runtime environment is verified.
+
+
+### 2026-11-11 — third-party airdrop directory permissions and source attribution
+
+- High-heat campaigns remain the priority: the campaign catalog already orders featured campaigns before ordinary campaigns, then sorts each tier by the centralized score in descending order. Low-heat/uncertain observations are not automatically placed in the public catalog.
+- Do not scrape or republish AirdropAlert or Airdrops.io content without explicit permission covering automated retrieval and display in Airdrop Hunter. AirdropAlert's terms restrict reuse beyond personal use unless prior written permission is granted; its RSS endpoint is not a content-republication license. Airdrops.io's terms restrict copying, public display and mirroring. These providers remain integration candidates only after permission is obtained.
+- Public campaign responses now include source_name and source_url so users can see where a campaign record came from. Internal trust flags, scoring telemetry, contract identifiers and market metrics remain private.
+- Provider selection, popularity ranking, deduplication and publication remain centralized; adapters only acquire and normalize source observations. Do not equate a generic token/market feed with a reviewed airdrop campaign source.
+- Real-data cleanup is deferred until a live source has passed end-to-end validation. At that point remove only production/demo records and seed data, never automated test fixtures or regression tests.
+
+
+## 2026-11-11 — SolvoHQ retired; live market-signal adapters corrected
+- Retired SolvoHQ CC0 JSON from the active pipeline because its snapshot timestamp was stale by months; stale records are not imported.
+- Added a centralized seven-day source freshness guard for generatedAt/updatedAt and common snake_case equivalents, including CoinGecko last_updated. A stale or malformed upstream timestamp fails the whole provider batch and preserves the previous successful data.
+- CoinGecko now uses /coins/categories/list to identify the Airdrop category, /coins/markets to retrieve at most 20 market-ranked entries, and /coins/{id} to resolve the actual official homepage. It does not assume /coins/categories itself contains 20 coin records or websites.
+- DexScreener now searches the configured term (default airdrop), then centralized selection keeps only the top 10 pairs with liquidity strictly greater than USD 10,000. Volume and transactions remain ranking evidence; they do not establish airdrop eligibility.
+- Both CoinGecko and DexScreener records remain market/category observations, not published campaigns. Official activity evidence and the unified campaign filter are still required.
+- CoinGecko Demo key remains server-side in COINGECKO_DEMO_API_KEY; never embed it in the Android APK. Android calls the Airdrop Hunter backend, which owns adapters and central filtering.
+- Adapters are implemented in Python because the live discovery pipeline, credentials and central filter run in the backend. Do not duplicate provider networking in Android Kotlin.
+
+
+## 2026-11-11 — scheduled ingestion failure reporting and current checkpoint
+
+- Fixed the scheduled importer so a failed discovery sync, campaign market enrichment, or scoring stage makes the process exit non-zero. A successful later stage can no longer mask a failed source-ingestion stage as a green GitHub Actions run.
+- Added regression tests for successful runs and non-zero exits when discovery or enrichment fails.
+- Exact-head backend CI run for commit `60edc2fe2041c78610207bf36ee7bb11e5307cd0`: **241 passed, 3 warnings, 0 failed**. Android build was skipped because this commit only changes backend code/tests.
+- PR #135 remains Draft/Open/unmerged. Do not merge or enable scheduled ingestion as part of this checkpoint.
+- Runtime configuration is still absent/unverified. No live provider run, real-data import, or end-to-end Android display has been claimed.
+- Current source roles remain deliberately distinct: Binance official announcements are unverified observation leads; CoinGecko and DexScreener are internal market/category signals only; GitHub Raw requires a manually reviewed, license-attributed, commit-pinned allowlist. None of these market signals is by itself proof of an active airdrop campaign.
+- The scheduled workflow remains gated by `AIRDROP_DISCOVERY_SYNC_ENABLED=true` and a configured database secret. CoinGecko additionally needs `COINGECKO_DEMO_API_KEY`; GitHub Raw needs `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS`; DexScreener queries are optional and configurable. Keep all secrets in GitHub Actions secrets, not repository files or the Android APK.
+- After an authorized source is configured and a complete live fetch/filter/import/API/Android display cycle is verified, remove only production demo/seed records. Preserve fixtures and automated regression tests.
+
+
+### 2026-11-11 — live discovery smoke harness review and current checkpoint
+
+- Rechecked the live-smoke runner and all four provider adapters at branch head `af0e652b7f4212fda9c53480973acb0be1befd9f`. The runner calls the adapters directly with a bounded 30-second HTTP client timeout, prints per-provider result counts/sample labels, and does not create a database session or invoke import/publication code.
+- Adapter behavior reviewed: Binance fails when both catalog endpoints fail without records; CoinGecko fails closed when its category/market/detail path yields no eligible observations; GitHub Raw and DexScreener continue across individually failing configured sources/queries, but fail when no valid rows are produced. Partial provider results are intentionally retained and must be read as partial success, not proof every configured sub-source worked.
+- Smoke exit code is deliberately successful when at least one configured provider returns parseable records; optional CoinGecko/GitHub adapters are skipped when their required configuration is absent. A green smoke result would prove fetch/parse connectivity only—not freshness, campaign eligibility, publication permission, database import, or Android rendering.
+- Exact PR head workflow #1234 (run `43022231694`) completed successfully, but its only active `changes` job ran; both `backend-tests` and `android-build` were skipped for this documentation-only commit. Do not count #1234 as test coverage. The last exact backend code validation remains push run `43022038023` on parent code commit `c51a5e1256c7b29071cbb0b4f10062b4a81a04bd`: 244 passed, 3 warnings, 0 failed; Android skipped because it was backend-only.
+- Verified that `.github/workflows/airdrop-discovery-smoke.yml` and the smoke script do not exist on the default `main` branch (404); GitHub manual dispatch therefore cannot start this PR-only workflow yet. No dispatch-capable GitHub action is available in the connected toolset. Do not merge PR #135 or modify `main` without the user's explicit authorization. The database-writing scheduled workflow remains unsuitable for this read-only test and stays disabled.
+- PR #135 remains Draft/Open/unmerged. No live provider run has occurred; no live provider counts, campaign publication, production import, or phone acceptance may be claimed.
+
+
+
+### 2026-11-11 — zero-key discovery defaults and live smoke diagnostics
+
+- The default production discovery set now contains only the no-key public adapters: DexScreener and Binance public announcements.
+- CoinGecko is added only when `COINGECKO_DEMO_API_KEY` is present; approved GitHub Raw lists are added only when `AIRDROP_GITHUB_RAW_SOURCE_APPROVALS` is present. Neither optional provider is required for the default run.
+- The read-only smoke runner already treated those two providers as optional and attempted DexScreener/Binance by default. Its failure output now includes a bounded exception detail so the actual HTTP status or empty-result reason can be diagnosed from Actions logs.
+- Latest code commit: `466ee3fc14fa0e753e49b38671653e8806b6d837`. Automated validation and a repeat live smoke run are still pending; the earlier live run failed with Binance HTTP status errors and a DexScreener adapter RuntimeError. No live source is currently verified as returning usable rows.
+- No API key is required for the default source set. The live smoke workflow remains read-only; production scheduled sync remains disabled. PR #135 remains Draft/Open/unmerged.
+
+
+
+### 2026-11-11 — provider HTTP diagnostics
+
+- Public-source adapters now include the HTTP status code (when available) in Binance and DexScreener failure summaries, instead of reporting only the generic `HTTPStatusError` class.
+- This is diagnostic-only: it does not convert provider errors into success, bypass rate limits, or change publication eligibility.
+- Commit: `fcb7bca5cc50ea73dd6a55e979bbf64a5b8581b0`. CI status and a repeat live smoke result are not yet available through the current GitHub run lookup; do not mark live providers validated.
+
+
+### 2026-11-11 — follow-up to live provider smoke failure
+
+- The 21:14 read-only smoke run showed Binance catalog 128 and 93 returning HTTP 400. The response status alone does not identify the invalid request field, so do not guess at a fix or treat this as a WAF block. The Binance adapter now includes only bounded JSON error metadata (code, msg, message) in its diagnostic label when the response provides it; response bodies are not logged.
+- The same run showed DexScreener was not queried because the Actions variable was present but contained no usable terms. The adapter now falls back to the free public search term airdrop when the variable is absent, blank, or whitespace/separator-only; explicitly configured non-empty terms remain supported and deduplicated.
+- Added regression tests for the DexScreener default and configured-term behavior.
+- Commits: 6565861679d6b7c94b2548953f4b1339fd340f00 (adapter fix/diagnostics), e48367b3ab08499c744dcc7e42f5b0c1acfa16b6 (tests).
+- Automated tests and a new live smoke run have not yet been observed. Binance remains unverified until its new bounded error metadata identifies the HTTP 400 cause and a subsequent live request returns parseable records. DexScreener also remains unverified until the fallback query returns parseable records.
+- Production scheduled sync remains disabled; no database writes or publishing were performed; PR #135 remains Draft/Open/unmerged.
+
+
+### 2026-11-11 — correction after follow-up CI caught a syntax regression
+
+- The first smoke attempt after the DexScreener fallback change did not reach either provider: CI caught a Python SyntaxError (`await` outside async function) in the Binance adapter declaration. This was introduced by the previous edit and is explicitly recorded as a code regression, not a provider failure.
+- Corrected the declarations: the Binance error-label helper is synchronous, while `_fetch_binance_observations` remains async. Fix commit: 2c978d5d6934ec63a288b4ede45822367a2f7a71.
+- A fresh Android/backend workflow was automatically queued for that commit when last checked; completion and tests are still pending. The live provider smoke has not yet been rerun against the corrected branch code.
+- Keep production sync disabled and PR #135 Draft/Open/unmerged. Do not claim live-source success until a smoke run checks the corrected branch and reports parseable records.
+
+### 2026-11-12 — user correction: unified refresh orchestration includes private data domains
+
+**This latest correction supersedes the earlier “public/shared data only” restriction for refresh orchestration.** The previous wallet scope audit correctly identified that private wallet payloads must not use public cache keys or shared payload storage, but it incorrectly treated that storage-isolation requirement as a reason to remove wallet data from unified refresh coordination. Removing coordination must not make refresh dependent on opening a screen.
+
+**Approved architecture and requirements:**
+- One shared refresh/synchronization orchestration layer manages scheduling, single-flight work, bounded retries, cancellation, refresh state and observability across public and private data domains. “Unified” means unified lifecycle/orchestration, **not** one shared payload namespace or one universal TTL.
+- Continue using the shared coordinator for market search, OKX market data, public airdrop campaign directory, community catalog and public community snapshots.
+- Re-integrate wallet transaction history and wallet balances with the shared orchestration layer. Their payloads and refresh metadata must both remain isolated by the existing account/session scope plus wallet and chain/ecosystem identity. Never use public cache keys, cross-account metadata, or shared wallet payloads. Preserve existing local data; do not clear, re-key or migrate it as a side effect.
+- Personal ledger, private projects and tasks remain durable user records, not expiring cache payloads. They must not be deleted, overwritten or marked stale by TTL. Their eligible background synchronization may use the shared scheduler/orchestration facilities while preserving their existing local-first writes, conflict rules, privacy rules and pending-sync queue semantics.
+- Refresh must not depend on the user opening a destination. Background work must refresh eligible data on its configured cadence; screen entry must show available local data immediately and may trigger a non-blocking refresh without waiting for it to finish.
+- A background refresh must not block navigation or other app use. Failed requests retain last-known-good data and expose a visible refresh/error state where the UI supports it.
+- Explicit user refresh must have a clear result: refreshed, already current, throttled, or failed. A caller must not silently report success when the coordinator returns `throttled`.
+- Keep the current-release account boundary unchanged: registration/login, account switching, guest-to-login migration and private cloud restore remain disabled/out of scope. Do not redesign identity or synchronization ownership as part of this correction.
+
+**Acceptance criteria:**
+1. Wallet transaction payload reads/writes and refresh metadata use the same account/session + wallet + chain scope; tests prove two account scopes cannot read, suppress, throttle or overwrite each other's refresh state.
+2. Wallet balances have the same isolation guarantees and retain cached-first display while background refresh runs.
+3. Wallet transaction and balance refreshes can run on their configured background schedule without the corresponding screen being opened; the actual scheduler/cadence and worker result handling are verified.
+4. Entering a screen renders cached data without waiting for network completion; refresh completion updates the screen state without blocking other destinations.
+5. Ledger/project/task local writes and pending-sync records survive cache expiry, process restart, offline use and refresh failure unchanged; only their existing approved sync path may process pending work.
+6. Manual refresh UI distinguishes a throttled result from a successful fetch; source-specific TTL and refresh cadence are documented and tested.
+7. Exact-head CI passes; device acceptance is recorded separately from code/CI.
+
+**Implementation status at this requirements update:** approved design; implementation and full call-chain/background-scheduler audit pending. No account architecture, registration, guest migration or cloud restore work is authorized by this change.
+
+**Implementation/audit follow-up — 2026-11-12 (in progress):**
+- Re-integrated wallet transaction refresh with the shared coordinator in code commit `7abdef1813d6fc78a7bc07a32bda03c2dbbddc46`. The transaction payload remains in the existing guest/account-session Room store; coordinator metadata now uses a separate key containing account scope, wallet ID and ecosystem, with an 8-hour TTL. Normal refresh is cache-first; the detail-screen refresh button passes force=true. Added repository regression coverage for scoped metadata and TTL/force behavior. Exact-head Android CI #43146843496 is **in progress**; do not mark this slice CI-complete until it finishes.
+- Audit correction: transaction refresh already has a WorkManager path. The app starts a 15-minute global dispatcher; wallet transaction work is queued independently and currently has an 8-hour account-scoped cadence. Therefore it was inaccurate to say wallet transactions only refresh when opened. The missing piece was unified per-wallet cache coordination and ensuring metadata isolation, not inventing a new background worker from scratch.
+- Wallet balance audit: `WalletAssetDetailDialog` constructs its repository locally and currently reads the scoped Room payload, then directly fetches only when the dialog is opened or manually refreshed. No wallet-balance background worker is currently present in the inspected sync dispatcher. This is a real gap against the approved “refresh without opening the screen” requirement and remains pending implementation.
+- Campaign-directory audit: the repository uses the shared coordinator with a 6-hour TTL, but the current global dynamic-catalog worker does not call it. `AirdropCampaignsViewModel` also does not publish `readCached()` to UI state before awaiting `load()`. Background campaign warming and immediate cached rendering therefore remain pending.
+- Current-release personal ledger sync remains explicitly disabled; personal ledger records remain durable local data. This cache correction does not authorize private cloud sync, registration, account switching, guest migration or changes to pending queues.
+
+### 2026-11-12 — wallet manual-refresh rate limit and user feedback
+
+User correction: tapping refresh repeatedly must **not** cause one real provider request per tap. Wallet transaction history and wallet balances use a shared manual-refresh cooldown. Within the cooldown, keep showing the latest cached snapshot, do not start another network request, and show a brief in-app transient message (toast/snackbar/“弹幕提示”) that refresh is temporarily unavailable and when the user can try again.
+
+- Reuse the coordinator's existing `MANUAL_REFRESH_THROTTLE_MILLIS` policy (currently 30 seconds) rather than inventing a separate per-screen interval.
+- Wallet screen manual refresh must call the coordinator with `manual=true` and must not pass `force=true`; force is reserved for explicit internal/test paths that are allowed to bypass cooldown, not ordinary repeated user taps.
+- Both transaction-history and balance UI must surface `throttled` as a visible transient message, not a silent no-op or a false “refreshed” success. Keep cached data visible and do not show a blocking spinner when throttled.
+- Apply the same cooldown per isolated wallet/account/network metadata key, so refreshing one wallet does not throttle another wallet or another account's private data.
+- Background refresh continues to follow its own cadence and failure cooldown; this manual limit must not stop scheduled refreshes.
+- Acceptance: first eligible manual tap causes at most one fetch; repeated taps within 30 seconds cause zero additional fetches and show the transient message; after cooldown, a new tap can fetch; account/wallet/network scopes remain independent; UI retains the previous snapshot throughout.
+
+Implementation status: requirement approved; existing coordinator already has a 30-second manual throttle, but wallet transaction UI currently bypasses it with `force=true`. Balance repository/UI must also be verified to return and display the throttle state.
+
+
+### 2026-11-12 — wallet manual-refresh cooldown implementation verified
+
+- Exact-head Android workflow **#43147830389** completed successfully on code commit `38768e5c6f3ef0f58406e1941636010adae2ed5d`: Android build, unit tests, Debug APK assembly and artifact upload all passed. Backend tests were skipped because this change set was Android-only.
+- Wallet transaction history now passes `manual=true` for user-triggered refresh rather than bypassing the cooldown with `force=true`; the repository returns the coordinator's `throttled` state. The existing background worker's `force` API remains compatible.
+- Wallet balances now use the shared refresh coordinator while retaining the existing account/wallet/chain-scoped Room payload. The balance and transaction screens display a short Android Toast when the shared 30-second manual cooldown blocks a request: “刷新太频繁，请30秒后再试”. Cached snapshots remain the displayed data; a throttled attempt is not represented as a successful fetch.
+- Added/updated repository regression coverage for manual cooldown behavior. This verifies the repository/coordinator path under unit tests; it does not replace physical-device confirmation of Toast visibility or network behavior.
+- **This slice status: Complete in code + exact-head CI; physical-device acceptance pending.** The prior paragraph saying implementation was still pending is superseded for the wallet manual-throttle slice only.
+- Still pending next: implement a scheduled wallet-balance background worker; make the balance UI render cached data immediately before network completion; route the Airdrop Campaign background worker through its coordinator and publish cached campaign rows before awaiting refresh; audit all coordinator callers for ignored `throttled` results. No registration, login, account switching, guest-to-login migration, private cloud restore, or private-record TTL caching is authorized.
+- PR #135 remains **Draft / Open / unmerged** at the verified code head above. No production sync, production deployment or physical-device test is claimed.
+- Progress estimate after this passing slice: **code/CI implementation ~69%**; **overall release readiness ~42%**. These are rounded project-level estimates, not test coverage. Live-data validation, physical-device acceptance, production/recovery and final release gates remain separate and incomplete.
+
+
+### 2026-11-12 — wallet balance background refresh and campaign cache-first delivery
+
+- Code commit `66b5e0b89b59cb7922824c7d60057361edb039b8` adds `WalletAssetSyncWorker`, queued independently by the existing 15-minute global dispatcher. It loads the current guest/session wallet list and refreshes supported asset networks (EVM: Ethereum, BNB Chain, Polygon, Arbitrum, Optimism, Base, Avalanche; BTC; Solana) on an 8-hour per-account + wallet + network cadence. TRON remains excluded because the current asset-detail UI/provider contract does not expose it.
+- Balance payloads remain in the existing account/wallet/chain-scoped Room storage; the worker uses the shared coordinator only for refresh lifecycle and metadata. It does not write personal balance data into the public cache namespace. A cold/missing Room snapshot must still be fetched even if an old cadence marker exists.
+- The dynamic-catalog background worker now warms the published campaign directory through `AirdropCampaignRepository` and its six-hour coordinator TTL. `AirdropCampaignsViewModel` now publishes cached Room rows before awaiting refresh. Existing wallet-balance detail UI already reads its scoped Room snapshot before the network call.
+- Exact-head Android workflow **#43151808498** passed on `66b5e0b89b59cb7922824c7d60057361edb039b8`: Android compilation, unit tests, Debug APK assembly and artifact upload succeeded; backend tests were skipped because this batch changed Android files only.
+- Follow-up caller audit found that the Airdrop Hub manual refresh still passed `force=true`, bypassing the shared cooldown; that bypass is removed. Market hot-coin and campaign manual-refresh methods now surface `throttled` as an error instead of silently returning cached data as if a fetch succeeded. Campaign UI displays the refresh error while retaining its existing rows. OKX detail already surfaces `throttled`; community catalog/snapshot and remote market-search calls are background/read-through paths rather than explicit manual refreshes.
+- **Status:** wallet balance scheduled refresh and campaign cache-first/background warm-up are implemented and exact-head CI verified. Physical-device behavior, provider live responses and real wallet-balance correctness remain pending. Manual-throttle caller audit fixes are in this follow-up batch and await its CI.
+- Progress estimate after the passing batch: **code/CI implementation ~70%**; **overall release readiness ~43%**. This is a rounded project-level estimate, not a statement of device, live-data or production completion.
+
+
+### 2026-11-12 — refresh-throttle caller audit follow-up verified
+
+- Exact-head Android workflow **#43152173285** completed successfully on code commit `a7dc2647596f6a2f2c41cec900dfb0a49578560f`: `changes` and `android-build` jobs passed. `backend-tests` was skipped by the workflow's change filtering; this is not a backend test pass.
+- The follow-up removes the Airdrop Hub manual-refresh `force=true` bypass, and makes Market hot-coin and campaign manual refresh paths surface the coordinator's throttled result rather than silently treating cached fallback as a successful refresh. Campaign UI retains existing rows while showing the refresh error.
+- Wallet balance background worker and campaign cache-first/background warm-up from commit `66b5e0b89b59cb7922824c7d60057361edb039b8` remain covered by passing exact-head Android CI #43151808498. The follow-up CI above verifies the additional caller/UI changes on top.
+- **Status:** this caller-audit follow-up is complete in code and exact-head Android CI. This does not claim physical-device acceptance, provider live-data validation, or production deployment.
+- PR #135 remains **Draft / Open / unmerged**. No production sync was enabled.
+- Updated estimate: **code/CI implementation ~72%**; **overall release readiness ~44%**. Estimates remain rounded project-level indicators, not test coverage. Remaining work includes a deeper all-caller/scope audit, missing regression tests where appropriate, physical-device acceptance, live provider validation and release gates.
+
+
+### 2026-11-12 — background worker must not treat stale fallback as successful refresh
+
+**Audit finding:** the coordinator intentionally returns last-known-good cached data after a provider failure, together with `stale=true` and `errorMessage`. The wallet asset repository currently drops those result fields when constructing `WalletAssetSnapshot`; the wallet activity snapshot also lacks equivalent status fields. Both WorkManager workers can therefore mistake a stale fallback for a successful refresh and advance the 8-hour `SyncCadence`, delaying the next retry despite the provider request having failed.
+
+**Required correction (approved as reliability work within the existing wallet refresh scope):**
+- Preserve coordinator `stale`, `errorMessage`, and `throttled` in both wallet snapshot models; never erase the old cached payload.
+- Workers may mark the 8-hour cadence successful only when the coordinator result is genuinely fresh/successful (or the cached payload is already fresh). A stale fallback with an error must cause `Result.retry()` and must not advance the success cadence.
+- Cancellation must continue propagating; no account/session or wallet/network scope may be broadened.
+- Add repository/worker regression tests proving provider failure + cached payload keeps the payload, exposes stale/error state, and does not mark cadence success; successful refresh still marks cadence.
+- This is background refresh reliability, not private cloud sync or a change to registration/account behavior.
+
+**Status:** audit-confirmed defect; requirement recorded before implementation. Implementation and exact-head CI pending.
+
+
+### 2026-11-12 — wallet background stale-fallback retry fix verified
+
+- Exact-head Android workflow **#43152987166** passed on `baba1209e780c9bb4c9ce1b54a27ba41bcd500a1`: Android compilation, unit tests, Debug APK assembly and artifact upload succeeded. Backend tests were skipped by the workflow's Android-only change filter.
+- Wallet activity and balance repositories now preserve coordinator stale/error/throttle status in their returned snapshots. Both background workers use a shared cadence-success policy and do not advance their 8-hour success timestamp when a stale fallback, error or throttle is returned.
+- Added regression tests for wallet-activity provider failure with a retained cached snapshot and for the cadence-success decision. These tests passed in the exact-head workflow.
+- **Status:** implementation and exact-head Android CI complete. Physical-device verification, live wallet provider correctness and background scheduling under real Android battery/network constraints remain pending.
+- PR #135 remains **Draft / Open / unmerged**. No production sync, deployment or account-flow change was made.
+
+
+### 2026-11-12 — campaign cache fallback must expose refresh failure in the list
+
+**Audit finding:** `AirdropCampaignRepository.load()` returns `result.data` whenever cached rows exist, even when the coordinator reports `stale=true` and an `errorMessage` after a failed provider refresh. `AirdropCampaignsViewModel.load()` then clears its UI error. The old rows remain visible (correct), but the user cannot tell that the refresh failed (incorrect).
+
+**Required correction:** expose a typed campaign load result containing rows + stale/error status; keep the existing simple `load()` API compatible for background callers, while the screen ViewModel uses the status-aware path and displays a non-blocking warning above the retained campaign list. A successful/fresh cache read must not show an error. Manual throttling behavior remains unchanged. Add repository/ViewModel regression coverage as feasible.
+
+**Status:** audit-confirmed UI observability gap; requirement recorded before implementation. Implementation and exact-head CI pending.
+
+
+**Implementation follow-up — code submitted, CI pending (2026-11-12):**
+- Code commit `456d923c3d6056c39e2866f58a175aad809c8929` adds `AirdropCampaignLoadResult` with rows/stale/error fields and a status-aware repository method. The campaign screen ViewModel now uses that method, so stale fallback rows remain visible and the existing list warning slot can show the provider failure.
+- Added a focused unit test for warning visibility on stale fallback and suppression on fresh/successful data.
+- Exact-head Android workflow **#43153515681** is currently in progress; backend tests are skipped because this is Android-only. Do not mark complete until the exact-head run finishes.
+
+
+**Verification update — 2026-11-12:**
+- Exact-head Android workflow **#43153515681** completed successfully on code commit `456d923c3d6056c39e2866f58a175aad809c8929`: Android build/unit tests and Debug APK artifact steps passed; backend tests were skipped by Android-only path filtering.
+- The list warning uses the existing non-blocking inline error slot while retaining cached rows. Manual refresh throttling continues to surface the repository's explicit “刚刚刷新过，请30秒后再试” error; this is not treated as a successful network refresh.
+- Physical-device confirmation of the visual warning and Toast/snackbar behavior remains pending.
+
+
+### 2026-11-12 — dynamic catalog worker must retry failed stale-cache revalidation
+
+**Audit finding:** `DynamicCatalogWarmupWorker` calls the campaign repository's compatibility `load()` method, which returns last-known-good rows even when revalidation ended with `stale=true` and an error. The worker increments its success count and returns WorkManager success. Community catalog/snapshot warmups also need their failures to remain visible to the dispatcher rather than being silently counted as successful cache refreshes.
+
+**Required correction:** use status-aware campaign loading and treat stale/error fallback as a failed refresh attempt for WorkManager scheduling, while preserving the cached rows. Track each catalog warm-up outcome; if any configured warm-up failed, return `Result.retry()` (successful cache reads remain cheap due to TTL, so already-refreshed sources are not refetched). Cancellation must propagate. Do not change private ledger/project/task persistence or enable private cloud sync.
+
+**Status:** audit-confirmed background retry gap; recorded before implementation. Code and exact-head CI pending.
+
+
+**Implementation follow-up — code submitted, CI pending (2026-11-12):**
+- Code commit `dba5163dbed4c6bb9c663ebfa78908a1bbf01314` adds status-aware refresh methods for the public community catalog and community snapshots while preserving their existing list/map compatibility APIs.
+- `DynamicCatalogWarmupWorker` now evaluates stale/error/throttled outcomes for campaign, community-directory and community-snapshot refreshes. It returns `Result.retry()` if any warm-up failed, without discarding last-known-good cache payloads; already-fresh sources remain cheap on retry due to their TTLs.
+- Exact-head Android workflow **#43155017970** is running; backend tests are expected to be skipped for Android-only paths. Do not mark implementation verified until the run completes.
+
+
+
+### 2026-11-12 — dynamic warm-up must report partial provider failures independently
+
+**Follow-up audit finding after the first retry implementation:**
+- `MarketSearchRepository.warmUpMarketCaches()` catches price and hot-coin failures separately but throws only when **both** fail. A partial failure is therefore silently counted as a successful warm-up, so WorkManager will not retry the failed market source.
+- `DynamicCatalogWarmupWorker` currently runs community-snapshot refresh and market warm-up inside the same `try` block. If snapshot refresh throws, market warm-up is skipped, despite the comment claiming it continues independently.
+- The Airdrop Hub refresh catch currently retains cached data but does not set the worker's aggregate failure flag. A failed hub refresh can therefore end in `Result.success()` and wait for a later dispatcher cycle rather than using WorkManager retry.
+- A configured but invalid community snapshot base URL (for example, a non-HTTPS URL) currently returns cached rows as a normal success. That can conceal a configuration/provider failure from the worker. An intentionally blank base URL remains a supported disabled configuration and should be treated as a no-op, not an error.
+- The dynamic warm-up queue uses WorkManager exponential backoff with a 30-second initial delay and unique-work KEEP semantics. Verify that a retry remains queued and that unrelated worker queues are not blocked.
+
+**Required correction (reliability work within the existing public-data refresh scope):**
+1. Preserve per-source outcomes for market prices and OKX hot coins. Any configured source that fails must be represented as a failed outcome so WorkManager retries; successful sources remain cheap on retry because their own cache TTL is already fresh.
+2. Run community snapshots, market prices/hot coins, community directory, campaigns and Airdrop Hub in isolated error boundaries. One source failure must not skip another source's attempt.
+3. Mark Airdrop Hub failure in the aggregate WorkManager result while retaining the existing last-known-good behavior.
+4. Distinguish intentionally disabled snapshot configuration (blank base URL) from invalid configured URLs and incomplete/invalid manifests. The latter must return an error/stale result, not a successful empty/cached result.
+5. Keep exponential backoff and unique source queues; add regression tests for partial market failure, isolated source execution, and invalid snapshot configuration/manifest status where test seams permit.
+6. Do not change personal ledger/project/task persistence, wallet account scopes, registration/account flows, or enable private cloud sync.
+
+**Status:** audit-confirmed gaps; requirements recorded before implementation. Code and exact-head CI pending.
+
+
+**Implementation follow-up — code submitted, exact-head CI pending (2026-11-12):**
+- Code commit `24f2db7022b1443a4131ff69a56c73534cc1e1f1` separates community-snapshot refresh from market warm-up, so a snapshot exception no longer skips market refresh. Airdrop Hub exceptions now mark the worker attempt failed and enter WorkManager retry while retaining cached announcements.
+- `MarketSearchRepository.warmUpMarketCaches()` now treats either failed source (CoinPaprika market prices or OKX hot coins) as a failed warm-up. A successful source remains cheap on retry through its own TTL. Commit `e1bf8a00dbd9322ba0aa2cd1ea539ee3d866b349` adds four policy tests covering both-success, both-failure and each partial-failure case.
+- A configured invalid/non-HTTPS snapshot base URL now fails instead of returning a successful cached result; a 304 response without cached snapshots and an empty manifest are also rejected. An intentionally blank base URL remains a supported disabled/no-op configuration.
+- Community directory, snapshot, campaign, market and Airdrop Hub attempts now have independent failure boundaries. WorkManager retains exponential backoff (30-second initial delay) and unique-work KEEP behavior.
+- Exact-head Android CI is pending. Device/background scheduling and real provider validation remain separate acceptance items.
+
+
+### Verification update — dynamic catalog retry implementation (2026-11-12)
+
+- Exact-head Android workflow **#43155017970** completed successfully on code commit `dba5163dbed4c6bb9c663ebfa78908a1bbf01314`: Android compilation, unit tests, Debug APK assembly and artifact upload passed. Backend tests were skipped by Android-only path filtering.
+- This verifies the initial status-aware worker retry implementation only. The later partial-provider-failure and independent-error-boundary corrections are in a separate code batch and still await exact-head CI.
+- PR #135 remains **Draft / Open / unmerged**. No physical-device acceptance, live provider validation, production sync or deployment is claimed.
+
+
+### Verification update — partial dynamic warm-up failure handling (2026-11-12)
+
+- Exact-head Android workflow **#43155885856** completed successfully on code commit `e1bf8a00dbd9322ba0aa2cd1ea539ee3d866b349`: Android compilation, unit tests, Debug APK assembly and artifact upload passed. Backend tests were skipped because the changes were Android-only.
+- The passing run includes the four market warm-up outcome tests and compiles the worker/snapshot validation changes.
+- The earlier dynamic worker retry commit `dba5163dbed4c6bb9c663ebfa78908a1bbf01314` also passed exact-head CI #43155017970.
+- **Code/CI status for this reliability slice: complete.** Real Android background scheduling, device-visible refresh states, live provider responses and battery/network behavior remain unverified.
+- PR #135 remains **Draft / Open / unmerged**. No production sync, deployment, registration/account-flow changes or private cloud sync were introduced.
+- Updated rounded project estimate: **code/CI implementation ~73%**; **overall release readiness ~45%**. These are scope-level estimates, not test coverage. Physical-device acceptance, live-data validation, remaining feature work and release/deployment gates are still outstanding.
+
+
+### 2026-11-12 — Airdrop Hub manual-refresh cooldown must remain visible
+
+**Audit finding:** the Airdrop Hub repository correctly throws a user-facing cooldown message when the shared coordinator throttles a manual refresh, but `AirdropHubViewModel` catches the exception and replaces it with the generic “数据源暂时不可用” warning. The cached project list remains visible, but the user cannot tell that the request was intentionally throttled rather than a provider failure.
+
+**Required correction:**
+- Preserve the existing Airdrop Hub cached project list during cooldown.
+- When the repository reports the 30-second manual-refresh cooldown, show the specific retry-after message instead of the generic provider error.
+- Keep genuine provider failures mapped to the existing non-technical retained-cache warning.
+- Add a small ViewModel/policy regression test. Do not change the coordinator cooldown or bypass it with force.
+
+**Status:** audit-confirmed UI messaging defect; requirement recorded before implementation. Code and exact-head CI pending.
+
+
+**Implementation follow-up — code submitted, exact-head CI pending (2026-11-12):**
+- Code commit `4f94d343fbe70165afc48784a5cbaed85d80c174` changes the Airdrop Hub cooldown text to “刚刚刷新过，请30秒后再试” and preserves that exact message through the ViewModel. Genuine provider failures still use the generic warning that cached data was retained.
+- Added three unit tests for cooldown-message preservation, provider-failure fallback and missing-error fallback.
+- Exact-head Android CI is pending; physical-device confirmation of the displayed message remains separate.
+
+
+**CI correction note — 2026-11-12:**
+- Exact-head workflow **#43156338310** failed at Kotlin compilation because the new catch branch referenced `error.message` without binding the caught exception. This was a source-code compile error; the previous passing CI does not cover this later commit.
+- Corrected in code commit `81529302595dc2909283826653f9679c88a58499` by binding the caught exception as `failure` and passing `failure.message` to the cooldown-message policy.
+- The exact-head Android build/unit-test workflow for this correction is pending. Do not mark the Airdrop Hub cooldown UI change verified until it passes.
+
+
+### 2026-11-12 — Home market dashboard must render Room cache before network refresh
+
+**Audit finding:** `HomeViewModel.load()` currently calls `MarketSearchRepository.loadHotCoins()` before publishing any local hot-coin rows to UI state. When the cache is stale/missing, the shared coordinator waits for provider refresh/retries before returning, so the Home market dashboard can show a loading state even when last-known-good Room rows exist. This violates the required cache-first, non-blocking page-entry behavior.
+
+**Required correction:**
+- Add a read-only cached-hot-coins path that reads Room without triggering network work.
+- On Home entry, publish cached BTC/ETH rows and their cache timestamp/status immediately; then perform stale revalidation in the background while retaining the visible rows.
+- If there is no cached data, show the initial loading state until the first fetch completes.
+- A failed refresh must keep the last-known-good rows and show a non-blocking warning; cancellation must propagate.
+- Manual refresh continues to use the existing shared 30-second throttle and must not bypass it with `force`.
+- Add policy/unit coverage for cached rows being visible before refresh and for preserving cached data on refresh failure where the existing test seams allow.
+
+**Scope guard:** do not change wallet/account scoping, personal ledger/project/task persistence, registration/account flows, private cloud sync, provider selection or cache TTL.
+
+**Status:** audit-confirmed cache-first UI gap; requirement recorded before implementation. Code and exact-head CI pending.
+
+
+**Implementation follow-up — code submitted, exact-head CI pending (2026-11-12):**
+- Code commit `1dc66b2c4473708b6ab81d0d89ae98ce9f6d0e75` adds `MarketSearchRepository.readCachedHotCoins()`, a Room-only read path that does not trigger provider requests.
+- `HomeViewModel` now publishes cached BTC/ETH rows and their metadata into UI state before invoking coordinator revalidation. Cached rows remain visible during refresh and on provider failure; an empty cache retains the initial loading state. Cancellation is rethrown rather than rendered as a provider failure.
+- Added four policy tests for cached-vs-empty initial loading, retaining cached rows after failed refresh, and replacing rows after successful refresh.
+- The preceding cooldown-message build exposed an unbound catch variable; corrected in commit `81529302595dc2909283826653f9679c88a58499`. Its exact-head CI #43158102664 was still running at this checkpoint.
+- Cache-first Home dashboard code is queued in exact-head Android workflow **#43158350021**. Neither workflow is marked passed yet; physical-device rendering and live provider behavior remain pending.
+
+
+**Additional cancellation-safety audit note (2026-11-12):**
+- Review of the cache-first implementation found that using Kotlin `runCatching` around the initial Room read could swallow `CancellationException` and incorrectly continue as if the cache were empty. The cache read and metadata read must explicitly rethrow cancellation while allowing ordinary storage-read failures to fall back safely.
+- This is an implementation-safety correction within the cache-first requirement; no product-scope expansion.
+
+
+**Cancellation-safety implementation follow-up — 2026-11-12:**
+- Code commit `464406e64ebfbbcaeee4e4097af94ffc0d2f7e8a` replaces the cache-read `runCatching` with explicit cancellation propagation and safe handling of ordinary Room/metadata read failures.
+- The first cache-first code commit `1dc66b2c4473708b6ab81d0d89ae98ce9f6d0e75` is awaiting exact-head CI; this cancellation correction is a newer code head and must receive its own exact-head verification.
+
+
+## 2026-11-12 cache-first screen audit — wallet history
+
+**Audit finding and approved correction (before code changes):**
+- Wallet transaction history already reads the account/session-scoped Room snapshot before calling the refresh coordinator, and its background worker uses an 8-hour cadence. Preserve that architecture and the existing account/wallet/ecosystem metadata isolation.
+- The screen currently clears its displayed transaction list at the start of every refresh effect, including a user-triggered refresh. This can temporarily hide last-known-good rows and show a full-page loading state while Room is reread, contrary to the cache-first requirement.
+- Do not clear visible transactions or network-coverage information when a manual refresh begins. Keep the existing rows visible while the coordinator refreshes in the background; show loading affordance separately. Replace the rows only when a successful fresh result arrives. If refresh fails or is throttled, retain rows and show the warning/transient cooldown message.
+- Initial entry may show a loading state only when there is no already-loaded snapshot; read the scoped Room snapshot before remote refresh. A wallet/account identity change must not leak the previous scope's rows.
+- Keep the 30-second manual-refresh throttle, `manual=true`, no ordinary `force=true`, the existing local payload namespace, and the 8-hour worker cadence. Do not change registration, login, account migration, private cloud sync, ledger, project/task, or pending-sync behavior.
+- Acceptance: cached rows remain visible throughout a manual refresh; successful refresh replaces them; failed/throttled refresh preserves them; empty cache shows initial loading; account/wallet scope changes never display another scope's rows; cancellation propagates.
+
+**Status:** requirement recorded; implementation and exact-head CI pending. Physical-device acceptance remains separate.
+
+
+## 2026-11-12 manual refresh feedback — Home market dashboard
+
+- The manual-refresh cooldown applies to all user-facing refresh controls using the shared coordinator, not only wallet history and balances. Ordinary manual refresh must never bypass the 30-second cooldown with `force=true`.
+- Audit finding: Home's manual hot-coin refresh throws the coordinator's throttle message, but `HomeViewModel` converts it to a generic stale-cache warning and the Home screen does not surface the specific cooldown feedback.
+- Correction: preserve last-known-good BTC/ETH rows, expose the explicit “刚刚刷新过，请30秒后再试” message and show a brief transient Toast when the Home manual refresh is throttled. Do not show a success state or issue another provider request during cooldown.
+- Keep background refresh independent of manual cooldown; no changes to TTL, provider selection, cache payloads or unrelated features.
+- Acceptance: a second manual tap inside 30 seconds makes no extra request, keeps existing rows visible, and shows the cooldown message; a tap after cooldown can fetch again; network failure retains old rows and shows the normal failure warning.
+- **Status:** requirement recorded; implementation and CI pending.
+
+
+## 2026-11-12 global search hot-coins cache-first correction
+
+**Audit finding and approved correction (before code changes):**
+- The Global Search landing state currently calls `loadHotCoins()` before assigning the hot-coin list. The shared coordinator may await network refresh/retries, so users can see an empty hot-coins section despite Room already containing last-known-good rows.
+- On entry, read and publish Room hot-coin rows and their cache metadata first, then run the ordinary coordinator refresh. Keep cached rows visible while refresh is pending; replace them only after a successful fresh result. On failure, preserve the cached rows and show the coordinator's stale/error metadata.
+- Propagate `CancellationException`; do not wrap this lifecycle refresh in `runCatching` that turns cancellation into an empty list.
+- Keep the existing shared cache key/source, TTL, retry/cooldown rules and public-data scope. No new provider, forced refresh, private-data cache, registration or sync behavior.
+- Acceptance: cached hot coins render before any network wait; refresh success replaces them; failure retains them and displays stale/error status; an empty cache shows an honest empty/loading state; lifecycle cancellation propagates.
+
+**Status:** requirement recorded; implementation and CI pending.
+
+
+## 2026-11-12 global search query cancellation
+
+- Audit finding: the coin and DApp remote-search branches wrap suspending `withContext(Dispatchers.IO)` calls in `runCatching`. Because `runCatching` catches `CancellationException`, a query/category change can cancel the old search yet allow its catch/continuation to update the new screen state with stale results.
+- Replace those wrappers with explicit cancellation propagation and ordinary exception handling. Do not let a cancelled old query write results or error state after a newer query has started.
+- Keep the existing 300 ms debounce, local-first search, shared cache coordinator and provider behavior unchanged.
+- Acceptance: changing query/category cancels the previous remote lookup; only the active query may update results/errors; ordinary provider failures still preserve local results and show the existing fallback message.
+
+**Status:** requirement recorded; implementation and CI pending.
+
+
+## 2026-11-12 — APP 启动、行情看板、浏览器 Dock 与记账 UI 优化清单
+
+用户提交的九项优化与 Bug 修复，作为同一批产品需求登记。实现必须遵循当前 Android Jetpack Compose 项目架构；用户示例中的 Flutter API（PanGesture、showModalBottomSheet、DropdownButton、Flexible 等）是交互意图，不是要求引入 Flutter 或重写技术栈。
+
+### 优先级、范围与验收标准
+
+1. **启动时间与白屏（P0）**
+   - 测量冷启动到首屏可交互耗时，识别 Application/Activity/首屏中的阻塞任务和重依赖。
+   - 将行情网络请求、非首屏必需初始化和 WebView 创建移出首屏同步路径；按实际使用延迟初始化。
+   - 使用 Android SplashScreen API/system splash 与品牌主题，确保启动过渡期间无白屏/闪屏。
+   - 不得为了启动优化删除首屏必需功能、破坏深链/恢复状态或在后台启动无界任务。
+   - 验收：首屏不等待行情或 WebView；冷启动有系统 Splash；记录优化前后实测耗时。未在真机测量前不得宣称达到特定秒数。
+
+2. **行情看板自定义（P1）**
+   - 默认热门币列表补充 TRX、SOL、BNB 等常用币种（先核实当前行情 provider 是否支持和返回有效数据）。
+   - 行情看板标题右侧提供编辑/添加入口，进入币种选择列表，支持勾选、取消勾选和保存。
+   - 用户选择持久化到本地数据库；首页以本地保存的选择和行情缓存优先渲染，随后后台更新行情。
+   - 为旧安装提供安全默认值/迁移；空选择、重复币种、未知交易对和行情缺失必须有明确处理。不得把用户配置仅放内存或随缓存 TTL 丢失。
+   - 验收：默认列表包含已验证币种；编辑保存后重启仍保留；首页不因行情网络等待而空白；缺行情币种不会导致整个看板失败。
+
+3. **内置网页 Dock 拖动与吸边（P0）**
+   - 拖动手势绑定整个外层 Dock 容器，而不是单个图标；拖动时胶囊背景与内部图标整体移动。
+   - 拖动结束按屏幕可用区域计算最近左/右边缘，以动画吸附；处理系统栏/安全区、横竖屏和屏幕尺寸变化。
+   - 保留 Dock 内部横向滑动、添加小工具等既有行为；整体位置不持久化，重启/重新进入按既定默认位置，不记忆上次拖动位置。
+   - 验收：拖动任意空白/图标区域时整体移动；松手吸边；内部横滑与点击仍可用；背景不残留/错位；位置不被持久化。
+
+4. **记账取消后留白（P0）**
+   - 取消“先导航到记账新页面再弹窗”的重复导航流程。
+   - 从当前页面直接打开记账表单弹层（Compose ModalBottomSheet/Dialog 等）；取消只关闭弹层，不留下空白页/空白占位。
+   - 保存成功后按原有记账数据持久化流程关闭弹层并刷新列表；取消不写入数据。
+   - 验收：打开、取消、再次打开、保存、系统返回/点击遮罩流程均无空白页面和重复页面；未保存内容不落账。
+
+5. **记账表单选择器（P1）**
+   - Gas 币种改为可搜索/可选择的下拉或选择列表，预置常用链 Gas 资产（例如 ETH、BNB、TRX、SOL、MATIC/POL 等，具体按应用支持链校验）。
+   - 归属项目改为从用户现有项目库选择，并保留适当的“无归属/自定义”路径；不可因改成选择器而限制用户新增私人项目。
+   - 保留现有金额、链、交易类型、备注等字段与验证；保存的数据仍关联正确项目/币种 ID，不仅存展示名称。
+   - 验收：可选择预置币种和已有项目；选项与链匹配；用户已有项目可选；历史记录显示正确；离线记账与待同步数据语义不变。
+
+6. **“模拟账单”文案修正（P1）**
+   - 全面检索用户可见的“模拟账单”标签，按真实数据状态改为“交易记录”或“链上交互”；未上链/等待用户确认的数据标为“待确认交易”。
+   - 不得仅改标题而把模拟/预估数据伪装成真实链上交易；状态和数据来源必须准确。
+   - 验收：相关页面、卡片、空状态、筛选和详情文案一致，状态语义真实。
+
+7. **首页快捷入口文案溢出（P1）**
+   - “记录 Gas 消耗与实际收益”精简为“记录Gas与收益”。
+   - Compose 中对文本使用合理的宽度约束、maxLines 和 TextOverflow.Ellipsis/必要的 weight，避免挤压图标和卡片布局。
+   - 验收：常见窄屏/大字体设置下不越界、不重叠；文案完整或优雅省略；不改变用户不可调整的卡片尺寸设定。
+
+8. **移除重复的首页空投列表入口（P1）**
+   - 删除首页快捷入口中的“空投列表”，保留底部导航“空投库”作为唯一主入口。
+   - 只移除重复入口，不删除空投库页面、数据、路由目标或其他必要的空投详情跳转。
+   - 验收：首页不再出现重复快捷入口；底部空投库入口和现有导航正常。
+
+9. **“我的”页面底部内容被遮挡（P1）**
+   - 检查页面滚动容器、底部导航和 WindowInsets/SafeArea 处理；为滚动内容添加正确的 bottom content padding/insets，避免设置项被底部导航/系统导航栏遮挡。
+   - 不机械固定添加 80dp；根据实际底部导航高度和系统 inset 计算，避免多余空白。
+   - 验收：最后一项设置可滚动完整显示并点击；手势导航/三键导航和不同屏幕尺寸下均正常。
+
+### 执行规则
+- 本批需求已登记；先审查当前代码与已有功能，避免重复实现或覆盖用户已有配置。
+- 优先处理 P0：启动路径、Dock 拖动、记账取消留白；随后按依赖推进行情自定义、表单选择器和其余 UI 清理。
+- 每个实现批次先更新本文件的实现状态，再改代码；提交后记录 commit、精确 SHA 的 CI 结果和未完成的真机验收。
+- 不引入 Flutter 依赖，不改注册/登录/账号体系，不启用私人云同步，不改变个人账本/项目/离线新增/待同步数据的持久化语义。
+- **状态：需求已登记；代码审计与分批实施待开始。**
+
+
+### 首轮代码审计（2026-11-12）
+
+- **启动：** `MainActivity.onCreate()` 在 Compose 首次组合时通过 `remember { TokenStore.readTokenBlocking() }` 同步读取 DataStore/解密 token；这是首屏主线程阻塞风险。Application 启动时还同步初始化 WalletConnect Core/AppKit 并安排后台任务。WebView 并非主页面启动时创建，而是在用户打开独立 `BrowserActivity` 时创建，因此不应为了本项把 WebView 提前初始化；继续保持按需创建。启动 Splash 主题/API 当前未配置。
+- **Dock：** `BrowserAccountingToolbar` 已把长按拖动手势放在最外层 Box，背景胶囊和 LazyRow 同属该容器，松手已有左右吸边动画；但每次 pointer move 都启动新的协程分别 snap X/Y，存在更新竞争风险。应在 pointerInput 手势协程内顺序更新两个 Animatable，并保留现有不持久化位置行为。
+- **快捷入口：** 当前默认卡片含 `airdrop_library`，副标题确实是“记录 Gas 消耗与实际收益”；首页卡片文本尚需明确宽度/行数约束。当前 MainActivity 底部导航实际是“主页、社区、项目、我的”，**并不存在“空投库”底部导航项**。因此暂不能直接删除首页空投入口，否则会让空投库失去唯一入口；需由产品决策确定新增第五个底部项，或将某个现有项替换/改名。
+- **记账项目：** 归属项目已是项目选择按钮 + 项目选择列表，且支持本地新建，不是纯文本输入；保留现状并验证即可。Gas 币种仍是自由文本输入，应改为选择器。
+- **“模拟账单”：** 代码中存在明确生成 `MOCK-` hash 和模拟 Gas 样本的演示数据。不能把这些数据改名为“链上交易”而误导用户；建议展示“本地演示记录/演示数据”，真正链上待确认记录才使用“待确认交易”。原始数据与识别状态不改。
+- **我的页面：** ProfileScreen 主内容使用普通 Column，未见 verticalScroll，长内容确实可能被裁切；需要滚动容器和正确 bottom content padding。
+- **记账取消留白：** 首页点击记账当前切换到 `AppOverlay.ACCOUNTING` 全屏二级目的地。下一步需定位该目的地的具体表单/弹窗状态，改为首页直接弹层；不能只改标题或简单隐藏导航而留下空白占位。
+
+**首轮状态：** 已确认的实现缺口和已有实现已分开记录；开始实施 Splash/首屏阻塞、Dock 更新竞争、Profile 滚动与快捷入口文案。空投入口迁移待用户确认底部导航目标。记账弹层待进一步定位实现文件。
+
+
+### 记账入口交互修正的实现方案（2026-11-12）
+
+- 当前 `AccountingCenterScreen` 通过 `initialCreateMockBill=true` 自动写入一条 MOCK 草稿，再弹出确认 Dialog；取消后底层没有内容，正是“取消后留白”的原因。
+- 改为 Home 直接打开 Material3 `ModalBottomSheet`，不再切换到全屏 `AppOverlay.ACCOUNTING`；底层使用已有待确认记录，若有记录直接打开首条确认表单，无记录则显示待确认记录空状态/列表，不再自动创建模拟账单。
+- 表单取消/系统返回/保存成功后关闭整个 Home 记账弹层，不遗留空白页面。浏览器 Dock 原有调用不受影响。
+- 该修正不自动新增链上交易，不伪造 tx hash，不改变用户手动确认实际 Gas/收益的既有规则。
+- **状态：方案已记录，代码待实施。**
+
+
+### 首轮实现记录（2026-11-12，CI 待验证）
+
+**已提交到当前分支：**
+- System Splash：新增 AndroidX Core SplashScreen 依赖、启动主题和 Manifest 启动主题；启动 token 的 DataStore 读取从 Compose 首次组合移至 `Dispatchers.IO`，Splash 等待读取完成，避免主线程 `runBlocking`。
+- 启动审计确认 WebView 只在用户打开 `BrowserActivity` 时创建，未在 Home 首屏预初始化；保留按需加载。Application 中 WalletConnect SDK 初始化仍是潜在耗时点，需后续拆分评估并用真机启动测量，当前不宣称已消除全部 4–5 秒启动耗时。
+- Dock：最外层容器本来已持有拖动手势和吸边动画；已把 X/Y 的 `Animatable.snapTo` 改为在同一个 pointerInput 手势协程中顺序执行，消除每个 pointer move 启动独立协程造成的更新竞争。保留长按、内部 LazyRow 横滑和不持久化位置。
+- 首页快捷入口文案已改为“记录Gas与收益”，副标题添加单行省略。
+- Profile 主 Column 已改为可滚动并增加底部内容空间，避免“设置”被裁切；真机不同导航模式仍待验收。
+- Gas 币种输入已改为按当前链优先提供原生 Gas 资产选择，并保留自定义币种；归属项目选择原本就已有本地项目列表/新建入口，本轮保留。
+- Home 记账入口已从全屏二级导航改为 Material3 ModalBottomSheet；不再在打开时自动创建 MOCK 草稿。若有待确认记录则直接打开首条表单；没有记录则显示空列表；取消/关闭/保存成功会关闭整个弹层，不留空白页。
+- “模拟账单”在工具入口/历史条目中改为“本地演示记录”，真正非 MOCK 记录使用“待确认交易”；保留 MOCK 数据身份，不把演示记录伪装成真实链上交易。
+- OKX/Home 支持列表增加 TRX，首页现显示当前 OKX 支持的 BTC、ETH、SOL、BNB、TRX、XRP；这只是默认热门币展示扩展，**自定义编辑入口和 Room 持久化选择尚未实现**。
+- 需求 8 暂缓：当前实际底部导航只有“主页、社区、项目、我的”，没有“空投库”Tab。未删除首页“空投列表”入口，以免造成空投库无入口。等待用户决定新增第五个 Tab，或替换/改造现有 Tab。
+
+**当前代码头：** `7aab7706c6ea2603c9ed2109cec6d143c5e73fbb`。
+
+**CI：** Android workflow **#43163290443** 正在执行；Android 编译/单元测试尚未完成，backend tests 因 Android-only 变更按路径规则跳过。未标记通过。PR #135 继续保持 Draft/Open/Unmerged。
+
+**仍待实施：** 行情看板编辑入口 + Room 持久化选择；空投入口底部导航决策；剩余文案全局检索；启动时 WalletConnect 初始化延迟化评估；真机冷启动/拖动/弹层/滚动验收。记账交互、启动优化和新增币种的 CI 通过前不得标记为完成。
+
+
+## 2026-11-12 — 首页快捷入口移除“空投列表”，记账按正式功能呈现
+
+**用户根据首页截图明确更正（优先级 P0，覆盖此前“等待底部导航决策”的暂缓状态）：**
+
+- 删除首页“快捷入口”区域右下方的“空投列表”卡片；空投内容统一从底部导航“空投库”进入。只删除重复快捷入口，不删除空投库页面、数据、路由或详情跳转。
+- 首页快捷入口中的“记账”是正式记账入口，显示名称统一为“记账”，不得命名为“模拟账单”“本地演示记录”等，也不得让用户误以为此入口只提供模拟账单。
+- 点击“记账”进入正式记账流程，允许用户录入实际 Gas 消耗、实际收益、链、Gas 资产、项目、交易信息及备注，并按现有本地持久化规则保存为真实用户账目；不得自动创建演示账单，不得伪造链上交易哈希或声称已上链。
+- 真实账目、链上待确认交易、用户主动创建的普通记账记录、明确标识的本地演示样本必须按数据来源/状态区分。演示样本仅用于测试或演示，不得成为正式记账流程的默认内容，也不得混入真实交易记录统计。
+- 验收：截图所示快捷入口只保留“记账、钱包管理、TRON 能量租赁”等其他有效入口，不再出现“空投列表”；底部“空投库”正常进入原有空投库；点击“记账”直接打开正式记账表单，取消不写入、保存后生成真实本地账目并可在交易记录中查看；无自动 MOCK 草稿。
+
+**执行状态：** 本条已先写入需求文档；代码审计与实现待进行。此前“空投列表入口需等用户选择新增/替换 Tab”的结论作废，因为用户已明确指出底部导航已有“空投库”。
+
+
+### 2026-11-12 更正后的首轮实现记录（CI 待重新验证）
+
+- 首页快捷入口：已从默认卡片、可添加卡片白名单和旧版布局迁移中移除 `airdrop_library`，旧安装升级时也会清理已保存的重复卡片；底部导航“空投库”及其页面不受影响。
+- 正式记账：移除浏览器 Dock 的“本地演示记录/mock_bill”工具入口，改为“新增记账”；Home 的“记账”入口继续打开交易记录/记账弹层。记录列表增加“新增记账”，创建明确标识为“手动记账（非链上交易）”的本地待填写记录，用户录入 Gas、实际收益、项目及资产明细后确认入个人账本。手动记录不伪装成链上交易，不参与链上核验/社区贡献；真实待确认链上交易仍单独标识。
+- 旧 Dock 工具偏好中的 `mock_bill` 自动映射到 `new_accounting`，避免升级后用户原有工具配置丢失或出现空 Dock。
+- 同步修复此前 Android workflow #43163290443 在 `BrowserAccountingToolbar.kt:309-310` 的 restricted suspension 编译错误：拖动回调将偏移更新排入受控 Job，释放时等待最后一次更新后再执行吸边动画。
+- **代码提交：** Home 快捷入口删除 `99b51695ae70df1ee6847f88d43bffe002c2148c`；记账新增手动记录与 Dock 更新 `9c796f0cf4b806a46726399ddb1bff6b826e4930`、`b4932ed8c95f1571b58157603a3459e356bc3262`、`6b2ab8c06e4dcf05205293342970890b44e029d3`、`465eec341deaa96d1486239816338e6ac01b8bf7`。
+- **CI：** #43163290443 在旧代码头失败，失败点为 Dock drag 回调的 restricted suspension；上述修复后的最新代码头尚未取得新的 CI 结果，不标记通过。真机记账/升级迁移验收仍待执行。
+
+- 后续防误导修正：旧版本遗留的 `MOCK-` 演示草稿继续保留在本地存储以免擅自删除用户数据，但从正式“交易记录/记账”待处理列表和 Home 自动打开流程中排除；新建记账不再生成 MOCK 数据。
+- 最新记账实现补丁：`0e97412112a645d55df9fc586da144319cacfe52`。最新 PR 头待触发/取得 Android CI 结果；未通过 CI 前不视为构建验收完成。
+
+
+## 2026-11-12 — 浏览器悬浮工具栏“模拟账单”改为正式记账
+
+**用户根据浏览器页面截图补充确认：**
+- 浏览器悬浮工具栏中的“模拟账单”入口必须改为“记账”/“新增记账”，不能创建或展示模拟账单。
+- 点击后直接进入正式记账表单，允许录入实际 Gas 消耗、实际收益、项目、链与资产信息；确认后保存到正式个人账本。手动录入必须标记为“手动记账（非链上交易）”，不得伪造交易哈希或声称链上已确认。
+- 工具栏中的“待确认账单”改为“交易记录”或“待确认记录”，并与正式记账列表保持一致；旧 MOCK 演示样本不进入正式列表及统计。
+- 现有截图表明用户设备仍显示“模拟账单”，需要排查当前安装 APK 对应代码/构建版本与分支代码是否一致，并确保 Dock 默认工具、工具管理器名称、图标及旧偏好迁移全部统一为正式“记账”。
+- 验收：工具栏可见文字不再出现“模拟账单”；点击记账直接创建/打开真实手动记账表单，不生成 MOCK 数据；取消不保存，确认后可在正式交易记录/个人账本中查看。
+
+**执行状态：** 需求已先写入文档；需对工具栏实际渲染入口与 APK 构建版本进行代码核对，CI 待验证。
+
+
+### 本次浏览器 Dock 记账入口修正记录（2026-11-12）
+
+- 已核对当前分支 `BrowserAccountingToolbar.kt`：工具 ID 已为 `new_accounting`，点击动作调用正式手动记账创建流程；旧 `mock_bill` 用户偏好会迁移为 `new_accounting`，工具管理器不再配置模拟账单动作。
+- 根据用户新截图，将 Dock 工具可见名称由“新增记账”进一步统一为“记账”，并移除已废弃的 `initialCreateMockBill` 参数及其调用，避免代码层保留模拟账单入口语义。
+- 修正提交：`c4917e7d3ef719f5679bf786488b028d188f5375`。
+- 截图仍显示“模拟账单”说明设备上运行的 APK 尚未包含上述最新代码（或安装的不是当前分支构建）；最新 PR 头为该提交，GitHub 当前未返回对应 workflow run / commit status，因此**CI 尚未验证**。需要构建并安装最新 Debug APK 后才能完成界面验收。
+
+
+### 2026-11-12 — 本轮优化继续推进（暂不构建 APK）
+
+- 用户明确要求：整份首页/工具栏优化清单全部完成后再统一构建 APP；本轮开发期间不主动构建 APK，不用中间构建冒充交付。
+- 行情看板：新增 Room 持久化币种选择设置（数据库 21→22 迁移），首页提供“编辑”入口，支持 BTC/ETH/SOL/BNB/TRX/XRP 多选，至少保留一个，默认 BTC/ETH/SOL/BNB/TRX；首页只渲染用户选中的币种。HomeViewModel 新鲜数据映射过滤也统一支持这六种币，修复缓存显示六币但刷新后退回 BTC/ETH 的不一致。
+- 正式记账取消语义：用户取消表单或关闭确认弹窗时，会删除本次临时 MANUAL 草稿，避免取消后仍留空白记录；旧 MOCK 演示数据继续保留存储但排除在正式列表外。
+- 已审计：ProfileScreen 已有纵向滚动和底部 32dp 留白；首页“空投列表”已从快捷卡片白名单、默认布局及旧配置升级迁移清除；首页副标题已限制单行省略；SplashScreen 与 Token IO 异步已落地。WalletConnect/AppKit 仍在 Application.onCreate 同步初始化，尚未测量冷启动影响，暂不贸然改变 SDK 生命周期，列为待验证/待优化项。
+- 浏览器 Dock 的完整拖动行为仍需真机验证；当前代码已保留整个外层容器拖动、LazyRow 内部滑动与边缘吸附实现。所有以上改动当前均未做 APK 构建或真机验收。
+
+
+### 2026-11-12 — 首屏启动延迟初始化钱包 SDK
+
+- 将 WalletConnect Core/AppKit 初始化从 `Application.onCreate()` 移出，改为首次进入钱包管理或内置浏览器时通过幂等初始化器启动；Home 首屏不再同步承担 SDK 初始化成本。
+- 保留 SDK 初始化参数、回调、Delegate 和支持链集合；使用同步幂等保护避免两个入口并发重复初始化。浏览器打开时初始化，保证 DApp WalletConnect 功能可用；钱包管理页面进入时同样初始化，保证外部钱包连接功能可用。
+- 该项是启动路径减负，不等于已测得启动从 4–5 秒降至某个具体值；必须在最终 APK 上用冷启动测量验证。
+
+- 后续首屏减负：将 WorkManager 周期任务注册与启动时 warm-up 入队从 `Application.onCreate()` 移到 `MainActivity.onStart()` 的 IO 协程，避免 Application 初始化阶段同步调度后台任务；首页仍先读本地 Room 缓存，再由后台任务更新。WebView 继续只在进入 BrowserActivity 时创建。
+
+### 本轮整批实现状态（2026-11-12；按用户要求暂缓 APK 构建）
+
+**本轮代码已覆盖的功能项：**
+- 启动：Splash + Token IO 异步；WalletConnect Core/AppKit 延迟到首次进入浏览器或钱包管理时初始化；周期任务和启动 warm-up 调度移至 MainActivity 的 IO 协程，并限制为每进程一次。真实冷启动耗时仍待最终 APK 真机测量。
+- 行情看板：Room 21→22 新增独立偏好表，支持 BTC/ETH/SOL/BNB/TRX/XRP 编辑多选、至少一项校验、默认 BTC/ETH/SOL/BNB/TRX；HomeViewModel 缓存与新鲜数据映射均支持六币，首页按用户选择显示。
+- Dock：外层胶囊整体拖动、内部 LazyRow 横滑、拖动后边缘吸附；X/Y 偏移更新使用受控 Job 串行执行。真机手势冲突与吸附边界待验收。
+- 记账：Home 与浏览器 Dock 均统一为正式“记账”；不再生成 MOCK；旧 MOCK 数据留存但从正式列表排除。手动 MANUAL 草稿取消、弹窗关闭及页面释放时清理，确认后通过现有 Room 事务写入个人账本。
+- Gas 币种选择器与已有项目选择/本地新建入口保留；交易记录文案统一；首页副标题单行省略；首页快捷卡片不再包含空投列表，升级时清理旧保存配置；Profile 页面纵向滚动并保留底部空间。
+
+**本轮相关提交：**
+- 6d9453ec47c8296660ceb68dc6d53b5eb56943fa：行情看板 Room 设置与记账取消清理初版。
+- 44ca504413226b471b82a448d794df7f4fb5ce37：注册 Room 偏好实体与数据库迁移。
+- 275cac6e0313fa439b42b536215f1f71ce48f9b0：所有手动草稿关闭路径清理。
+- 349b3c955436f28c6b21b0817cab6e83168b7648：延迟 WalletConnect 初始化。
+- 1dc9a386982c346c59cb8ec98798ef429fc5bff3、71bd60fd87171b6750e13ddd4bd1f4408fd66799：后台任务移出 Application 启动并限制每进程只调度一次。
+- 75eebd0d738988edd3a3e3536e6f6663e22c8ced、d11c4daff4cb61371895616413c4a933096acad3、44aac7876210bbc0bf16db3d3c88dccbec5409e0：行情空态/布局、快捷文案省略和代码整理。
+
+**验证边界：**
+- 按用户明确要求，本轮没有手动启动 APK 构建、没有发布或安装 APK。
+- 由于尚未统一构建，以上代码改动尚未取得最终 exact-head CI 结果；不能标记为“构建通过”。
+- 真机冷启动计时、Dock 长按/横滑/吸边、记账新增/取消/确认、Room 21→22 升级迁移、Profile 底部设置可达性均待统一 APK 安装后验收。
+- 当前本轮需求的代码实现已基本齐备；最终完成度必须等统一构建、单元测试和设备验收后再定，不以提交数量或代码存在代替验收。
+- 最新代码头：44aac7876210bbc0bf16db3d3c88dccbec5409e0。PR #135 仍为 Draft/Open/Unmerged。
+
+- 延迟初始化安全性补充：WalletConnect 初始化器公开 ready 状态；钱包管理和 DApp 连接入口在 AppKit 完成初始化前禁用并显示初始化提示，避免把启动优化变成过早调用未就绪 SDK。
+
+- 延迟钱包 SDK 的交互保护补丁：`0fae6da0777b06a0374efa9a847fe9d4cc31a792` 暴露 AppKit ready 状态并禁用未就绪的连接按钮；`118a63681cffb0556763728e7cf3eff6e1d9a90f` 修正 DApp 授权弹窗在 SDK 尚未就绪时误关闭/卡住的问题，等待 ready 后才允许用户确认连接。
+- 最新代码头（文档提交前）：`118a63681cffb0556763728e7cf3eff6e1d9a90f`。仍按用户要求暂不启动最终 APK 构建。
+
+
+### 2026-11-12 — 整批改动静态复核补充
+
+- **空投库入口核对更正：** 底部导航第二项确实使用 tab_community 文案资源，其当前显示文字为“空投库”；对应页面为 CommunitySquareScreen，展示社区官方项目目录、项目筛选与统计。因此此前仅看 MainActivity 的 destination 枚举就判断“没有空投库底部入口”是不完整的，现有底部入口存在且页面可达。首页删除的是重复的 airdrop_library 快捷卡片；另有“空投导航”（常用活动网站）卡片，二者不是同一个入口，不擅自删除。
+- **行情编辑与持久化复核：** 首页编辑弹窗只允许 BTC/ETH/SOL/BNB/TRX/XRP，至少选择一项；Room market_dashboard_preferences 表、DAO、数据库版本 22 与 21→22 migration 已对应，读取默认值为 BTC/ETH/SOL/BNB/TRX，保存顺序按固定币种顺序归一化。
+- **数据库升级边界：** 当前实体清单、数据库 version=22、MIGRATION_21_22 建表语句与 migration 注册列表已核对一致；仍需最终安装测试从旧数据库升级，静态检查不能替代真实迁移验收。
+- **Dock 拖动复核：** 外层 Box 包含胶囊背景和 LazyRow；拖动更新通过单个可取消 Job 串行执行 X/Y snap，并在释放时等待最后一个 Job 后吸边。该实现是为避开 pointerInput restricted suspension 的编译限制；当前不能仅凭静态代码断言真机手势没有竞争/卡顿，必须在最终 APK 实测整体拖动、内部横滑、边缘吸附和拖动后点击。
+- **记账流程复核：** Dock 的 new_accounting 动作调用 createManualAccountingEntry()，创建 MANUAL- 临时记录并标记“手动记账（非链上交易）”；取消/组件释放清理临时草稿。旧 MOCK- 数据被过滤出正式待确认列表。最终仍需验收确认后是否正确写入 user_interactions / pnl_records，并确认手动记录不进入链上核验与公共贡献。
+- **启动复核：** MainActivity 在 IO 调度启动后台任务、IO 读取 Token；Application.onCreate 只初始化 ApiClient，WalletConnect Core/AppKit 通过 WalletConnectInitializer.ensureInitialized() 延迟启动。冷启动耗时与 SDK 首次连接时序仍须设备验收。
+- **验证纪律：** 用户要求全部优化完成后统一构建；本次静态复核没有触发 APK 构建，也没有安装、发布或合并 PR。最终构建与设备验收继续保持待办，不以代码存在替代通过。
+
+
+- **启动调度幂等补丁：** 静态复核发现原 startupSyncScheduled 是 Activity 实例字段，Activity 重建后会再次入队。现改为进程级 volatile 标记并在锁内原子判断，确保同一进程只调度一次。代码提交：30e6e40cea9cf59b0f4e468a973904c80a8e7bf9。该补丁尚未构建/测试。
+
+- **正式记账落库路径复核完成：** CacheStore.confirmPendingBill() 在同一 Room transaction 内写入本地 personal_ledger payload、pnl_records、user_projects、user_interactions，并删除本次 pending_bills 草稿；只有明确选择公共贡献且满足官方项目/链上哈希核验条件时才创建社区 outbox。手动记账标记为非链上交易，不会伪造已上链状态。该结论为静态代码核对，仍待最终运行时测试。
+
+
+### 2026-11-12 — 第二轮实现审查（以当前分支源码为准）
+
+- **浏览器工具栏入口：** 当前 `toolOptions` 唯一记账动作是 `new_accounting`，显示名“记账”；旧 SharedPreferences 的 `mock_bill` 在读取时迁移为 `new_accounting`。工具管理器列表也显示“记账”，不再暴露模拟记账动作。
+- **手动记账表单：** 空列表状态仍提供“新增记账”；新增动作生成 `MANUAL-` 草稿并打开表单。表单要求选择项目、填写 Gas USD 与实际收益 USD（允许明确填 0，不允许空值），可录入原生 Gas/收益资产明细；Gas 币种按链提供选择列表并允许自定义。确认按钮将数据提交给 Room `confirmPendingBill` 事务；取消/关闭/离开组件会清除 MANUAL 草稿。注意：当前 Gas 选择列表按链约束，收益币种仍为文本输入，这是现有实现范围，不应宣称两者都有下拉列表。
+- **旧 MOCK 数据：** `MOCK-` 样本保留在数据库以避免擅自删除历史本地数据，但 `realPending` 会从记账列表和首页自动打开流程中过滤掉。正式记账新建流程不再生成 MOCK。
+- **Dock 手势风险仍未完全关闭：** 当前拖动回调仍会对每个 pointer move 取消并重启一个协程，依次 snap 两个独立 Animatable。取消可能发生在 X/Y 两次更新之间，静态审查不能排除短暂偏移不一致；需要进一步改为单一二维偏移状态/单一动画对象，或用可安全收敛的更新机制后再标记代码修复完成。真机还需测试长按拖动、短按点击、LazyRow 横滑、吸边与边界。
+- **钱包 SDK 初始化状态更正：** 当前 `AirdropHunterApplication.onCreate()` 只初始化 `ApiClient`；`WalletConnectInitializer` 提供 `ensureInitialized()` 与 `ready` StateFlow，在首次钱包管理或浏览器 DApp 流程中延迟初始化。此前文档中“仍在 Application.onCreate 同步初始化”的描述已被后续提交覆盖，以上述当前源码为准。
+- **行情设置与迁移：** Room 数据库 version=22，实体列表包含 `MarketDashboardPreferenceEntity`，注册 21→22 migration 建表；首页编辑支持六币选择、至少保留一个、恢复默认并通过 `CacheStore.saveMarketDashboardSymbols` 保存。旧数据库真实升级仍须最终安装测试。
+- **本轮不触发 APK 构建：** 按用户明确指示，当前仅做源码审查和需求记录；未运行最终构建、未安装真机 APK、未发布、未合并 PR。下次代码修正优先处理 Dock 的双 Animatable 更新竞争，并检查 MainActivity 的启动任务幂等性与手动记账完整生命周期。
+
+
+### 2026-11-12 — 浏览器 Dock 二维拖动更新收敛方案（先登记需求）
+
+- 复核当前实现后确认：每次手指移动都会取消/重启更新 Job，并分别调用 X/Y 两个 Animatable 的 snapTo；Job 若在两次更新之间被取消，可能出现单轴更新暂时落后。
+- 修正方案：将 Dock 的 X/Y 位置统一为一个二维 Offset 状态/动画对象；在同一长按手势协程内原子更新完整坐标，不再为每个 pointer move 创建或取消更新 Job。松手后以单一二维动画执行边缘吸附。
+- 必须保留：长按才拖动、短按仍触发工具、LazyRow 内部横向滑动、垂直拖动不强制改变横向位置、水平移动后左右边缘吸附、垂直安全边界约束、位置不写入持久化存储。
+- 验收边界：源码确认不存在双 Animatable/每帧可取消更新 Job；最终统一 APK 真机测试长按、短按、内部横滑、快速斜向拖动、左右吸附、垂直边界和退出重进复位。此修正未授权提前构建 APK。
+- **状态：修正方案已登记，待实施；CI/真机验收待整批构建后执行。**
+
+
+### 2026-11-12 — Dock 二维拖动更新修正已写入源码（未构建）
+
+- `BrowserAccountingToolbar.kt` 已将两个独立 Float Animatable 改为单一 `Animatable<Offset, AnimationVector2D>`；拖动期间以一个 `Offset` 状态同步更新 X/Y，pointer move 不再创建/取消更新 Job，也不再存在两轴分别 snap 的中间取消窗口。
+- 松手时先将单一动画对象定位到拖动结束的完整 Offset，再执行一次二维 tween 吸边；垂直位置继续限制在安全范围内。长按才进入拖动，内部 LazyRow 仍保留自身横向滚动，Dock 位置仍不写入持久化设置。
+- 拖动激活状态改为同步切换，避免等待启动协程期间首个移动事件丢失。
+- **代码提交：** `b74f00cc798bef636de5d6852d5f329ebdae6b6d`（二维 Offset 实现），`73fdbdb176134be13067ab077aaf8e0b30b6dcce`（拖动激活同步化）。
+- **静态检查：** 已确认源码不再包含 `dragUpdateJob`、`dragOffsetX`、`dragOffsetY`；只保留单一二维动画对象和同步 Offset 拖动位置更新。
+- **验证边界：** 尚未运行编译/单元测试，尚未触发 APK 构建；`Offset.VectorConverter` API 与完整 Compose 编译需在用户授权的整批最终构建中验证。真机长按、短按、内部横滑、快速斜向拖动、边缘吸附、边界及退出重进复位仍待验收。PR #135 保持 Draft/Open/Unmerged。
+
+- **后续竞态收敛：** 拖动激活时不再额外异步调用 `stop()`，避免其与松手后的 `snapTo/animateTo` 发生调度竞态；拖动期间由同步 Offset 状态显示位置，松手时单一 Animatable 的 `snapTo(current)` 会接管并取消先前动画，再执行二维吸边。最终相关代码头：`3b9b5e12b751de5c8d4367c436a30801b914aad4`。尚未构建，编译及真机验证状态不变。
+
+
+### 2026-11-12 — 三个大模块交叉审查记录（本轮未构建）
+
+**审查范围：启动与首页、浏览器 Dock 与正式记账、个人中心与本地数据边界。**
+
+- **启动与首页：** MainActivity 在 Splash 后通过 IO 读取遗留 Token 命名空间；Home 首屏不等待 WebView，WebView 仍由 BrowserActivity 按需创建；后台任务在 IO 调度并以进程级锁限制重复启动。行情币种设置从 Room 读取，允许 BTC/ETH/SOL/BNB/TRX/XRP，至少保留一项；Home 使用所选币种过滤缓存/刷新数据。首页卡片副标题两种布局均限制单行省略；重复“空投列表”已从旧布局迁移中清理，底部导航资源明确显示“空投库”。
+- **浏览器 Dock：** 工具选项当前唯一记账入口为 `new_accounting`，可见名“记账”；旧 `mock_bill` 偏好迁移到新 ID。外层 Dock 在 Initial pointer pass 监听长按，拖动中同步更新单一 Offset，释放后二维动画吸附；短按不会进入拖动，LazyRow 保留内部横滑。源码静态检查未发现旧的双轴 Animatable / per-move Job 机制。Compose 编译与真机手势仍未验收。
+- **正式记账：** 新增记录以 `MANUAL-` 标记并明确显示“手动记账（非链上交易）”；项目选择使用项目选择器，Gas 币种按链提供预设列表并允许自定义；Gas USD 和实际收益 USD 必须填写，实际为零需明确输入 0。确认走 Room 本地事务；取消、关闭和组件释放会清除本次 MANUAL 草稿。旧 `MOCK-` 样本仍保留在本地数据库但不进入正式待确认列表。当前收益币种字段仍为文本输入，不把它误报为下拉选择器。
+- **个人中心与数据边界：** Profile 主页面及设置/安全/通知子页面均具备纵向滚动；底部导航为 Scaffold 管理，Profile 内容另留 32dp 底部空间。当前发布策略常量 `PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED=false`；私人账本 Worker 在执行前立即返回，Scheduler 的 enqueue/ensurePeriodic 是 no-op，ApiClient 拦截器移除 Authorization，个人账本不会经此路径上传。旧代码仍保留兼容调用点/未来同步实现，但在当前策略下不执行。个人账本与项目交互仍保存在 Room / 本地 payload；统一 TTL 协调器用于行情、搜索及钱包缓存，不把私人账本当作短期缓存清理。
+- **数据库：** Room 数据库版本 22，21→22 migration 新增 `market_dashboard_preferences` 表且已注册。静态实体/SQL/注册关系一致；尚未在真实 v21 安装数据库上做升级运行测试。
+- **未完成验证：** 未触发 APK/CI 构建、未安装设备；冷启动耗时、数据库升级、记账全生命周期、Dock 手势、Profile 底部可达性仍待整批构建后的运行验收。PR #135 继续保持 Draft/Open/Unmerged。
+
+**本轮审查结论：** 三个模块的源码实现与当前需求大体一致；发现的私人账本同步调用点属于保留的兼容代码，当前由 false 策略、no-op Scheduler 与请求拦截共同阻断，不构成实际上传路径。本轮没有发现需要立即改动代码的新缺陷，因此不为“有提交”而制造改动。
+
+
+### 2026-11-12 — 第二批大模块交叉审查（钱包刷新、空投目录与社区快照）
+
+- **钱包交易历史：** 缓存键按账户范围、钱包 ID、生态隔离，TTL 为 8 小时；用户在钱包详情页点击刷新时传入 `manual=true`，界面在被 30 秒节流时给出提示。启动后台 Worker 使用默认非强制刷新和独立 8 小时 cadence。当前源码调用点没有发现 UI 通过 `force=true` 绕过手动刷新节流；调度接口保留 force 参数，但当前 MainActivity 调用不传 force 标记。
+- **钱包余额/资产：** 缓存键按账户范围、钱包 ID、链隔离，Room 以 `UnifiedAssetEntity` 保存；TTL 为 8 小时。用户手动刷新传入 `manual=true`，后台 Worker 按钱包/链分别检查 8 小时 cadence；两者共享同一 CacheRefreshCoordinator，刷新失败保留旧缓存，不把余额记录混进私人账本 TTL。
+- **空投活动目录：** AirdropCampaignRepository 使用共享缓存协调器，筛选参数进入独立 cache key，手动刷新走 `manual=true`；列表缓存与活动 DTO 分离于个人账本。
+- **社区官方项目目录：** 使用公共缓存命名空间与 6 小时 TTL，按 `project_official_id` 合并；后端 GET 明确返回 inactive 项目并提供 `is_active=false`，因此下架 tombstone 不会因列表接口只返回 active 项目而丢失。客户端以该字段判断“社区已下架”，本地项目/账本仍可保留。
+- **社区公共快照：** 使用公共缓存键保存各统计窗口快照和 manifest 校验信息；快照独立验证后才落盘，失败时保留之前可用数据。与私人账本/项目任务的持久化记录分层。
+- **统一缓存引擎：** 默认 TTL 15 分钟、失败冷却 30 秒、最多 3 次有界重试、同 key 串行去重；钱包资产/历史与活动目录可覆盖各自 TTL。未发现本批审查范围内把个人账本或私人项目接入该 TTL 清理路径。
+- **本批结论：** 钱包历史/余额的手动节流、后台 cadence 和账户/钱包/链隔离与现有需求一致；社区下架状态有后端 tombstone 支持；本轮没有发现需要立即修改的代码缺陷。仍需通过最终整批 CI 和真机验证刷新提示、节流间隔、缓存恢复与下架显示，静态审查不等于运行验收。
+
+
+### 2026-11-12 — 公共贡献、离线备份与 DApp 安全交叉审查
+
+- **需求冲突已澄清：** Section 2 明确允许未提供 Tx Hash 的官方社区项目记录以 `user_reported` 参与脱敏统计；Section 5.2 的旧表述却把所有缺少哈希的记录都排除。现统一为：官方社区项目按记录默认贡献；没有哈希时按用户自报等级提交 Gas/参与数据，不发送钱包地址、不生成交易指纹、不宣称链上核验。奖励没有 USD 估值时仍可贡献 Gas，但公共奖励按 0/未确认处理，且不发送无 USD 估值的奖励资产明细；本地账本保留完整奖励类型与数量。一旦用户提供哈希，就必须满足本网络核验要求，格式错误、错误付款方、未确认、重放或不支持的网络均拒绝公共贡献，私人账本照常保留。
+- **当前实现缺口（待修复）：** Android eligibility helper、Room outbox、同步 Worker 与后端请求模型现已扩展为：无哈希官方项目记录走 user_reported；只有提供哈希时才要求钱包地址并触发 EVM 核验；无 USD 估值的奖励明细不会发送，但 Gas 仍可进入公共统计。仍需通过 Android/Backend 测试和真机运行验收。
+- **匿名隐私：** 已检查后端链上核验入口：地址和哈希只作为临时核验输入；数据库记录 `user_id=None`、服务端 HMAC 的贡献者/交易指纹和最小核验 metadata，不存原始地址/哈希；公开 stats/snapshot 以聚合金额及三档 Gas provenance 输出。
+- **离线备份：** 当前备份使用 PBKDF2-HMAC-SHA256（210,000 次）派生 AES-256-GCM 密钥，带随机 salt/nonce 和认证头；导入先解密/校验，再二次验证账户 scope 并在单一 Room transaction 内替换目标 scope，UI 有明确“替换当前设备此会话数据”的确认。导入失败的数据库写入由事务回滚；取消流程不写入。
+- **DApp 安全：** WebView 只允许 HTTPS 主页面通过桥接回调；拒绝 iframe/非 HTTPS 消息、跨主机跳转需二次确认、SSL 错误直接取消、混合内容/文件访问/地理位置/网页权限/弹窗均关闭。签名和交易方法有明确 allowlist，要求当前站点授权、活跃 WalletConnect session、会话账户地址匹配和链一致；原始交易/批量智能账户方法被拒绝，DApp 请求有超时并在导航/会话变化时取消。站点授权仅保存在进程内并绑定会话 stamp。
+- **验证边界：** 本轮仍为源码静态审查，尚未运行 Android/Backend 测试或设备 DApp 连接、拒绝、断连、切链和页面跳转验收。备份导入的破坏性替换已在 UI 明确二次确认，且 Room 事务具备原子性。
+
+
+### 2026-11-12 — 用户自报贡献与奖励未估值场景补充实现
+
+- 官方社区项目的默认贡献不再依赖奖励币种类型或是否填写 Tx Hash；有本地可用的 Gas USD 金额即可进入匿名贡献 outbox。
+- 未提供 Tx Hash：后端直接记为 `user_reported`，只发送网络标识、Gas USD、可公开的奖励估值与匿名安装指纹；不发送钱包地址、不创建交易指纹、不调用链上核验。
+- 提供 Tx Hash：客户端仍要求支持的 EVM 网络及匹配钱包地址；后端核验交易、付款方、确认数、费用与历史价格。无效或重放交易只拒绝公共贡献，不影响本地账本。
+- 奖励没有 USD 估值时，outbox 仍提交 Gas 与项目参与数据，奖励保持未确认/0 USD；未估值奖励 token 明细从公共请求中剔除，完整奖励数量与类型仍保留在本地账本。
+- 修复了无哈希贡献的幂等查重：只有存在交易指纹时才参与全局交易指纹匹配；无哈希记录只按 event_id 幂等，避免所有 NULL fingerprint 被错误视为同一笔交易。
+- Android 单元测试和 backend 测试已补充相应场景，但按用户要求暂不触发 CI/APK 构建；最终整批验证时统一运行。
+
+
+### 2026-11-12 — DApp 外部钱包响应关联加固
+
+- 复核 Reown AppKit 1.3.x 的请求 API 后确认：`AppKit.request(onSuccess)` 返回的 `SentRequestResult.WalletConnect` 含 WalletConnect `requestId` 和 `sessionTopic`；钱包响应 `SessionRequestResponse.result.id` 是对应 JSON-RPC request ID。
+- 已将该 requestId 保存到当前待处理 DApp 请求；只有响应同时匹配 requestId、session topic、RPC method 和 chain ID 才会回传网页。页面跳转后旧响应即使晚到，也不能被新页面相同 method 的请求误领。
+- 增加单元测试覆盖正确匹配、旧 requestId、错误 topic、错误 method、错误 chain 及缺少 requestId 的拒绝情况。
+- 此修复只加固既有 WalletConnect 请求，不改变 DApp 授权范围、支持的方法列表或 UI。仍需最终 Android 编译和真机 WalletConnect 测试验证 SDK 依赖版本及回调时序。
+
+### 2026-11-12 — Web3 半自动智能记账闭环（需求登记）
+
+- **目标：** 在现有 BrowserActivity / WalletConnect / Room 正式记账链路上增加 Web3 半自动交易记账闭环，不另建一套与现有个人账本冲突的账本。
+- **阶段一 — 拦截与预估：** WebView 只允许 HTTPS 页面内导航；识别 MetaMask、Trust、WalletConnect 等外部钱包 scheme 时必须拦截，禁止 WebView 加载。只解析受支持格式中明确携带的交易字段（chainId、from、to、value、data）；WalletConnect 的 `wc:` pairing/callback 交给现有 Reown AppKit，不可把它当普通 URL 任意启动。Gas 预估通过按 chainId 白名单映射的 RPC endpoint 执行 `eth_estimateGas`，预估结果只标记为 estimate，不得冒充实际花费。草稿写入独立持久化 Room 记录。
+- **阶段二 — Hash 回调：** 兼容现有 `airdrophunter://request` WalletConnect redirect；新增独立交易回调 URI 只作为可选 provider callback，不假设所有钱包都会返回 TxHash。MainActivity 的 `onNewIntent` 和冷启动 `intent.data` 都必须处理。TxHash 必须验证格式、chainId 和草稿关联后再保存；重复回调幂等。
+- **阶段三 — 回执确认：** WorkManager 唯一任务按草稿 ID 轮询 `eth_getTransactionReceipt`，网络失败使用有界重试/退避；receipt 不存在保持 Pending。计算真实 Gas = gasUsed × effectiveGasPrice；L2 的 L1 费用由 chain adapter 解析 receipt 扩展字段或该网络专用 RPC，不能假设所有 EVM 链都有通用 `l1Fee` 字段。USD 折算使用带时间戳的原生 Gas 资产价格；缺少价格时保留真实原生币花费，不伪造 USD。交易失败（receipt.status=0）仍然要记真实 Gas 花费。
+- **生命周期与补单：** ProcessLifecycleOwner 监听 App 前后台；钱包跳转后超时只允许标记“超时/待核对”，不得仅凭没有回调断言用户拒绝或交易未发生。提供“同步链上记录”入口，按钱包地址/链读取历史记录并去重补单。所有草稿在进程被杀后仍可恢复。
+- **阶段四 — 记账确认：** 复用现有 ModalBottomSheet/BrowserAccountingToolbar 记账表单，自动预填真实 Gas、L1/L2 明细与 TxHash；字段允许用户修正，项目与实际收益由用户确认后写入既有本地账本事务。Hash 展示使用 Kotlin 安全截断 `txHash.take(8) + "..." + txHash.takeLast(6)`，完整 Hash 仍存数据库。
+- **数据边界：** 新增链上交易草稿实体/DAO，避免把 estimate/receipt 状态塞进现有 PendingBillEntity 的 MANUAL- 手动记账语义；个人账本仍 local-first，不启用注册、登录或私人云同步。真实链上交易费用与用户填写的实际收益分开存储。
+- **安全约束：** 不信任 Deep Link 中的任意 RPC URL；不自动签名、不自动广播、不保存私钥；外部钱包仍须由用户在钱包内确认。无回调、用户拒绝、钱包未安装、RPC 不可用均不得伪造成功记录。
+- **验收：** 覆盖 scheme 拦截、无钱包 App、无效参数、预估失败、用户拒绝、钱包返回 Hash、无 Hash 回调、冷启动恢复、重复回调、receipt Pending/Confirmed/Failed、L2 L1 fee、价格缺失、进程杀死后补单、重复同步及用户覆盖字段。最终 APK 统一构建，不提前触发 CI/APK。
+- **状态：** 需求已登记；第一轮核心代码已落入分支，最终编译、CI 和真机验收待完成。PR #135 保持 Draft/Open/Unmerged。
+
+### 2026-11-12 — Web3 半自动记账第一轮代码落地（未构建）
+
+- Room schema 已扩展到版本 23，新增独立 `web3_transaction_drafts` 表、DAO 和 22→23 Migration；草稿不复用 `MANUAL-` 手动记账记录。
+- WebView 钱包 Scheme 拦截增加用户手势校验；支持拦截 `metamask:`、`trust:`、`trustwallet:`、`ethereum:`、`wc:`。MetaMask send/EIP-681 原生转账可解析目标地址、链 ID 和 value；无法可靠解析的 Trust 路由仍只安全拦截/转交，不伪造交易草稿。WalletConnect pairing 不通过通用 ACTION_VIEW 任意启动。
+- 现有 Reown `eth_sendTransaction` 现在先持久化交易草稿、尝试 `eth_estimateGas`，再发起钱包请求；用确切 WalletConnect request ID、session/topic、chain 和草稿 ID 关联返回 Hash。格式错误的交易参数或草稿无法落库时阻止本次签名请求。
+- 新增 `eth_getTransactionReceipt` 唯一 WorkManager 任务；交易失败回执仍保留真实费用。Optimism/Base 使用 receipt `l1Fee`；Arbitrum 使用 receipt `gasUsedForL1 × effectiveGasPrice` 计算 L1 数据费（Arbitrum 的该字段以子链 Gas 单位表示）。缺少必需 L1 费用数据时不把总费用标记为已确认。
+- Gas 原生币总额、L1/L2 拆分和报价时间戳写入草稿；只有 OKX 缓存协调器返回的新鲜且不超过 5 分钟的报价才生成 USD 估值。没有新鲜报价时保留真实原生币花费，USD 留空，不伪造 0 美元。
+- 新增 30 秒唯一 WorkManager 超时任务，并通过 `ProcessLifecycleOwner` 在 App 回到前台时补充扫描。超时状态是“待同步核对”，不会仅因没有回调就标记拒绝；明确的 EIP-1193 4001 用户拒绝才标记取消。
+- “同步链上记录”入口当前采用用户粘贴 TxHash 的安全补单路径：调用该草稿链对应 RPC 的 `eth_getTransactionByHash`，校验发送地址、目标地址、value、input/data 后才绑定 Hash 并轮询回执。**当前不是自动扫描钱包完整历史交易列表**；标准 Ethereum JSON-RPC 没有通用地址交易历史枚举接口，后续如增加区块浏览器索引器，必须按链接入并保留候选冲突人工确认。
+- 已实现从 Web3 草稿生成待确认账单的数据转换方法，并且 `CacheDatabase.confirmPendingBill()` 已在同一 Room 事务内将 Web3 草稿标记为 `accounted`；但截至本轮审查，`BrowserActivity` 尚未调用草稿列表/待确认账单转换/手动补单入口，现有 `BrowserAccountingToolbar` 也未证明已展示这些草稿。因此不能标记为“Web3 确认弹窗已完整接通”；下一步必须完成草稿可见入口、回执账单创建、手动补单 UI 和用户确认提交联调。
+- 加密本地备份/恢复已包含 Web3 草稿；补充了草稿备份 round-trip、Hash 格式、wei 数量和 L1 费用解析单元测试。
+- **仍待完成：** Kotlin/Room/KAPT 编译与单元测试尚未运行；需要核对 Reown 1.3.3 精确依赖 API、Room 23 Migration 实际升级、WorkManager 进程恢复、MetaMask/Trust 真机行为、拒绝/超时/补单、Arbitrum/OP 回执样本和记账去重。当前未运行 CI、未构建 APK、未做真机验收；PR #135 仍 Draft/Open/Unmerged。
+
+### 2026-11-12 — Web3 记账安全与恢复补强
+
+- 钱包超时改为持久化 30 秒 WorkManager 任务；只有明确 EIP-1193 4001 拒绝才取消。进程回到前台时由 `ProcessLifecycleOwner` 扫描超时草稿，并重新入队尚未完成的回执任务，覆盖“Hash 已写库、进程在调度前被杀”的窗口。
+- OP Stack（Optimism/Base）除了 `gasUsed × effectiveGasPrice + l1Fee`，还可能收取 Isthmus/Jovian Operator Fee。实现通过交易所在区块的 GasPriceOracle `getOperatorFee(gasUsed)` 读取历史值，不硬编码分叉公式；总费用再加 Operator Fee。该费用无法核实时保持待核验，不提前确认总 Gas。依据：[OP Stack Operator Fee](https://specs.optimism.io/protocol/isthmus/exec-engine.html)、[GasPriceOracle predeploy](https://specs.optimism.io/protocol/isthmus/predeploys.html)。
+- Arbitrum 优先按 `gasUsedForL1 × effectiveGasPrice` 计算 L1 组件；**Arbitrum 回执的 `gasUsed × effectiveGasPrice` 已包含 L1 组件**，因此总费用只计算一次，L2 拆分为 `总费用 - L1 组件`，严禁再把 L1 加到总额造成双计。Optimism/Base 的 `l1Fee` 则是加在 `gasUsed × effectiveGasPrice` 之上的独立费用。依据：[Arbitrum Gas and Fees](https://developer.arbitrum.io/how-arbitrum-works/deep-dives/gas-and-fees)、[Arbitrum receipt `gasUsedForL1`](https://developer.arbitrum.io/launch-arbitrum-chain/chain-config/costs/revenue-routing)。普通 L1 网络显示“执行费”，只有 rollup 网络才显示 L1/L2 拆分。
+- 已增加 uint256、calldata 长度、Hash、回调 nonce、手动补单发送地址/目标地址/value/input 匹配校验；不解析 ERC-20/function Deep Link 为原生转账，避免把 token 参数误当成收款地址或金额。
+- Gas USD 报价只使用 OKX 协调缓存返回的 5 分钟内新鲜报价；实际回执 Gas USD 存在资产估值字段，不混入“预估 Gas”字段。缺报价时 UI 要求用户填写，不写假 0。
+- 正式记账提交时，在同一个 Room 事务内将 Web3 草稿标记为 `accounted`，避免“账本已写入、草稿状态未更新”造成重复记账。普通链显示执行费，L2 费用拆分保留独立资产明细。
+- 加密备份导入进一步校验 Web3 草稿 nonce、链 ID、地址、Hash、uint256 数值、calldata、状态和 USD 数值范围。
+- 自动回执长期无法核实或当前链未配置 RPC 时，提供显式“手动记账”兜底，保留 TxHash 并警告用户先核对区块浏览器，再填写实际 Gas/收益；手动确认同样在 Room 事务内关闭草稿。
+- 后端社区贡献链上核验同步采用相同链费规则：Arbitrum 不重复加 L1；Optimism/Base 需取得 L1 fee 和历史区块 `getOperatorFee(gasUsed)` 才能标记金额核验，否则降为 transaction-linked，不把不完整费用当成精确金额。新增后端单元测试覆盖 Arbitrum 和 OP Stack。
+- 本轮仍未执行 Gradle 编译/单元测试、CI 或 APK 构建；需在完整模块审计完成后统一验证。
+
+### 2026-11-12 — Web3 记账界面接线审计复核（未构建）
+
+- 更正上一条审计结论：Web3 草稿的 UI 接线**已经存在于 `BrowserAccountingToolbar.kt`，并非由 `BrowserActivity.kt` 直接调用 Repository**。工具栏通过 Application Container 取得 `web3TransactionRepository`，订阅 `observeDrafts()`，在“交易记录”列表中展示链上草稿状态。
+- `CONFIRMED/CONFIRMED_FAILED` 在 `Web3ReceiptWorker` 收到完整回执并保存后即自动调用 `createPendingAccountingBill()`，因此不依赖浏览器页面是否仍打开；`BrowserAccountingToolbar` 同时对已确认草稿执行幂等补齐，按稳定 `WEB3-<draftId>` 生成待确认账单并进入既有交易记录列表。若回执已确认但账单落库失败，Worker 后续重试只补建账单，不重新解释或降级已确认的链上回执。用户仍需打开表单、选择项目并确认实际收益后，才写入正式个人账本；`WAITING_L1_FEE` 可重试；`WAITING_OPERATOR_FEE/RECEIPT_NEEDS_SYNC` 可重试或进入手动核验记账；`TIMED_OUT_NEEDS_SYNC` 可输入 TxHash，并通过对应链 RPC 核对发送地址、目标地址、金额和 calldata 后再排队查询回执。
+- USD 缺价处理已在 UI 做出区分：Web3 记录的 `gasCostUsd = 0.0` 是旧 PendingBill 非空字段的占位值，列表会显示“真实 Gas 已获取 · USD 待填写”；打开表单时只有有效 USD 估值才预填，缺价时 Gas USD 输入保持空白。真实原生 Gas 数量仍保存在资产明细中。**不得把占位 0.0 解释成真实零 Gas。**
+- `CacheDatabase.confirmPendingBill()` 在同一个 Room transaction 中校验 Web3 草稿状态、写入个人账本并将草稿置为 `ACCOUNTED`，随后删除待确认单，具备原子确认与重复确认保护。
+- 当前代码仍未完成最终编译/单元测试/真机验收；现有测试主要覆盖 L1/L2/Operator Fee 计算规则，尚未覆盖完整 Repository→Toolbar→Room 确认流程、缺价表单及进程恢复端到端场景。上述状态是源码静态审计结论，不代表运行验证。
+- 本次只更正错误的接线审计记录，未触发 Gradle、CI 或 APK 构建；PR #135 保持 Draft/Open/Unmerged。
+
+
+### 2026-11-12 — 手动 TxHash 补核安全收紧（未构建）
+
+- 手动补核现在要求 RPC 返回交易对象中的 `hash` 与用户输入的 TxHash 一致，并严格核对原始请求的发送地址、目标地址、原生币金额和 calldata。
+- 原始请求包含 calldata 时，RPC 缺失 `input/data` 不再被视为通过；缺失发送地址、目标地址、金额或交易 Hash 等必要字段也不能静默跳过校验。
+- 将比对规则提取为纯 Kotlin `Web3ManualTransactionVerifier`，新增单元测试覆盖 Hash 不匹配、calldata 缺失/不匹配、发送地址缺失和金额缺失等情况。
+- 本轮仅提交源码和测试，尚未执行 Gradle 编译、单元测试、CI 或真机验收；PR #135 继续保持 Draft/Open/Unmerged。
+
+### 2026-11-13 — Web3 回执身份绑定校验补强（未构建）
+
+- 回执入账前新增严格身份校验：RPC 回执必须携带格式正确的 32-byte transactionHash，且必须与该 Web3 草稿已保存的 TxHash 大小写无关地完全一致；缺失、格式错误或不匹配时拒绝更新草稿费用与交易状态。
+- 新增纯 Kotlin Web3ReceiptIdentityVerifier，并增加单元测试覆盖大小写一致、错误 Hash、缺失 Hash 和格式错误场景。
+- 该校验发生在解析 Gas、receipt status、L1/Operator Fee 及写入任何回执字段之前，避免错误回执污染本地账本候选。
+
+- 进一步收紧 Arbitrum L1 费用来源：只接受官方 receipt 扩展 gasUsedForL1，并按其子链 Gas 单位乘 effectiveGasPrice；该字段缺失时费用保持待核验，不再回退到含义不明确的非标准 l1Fee。同步调整单元测试。
+- 钱包 Hash 绑定增加状态门禁：仅 pending_wallet、waiting_hash、timed_out_needs_sync 可首次绑定；已取消、钱包不可用、已进入回执/记账阶段的草稿拒绝新 Hash。Room UPDATE 同步增加状态条件，防止并发迟到回调绕过 Repository 检查；已有同一 Hash 的重复回调仍保持幂等。新增状态门禁单元测试。
+- OP Stack Operator Fee 增加 deposit 交易豁免：receipt type 为 0x7e 时 Operator Fee 按协议规则记为 0，不调用普通交易的 getOperatorFee(gasUsed)；补充对应单元测试。
+- 进一步按 OP Stack 规范处理 deposit：`0x7e` deposit 不收取 L1 data fee，且不收 Operator Fee；即使 receipt 没有 `l1Fee` 扩展字段，也将这两项费用明确记为 0，不会错误卡在“L1 费用待核实”。增加 Optimism/Base 两条链的缺字段测试。
+- 本轮仅完成源码和测试静态修改；未运行 Gradle 编译/单元测试、CI、APK 构建或真机验收。PR #135 继续保持 Draft/Open/Unmerged。
+
+### 2026-11-13 — Web3 L1 费用人工兜底与明细防误读（未构建）
+
+- `WAITING_L1_FEE` 现在与 `WAITING_OPERATOR_FEE`、`RECEIPT_NEEDS_SYNC` 一样可进入人工费用核验/记账；界面同时提供“重试核实”和“手动记账”。
+- 手动确认资格集中在 `Web3DraftStatus`，Room 账本确认入口复用同一规则；自动回执仍未完整核实时不会伪装为自动确认，用户需要手动填写并确认实际 Gas 后才入账。
+- 费用明细展示明确区分 Gas 总计、L2 执行费、L1 数据费和 Operator Fee；普通链 `execution_fee` 与 Gas 总计是同一笔执行费，不再在明细展示中重复出现，避免用户误以为需要相加。补充格式化和状态资格单元测试。
+- 如果用户先创建手动核验草稿，之后后台重试又成功拿到完整链上回执，系统会用已核实的币种/Gas 明细补齐原待处理账单，而不是因相同账单 ID 直接返回空明细草稿；已有完整明细时仍保持幂等，不覆盖用户已确认的数据。
+- 回执写入改为带状态条件的 Room UPDATE：仅允许 waiting_receipt、waiting_l1_fee、waiting_operator_fee、receipt_needs_sync、timed_out_needs_sync 接受回执更新；若用户确认入账先完成，后台任务不能把 ACCOUNTED 覆盖回 CONFIRMED，也不能用较旧回执把已确认状态降级。
+- 本轮只完成源码、测试和需求记录更新；未运行 Gradle 编译/单元测试、CI、APK 构建或真机验收。PR #135 继续保持 Draft/Open/Unmerged。
+
+
+### 2026-11-13 — WalletConnect 广播结果与本地 Hash 持久化顺序（需求/审计修正）
+
+- WalletConnect 对 `eth_sendTransaction` 返回成功结果时，必须先完成本地草稿 Hash 的校验与持久化，再向 DApp 回传 JSON-RPC 成功，避免“链上已广播但进程在本地写入前被杀”导致网页已成功、本地却长期无 Hash。
+- 如果钱包已明确返回成功但本地草稿绑定失败，不能向 DApp 伪报交易失败或拒绝；仍须按 WalletConnect 语义回传钱包的成功结果，同时保留本地草稿为待同步核对状态，并记录可诊断错误。用户可通过手动 TxHash 补核恢复。
+- 这项顺序调整不得扩大钱包请求权限、不得自动签名/广播，也不得把钱包成功响应直接等同于回执确认或正式记账。
+- 冷启动和 `onNewIntent` 的独立交易回调仍必须通过随机 callbackState、草稿 ID、chainId、Hash 格式和草稿状态验证；回调只负责绑定 Hash，后续由唯一 WorkManager 查询 receipt。
+- 验证状态：本条先登记需求；源码修改与静态审计随后进行。Gradle/单元测试/CI/APK/真机验收仍统一留到全部模块完成后。
+
+
+### 2026-11-13 — 外部钱包返回与进程冷启动恢复审计（源码修正，未构建）
+- **进一步的进程死亡恢复要求：** WalletConnect 的 request response 关联不能只依赖 BrowserScreen 内存中的 JavaScript reply proxy。应将 requestId、session topic、chainId 与草稿持久关联，并在 AppKit 恢复后由进程级观察器独立接收成功响应、核对唯一草稿并补存 TxHash/调度 receipt。页面代理因进程死亡而丢失时，不尝试伪造或补发网页响应；优先保证本地交易账务恢复。若关联不唯一或字段不匹配，拒绝自动绑定，保留手动 TxHash 核验。
+
+
+- WalletConnect 的 `eth_sendTransaction` 成功响应现在先等待本地 Room 草稿完成 Hash 绑定，再向 DApp 回传钱包成功结果；成功绑定后立即入队 receipt Worker。若本地绑定失败，不把已经由钱包确认成功的广播伪报为 DApp 失败，而是将仍可恢复的草稿置为待同步核对并保留手动 TxHash 补核路径。
+- `WalletConnectRedirectActivity` 现在校验回调 URI 必须为 `airdrophunter://request`，拒绝通过显式 Intent 注入的其他 URI；并在处理回调前确保 AppKit 已初始化，覆盖 Android 在外部钱包停留期间杀进程、随后由 redirect Activity 冷启动的场景。初始化等待设有 15 秒上限，失败时记录错误并退出，不假装回调已处理。
+- MainActivity 的冷启动 `onCreate(intent)` 与复用实例的 `onNewIntent(intent)` 均调用交易回调处理；回调 Hash 仍需匹配草稿随机 callbackState、chainId、格式和可绑定状态。独立 WalletConnect redirect 与交易 Hash callback 继续使用不同 host，避免互相误处理。
+- 后台恢复仍由 Application 的 ProcessLifecycleOwner 在进程回到前台时扫描超时钱包请求并重新调度所有有 Hash 的待查回执；WorkManager 对每个 draft 使用唯一任务。超时仅表示待同步核对，不代表链上失败。
+- 静态审计发现并修复了“DApp 先收到成功、Room 后异步写 Hash”的崩溃窗口；尚未运行 Android 编译或测试，因此 Activity/SDK 生命周期与 Reown 1.3.3 的实际回调仍需最终构建和真机验证。
+- 本轮未运行 Gradle、CI 或 APK 构建；PR #135 保持 Draft/Open/Unmerged。
+
+- **进程级恢复实现：** Web3 草稿现在持久化 WalletConnect requestId 与 session topic；Room schema 从 23 升至 24，新增 nullable session topic 列及组合索引，使用 23→24 非破坏性 Migration，旧草稿不丢失但缺少 topic 的旧请求不会被猜测匹配。
+- AppKit 初始化完成后启动 Application 级 response observer，独立于 BrowserActivity 的 Compose 生命周期监听 WalletConnect 响应；仅处理 `eth_sendTransaction`，要求有效 Hash、非空 session topic、有效 chainId，并在数据库中找到唯一 requestId/topic/chain 匹配草稿后才绑定 Hash、入队 receipt。重复响应幂等；已 ACCOUNTED 草稿不会被重复入队；匹配不唯一或缺字段时拒绝自动绑定。
+- BrowserActivity 原有 DApp 回调仍负责当前页面的 JSON-RPC 响应；进程级观察器只负责恢复本地账务，不尝试在进程死亡后伪造或补发已失效的 JavaScript reply proxy。
+- 新增纯 Kotlin 响应身份校验单元测试。源码静态检查确认 BrowserActivity 已持久化 topic、Application observer 已接线、schema 24 migration 已注册、恢复测试已加入；尚未执行 Gradle 编译或测试，Room Migration 与 Reown 回调时序仍待最终构建/设备验收。
+
+
+### 2026-11-13 — 回执 Worker 终态与迟到钱包回调状态竞争（源码修正，未构建）
+
+- 修复 Worker 在用户已完成正式记账后仍可能继续轮询回执、并因 `createPendingAccountingBill()` 正确拒绝重复建单而反复重试的问题：`ACCOUNTED` 草稿现在是 receipt Worker 终态；若 Worker 运行期间用户完成记账，Worker 会重新读取状态并正常结束，不会重建账单。
+- 回执状态更新改为条件 SQL，只允许 `waiting_receipt / waiting_l1_fee / waiting_operator_fee / receipt_needs_sync / timed_out_needs_sync` 状态参与更新。迟到 Worker 不得把 `CONFIRMED / CONFIRMED_FAILED / ACCOUNTED` 或取消状态覆盖回待同步/等待回执。
+- 修复 30 秒超时 Worker 与 WalletConnect `onSuccess` 竞态：钱包请求编号/Session Topic 绑定 SQL 现在只接受 `pending_wallet / waiting_hash / timed_out_needs_sync`；若超时先发生，绑定请求元数据时保留 `timed_out_needs_sync`，不会错误回退到 `waiting_hash`。后续迟到 Hash 仍可按已校验的 request/topic/chain 绑定。
+- 新增纯 Kotlin 状态策略测试，覆盖 ACCOUNTED 终态和回执状态可更新边界。源码静态检查可确认这些条件已写入；未运行 Gradle/单元测试/CI/APK，Room SQL 与 WorkManager 并发行为仍须最终构建和设备验收。
+
+
+### 2026-11-13 — DApp 多账户/多链请求归属校验（源码修正，未构建）
+
+- 审计发现 WalletConnect Session 可能同时包含同一 EVM 地址在多个 chainId 下的授权账户；旧逻辑只按地址去重，会丢失同地址的其他链授权信息，导致账户与链的关联依赖返回顺序。
+- 账户列表现在按 `chainId + address` 组合去重，保留同一地址在不同链上的独立授权记录。
+- DApp 发起签名/交易请求时，不再默认使用 Session 列表第一项账户。现在先从 `personal_sign`、`eth_sign/eth_signTypedData` 或交易对象的 `from` 字段提取请求账户，再要求该地址同时存在于已授权 Session、且其 chainId 与当前 AppKit 活动 EVM 网络一致；找不到唯一匹配账户时拒绝转发，不创建错误归属的交易草稿。
+- 这样可避免“请求使用第二个已授权地址，但本地 Web3 草稿错误记到第一个地址/另一条链”的账务归属问题。新增请求账户提取测试；现有授权地址校验仍作为第二道门禁。
+- 本轮源码和测试已提交到 PR #135 分支；尚未运行 Gradle 编译/单元测试、CI、APK 构建或真机多链会话验收。PR #135 继续保持 Draft/Open/Unmerged。
+
+- 同轮补强：对 `eth_sendTransaction` 与 `eth_signTransaction`，若 DApp 交易对象显式携带 `chainId`，必须与请求账户对应的 WalletConnect 活动链一致；缺失/非法/不一致的链号拒绝转发。未提供 chainId 时继续以当前已授权账户链为准。新增十六进制、十进制、错链和非法链号测试。
+
+
+### 2026-11-13 — WalletConnect response chain binding hardening
+
+- **Security requirement:** a DApp request relayed to WalletConnect may be completed only by a response matching the exact request ID, session topic, RPC method, and a non-empty exact CAIP-2 chain ID. A missing response chain ID is not proof of the requested chain and must fail closed.
+- If the response chain is missing or mismatched, do not forward the result to the DApp and do not mark the transaction as rejected or confirmed. Preserve the existing draft for receipt/manual reconciliation because the wallet may already have broadcast the transaction.
+- Add pure Kotlin regression coverage for missing, mismatched, and matching chain IDs. This is an additional defense-in-depth check; it does not change the user's explicit wallet approval flow or upload any private wallet/ledger data.
+- Status: requirement recorded; implementation and tests pending. No APK build is authorized until the consolidated work batch is complete.
+
+
+- Implementation checkpoint: `DappProviderBridge.isMatchingExternalWalletResponse` now rejects a missing or blank response chain ID and accepts only an exact chain match. `DappProviderBridgeTest` covers exact match, mismatched chain, missing chain and blank chain. Code commits: `6694a62a1c217da18d40c22094fcb8a7eb388daf` and `ad8afc7cca0e76f81f7eae248d82be5dc99577f8`.
+- Static source verification confirms the fail-closed predicate and both regression cases are present. Gradle compilation, unit-test execution, CI, APK build and physical-device acceptance have **not** been run for this checkpoint; they remain pending.
+
+
+### 2026-11-13 — stale external-wallet launch callback isolation
+
+- A delayed AppKit.request launch exception from an earlier page/request must never clear or mutate a newer pending external-wallet request.
+- Before handling a launch failure, verify that the active pending request still matches the original DApp request ID, origin and WalletConnect session topic. Only that matching request may be timed out, replied to, and cleared.
+- Keep any already-created Web3 draft recoverable; do not infer that a wallet broadcast did not happen solely because the UI launch callback arrived late.
+- Implementation: BrowserActivity now scopes the AppKit.request failure handler to the still-active request identity (commit 236f8f18248ddb83375df9198124dab3d3c5460f). Static source check only; Gradle, unit tests, CI and device validation remain pending.
+
+
+### 2026-11-13 — cold-start WalletConnect response delivery
+
+- A cold-start wallet redirect can deliver the response while the process-level reconciliation collector is attaching. A `MutableSharedFlow` with only `extraBufferCapacity` and zero replay drops emissions when there are no subscribers, so the response/hash could be lost even though the wallet broadcast the transaction.
+- Keep a bounded 32-response replay window in `WalletConnectSessionDelegate`. Existing reconciliation remains strict by request ID, session topic, method and chain ID; repository matching remains unique and idempotent, and accounted drafts are not re-enqueued.
+- Implementation: response flow now uses `replay = 32` plus `extraBufferCapacity = 32` (commit 02f256044d7ac39f6f181cf522cf0429c2604a53). Static source inspection only; Gradle, unit tests, CI and device cold-start verification remain pending.
+
+
+## 0.0.1 Delivery priority reset — 2026-11-13 (user correction)
+
+The user reports that the built-in browser cannot reliably open websites, airdrop discovery is not producing usable results, the UI redesign is still outstanding, and commercial API pricing is unaffordable before launch with no users. This section supersedes the recent tendency to spend successive batches on low-priority Web3 edge-case hardening.
+
+### Immediate delivery order
+1. **Built-in browser usability first.** Reproduce and isolate initial navigation, WebView provider compatibility, redirect handling, TLS/network errors, page rendering, login/cookie behavior, and navigation between origins. Replace generic failure feedback with actionable diagnostics. Never bypass TLS validation or weaken wallet bridge origin checks. Do not assume a root cause without evidence.
+2. **Free airdrop discovery second.** Use only the already-approved zero-cash-cost sources in Section 0.2 and genuinely public official endpoints/pages. No paid API, paid scraping, paid proxy, metered plan, or new recurring infrastructure cost. Distinguish confirmed campaign evidence from project/market leads. Persist source attribution, timestamps, deduplication and failure reasons; never fabricate campaign rows to make the list look populated. When a provider blocks or changes, expose that source's failure clearly and keep last-known-good data.
+3. **Complete the user-facing UI pass third.** Audit and finish the outstanding agreed UI changes across Home, Airdrop Library, browser, accounting, wallet and profile/settings; fix empty/loading/error states and remove duplicate entry points. Avoid isolated cosmetic tweaks that do not complete a screen/workflow.
+4. **Resume remaining Web3 hardening after the above.** Preserve the existing safety work; do not expand into speculative edge cases while core browser/discovery/UI are incomplete.
+5. **One final verification/build batch.** Do not trigger an intermediate APK build. After the scoped work is complete, run the appropriate checks and produce one APK; report source, tests/CI, build artifact and device acceptance separately.
+
+### Cost and release constraints
+- The project is pre-launch, has no users and cannot carry commercial API costs. Free public sources only; any provider requiring a paid key, subscription, paid proxy, or usage-based billing is out of scope unless the user explicitly approves it later.
+- Do not reactivate user-cancelled automatic public web search. Discovery means fetching the specifically approved public feeds/official announcements, not broad uncontrolled scraping.
+- Do not reintroduce registration, login, account switching or cloud sync without explicit approval.
+- The user wants a usable, finished core app before adding more features. Favor fixing blockers and completing workflows over adding new architecture or repeated micro-patches.
+
+### Evidence discipline
+- A source file being present is not proof that a website opens or that airdrop campaigns are being captured. Capture concrete WebView error codes/descriptions and provider-level fetch outcomes.
+- Static inspection is not a build, automated test, live provider check or physical-device acceptance.
+
+
+### 2026-11-13 — browser diagnostics and discovery blocker confirmed
+
+- Branch audit confirms the campaign provider adapters are still explicitly unchecked. The Android Airdrop Library has a campaign client/list and Binance announcement feed/detail foundation, but the approved four-source campaign pipeline is not yet end-to-end enabled. The current empty real-campaign state is therefore not evidence of a broken list renderer alone: there is no configured approved free provider publishing confirmed campaign records. Implement the four adapters only after validating free-use terms and zero-cost constraints; do not fabricate data or promote market leads to campaigns.
+- BrowserActivity previously reduced main-frame WebView failures to a generic “network restriction or anti-bot” message. Updated it to retain and display the actual main-frame network error code/description, HTTP status/reason, or TLS validation failure, and to clear the diagnostic on a fresh navigation/success/retry. TLS validation remains strict; no certificate bypass or weakened wallet origin validation was introduced. Commit: a1772ecd470068366e6e88bbd94b09095150c96f.
+- This diagnostic patch improves the next reproduction but does not prove the reported site now loads. A device run is still needed to capture the exact failing URL/provider/error. Third-party cookies and website-specific login compatibility remain a separate compatibility audit, not silently enabled.
+- Priority reset recorded in commit 539acc1f16b743015c600c79d7a05a2a08d00e78: browser usability, free campaign discovery, complete UI pass, then remaining Web3 edge cases. No paid APIs, paid scraping/proxies, commercial fallbacks or new recurring cost are permitted without explicit approval.
+- Static checks only; no Gradle build, tests, CI, APK build or physical-device acceptance was run in this batch.
+
+
+## 2026-11-13 — UI specification v1.1 is the binding implementation contract
+
+- The uploaded `空投猎人-UI与动效重构设计说明书.docx` v1.1 is the single source of truth for the visual refresh. Preserve existing business logic, data structures, API contracts, and user-facing factual meaning; do not add product features during visual refactoring.
+- Fusion split: Apple contributes hierarchy, restrained materials, continuous motion and navigation structure; Xiaomi contributes compact information density, capsule controls, and immediate press/haptic feedback.
+- Enforce only three visual layers: `bg-base` background, opaque `surface` cards with a 1dp hairline and no shadow, and `surface-glass` floating layers (navigation, drawers, floating toolbar) with restrained blur/shadow. Never use glass on content cards.
+- Shared color tokens: brand `#0D8279`, brand-press `#0A6B64`, brand-soft `#E6F2F1`; semantic success/warning/danger and low-saturation soft backgrounds; separate dark palette (not simple inversion). Typography follows the spec's Display 34, Title 1 28, Title 2 22, Title 3 20, Headline 17, Body 15, Subhead 14, Footnote 13, Caption 12 and Micro 11 hierarchy. Numeric values use tabular figures.
+- Spacing is restricted to 4, 8, 12, 16, 20, 24, 32dp; page horizontal inset 16dp; card inset 16dp; card gap 12dp; section gap 24dp. Radius tokens: 28dp sheets/dialogs, 20dp cards, 12dp buttons/inputs/small icon tiles, 999dp capsules.
+- Component dimensions: primary/secondary/danger buttons 52dp high and 12dp radius; text buttons 44dp hit target; icon buttons 44dp hit target with 24dp linear icons; all input fields 52dp high, 12dp radius, group background and no default outline. At most one primary action per screen; loading preserves button width.
+- Interaction: card press scale 0.96, button/icon press scale 0.94, 150ms spring response, immediate brightness reduction and matching light/medium/warning haptics. Every tappable target is at least 44x44dp. List rows use a darker pressed surface rather than scale.
+- Motion: fast 150ms, standard 250ms, page push/pop 320ms, drawer 380ms spring, dialog 240ms, exit 260ms; stagger list rows by 40ms for at most six items. Transitions must explain state change, be interruptible, and respect Android reduced-motion settings.
+- Page implementation sequence follows the spec's P0/P1/P2 order: shared tokens/components and third-party browser container first; then Home, Search, Projects, Community and Profile; then navigation/add-wallet drawers, WalletConnect outer shell, TRON energy, Login and icon/splash/dark-mode finishing. Existing project scope does not authorize reopening registration/login features that the product has disabled.
+- Browser container must have one non-blocking safety banner, 56dp header, 40dp host strip, full-height web content and 64dp glass bottom toolbar. Its loading states are loading/loaded/15-second timeout; keep the safety banner frequency and strict TLS/origin security rules. This visual spec does not authorize weakening browser security or changing WalletConnect SDK internals.
+- The previous UI commits are an initial pass only. Audit and correct their token mismatches (including 88dp dock vs 64dp browser toolbar, ad-hoc radii/colors, and missing full-screen consistency) before declaring completion. No final build or APK until the entire scoped UI/browser/discovery batch is ready.
+
+
+## 2026-11-13 — UI implementation audit and next corrections
+
+- Source audit found the design-token foundation already exists in `ui/theme/Color.kt`; retain it as the single token source rather than creating a competing token system.
+- Correct P0 component mismatches: text fields must render at exactly 52dp regardless of legacy per-call height overrides; focused fields need the specified restrained 1.5dp brand outline and 2dp/12% focus glow; chips use the shared 0.94 button press scale; pressed controls need an immediate tonal overlay in addition to scale/haptics.
+- Bottom navigation uses the design-token translucent glass surface with a 1dp top hairline. The MainActivity parent already supplies a backdrop blur layer; keep the blur restricted to this floating navigation surface.
+- The browser safety warning and cross-host navigation confirmation must share one inline, non-blocking banner. Remove only the duplicate cross-host warning dialog; keep the separate WalletConnect permission approval dialog because it is a real user-consent gate. Preserve HTTPS/origin validation and require explicit confirmation before cross-host navigation.
+- Browser container geometry is fixed to header 56dp, host strip 40dp and floating toolbar 64dp. Keep toolbar horizontal scrolling, whole-dock drag/snap and transient position behavior. Do not sacrifice the 64dp contract to fit oversized tool tiles; compact the icons/labels instead.
+- Migrate primary screens from static light-only `AppColors` aliases to adaptive `MaterialTheme.colorScheme` semantics so the documented dark palette is actually used. Do not change displayed business values or workflow behavior.
+- Main secondary-page title is centered in a 56dp header. Remove the duplicate TRON energy page-level title while preserving its single navigation title and the form's explanatory copy.
+
+
+## UI specification clarifications after component implementation
+
+- Standard `AppTextField` height is 52dp; the global-search field is the documented 44dp compact exception. Keep the shared height override only for this explicit search use case.
+- Pressed-state overlay must darken in both light and dark palettes (never use a white overlay on a dark surface). Text-only actions retain the 44dp hit target and opacity feedback without scale.
+- Search page autofocuses its input and presents local history with a 200ms fade/260ms collapse. Search results enter with an 8dp upward slide and 40ms stagger, capped at six items.
+- Home's platform navigator is a searchable two-column bottom sheet, not a centered dialog. The app-wide search remains a separate single global search entry beneath the market board.
+- Wallet, project, community, official campaign and announcement lists use stable-key first-entry staggered motion; a list row must not replay the animation when the user scrolls away and back.

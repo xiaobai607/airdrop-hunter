@@ -79,7 +79,7 @@ object ManualProjectAccountingPolicy {
             require(wallet.walletAddress.isNotBlank() && wallet.walletAddress.length <= 160) { "钱包地址无效" }
             require(wallet.network.isNotBlank() && wallet.network.length <= 40) { "网络标识无效" }
             require(wallet.gasCostUsd.isValidAmount()) { "Gas 金额必须是有限的非负数" }
-            if (wallet.publicContributionOptIn) {
+            if (wallet.publicContributionOptIn && wallet.txHash.isNotBlank()) {
                 require(isSupportedHash(wallet.network, wallet.txHash)) {
                     "该钱包的 Tx Hash 格式无效，或当前网络暂不支持匿名贡献核验"
                 }
@@ -122,6 +122,18 @@ object ManualProjectAccountingPolicy {
     }
 
     fun isTransactionHashFormatValid(network: String, hash: String): Boolean = isSupportedHash(network, hash)
+
+    /** Official community-project rows contribute by default.
+     * Gas can be shared even when the reward has no USD valuation; a missing hash is user-reported.
+     * A supplied hash must be valid for a supported EVM network before it can enter verification.
+     */
+    fun isEligibleForDefaultCommunityContribution(
+        projectOfficialId: String?,
+        network: String,
+        txHash: String
+    ): Boolean =
+        !projectOfficialId.isNullOrBlank() &&
+            (txHash.isBlank() || isSupportedHash(network, txHash))
 
     fun isTransactionVerificationNetworkSupported(network: String): Boolean =
         network.trim().lowercase() in setOf("ethereum", "eth", "erc20", "bsc", "polygon", "arbitrum", "optimism", "base", "avalanche")

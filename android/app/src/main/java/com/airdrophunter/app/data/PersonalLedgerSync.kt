@@ -18,6 +18,7 @@ class PersonalLedgerSyncWorker(
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        if (!CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED) return@withContext Result.success()
         val accessToken = TokenStore.readTokenBlocking()?.takeIf { it.isNotBlank() }
             ?: return@withContext Result.success()
         val cadenceKey = SyncCadence.scopedKey(SyncCadence.PERSONAL_LEDGER_KEY, accessToken)
@@ -43,6 +44,7 @@ class PersonalLedgerSyncWorker(
 }
 
 object PersonalLedgerSyncScheduler {
-    fun enqueue(context: Context) = GlobalSyncScheduler.enqueueNow(context, forcePersonalLedger = true)
-    fun ensurePeriodic(context: Context) = GlobalSyncScheduler.ensurePeriodic(context)
+    // Retained for compatibility with older call sites; current release is local-only.
+    fun enqueue(context: Context) = Unit
+    fun ensurePeriodic(context: Context) = Unit
 }

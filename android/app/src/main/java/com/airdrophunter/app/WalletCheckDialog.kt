@@ -4,21 +4,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.data.ProjectDto
 import com.airdrophunter.app.data.WalletDto
-import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppTextButton
 import kotlinx.coroutines.launch
 
 @Composable
@@ -27,6 +27,7 @@ fun WalletCheckDialog(
     onOpenBrowser: (url: String, selectedWallet: WalletDto, wallets: List<WalletDto>, title: String) -> Unit,
     isGuest: Boolean = false
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var wallets by remember { mutableStateOf<List<WalletDto>>(emptyList()) }
@@ -54,22 +55,24 @@ fun WalletCheckDialog(
                 projects = ApiClient.service.getProjects()
                 wallets = ApiClient.service.getWallets()
             }
-        } catch (_: Exception) { error = "读取数据失败，请稍后重试" }
+        } catch (_: Exception) { error = context.getString(R.string.wallet_error_server_busy) }
         finally { loading = false }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = AppColors.Surface,
-        title = { Text("空投资格查询", color = AppColors.TextPrimary) },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(context.getString(R.string.wallet_check_title), color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (loading) Text("正在读取项目和钱包…", color = AppColors.TextSecondary)
-                Text("选择项目", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                if (loading) Text(context.getString(R.string.wallet_check_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(context.getString(R.string.wallet_check_choose_project), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Column {
-                    OutlinedButton(onClick = { projectExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(selectedProject?.name ?: "请选择已添加的项目", color = AppColors.TextPrimary)
-                    }
+                    AppButton(
+                        text = selectedProject?.name ?: context.getString(R.string.wallet_check_project_hint),
+                        onClick = { projectExpanded = true },
+                        style = AppButtonStyle.SECONDARY
+                    )
                     DropdownMenu(expanded = projectExpanded, onDismissRequest = { projectExpanded = false }) {
                         projects.forEach { project ->
                             DropdownMenuItem(text = { Text(project.name) }, onClick = {
@@ -78,12 +81,14 @@ fun WalletCheckDialog(
                         }
                     }
                 }
-                Text("选择钱包", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                Text(context.getString(R.string.wallet_check_choose_wallet), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Column {
-                    OutlinedButton(onClick = { walletExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(selectedWallet?.let { "${it.chain} · ${it.wallet_name} (${shortAddress(it.address)})" } ?: "请选择已保存的钱包",
-                            color = AppColors.TextPrimary)
-                    }
+                    AppButton(
+                        text = selectedWallet?.let { "${it.chain} · ${it.wallet_name} (${shortAddress(it.address)})" } ?: context.getString(R.string.wallet_check_wallet_hint),
+                        onClick = { walletExpanded = true },
+                        style = AppButtonStyle.SECONDARY,
+                        fontSizeSp = 14
+                    )
                     DropdownMenu(expanded = walletExpanded, onDismissRequest = { walletExpanded = false }) {
                         wallets.forEach { wallet ->
                             DropdownMenuItem(
@@ -93,19 +98,21 @@ fun WalletCheckDialog(
                         }
                     }
                 }
-                Text("App 会先请求公链验证地址，再打开项目已保存的 HTTPS 资格入口。资格结果由项目方网页判定。",
-                    color = AppColors.TextSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-                if (projects.isEmpty() && !loading) Text("暂无项目，请先在项目管理中添加项目并填写资格入口。", color = AppColors.TextSecondary)
-                if (wallets.isEmpty() && !loading) Text("暂无钱包，请先添加公开钱包地址。", color = AppColors.TextSecondary)
-                error?.let { Text(it, color = AppColors.Danger) }
+                Text(context.getString(R.string.wallet_check_help),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                if (projects.isEmpty() && !loading) Text(context.getString(R.string.wallet_check_no_projects), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (wallets.isEmpty() && !loading) Text(context.getString(R.string.wallet_check_no_wallets), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
-            Button(
+            AppButton(
+                text = context.getString(R.string.wallet_check_action),
                 enabled = selectedProject != null && selectedWallet != null && !submitting && !loading,
+                loading = submitting,
                 onClick = {
-                    val project = selectedProject ?: return@Button
-                    val wallet = selectedWallet ?: return@Button
+                    val project = selectedProject ?: return@AppButton
+                    val wallet = selectedWallet ?: return@AppButton
                     scope.launch {
                         submitting = true; error = null
                         try {
@@ -117,19 +124,18 @@ fun WalletCheckDialog(
                                 if (claimUrl.startsWith("https://")) {
                                     onOpenBrowser(claimUrl, wallet, wallets, project.name)
                                 } else {
-                                    error = "该项目尚未填写官方资格查询入口"
+                                    error = context.getString(R.string.wallet_check_missing_link)
                                 }
                             }
                         } catch (e: retrofit2.HttpException) {
-                            error = if (e.code() == 409) "该项目尚未设置官方资格查询入口" else "服务器繁忙，请稍后重试"
+                            error = if (e.code() == 409) context.getString(R.string.wallet_check_missing_link) else context.getString(R.string.wallet_check_server_error)
                         } catch (_: Exception) {
-                            error = "服务器繁忙，请稍后重试"
+                            error = context.getString(R.string.wallet_check_server_error)
                         } finally { submitting = false }
                     }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary, disabledContainerColor = AppColors.Border)
-            ) { Text(if (submitting) "正在验证…" else "立即查询") }
+                }
+            )
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = onDismiss) { Text(context.getString(R.string.cancel)) } }
     )
 }

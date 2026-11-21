@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.airdrophunter.app.data.AirdropHubRepository
+import com.airdrophunter.app.data.AirdropHubSourceStatusDto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,8 +18,14 @@ data class AirdropHubUiState(
     val selectedChain: String = "全部",
     val projects: List<com.airdrophunter.app.data.AirdropHubDto> = emptyList(),
     val error: String? = null,
-    val sourceError: String? = null
+    val sourceError: String? = null,
+    val sourceStatuses: List<AirdropHubSourceStatusDto> = emptyList(),
+    val sourceStatusError: String? = null
 )
+
+internal fun airdropHubRefreshWarning(errorMessage: String?): String =
+    errorMessage?.takeIf { it.contains("刚刚刷新过") }
+        ?: "数据源暂时不可用，已保留上次数据。"
 
 class AirdropHubViewModel(
     private val repository: AirdropHubRepository
@@ -27,6 +34,7 @@ class AirdropHubViewModel(
     private val _uiState = MutableStateFlow(AirdropHubUiState(isLoading = true))
     val uiState: StateFlow<AirdropHubUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
+    private var backgroundRefreshJob: Job? = null
 
     init { load() }
 
@@ -37,7 +45,18 @@ class AirdropHubViewModel(
     }
 
     fun load() {
+        viewModelScope.launch {
+            try {
+                val statuses = repository.loadSourceStatuses()
+                _uiState.value = _uiState.value.copy(sourceStatuses = statuses, sourceStatusError = null)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(sourceStatusError = "暂时无法读取数据源状态")
+            }
+        }
         loadJob?.cancel()
+        backgroundRefreshJob?.cancel()
         val chain = _uiState.value.selectedChain
         loadJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, isRefreshing = false, error = null)
@@ -49,6 +68,7 @@ class AirdropHubViewModel(
                     error = if (snapshot.projects.isEmpty()) "数据库中暂无项目。可点击刷新同步公开数据源。" else null,
                     sourceError = snapshot.sourceError
                 )
+                if (snapshot.refreshDue) refreshInBackground(chain.takeUnless { it == "全部" }, manual = false)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -59,20 +79,35 @@ class AirdropHubViewModel(
 
     fun refresh() {
         loadJob?.cancel()
-        loadJob = viewModelScope.launch {
+        backgroundRefreshJob?.cancel()
+        refreshInBackground(_uiState.value.selectedChain.takeUnless { it == "全部" }, manual = true)
+    }
+
+    private fun refreshInBackground(chain: String?, manual: Boolean) {
+        if (backgroundRefreshJob?.isActive == true) return
+        backgroundRefreshJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRefreshing = true, isLoading = false, error = null)
             try {
-                val chain = _uiState.value.selectedChain
-                val projects = repository.refresh(chain.takeUnless { it == "全部" })
+                val projects = repository.refresh(chain, manual = manual)
+                val sourceStatusResult = runCatching { repository.loadSourceStatuses() }
                 _uiState.value = _uiState.value.copy(
                     isRefreshing = false, isLoading = false, projects = projects,
                     error = if (projects.isEmpty()) "同步已执行，但数据库中暂时没有可展示的项目。" else null,
-                    sourceError = null
+                    sourceError = null,
+                    sourceStatuses = sourceStatusResult.getOrDefault(_uiState.value.sourceStatuses),
+                    sourceStatusError = if (sourceStatusResult.isFailure) "暂时无法读取数据源状态" else null
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
-                _uiState.value = _uiState.value.copy(isRefreshing = false, error = "服务器繁忙，请稍后重试。")
+            } catch (failure: Exception) {
+                val latestStatuses = runCatching { repository.loadSourceStatuses() }
+                _uiState.value = _uiState.value.copy(
+                    isRefreshing = false,
+                    error = if (_uiState.value.projects.isEmpty()) "服务器繁忙，请稍后重试。" else null,
+                    sourceError = airdropHubRefreshWarning(failure.message),
+                    sourceStatuses = latestStatuses.getOrDefault(_uiState.value.sourceStatuses),
+                    sourceStatusError = if (latestStatuses.isFailure) "暂时无法读取数据源状态" else null
+                )
             }
         }
     }

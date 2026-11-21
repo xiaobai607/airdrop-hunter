@@ -1,7 +1,7 @@
 package com.airdrophunter.app.data
 
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+internal fun hasMarketWarmupFailure(priceRefreshSucceeded: Boolean, hotCoinsRefreshSucceeded: Boolean): Boolean =
+    !priceRefreshSucceeded || !hotCoinsRefreshSucceeded
 
 class MarketSearchRepository(
     private val okxRepository: OkxMarketRepository,
@@ -44,6 +44,10 @@ class MarketSearchRepository(
         return rows.map { it.toDomain() }.filter { it.matchesSearch(query) }
     }
 
+    /** Read Room hot-coin rows without triggering a network refresh. */
+    suspend fun readCachedHotCoins(): List<HotCoin> =
+        CacheStore.readHotCoins(HOT_COIN_CACHE_KEY).map { it.toDomain() }
+
     suspend fun loadHotCoins(manual: Boolean = false): List<HotCoin> {
         val result = cacheRefresh.load(
             cacheKey = HOT_COIN_CACHE_KEY,
@@ -63,34 +67,32 @@ class MarketSearchRepository(
             },
             save = { rows -> CacheStore.replaceHotCoins(HOT_COIN_CACHE_KEY, rows) }
         )
+        if (result.throttled) throw IllegalStateException("刚刚刷新过，请稍后再试")
         val rows = result.data ?: throw IllegalStateException(result.errorMessage ?: "热门行情暂时不可用")
         return rows.map { it.toDomain() }
     }
 
     suspend fun refreshHotCoins(): List<HotCoin> = loadHotCoins(manual = true)
 
-    suspend fun searchLocalDapps(query: String): List<CommunityProjectCatalogDto> {
-        val raw = CacheStore.readPublic(DAPP_CATALOG_CACHE_KEY) ?: return emptyList()
-        val type = object : TypeToken<List<CommunityProjectCatalogDto>>() {}.type
-        val entries = runCatching { Gson().fromJson<List<CommunityProjectCatalogDto>>(raw, type) }.getOrNull().orEmpty()
-        return entries.filter { it.matchesSearch(query) }
-    }
+    suspend fun searchLocalDapps(query: String): List<CommunityProjectCatalogDto> =
+        CommunityCatalogRepository.readCatalog().orEmpty()
+            .filter { it.is_active && it.matchesSearch(query) }
 
-    suspend fun searchRemoteDapps(query: String): List<CommunityProjectCatalogDto> {
-        val result = cacheRefresh.load(
-            cacheKey = DAPP_CATALOG_CACHE_KEY,
-            source = DAPP_CATALOG_SOURCE,
-            readCache = {
-                CacheStore.readPublic(DAPP_CATALOG_CACHE_KEY)?.let { raw ->
-                    val type = object : TypeToken<List<CommunityProjectCatalogDto>>() {}.type
-                    runCatching { Gson().fromJson<List<CommunityProjectCatalogDto>>(raw, type) }.getOrNull()
-                }
-            },
-            fetch = { ApiClient.service.getCommunityCatalog() },
-            save = { entries -> CacheStore.writePublic(DAPP_CATALOG_CACHE_KEY, Gson().toJson(entries)) }
-        )
-        val entries = result.data ?: throw IllegalStateException(result.errorMessage ?: "DApp 目录暂时不可用")
-        return entries.filter { it.matchesSearch(query) }
+    suspend fun searchRemoteDapps(query: String): List<CommunityProjectCatalogDto> =
+        CommunityCatalogRepository.refreshCatalog()
+            .filter { it.is_active && it.matchesSearch(query) }
+
+    /** Preload the dynamic market lists used by Home and global search. */
+    suspend fun warmUpMarketCaches() {
+        val priceResult = try { searchRemoteCoins(""); true }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
+        val hotCoinResult = try { loadHotCoins(); true }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
+        if (hasMarketWarmupFailure(priceResult, hotCoinResult)) {
+            throw IllegalStateException("部分行情目录预加载失败")
+        }
     }
 
     private suspend fun ensureSeedCoins() {
@@ -101,6 +103,7 @@ class MarketSearchRepository(
             "eth-ethereum" to ("ETH" to "Ethereum"),
             "sol-solana" to ("SOL" to "Solana"),
             "bnb-binance-coin" to ("BNB" to "BNB"),
+            "trx-tron" to ("TRX" to "TRON"),
             "xrp-xrp" to ("XRP" to "XRP")
         ).map { (id, identity) ->
             MarketCoinEntity("coinpaprika:$id", "seed", identity.first, identity.second, null, null, null, null, null, null, null, now)
@@ -118,12 +121,10 @@ class MarketSearchRepository(
     )
 
     companion object {
-        private val SUPPORTED_MARKET_SYMBOLS = setOf("BTC", "ETH", "SOL", "BNB", "XRP")
+        private val SUPPORTED_MARKET_SYMBOLS = setOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP")
         private const val MARKET_CACHE_KEY = "market-prices-supported"
         private const val COINPAPRIKA_SOURCE = "coinpaprika"
         private const val HOT_COIN_CACHE_KEY = "global-search-hot-coins"
         private const val OKX_SOURCE = "okx-spot"
-        private const val DAPP_CATALOG_CACHE_KEY = "global-search-dapp-catalog"
-        private const val DAPP_CATALOG_SOURCE = "community-catalog"
     }
 }

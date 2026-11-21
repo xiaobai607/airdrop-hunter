@@ -10,11 +10,13 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import CommunityContribution, CommunityProjectRating, CommunityProjectStats, PersonalLedgerEntry, User
+from app.models import CommunityContribution, CommunityProjectCatalogEntry, CommunityProjectRating, CommunityProjectStats, PersonalLedgerEntry, User
 from app.routers.auth import get_current_user, get_optional_current_user, limiter
+from app.services.community_privacy import anonymous_contributor_fingerprint
 from app.services.transaction_verification import (
     VerificationPending,
     VerificationRejected,
+    VerificationResult,
     verify_community_transaction,
 )
 
@@ -55,11 +57,14 @@ class CommunityAssetAmount(BaseModel):
 class CommunityContributionRequest(BaseModel):
     event_id: UUID
     network: str = Field(min_length=1, max_length=40)
-    wallet_address: str = Field(min_length=1, max_length=160)
-    tx_hash: str = Field(min_length=1, max_length=180)
+    wallet_address: str | None = Field(default=None, max_length=160)
+    tx_hash: str | None = Field(default=None, max_length=180)
     public_contribution_opt_in: bool
     gas_cost_usd: Decimal = Field(ge=0, le=MAX_AMOUNT)
-    actual_reward_usd: Decimal = Field(ge=0, le=MAX_AMOUNT)
+    actual_reward_usd: Decimal = Field(default=Decimal("0"), ge=0, le=MAX_AMOUNT)
+    estimated_reward_usd: Decimal | None = Field(default=None, ge=0, le=MAX_AMOUNT)
+    actual_reward_confirmed: bool = False
+    contributor_id: UUID | None = None
     asset_breakdown: list[CommunityAssetAmount] = Field(default_factory=list, max_length=10)
 
 
@@ -74,10 +79,12 @@ def serialize_stats(
         "project_official_id": project_official_id,
         "total_gas_cost_usd": float(row.total_gas_cost_usd or 0) if row else 0.0,
         "total_actual_reward_usd": float(row.total_actual_reward_usd or 0) if row else 0.0,
+        "total_estimated_reward_usd": float(row.total_estimated_reward_usd or 0) if row else 0.0,
+        "total_reward_usd": float(row.total_reward_usd or 0) if row else 0.0,
         "gas_by_verification_tier": gas_by_verification_tier or {},
         "average_rating": float(average_rating) if average_rating is not None else None,
         "rating_count": int(rating_count or 0),
-        "data_quality": "user_confirmed",
+        "data_quality": "approximate_actual_and_estimated",
     }
 
 
@@ -160,29 +167,64 @@ async def add_community_contribution(
     if not payload.public_contribution_opt_in:
         raise HTTPException(status_code=403, detail="未获得匿名公共贡献授权")
 
+    # Only currently active, explicitly curated official projects may receive
+    # new public contributions. Deactivation never deletes historical aggregates.
+    catalog_entry = await db.scalar(
+        select(CommunityProjectCatalogEntry).where(
+            CommunityProjectCatalogEntry.project_official_id == project_official_id,
+            CommunityProjectCatalogEntry.is_active.is_(True),
+        )
+    )
+    if catalog_entry is None:
+        raise HTTPException(status_code=404, detail="该项目不在当前有效社区目录中，不能新增公共贡献")
+
     # Tx Hash/address are transient verification inputs only. The database stores
     # a server-keyed fingerprint and sanitized verification metadata, never raw values.
-    try:
-        verification = await verify_community_transaction(
-            payload.network, payload.wallet_address, payload.tx_hash, payload.gas_cost_usd
+    # A missing hash is explicitly user-reported: do not require or persist an address,
+    # and do not imply that any chain verification took place.
+    normalized_tx_hash = (payload.tx_hash or "").strip()
+    if normalized_tx_hash:
+        wallet_address = (payload.wallet_address or "").strip()
+        if not wallet_address:
+            raise HTTPException(status_code=422, detail="提供 Tx Hash 时必须同时提供对应钱包地址")
+        try:
+            verification = await verify_community_transaction(
+                payload.network, wallet_address, normalized_tx_hash, payload.gas_cost_usd
+            )
+        except VerificationPending:
+            raise HTTPException(status_code=503, detail="链上核验暂不可用，记录已保留并等待重试")
+        except VerificationRejected as error:
+            raise HTTPException(status_code=422, detail=str(error))
+    else:
+        verification = VerificationResult(
+            tier="user_reported",
+            gas_cost_usd=payload.gas_cost_usd,
+            tx_fingerprint=None,
+            metadata={"verification_method": "user_reported", "reason": "tx_hash_not_provided"},
         )
-    except VerificationPending:
-        raise HTTPException(status_code=503, detail="链上核验暂不可用，记录已保留并等待重试")
-    except VerificationRejected as error:
-        raise HTTPException(status_code=422, detail=str(error))
 
     public_gas_cost = verification.gas_cost_usd
-    asset_breakdown = normalize_public_asset_breakdown(
-        payload.asset_breakdown, payload.actual_reward_usd, verification
+    public_reward_usd = (
+        payload.actual_reward_usd
+        if payload.actual_reward_confirmed
+        else (payload.estimated_reward_usd or Decimal("0"))
     )
+    asset_breakdown = normalize_public_asset_breakdown(
+        payload.asset_breakdown, public_reward_usd, verification
+    )
+    contributor_fingerprint = anonymous_contributor_fingerprint(payload.contributor_id)
 
     contribution = pg_insert(CommunityContribution).values(
         id=payload.event_id,
         # Public aggregates are intentionally unlinkable to a signed-in account.
         user_id=None,
         project_official_id=project_official_id,
+        network=payload.network.strip().lower(),
         gas_cost_usd=public_gas_cost,
         actual_reward_usd=payload.actual_reward_usd,
+        estimated_reward_usd=payload.estimated_reward_usd,
+        actual_reward_confirmed=payload.actual_reward_confirmed,
+        contributor_fingerprint=contributor_fingerprint,
         asset_breakdown=asset_breakdown,
         tx_fingerprint=verification.tx_fingerprint,
         verification_tier=verification.tier,
@@ -191,13 +233,11 @@ async def add_community_contribution(
 
     inserted_id = (await db.execute(contribution)).scalar_one_or_none()
     if inserted_id is None:
+        duplicate_conditions = [CommunityContribution.id == payload.event_id]
+        if verification.tx_fingerprint is not None:
+            duplicate_conditions.append(CommunityContribution.tx_fingerprint == verification.tx_fingerprint)
         existing = await db.scalar(
-            select(CommunityContribution).where(
-                or_(
-                    CommunityContribution.id == payload.event_id,
-                    CommunityContribution.tx_fingerprint == verification.tx_fingerprint,
-                )
-            )
+            select(CommunityContribution).where(or_(*duplicate_conditions))
         )
         same_contribution = (
             existing is not None
@@ -206,6 +246,10 @@ async def add_community_contribution(
             and existing.project_official_id == project_official_id
             and existing.gas_cost_usd == public_gas_cost
             and existing.actual_reward_usd == payload.actual_reward_usd
+            and existing.estimated_reward_usd == payload.estimated_reward_usd
+            and existing.actual_reward_confirmed == payload.actual_reward_confirmed
+            and existing.network == payload.network.strip().lower()
+            and existing.contributor_fingerprint == contributor_fingerprint
             and existing.tx_fingerprint == verification.tx_fingerprint
             and existing.verification_tier == verification.tier
             and (existing.asset_breakdown or []) == asset_breakdown
@@ -216,7 +260,9 @@ async def add_community_contribution(
         aggregate_insert = pg_insert(CommunityProjectStats).values(
             project_official_id=project_official_id,
             total_gas_cost_usd=public_gas_cost,
-            total_actual_reward_usd=payload.actual_reward_usd,
+            total_actual_reward_usd=payload.actual_reward_usd if payload.actual_reward_confirmed else Decimal("0"),
+            total_estimated_reward_usd=payload.estimated_reward_usd if not payload.actual_reward_confirmed and payload.estimated_reward_usd is not None else Decimal("0"),
+            total_reward_usd=public_reward_usd,
         )
         excluded = aggregate_insert.excluded
         aggregate_upsert = aggregate_insert.on_conflict_do_update(
@@ -224,6 +270,8 @@ async def add_community_contribution(
             set_={
                 "total_gas_cost_usd": CommunityProjectStats.total_gas_cost_usd + excluded.total_gas_cost_usd,
                 "total_actual_reward_usd": CommunityProjectStats.total_actual_reward_usd + excluded.total_actual_reward_usd,
+                "total_estimated_reward_usd": CommunityProjectStats.total_estimated_reward_usd + excluded.total_estimated_reward_usd,
+                "total_reward_usd": CommunityProjectStats.total_reward_usd + excluded.total_reward_usd,
             },
         )
         await db.execute(aggregate_upsert)

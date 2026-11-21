@@ -25,21 +25,91 @@ class FeatureRepositoryTest {
     }
 
     @Test
-    fun hubRepositoryTriggersInitialSyncOnlyWhenNoAttemptExists() = runBlocking {
+    fun hubRepositoryLoadsPublicSourceHealth() = runBlocking {
+        val expected = listOf(
+            AirdropHubSourceStatusDto(
+                source_name = "binance-announcements",
+                label = "Binance 官方公告",
+                enabled = true,
+                status = "success",
+                last_item_count = 12
+            )
+        )
+        val remote = FakeHubRemote().apply { sourceStatuses = expected }
+        assertEquals(expected, AirdropHubRepository(remote).loadSourceStatuses())
+    }
+
+    @Test
+    fun hubRepositorySchedulesInitialSyncAfterReturningServerList() = runBlocking {
         val remote = FakeHubRemote()
-        val snapshot = AirdropHubRepository(remote).load(null)
+        val repository = AirdropHubRepository(
+            remote, FakeHubCache(), clock = { NOW }
+        )
+        val snapshot = repository.load(null)
+        assertEquals(0, remote.syncCalls)
+        assertTrue(snapshot.refreshDue)
+        assertTrue(snapshot.projects.isEmpty())
+        assertEquals(1, repository.refresh(null).size)
         assertEquals(1, remote.syncCalls)
+    }
+
+    @Test
+    fun hubRepositorySchedulesRefreshWhenLastAttemptIsOlderThanEightHours() = runBlocking {
+        val remote = FakeHubRemote().apply {
+            status = AirdropHubSyncStatusDto(last_attempt_at = "2026-01-01T00:00:00Z")
+        }
+        val repository = AirdropHubRepository(remote, FakeHubCache(), clock = { NOW })
+        val snapshot = repository.load("Base")
+        assertEquals(0, remote.syncCalls)
+        assertTrue(snapshot.refreshDue)
+        assertEquals(1, repository.refresh("Base").size)
+        assertEquals("Base", remote.lastChain)
+    }
+
+    @Test
+    fun hubRepositoryDoesNotRefreshWhenServerAttemptIsFresh() = runBlocking {
+        val remote = FakeHubRemote().apply {
+            status = AirdropHubSyncStatusDto(
+                last_attempt_at = "2026-11-11T10:00:00Z",
+                last_success_at = "2026-11-11T10:00:00Z"
+            )
+        }
+        val repository = AirdropHubRepository(remote, FakeHubCache(), clock = { NOW })
+        val snapshot = repository.load(null)
+        assertEquals(0, remote.syncCalls)
+        assertTrue(!snapshot.refreshDue)
         assertEquals(1, snapshot.projects.size)
     }
 
     @Test
-    fun hubRepositoryDoesNotRepeatInitialSyncAfterAnAttempt() = runBlocking {
-        val remote = FakeHubRemote().apply {
-            status = AirdropHubSyncStatusDto(last_attempt_at = "2026-01-01T00:00:00Z")
+    fun hubRepositoryReturnsStaleCacheImmediatelyAndMarksBackgroundRefreshDue() = runBlocking {
+        val remote = FakeHubRemote()
+        val cache = FakeHubCache().apply {
+            values["airdrop-hub:all"] = AirdropHubCacheEnvelope(
+                projects = listOf(AirdropHubDto("cached", "Cached", "Base", "", "active", "https://example.org")),
+                fetchedAtEpochMillis = NOW - AirdropHubRepository.AUTO_REFRESH_INTERVAL_MILLIS - 1,
+                lastAttemptAtEpochMillis = NOW - AirdropHubRepository.AUTO_REFRESH_INTERVAL_MILLIS - 1
+            )
         }
-        AirdropHubRepository(remote).load("Base")
+        val snapshot = AirdropHubRepository(remote, cache, clock = { NOW }).load(null)
+        assertEquals("cached", snapshot.projects.single().id)
+        assertTrue(snapshot.refreshDue)
         assertEquals(0, remote.syncCalls)
-        assertEquals("Base", remote.lastChain)
+    }
+
+    @Test
+    fun hubRepositoryHonorsRetryCooldownAfterFailedRefresh() = runBlocking {
+        val remote = FakeHubRemote()
+        val cache = FakeHubCache().apply {
+            values["airdrop-hub:all"] = AirdropHubCacheEnvelope(
+                projects = emptyList(),
+                fetchedAtEpochMillis = 0L,
+                lastAttemptAtEpochMillis = NOW - 60_000L
+            )
+        }
+        val snapshot = AirdropHubRepository(remote, cache, clock = { NOW }).load(null)
+        assertTrue(!snapshot.refreshDue)
+        assertEquals(0, remote.syncCalls)
     }
 
     @Test
@@ -66,6 +136,14 @@ class FeatureRepositoryTest {
     }
 }
 
+private const val NOW = 1_794_398_400_000L
+
+private class FakeHubCache : AirdropHubCache {
+    val values = mutableMapOf<String, AirdropHubCacheEnvelope>()
+    override suspend fun read(key: String): AirdropHubCacheEnvelope? = values[key]
+    override suspend fun write(key: String, value: AirdropHubCacheEnvelope) { values[key] = value }
+}
+
 private class FakeProfileRemote : ProfileRemoteDataSource {
     override suspend fun getProfile() = UserProfileDto("user-1", "tester", "123456")
     override suspend fun getStats() = UserStatsDto(tracked_projects = 7)
@@ -75,13 +153,15 @@ private class FakeHubRemote : AirdropHubRemoteDataSource {
     var syncCalls = 0
     var lastChain: String? = null
     var status = AirdropHubSyncStatusDto()
+    var sourceStatuses = emptyList<AirdropHubSourceStatusDto>()
     private val items = listOf(AirdropHubDto("1", "Example", "Base", "desc", "active", "https://example.org"))
     override suspend fun getProjects(chain: String?): List<AirdropHubDto> {
         lastChain = chain
-        if (syncCalls == 0 && status.last_attempt_at == null) return emptyList()
+        if (syncCalls == 0 && status.last_success_at == null) return emptyList()
         return if (chain == null) items else items.filter { it.chain == chain }
     }
     override suspend fun getStatus() = status
+    override suspend fun getSourceStatuses() = sourceStatuses
     override suspend fun sync(): AirdropHubRefreshResponse {
         syncCalls++
         return AirdropHubRefreshResponse(true, items.size, status)

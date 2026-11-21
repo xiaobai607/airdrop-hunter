@@ -32,9 +32,7 @@ class ProjectsViewModel(private val repository: ProjectsRepository) : ViewModel(
             _uiState.value = ProjectsUiState(isLoading = true)
             try {
                 val cached = repository.readCachedProjects(isGuest)
-                if (cached.isNotEmpty() || isGuest) {
-                    _uiState.value = _uiState.value.copy(isLoading = false, projects = cached)
-                }
+                _uiState.value = _uiState.value.copy(isLoading = false, projects = cached, error = null)
                 if (isGuest) return@launch
                 val refreshed = repository.refreshProjects()
                 _uiState.value = _uiState.value.copy(isLoading = false, projects = refreshed, error = null)
@@ -43,26 +41,27 @@ class ProjectsViewModel(private val repository: ProjectsRepository) : ViewModel(
             } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = error.message ?: "Network error"
+                    error = if (_uiState.value.projects.isNotEmpty()) "__PROJECT_SYNC_CACHED__"
+                        else error.message ?: "__PROJECT_NETWORK_ERROR__"
                 )
             }
         }
     }
 
     fun createProject(request: ProjectWriteRequest, isGuest: Boolean = false) {
-        mutateProjects(isGuest, if (isGuest) "已保存在本地" else "Project added") {
+        mutateProjects(isGuest, "__PROJECT_ADDED__") {
             repository.createProject(request, isGuest)
         }
     }
 
     fun updateProject(project: ProjectDto, request: ProjectWriteRequest, isGuest: Boolean = false) {
-        mutateProjects(isGuest, if (isGuest) "已保存在本地" else "Project updated") {
+        mutateProjects(isGuest, "__PROJECT_UPDATED__") {
             repository.updateProject(project, request, isGuest)
         }
     }
 
     fun deleteProject(project: ProjectDto, isGuest: Boolean = false) {
-        mutateProjects(isGuest, if (isGuest) "已从本地删除" else "Project deleted") {
+        mutateProjects(isGuest, "__PROJECT_DELETED__") {
             repository.deleteProject(project, isGuest)
         }
     }

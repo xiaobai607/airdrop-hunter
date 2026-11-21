@@ -103,3 +103,46 @@ def test_project_write_links_require_https_without_credentials():
         })
         assert valid.status_code == 201
         assert valid.json()["official_url"] == "https://example.com"
+
+
+
+def test_project_create_is_idempotent_for_same_user_and_client_id():
+    from uuid import uuid4
+
+    with TestClient(app) as client:
+        alice = register(client)
+        bob = register(client)
+        client_id = str(uuid4())
+        first = client.post("/api/projects", headers=alice, json={
+            "name": "Stable local project",
+            "description": "first payload",
+            "client_project_id": client_id,
+        })
+        assert first.status_code == 201
+        first_project = first.json()
+
+        retry = client.post("/api/projects", headers=alice, json={
+            "name": "Stable local project",
+            "description": "first payload",
+            "client_project_id": client_id,
+        })
+        assert retry.status_code == 201
+        assert retry.json()["id"] == first_project["id"]
+        assert retry.json()["client_project_id"] == client_id
+
+        listed = client.get("/api/projects", headers=alice)
+        assert [item["id"] for item in listed.json()].count(first_project["id"]) == 1
+
+        # Ordinary edits from older clients omit the key; it must remain immutable.
+        updated = client.put(f"/api/projects/{first_project['id']}", headers=alice, json={
+            "name": "Edited project",
+        })
+        assert updated.status_code == 200
+        assert updated.json()["client_project_id"] == client_id
+
+        other_user = client.post("/api/projects", headers=bob, json={
+            "name": "Different account project",
+            "client_project_id": client_id,
+        })
+        assert other_user.status_code == 201
+        assert other_user.json()["id"] != first_project["id"]

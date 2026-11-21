@@ -132,6 +132,51 @@ internal object DappProviderBridge {
     fun isSupportedExternalWalletMethod(method: String): Boolean =
         method.trim().lowercase() in externalWalletMethods
 
+    /** Reject transaction payloads that explicitly target a different EVM chain. */
+    fun isTransactionChainCompatible(method: String, requestedChainId: String?, activeChainId: String): Boolean {
+        if (method.trim().lowercase() !in setOf("eth_sendtransaction", "eth_signtransaction")) return true
+        if (requestedChainId.isNullOrBlank()) return true
+        val requested = runCatching {
+            if (requestedChainId.startsWith("0x", ignoreCase = true)) {
+                requestedChainId.substring(2).toLong(16)
+            } else {
+                requestedChainId.toLong()
+            }
+        }.getOrNull() ?: return false
+        val active = activeChainId.removePrefix("eip155:").removePrefix("0x").let { raw ->
+            runCatching {
+                if (activeChainId.removePrefix("eip155:").startsWith("0x", ignoreCase = true)) raw.toLong(16)
+                else raw.toLong()
+            }.getOrNull()
+        } ?: return false
+        return requested == active
+    }
+
+    /** Extract the exact account requested by a signing/transaction method. */
+    fun requestedAccountAddress(
+        method: String,
+        firstParam: String?,
+        secondParam: String?,
+        transactionFrom: String?
+    ): String? {
+        val addressPattern = Regex("^0x[a-fA-F0-9]{40}$")
+        return when (method.trim().lowercase()) {
+            "personal_sign" -> {
+                val firstLooksLikeAddress = firstParam?.let(addressPattern::matches) == true
+                val secondLooksLikeAddress = secondParam?.let(addressPattern::matches) == true
+                when {
+                    firstLooksLikeAddress && !secondLooksLikeAddress -> firstParam
+                    secondLooksLikeAddress && !firstLooksLikeAddress -> secondParam
+                    else -> null
+                }
+            }
+            "eth_sign", "eth_signtypeddata", "eth_signtypeddata_v3",
+            "eth_signtypeddata_v4" -> firstParam?.takeIf(addressPattern::matches)
+            "eth_signtransaction", "eth_sendtransaction" -> transactionFrom?.takeIf(addressPattern::matches)
+            else -> null
+        }
+    }
+
     fun isAuthorizedAccountRequest(
         method: String,
         firstParam: String?,
@@ -194,6 +239,22 @@ internal object DappProviderBridge {
     } catch (_: JSONException) {
         null
     }
+
+    fun isMatchingExternalWalletResponse(
+        expectedRequestId: Long?,
+        responseRequestId: Long,
+        expectedTopic: String,
+        responseTopic: String,
+        expectedMethod: String,
+        responseMethod: String,
+        expectedChainId: String,
+        responseChainId: String?
+    ): Boolean =
+        expectedRequestId != null &&
+            responseRequestId == expectedRequestId &&
+            responseTopic == expectedTopic &&
+            responseMethod.equals(expectedMethod, ignoreCase = true) &&
+            !responseChainId.isNullOrBlank() && responseChainId == expectedChainId
 
     fun isTrustedMainFrame(sourceOrigin: Uri, pageUrl: String?): Boolean {
         if (pageUrl.isNullOrBlank()) return false

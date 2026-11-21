@@ -1,24 +1,47 @@
 package com.airdrophunter.app
 
 import android.content.Intent
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.airdrophunter.app.data.AirdropHubDetailDto
+import com.airdrophunter.app.data.AirdropHubDto
+import com.airdrophunter.app.data.ApiClient
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AirdropSourceHealthPanel
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.StaggeredListItem
+import com.airdrophunter.app.ui.components.AppIconButton
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import java.text.DateFormat
+import java.time.Instant
+import java.util.Date
 
 @Composable
 fun AirdropHubScreen(
@@ -31,158 +54,301 @@ fun AirdropHubScreen(
         factory = AirdropHubViewModelFactory(application.appContainer.airdropHubRepository)
     )
     val state by hubViewModel.uiState.collectAsStateWithLifecycle()
+    var selectedAnnouncement by remember { mutableStateOf<AirdropHubDto?>(null) }
+    var showSourceDetails by remember { mutableStateOf(false) }
 
-    Column(modifier.fillMaxSize().background(AppColors.Background)) {
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+    if (selectedAnnouncement != null) {
+        AirdropAnnouncementDetail(
+            item = selectedAnnouncement!!,
+            onBack = { selectedAnnouncement = null }
+        )
+        return
+    }
+
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            items(hubViewModel.chains) { chain ->
-                val selected = state.selectedChain == chain
-                Surface(
-                    onClick = { hubViewModel.selectChain(chain) },
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (selected) AppColors.Primary else AppColors.Surface,
-                    border = if (selected) null else BorderStroke(1.dp, AppColors.Border)
-                ) {
-                    Text(
-                        chain,
-                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
-                        color = if (selected) AppColors.Surface else AppColors.TextSecondary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(context.getString(R.string.hub_title), modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(context.getString(R.string.hub_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall)
+            }
+            AppTextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
+                Text(if (state.isRefreshing) context.getString(R.string.common_refreshing) else context.getString(R.string.common_refresh), color = MaterialTheme.colorScheme.primary)
             }
         }
 
-        if (state.sourceError != null) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
-                color = AppColors.DangerBackground,
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text(
-                    "数据源提醒：${state.sourceError}",
-                    modifier = Modifier.padding(12.dp),
-                    color = AppColors.Danger,
-                    style = MaterialTheme.typography.bodySmall
+        Column(Modifier.weight(1f)) {
+            if (state.sourceStatuses.isNotEmpty() || state.sourceStatusError != null || state.sourceError != null) {
+                AirdropSourceHealthPanel(
+                    statuses = state.sourceStatuses,
+                    error = when (val sourceError = state.sourceError ?: state.sourceStatusError) {
+                        "暂时无法读取数据源状态" -> context.getString(R.string.hub_source_status_unavailable)
+                        "数据源暂时不可用，已保留上次数据。" -> context.getString(R.string.hub_source_unavailable_cached)
+                        else -> sourceError
+                    },
+                    expanded = showSourceDetails,
+                    onToggle = { showSourceDetails = !showSourceDetails },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
-        }
-
-        when {
+            when {
             state.isLoading && state.projects.isEmpty() -> Box(
                 Modifier.fillMaxSize(), contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator(color = AppColors.Primary) }
+            ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
 
             state.error != null && state.projects.isEmpty() -> Column(
                 Modifier.fillMaxSize().padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("暂时无法加载空投数据", color = AppColors.TextPrimary,
+                Text(context.getString(R.string.hub_unavailable), color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(state.error.orEmpty(), color = AppColors.TextSecondary,
+                Text(context.getString(R.string.common_check_network), color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
-                Button(
-                    onClick = hubViewModel::refresh,
-                    enabled = !state.isRefreshing,
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                ) {
-                    if (state.isRefreshing) CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp), color = AppColors.Surface, strokeWidth = 2.dp
-                    ) else Text("重新拉取数据")
-                }
+                AppButton(context.getString(R.string.common_retry), onClick = hubViewModel::refresh, enabled = !state.isRefreshing)
             }
 
-            state.projects.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("当前链暂时没有收录项目", color = AppColors.TextHelper)
+            state.projects.isEmpty() -> Box(
+                Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                    elevation = CardDefaults.cardElevation(0.dp)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(context.getString(R.string.hub_empty), color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(context.getString(R.string.hub_empty_help),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        AppButton(context.getString(R.string.hub_refresh_announcements), onClick = hubViewModel::refresh, enabled = !state.isRefreshing, fullWidth = false)
+                    }
+                }
             }
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 24.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "${state.projects.size} 个空投项目",
-                            Modifier.weight(1f),
-                            color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        TextButton(onClick = hubViewModel::refresh, enabled = !state.isRefreshing) {
-                            Text(if (state.isRefreshing) "正在刷新…" else "刷新数据", color = AppColors.Primary)
-                        }
-                    }
+                    Text(context.getString(R.string.hub_count, state.projects.size),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                 }
-                items(state.projects, key = { it.id }) { project ->
+                itemsIndexed(state.projects, key = { _, item -> item.id }) { index, item ->
+                    StaggeredListItem(item.id, index) {
                     Card(
-                        onClick = {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(context, BrowserActivity::class.java)
-                                        .putExtra(BrowserActivity.EXTRA_URL, project.link)
-                                        .putExtra(BrowserActivity.EXTRA_TITLE, project.name)
-                                )
-                            }.onFailure {
-                                Toast.makeText(context, "无法打开该项目链接", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                        border = BorderStroke(1.dp, AppColors.Border),
+                        modifier = Modifier.fillMaxWidth().appPressFeedback(
+                            onClick = { selectedAnnouncement = item }, scale = 0.96f
+                        ),
+                        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         Column(
                             Modifier.fillMaxWidth().padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(verticalAlignment = Alignment.Top) {
                                 Text(
-                                    project.name,
+                                    item.name,
                                     Modifier.weight(1f),
-                                    color = AppColors.TextPrimary,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
-                                    Text(
-                                        project.chain,
-                                        Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                        color = AppColors.Primary,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
+                                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
+                                    Text("Binance", Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
-                            if (project.description.isNotBlank()) {
-                                Text(
-                                    project.description,
-                                    color = AppColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Surface(color = AppColors.MutedBackground, shape = RoundedCornerShape(999.dp)) {
-                                    Text(
-                                        project.status,
-                                        Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                                        color = AppColors.TextSecondary,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
+                            item.published_at?.let { publishedAt ->
+                                val formattedDate = runCatching {
+                                    DateFormat.getDateTimeInstance().format(Date(Instant.parse(publishedAt).toEpochMilli()))
+                                }.getOrNull()
+                                if (formattedDate != null) {
+                                    Text(context.getString(R.string.hub_date, formattedDate),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                                 }
-                                Spacer(Modifier.weight(1f))
-                                Text("打开官网  ↗", color = AppColors.Primary,
-                                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                             }
+                            Text(context.getString(R.string.hub_open_full),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            Text(context.getString(R.string.hub_view_details), color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold)
                         }
                     }
+                    }
                 }
+            }
             }
         }
     }
 }
+
+@Composable
+private fun AirdropAnnouncementDetail(
+    item: AirdropHubDto,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    var detail by remember(item.id) { mutableStateOf<AirdropHubDetailDto?>(null) }
+    var loading by remember(item.id) { mutableStateOf(true) }
+    var error by remember(item.id) { mutableStateOf<String?>(null) }
+    var reloadKey by remember(item.id) { mutableIntStateOf(0) }
+
+    LaunchedEffect(item.id, reloadKey) {
+        loading = true
+        error = null
+        try {
+            detail = ApiClient.service.getAirdropHubDetail(item.id)
+        } catch (_: Exception) {
+            error = context.getString(R.string.hub_body_load_error)
+        } finally {
+            loading = false
+        }
+    }
+
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            com.airdrophunter.app.ui.components.AppIconButton(
+                icon = Icons.Default.ArrowBack,
+                contentDescription = context.getString(R.string.hub_back_list),
+                onClick = onBack
+            )
+            Text(context.getString(R.string.hub_detail_title), color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
+        Text(
+            detail?.title ?: item.name,
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            context.getString(R.string.hub_binance_original),
+            Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+            style = MaterialTheme.typography.labelSmall
+        )
+
+        when {
+            loading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+            detail == null -> Column(
+                Modifier.weight(1f).fillMaxWidth().padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(error ?: context.getString(R.string.hub_body_unavailable), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppButton(context.getString(R.string.common_retry), onClick = { reloadKey += 1 }, style = AppButtonStyle.SECONDARY)
+            }
+            else -> {
+                detail!!.release_date?.let { timestamp ->
+                    Text(
+                        DateFormat.getDateTimeInstance().format(Date(timestamp)),
+                        Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+                key(detail!!.content_html) {
+                    AndroidView(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        factory = { viewContext ->
+                            WebView(viewContext).apply {
+                                settings.javaScriptEnabled = false
+                                settings.domStorageEnabled = false
+                                settings.allowFileAccess = false
+                                settings.allowContentAccess = false
+                                settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                                settings.setSupportMultipleWindows(false)
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(
+                                        view: WebView,
+                                        request: android.webkit.WebResourceRequest
+                                    ): Boolean {
+                                        // Only explicit top-level user clicks may leave the
+                                        // source article. Block subframes and automatic redirects.
+                                        if (!request.isForMainFrame || !request.hasGesture()) {
+                                            return true
+                                        }
+                                        val target = request.url
+                                        if (!target.scheme.equals("https", ignoreCase = true)) {
+                                            return true
+                                        }
+                                        return runCatching {
+                                            viewContext.startActivity(
+                                                Intent(viewContext, BrowserActivity::class.java)
+                                                    .putExtra(BrowserActivity.EXTRA_URL, target.toString())
+                                                    .putExtra(BrowserActivity.EXTRA_TITLE, context.getString(R.string.hub_open_link))
+                                            )
+                                        }.fold(
+                                            onSuccess = { true },
+                                            onFailure = {
+                                                Toast.makeText(viewContext, viewContext.getString(R.string.hub_open_link_failed), Toast.LENGTH_SHORT).show()
+                                                true
+                                            }
+                                        )
+                                    }
+                                }
+                                loadDataWithBaseURL(
+                                    "https://www.binance.com",
+                                    announcementHtmlDocument(detail!!.content_html),
+                                    "text/html",
+                                    "UTF-8",
+                                    null
+                                )
+                            }
+                        },
+                        update = {}
+                    )
+                }
+            }
+        }
+
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AppButton(
+                text = context.getString(R.string.hub_back_list),
+                onClick = onBack,
+                modifier = Modifier.weight(1f),
+                style = AppButtonStyle.SECONDARY
+            )
+            AppButton(
+                text = context.getString(R.string.hub_open_binance),
+                onClick = {
+                    runCatching {
+                        context.startActivity(
+                            Intent(context, BrowserActivity::class.java)
+                                .putExtra(BrowserActivity.EXTRA_URL, detail?.original_url ?: item.link)
+                                .putExtra(BrowserActivity.EXTRA_TITLE, item.name)
+                        )
+                    }.onFailure {
+                        Toast.makeText(context, context.getString(R.string.hub_open_binance_failed), Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+

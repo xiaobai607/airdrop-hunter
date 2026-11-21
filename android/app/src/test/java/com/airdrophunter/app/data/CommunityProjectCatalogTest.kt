@@ -1,23 +1,73 @@
 package com.airdrophunter.app.data
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.airdrophunter.app.airdropFilterGroupsFor
+import com.airdrophunter.app.AirdropFilterMetadata
+import com.airdrophunter.app.AirdropFilterSelection
+import com.airdrophunter.app.matchesAirdropFilters
 
 class CommunityProjectCatalogTest {
-    @Test fun exactNameSuggestsOfficialProject() {
-        assertEquals("linea", CommunityProjectCatalog.findMatch("linea")?.officialId)
+    @Test fun pickerUsesDynamicDirectoryAndOnlyActiveProjects() {
+        val directory = listOf(
+            CommunityProjectCatalogDto("linea", "Linea", "Ethereum L2", "", "zkEVM", listOf("L2"), "https://linea.build/", is_active = true),
+            CommunityProjectCatalogDto("old", "Old Project", "Ethereum", "", "", emptyList(), "", is_active = false)
+        )
+        val visible = directory.filter { it.is_active && it.matchesSearch("linea") }
+        assertEquals(listOf("linea"), visible.map { it.project_official_id })
+        assertTrue(directory.first { it.project_official_id == "linea" }.matchesSearch("L2"))
+        assertFalse(directory.first { it.project_official_id == "old" }.is_active)
+        assertEquals(listOf("linea"), directory.filter { it.is_active }.map { it.project_official_id })
     }
 
-    @Test fun customSuffixStillSuggestsButDoesNotAutoLink() {
-        assertEquals("linea", CommunityProjectCatalog.findMatch("Linea测试号")?.officialId)
+    @Test fun airdropFiltersUseOrWithinGroupAndAndAcrossGroups() {
+        val project = AirdropFilterMetadata(
+            chain = "Ethereum L2",
+            supportedChains = listOf("base", "arbitrum-one"),
+            categories = listOf("layer2", "defi"),
+            participationRequirements = listOf("bridge", "onchain_interaction"),
+            fundingRequirement = "gas_only",
+            campaignStage = "unknown",
+            rewardTypes = emptyList(),
+            riskFlags = listOf("contract_approval"),
+            effortLevel = "recurring"
+        )
+        val selection = AirdropFilterSelection()
+            .toggle("supported_chains", "base")
+            .toggle("supported_chains", "linea")
+            .toggle("participation_requirements", "bridge")
+            .toggle("funding_requirement", "gas_only")
+        assertTrue(matchesAirdropFilters(project, selection))
+        assertFalse(matchesAirdropFilters(project, selection.toggle("campaign_stage", "claim_open")))
+        assertTrue(matchesAirdropFilters(project, AirdropFilterSelection().toggle("campaign_stage", "unknown")))
+        assertFalse(matchesAirdropFilters(project, AirdropFilterSelection().toggle("campaign_stage", "claim_open")))
     }
 
-    @Test fun unknownProjectDoesNotMatchCommunityCatalog() {
-        assertNull(CommunityProjectCatalog.findMatch("myprivateproject"))
+    @Test fun filterOptionsIncludeNewlyCuratedDirectoryValues() {
+        val directory = listOf(
+            CommunityProjectCatalogDto(
+                project_official_id = "new-defi",
+                name = "New DeFi",
+                chain = "Base",
+                logo = "",
+                description = "",
+                tags = emptyList(),
+                supported_chains = listOf("base", "custom-rollup"),
+                categories = listOf("defi", "intent-based"),
+                participation_requirements = listOf("bridge", "unique_contracts"),
+                website_url = "https://example.org"
+            )
+        )
+        val groups = airdropFilterGroupsFor(directory)
+        assertTrue(groups.first { it.key == "supported_chains" }.options.any { it.value == "custom-rollup" })
+        assertTrue(groups.first { it.key == "categories" }.options.any { it.value == "intent-based" })
+        assertTrue(groups.first { it.key == "participation_requirements" }.options.any { it.value == "unique_contracts" })
     }
 
-    @Test fun matchingIsCaseInsensitive() {
-        assertEquals("zksync", CommunityProjectCatalog.findMatch("ZKSync")?.officialId)
+    @Test fun customProjectHasNoCommunityAssociationUnlessExplicitlySelected() {
+        val request = ProjectWriteRequest(name = "Private project", description = "", status = "tracking")
+        assertEquals(null, request.community_official_id)
     }
 }

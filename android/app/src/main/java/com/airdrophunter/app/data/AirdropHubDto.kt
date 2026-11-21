@@ -6,7 +6,19 @@ data class AirdropHubDto(
     val chain: String,
     val description: String,
     val status: String,
-    val link: String
+    val link: String,
+    val published_at: String? = null,
+    val data_source: String = "",
+    val trust_level: String = "TRUST_LEVEL_0",
+    val publication_status: String = "OBSERVATION"
+)
+
+data class AirdropHubDetailDto(
+    val title: String,
+    val content_html: String,
+    val release_date: Long? = null,
+    val catalog_name: String = "",
+    val original_url: String
 )
 
 data class AirdropHubSyncStatusDto(
@@ -15,6 +27,17 @@ data class AirdropHubSyncStatusDto(
     val imported_count: Int = 0,
     val source: String = "",
     val error: String? = null
+)
+
+data class AirdropHubSourceStatusDto(
+    val source_name: String,
+    val label: String,
+    val enabled: Boolean,
+    val status: String,
+    val last_attempt_at: String? = null,
+    val last_success_at: String? = null,
+    val last_item_count: Int = 0,
+    val last_error: String? = null
 )
 
 data class AirdropHubRefreshResponse(

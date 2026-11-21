@@ -24,6 +24,30 @@ class ManualProjectAccountingPolicyTest {
         publicContributionOptIn = optIn
     )
 
+
+    @Test
+    fun communityDirectoryRecordsContributeByDefaultAndHashlessRowsRemainUserReported() {
+        val hash = "0x" + "c".repeat(64)
+        assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "linea", "ethereum", hash
+        ))
+        assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "scroll", "base", hash
+        ))
+        assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            null, "ethereum", hash
+        ))
+        assertTrue(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "linea", "ethereum", ""
+        ))
+        assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "linea", "ethereum", "0xinvalid"
+        ))
+        assertFalse(ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+            "linea", "tron", hash
+        ))
+    }
+
     @Test
     fun perWalletUsdRewardProducesExplicitNetProfit() {
         val batch = ManualProjectAccountingPolicy.prepare(
@@ -91,12 +115,25 @@ class ManualProjectAccountingPolicyTest {
         assertTrue(batch.hasPublicContributionOptIn)
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun optedInWalletRejectsMissingHash() {
-        ManualProjectAccountingPolicy.prepare(
-            listOf(wallet("one", optIn = true)),
+    @Test
+    fun optedInWalletWithoutHashIsAllowedAsUserReported() {
+        val batch = ManualProjectAccountingPolicy.prepare(
+            listOf(wallet("one", ManualRewardInput(ManualRewardKind.USD, BigDecimal("3.00")), optIn = true)),
             ManualRewardAllocationMode.PER_WALLET
         )
+        assertTrue(batch.entries.single().publicContributionOptIn)
+        assertTrue(batch.hasPublicContributionOptIn)
+    }
+
+    @Test
+    fun officialProjectGasCanContributeWhenRewardUsdIsUnknown() {
+        val batch = ManualProjectAccountingPolicy.prepare(
+            listOf(wallet("one", ManualRewardInput(ManualRewardKind.UNKNOWN), optIn = true)),
+            ManualRewardAllocationMode.PER_WALLET
+        )
+        assertTrue(batch.entries.single().publicContributionOptIn)
+        assertNull(batch.entries.single().actualRewardUsd)
+        assertNull(batch.entries.single().netProfitUsd)
     }
 
     @Test

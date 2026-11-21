@@ -9,7 +9,9 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     config = Config(str(backend_dir / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_current_head() == "0017_verified_contrib"
+    discovery_identity = scripts.get_revision("0025_identity_classification")
+    assert discovery_identity is not None and discovery_identity.down_revision == "0024_discovery_filter_decisions"
+    assert scripts.get_current_head() == "0026_discovery_observations"
     bootstrap = scripts.get_revision("0001_bootstrap")
     ledger = scripts.get_revision("0002_personal_ledger")
     nullable_reward = scripts.get_revision("0003_nullable_expected_reward")
@@ -27,6 +29,12 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     community_favorites = scripts.get_revision("0015_community_favorites")
     nullable_expected_gas = scripts.get_revision("0016_nullable_expected_gas")
     verified_contributions = scripts.get_revision("0017_verified_contrib")
+    idempotent_projects = scripts.get_revision("0018_idempotent_project_creation")
+    dashboard_aggregates = scripts.get_revision("0019_comm_dash")
+    airdrop_filters = scripts.get_revision("0020_airdrop_filters")
+    airdrop_campaigns = scripts.get_revision("0021_airdrop_campaigns")
+    campaign_heat_source = scripts.get_revision("0022_campaign_heat_source")
+    trusted_catalog_source = scripts.get_revision("0023_trusted_catalog_source")
     assert bootstrap is not None and bootstrap.down_revision is None
     assert ledger is not None and ledger.down_revision == "0001_bootstrap"
     assert nullable_reward is not None and nullable_reward.down_revision == "0002_personal_ledger"
@@ -44,3 +52,13 @@ def test_migration_history_is_a_single_linear_chain() -> None:
     assert community_favorites is not None and community_favorites.down_revision == "0014_discovery_source_status"
     assert nullable_expected_gas is not None and nullable_expected_gas.down_revision == "0015_community_favorites"
     assert verified_contributions is not None and verified_contributions.down_revision == "0016_nullable_expected_gas"
+    assert idempotent_projects is not None and idempotent_projects.down_revision == "0017_verified_contrib"
+    assert dashboard_aggregates is not None and dashboard_aggregates.down_revision == "0018_idempotent_project_creation"
+    assert airdrop_filters is not None and airdrop_filters.down_revision == "0019_comm_dash"
+    assert airdrop_campaigns is not None and airdrop_campaigns.down_revision == "0020_airdrop_filters"
+    assert campaign_heat_source is not None and campaign_heat_source.down_revision == "0021_airdrop_campaigns"
+    assert trusted_catalog_source is not None and trusted_catalog_source.down_revision == "0022_campaign_heat_source"
+    discovery_filter_decisions = scripts.get_revision("0024_discovery_filter_decisions")
+    assert discovery_filter_decisions is not None
+    assert discovery_filter_decisions.down_revision == "0023_trusted_catalog_source"
+    assert scripts.get_current_head() == "0026_discovery_observations"
