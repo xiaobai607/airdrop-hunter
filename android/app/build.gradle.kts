@@ -6,6 +6,14 @@ plugins {
 }
 // GitHub Actions may define API_BASE_URL as an empty string when the repository
 // variable is unset. Provider.orElse() does not treat an empty value as missing.
+// Stable DropPilot signing is injected only by the protected GitHub Actions environment.
+// Local developer builds keep Android's normal debug signing unless the stable key is supplied.
+val stableKeystorePath = providers.environmentVariable("DROPPILOT_KEYSTORE_PATH").orNull?.takeIf { it.isNotBlank() }
+val stableKeystorePassword = providers.environmentVariable("DROPPILOT_KEYSTORE_PASSWORD").orNull
+val stableKeyAlias = providers.environmentVariable("DROPPILOT_KEY_ALIAS").orNull
+val stableKeyPassword = providers.environmentVariable("DROPPILOT_KEY_PASSWORD").orNull
+val hasStableSigning = listOf(stableKeystorePath, stableKeystorePassword, stableKeyAlias, stableKeyPassword).all { !it.isNullOrBlank() }
+
 val configuredApiBaseUrl = (
     providers.environmentVariable("API_BASE_URL").orNull
         ?.trim()
@@ -46,6 +54,24 @@ android {
             "\"${configuredApiBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\""
         )
     }
+    signingConfigs {
+        create("stable") {
+            if (hasStableSigning) {
+                storeFile = file(stableKeystorePath!!)
+                storePassword = stableKeystorePassword
+                keyAlias = stableKeyAlias
+                keyPassword = stableKeyPassword
+            }
+        }
+    }
+    buildTypes {
+        getByName("debug") {
+            if (hasStableSigning) signingConfig = signingConfigs.getByName("stable")
+        }
+        getByName("release") {
+            if (hasStableSigning) signingConfig = signingConfigs.getByName("stable")
+        }
+    }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
@@ -53,6 +79,7 @@ android {
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))
     implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -65,6 +92,7 @@ dependencies {
     implementation("com.reown:appkit")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")

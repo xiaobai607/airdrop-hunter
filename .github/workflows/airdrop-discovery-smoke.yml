@@ -7,7 +7,7 @@ on:
         description: "Git ref to test (defaults to the current development branch)"
         required: true
         type: string
-        default: "feature/mobile-browser-home-dock-batch"
+        default: "main"
 
 permissions:
   contents: read

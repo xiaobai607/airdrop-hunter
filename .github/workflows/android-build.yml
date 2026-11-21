@@ -1,8 +1,15 @@
 name: Android debug build and backend tests
 
 on:
+  push:
+    branches-ignore: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/workflows/**'
   pull_request:
     branches: [main]
+    types: [opened, reopened, synchronize]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -33,6 +40,7 @@ jobs:
     outputs:
       android: ${{ steps.filter.outputs.android }}
       backend: ${{ steps.filter.outputs.backend }}
+      apk: ${{ steps.filter.outputs.apk }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,7 +50,11 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_ACTION: ${{ github.event.action }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
           MANUAL_SCOPE: ${{ inputs.scope || 'both' }}
         run: |
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
@@ -56,10 +68,40 @@ jobs:
             else
               echo "backend=false" >> "$GITHUB_OUTPUT"
             fi
+            if [[ "$MANUAL_SCOPE" == "both" || "$MANUAL_SCOPE" == "android" ]]; then
+              echo "apk=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "apk=false" >> "$GITHUB_OUTPUT"
+            fi
             exit 0
           fi
 
-          git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt
+          # Same-repository PR synchronize events are paired with the push event
+          # for the exact before/after commit range. Avoid running the same suites twice.
+          if [[ "$EVENT_NAME" == "pull_request" && "$HEAD_REPO" == "$GITHUB_REPOSITORY" && "$PR_ACTION" == "synchronize" ]]; then
+            echo "android=false" >> "$GITHUB_OUTPUT"
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+            echo "apk=false" >> "$GITHUB_OUTPUT"
+            echo "Same-repository synchronize is covered by the corresponding push event."
+            exit 0
+          fi
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            if [[ -n "$PUSH_BEFORE" && ! "$PUSH_BEFORE" =~ ^0+$ ]]; then
+              git diff --name-only "$PUSH_BEFORE" "$PUSH_AFTER" > changed-files.txt
+              echo "Checking exact push range: $PUSH_BEFORE..$PUSH_AFTER"
+            else
+              # New branch: compare its complete tree with the merge base on main.
+              diff_base="$(git merge-base origin/main "$PUSH_AFTER")"
+              git diff --name-only "$diff_base" "$PUSH_AFTER" > changed-files.txt
+              echo "New branch; checking from main merge base $diff_base"
+            fi
+          else
+            # First PR validation, reopen, or fork PR synchronize: validate the
+            # complete PR diff. Fork updates have no base-repository push event.
+            git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt
+            echo "Checking complete PR diff: $BASE_SHA...$HEAD_SHA"
+          fi
           if grep -Eq '^(android/|gradle/|gradlew$|settings\.gradle|build\.gradle|gradle\.properties$)' changed-files.txt; then
             echo "android=true" >> "$GITHUB_OUTPUT"
           else
@@ -69,6 +111,12 @@ jobs:
             echo "backend=true" >> "$GITHUB_OUTPUT"
           else
             echo "backend=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$EVENT_NAME" == "push" ]] && grep -Fxq 'android/BUILD_APK_NOW' changed-files.txt; then
+            echo "apk=true" >> "$GITHUB_OUTPUT"
+            echo "android=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "apk=false" >> "$GITHUB_OUTPUT"
           fi
 
   backend-tests:
@@ -103,9 +151,9 @@ jobs:
       - run: pip install ".[dev]"
       - run: pytest -q
 
-  android-build:
+  android-unit-tests:
     needs: changes
-    if: needs.changes.outputs.android == 'true'
+    if: github.event_name != 'workflow_dispatch' && needs.changes.outputs.android == 'true' && needs.changes.outputs.apk != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -116,7 +164,49 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Build debug APK and run unit tests
+      - name: Run Android unit tests without packaging an APK
+        working-directory: android
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          COMMUNITY_SNAPSHOT_BASE_URL: ${{ vars.COMMUNITY_SNAPSHOT_BASE_URL }}
+        run: gradle :app:testDebugUnitTest
+
+  android-build:
+    needs: changes
+    if: needs.changes.outputs.apk == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Prepare stable DropPilot signing key
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.DROPPILOT_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.DROPPILOT_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.DROPPILOT_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.DROPPILOT_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required GitHub Actions secret for stable DropPilot signing: $name" >&2
+              exit 1
+            fi
+          done
+          KEYSTORE_PATH="$RUNNER_TEMP/droppilot-stable-signing.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          test -s "$KEYSTORE_PATH"
+          echo "DROPPILOT_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "DROPPILOT_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "DROPPILOT_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "DROPPILOT_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+      - name: Build stable-signed debug APK and run unit tests
         working-directory: android
         env:
           API_BASE_URL: ${{ vars.API_BASE_URL }}
@@ -124,6 +214,6 @@ jobs:
         run: gradle :app:testDebugUnitTest :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: airdrop-hunter-debug-apk
+          name: droppilot-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

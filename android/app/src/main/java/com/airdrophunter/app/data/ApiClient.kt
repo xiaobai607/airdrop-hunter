@@ -19,7 +19,14 @@ object ApiClient {
                 val original = chain.request()
                 val token = TokenStore.readTokenBlocking()
                 val authMode = original.header("X-Airdrop-Auth-Mode")
-                val request = when (authMode) {
+                val request = if (!CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED) {
+                    // The token may remain only as a legacy local Room namespace. Never send it
+                    // or any explicit account header to the server in the local-only release.
+                    original.newBuilder()
+                        .removeHeader("X-Airdrop-Auth-Mode")
+                        .removeHeader("Authorization")
+                        .build()
+                } else when (authMode) {
                     // Internal marker prevents a guest request from inheriting a later account token.
                     "anonymous" -> original.newBuilder()
                         .removeHeader("X-Airdrop-Auth-Mode")

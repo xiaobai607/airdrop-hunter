@@ -36,7 +36,7 @@ class AirdropsViewModel(
             } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = error.message ?: "无法读取空投数据"
+                    error = error.message ?: "__AIRDROP_LOAD_FAILED__"
                 )
             }
         }
@@ -50,14 +50,14 @@ class AirdropsViewModel(
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     items = items,
-                    message = "空投记录已保存到云端"
+                    message = "__AIRDROP_SAVED__"
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    error = error.message ?: "保存空投记录失败"
+                    error = error.message ?: "__AIRDROP_SAVE_FAILED__"
                 )
             }
         }

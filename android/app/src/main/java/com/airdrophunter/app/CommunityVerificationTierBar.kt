@@ -13,8 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 
@@ -26,13 +26,13 @@ data class CommunityVerificationTierSegment(
 )
 
 private val communityVerificationTierDefinitions = listOf(
-    Triple("user_reported", "用户自报", Color(0x66EF6262)),
-    Triple("transaction_linked", "链上已确认", Color(0xFFFFB45C)),
-    Triple("amount_verified", "链上精确核验", Color(0xFFCC4E4E))
+    "user_reported" to "用户自报",
+    "transaction_linked" to "链上已确认",
+    "amount_verified" to "链上精确核验"
 )
 
 fun communityVerificationTierSegments(values: Map<String, Double>): List<CommunityVerificationTierSegment> {
-    val positive = communityVerificationTierDefinitions.mapNotNull { (key, label, _) ->
+    val positive = communityVerificationTierDefinitions.mapNotNull { (key, label) ->
         val amount = values[key]?.takeIf { it.isFinite() && it > 0.0 } ?: return@mapNotNull null
         Triple(key, label, amount)
     }
@@ -67,31 +67,63 @@ fun CommunityVerificationTierBar(
             horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             segments.forEach { segment ->
-                val color = communityVerificationTierDefinitions.first { it.first == segment.key }.third
+                val color = when (segment.key) {
+                    "user_reported" -> MaterialTheme.colorScheme.surfaceVariant
+                    "transaction_linked" -> MaterialTheme.colorScheme.primary
+                    "amount_verified" -> MaterialTheme.colorScheme.secondary
+                    else -> MaterialTheme.colorScheme.outlineVariant
+                }
                 Box(
                     Modifier.weight(segment.share).fillMaxHeight()
                         .background(color, RoundedCornerShape(5.dp))
                 )
             }
         }
+        val localizedSegmentLabels = segments.map { segment ->
+            val label = when (segment.key) {
+                "user_reported" -> stringResource(R.string.community_status_user_reported)
+                "transaction_linked" -> stringResource(R.string.community_status_transaction_linked)
+                "amount_verified" -> stringResource(R.string.community_status_amount_verified)
+                else -> segment.label
+            }
+            "$label ${String.format(Locale.US, "$%,.2f", segment.amount)}"
+        }
         Text(
-            text = segments.joinToString(" · ") {
-                "${it.label} ${String.format(Locale.US, "$%,.2f", it.amount)}"
-            },
-            color = if (compact) Color(0xFF7B858F) else Color(0xFFB9C8C0),
-            style = MaterialTheme.typography.labelSmall
+            text = localizedSegmentLabels.joinToString(" · "),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = if (compact) 1 else 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
         )
     }
 }
 
+
+@Composable
+fun localizedCommunityContributionStatusLabel(status: String, tier: String?): String = when (status) {
+    "verified" -> when (tier) {
+        "user_reported" -> stringResource(R.string.community_status_user_reported)
+        "amount_verified" -> stringResource(R.string.community_status_amount_verified)
+        "transaction_linked" -> stringResource(R.string.community_status_transaction_linked)
+        else -> stringResource(R.string.community_status_verified)
+    }
+    "rejected" -> stringResource(R.string.community_status_rejected)
+    "not_eligible" -> stringResource(R.string.community_status_not_eligible)
+    "pending_verification" -> stringResource(R.string.community_status_pending)
+    "private" -> stringResource(R.string.community_status_private)
+    else -> stringResource(R.string.community_status_pending)
+}
+
 fun communityContributionStatusLabel(status: String, tier: String?): String = when (status) {
     "verified" -> when (tier) {
+        "user_reported" -> "用户自报已计入公共统计"
         "amount_verified" -> "链上精确核验"
         "transaction_linked" -> "链上已确认"
         else -> "链上已核验"
     }
     "rejected" -> "核验拒绝"
     "not_eligible" -> "不符合公共贡献条件"
-    "pending_verification", "private" -> "等待链上核验"
-    else -> "等待链上核验"
+    "pending_verification" -> "等待提交公共统计"
+    "private" -> "私人记录"
+    else -> "等待提交公共统计"
 }

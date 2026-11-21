@@ -1,8 +1,16 @@
 package com.airdrophunter.app
 
 import android.net.Uri
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,8 +25,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,17 +41,25 @@ import com.airdrophunter.app.data.HotCoin
 import com.airdrophunter.app.data.MarketCoin
 import com.airdrophunter.app.data.MarketSearchRepository
 import com.airdrophunter.app.data.normalizeSearchText
-import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.components.AppIconButton
+import com.airdrophunter.app.ui.components.AppChip
+import com.airdrophunter.app.ui.components.AppTextField
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
-private enum class SearchCategory(val key: String, val label: String) {
-    COIN("coin", "币种"),
-    DAPP("dapp", "DApp")
+private enum class SearchCategory(val key: String, val labelRes: Int) {
+    COIN("coin", R.string.search_category_coin),
+    DAPP("dapp", R.string.search_category_dapp)
 }
 
 @Composable
@@ -57,6 +73,13 @@ fun GlobalSearchScreen(
     val application = context.applicationContext as AirdropHunterApplication
     val repository = remember(application) { MarketSearchRepository(application.appContainer.okxMarketRepository) }
     val scope = rememberCoroutineScope()
+    val searchFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current
+    LaunchedEffect(Unit) {
+        searchFocusRequester.requestFocus()
+        keyboardController?.show()
+    }
     val history by CacheStore.observeSearchHistory().collectAsStateWithLifecycle(initialValue = emptyList())
     var category by remember { mutableStateOf(SearchCategory.COIN) }
     var query by remember { mutableStateOf("") }
@@ -71,8 +94,41 @@ fun GlobalSearchScreen(
 
     LaunchedEffect(Unit) {
         ApiClient.initialize(context)
-        hotCoins = runCatching { repository.loadHotCoins() }.getOrDefault(emptyList())
-        hotCoinMetadata = CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
+        // Publish Room's last-known-good hot coins before waiting for coordinator refresh.
+        hotCoins = try {
+            withContext(Dispatchers.IO) { repository.readCachedHotCoins() }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            emptyList()
+        }
+        hotCoinMetadata = try {
+            withContext(Dispatchers.IO) {
+                CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+
+        try {
+            val refreshed = withContext(Dispatchers.IO) { repository.loadHotCoins() }
+            hotCoins = refreshed
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Keep the cached rows; metadata below exposes stale/error status.
+        }
+        hotCoinMetadata = try {
+            withContext(Dispatchers.IO) {
+                CacheStore.readCacheMetadata("global-search-hot-coins", "okx-spot")
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            hotCoinMetadata
+        }
     }
 
     LaunchedEffect(query, category) {
@@ -96,16 +152,24 @@ fun GlobalSearchScreen(
         isSearching = true
         delay(300)
         if (category == SearchCategory.COIN) {
-            runCatching { withContext(Dispatchers.IO) { repository.searchRemoteCoins(value) } }
-                .onSuccess { coinResults = it }
-                .onFailure { if (coinResults.isEmpty()) searchError = "暂时无法获取远程币种目录，本地结果仍可使用" }
+            try {
+                coinResults = withContext(Dispatchers.IO) { repository.searchRemoteCoins(value) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (coinResults.isEmpty()) searchError = context.getString(R.string.search_remote_coin_error)
+            }
             coinCacheMetadata = withContext(Dispatchers.IO) {
                 CacheStore.readCacheMetadata("market-prices-supported", "coinpaprika")
             }
         } else {
-            runCatching { withContext(Dispatchers.IO) { repository.searchRemoteDapps(value) } }
-                .onSuccess { dappResults = it }
-                .onFailure { if (dappResults.isEmpty()) searchError = "暂时无法获取 DApp 目录，本地结果仍可使用" }
+            try {
+                dappResults = withContext(Dispatchers.IO) { repository.searchRemoteDapps(value) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (dappResults.isEmpty()) searchError = context.getString(R.string.search_remote_dapp_error)
+            }
             dappCacheMetadata = withContext(Dispatchers.IO) {
                 CacheStore.readCacheMetadata("global-search-dapp-catalog", "community-catalog")
             }
@@ -124,112 +188,204 @@ fun GlobalSearchScreen(
             scope.launch { CacheStore.saveSearchHistory(query.ifBlank { project.name }, SearchCategory.DAPP.key) }
             onDappSelected(project.name, url)
         } else {
-            searchError = "该 DApp 暂无有效 HTTPS 链接"
+            searchError = context.getString(R.string.search_dapp_url_invalid)
         }
     }
 
     Column(
-        modifier.fillMaxSize().background(AppColors.Background)
-            .verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 12.dp),
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
-                Modifier.weight(1f).clip(RoundedCornerShape(999.dp)).background(Color(0xFFF0F2F5)).padding(start = 14.dp, end = 4.dp),
+                Modifier.weight(1f).clip(RoundedCornerShape(AppDesignTokens.Radius.Full.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(start = 12.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.TextHelper)
-                OutlinedTextField(
+                Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppTextField(
                     value = query,
                     onValueChange = { query = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text(if (category == SearchCategory.COIN) "搜索币种名称或代号" else "搜索 DApp 名称、链或标签") },
+                    modifier = Modifier.weight(1f).focusRequester(searchFocusRequester),
+                    placeholder = if (category == SearchCategory.COIN) context.getString(R.string.search_coin_hint) else context.getString(R.string.search_dapp_hint),
                     singleLine = true,
-                    shape = RoundedCornerShape(999.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent
-                    )
+                    heightDp = 44
                 )
-                if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
-                    Icon(Icons.Default.Clear, contentDescription = "清空输入", tint = AppColors.TextHelper)
-                }
+                if (query.isNotEmpty()) AppIconButton(
+                    icon = Icons.Default.Clear,
+                    contentDescription = context.getString(R.string.search_clear_input),
+                    onClick = { query = "" }
+                )
             }
-            TextButton(onClick = onCancel, contentPadding = PaddingValues(horizontal = 2.dp)) {
-                Text("取消", color = AppColors.TextPrimary)
-            }
+            AppButton(context.getString(R.string.cancel), onClick = onCancel, style = AppButtonStyle.TEXT,
+                fullWidth = false, heightDp = 44, fontSizeSp = 14)
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SearchCategory.values().forEach { option ->
-                FilterChip(
+                AppChip(
+                    text = context.getString(option.labelRes),
                     selected = category == option,
-                    onClick = { category = option; query = "" },
-                    label = { Text(option.label) },
-                    shape = RoundedCornerShape(999.dp)
+                    onClick = { category = option; query = "" }
                 )
             }
         }
 
-        if (query.isBlank() && history.isNotEmpty()) {
+        AnimatedVisibility(
+            visible = query.isBlank() && history.isNotEmpty(),
+            enter = fadeIn(tween(AppDesignTokens.Motion.TabMs)),
+            exit = fadeOut(tween(AppDesignTokens.Motion.TabMs)) + shrinkVertically(tween(AppDesignTokens.Motion.ExitMs))
+        ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.History, null, tint = AppColors.TextSecondary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(7.dp))
-                    Text("搜索历史", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { scope.launch { CacheStore.clearSearchHistory() } }) {
-                        Text("清空", color = AppColors.TextHelper)
+                    Text(context.getString(R.string.search_history), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    AppTextButton(onClick = { scope.launch { CacheStore.clearSearchHistory() } }) {
+                        Text(context.getString(R.string.search_clear), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
                     }
                 }
                 history.take(10).forEach { item ->
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(AppColors.Surface)
-                            .clickable {
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).background(MaterialTheme.colorScheme.surface)
+                            .appPressFeedback(onClick = {
                                 category = if (item.category == SearchCategory.DAPP.key) SearchCategory.DAPP else SearchCategory.COIN
                                 query = item.query
-                            }.padding(horizontal = 13.dp, vertical = 11.dp),
+                            }, scale = 1f).padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(if (item.category == SearchCategory.DAPP.key) "DApp" else "币种", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall)
-                        Spacer(Modifier.width(10.dp))
-                        Text(item.query, color = AppColors.TextPrimary, modifier = Modifier.weight(1f), maxLines = 1)
-                        Icon(Icons.Default.History, null, tint = AppColors.TextHelper, modifier = Modifier.size(16.dp))
+                        Text(if (item.category == SearchCategory.DAPP.key) "DApp" else context.getString(R.string.search_category_coin), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                        Spacer(Modifier.width(12.dp))
+                        Text(item.query, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f), maxLines = 1)
+                        Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), modifier = Modifier.size(16.dp))
                     }
                 }
             }
         }
 
         if (query.isBlank() && category == SearchCategory.COIN) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("热门币种", color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                cacheStatusLabel(hotCoinMetadata)?.let {
-                    Text(it, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(context.getString(R.string.search_hot_coins), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                cacheStatusLabel(context, hotCoinMetadata)?.let {
+                    Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                 }
                 hotCoins.forEach { coin -> HotCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
-                if (hotCoins.isEmpty()) Text("热门行情暂不可用，输入币种名称仍可搜索", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                if (hotCoins.isEmpty()) Text(context.getString(R.string.search_hot_unavailable), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
         }
 
         if (query.isNotBlank()) {
             Text(
-                if (category == SearchCategory.COIN) "币种搜索结果" else "DApp 搜索结果",
-                color = AppColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
+                if (category == SearchCategory.COIN) context.getString(R.string.search_coin_results) else context.getString(R.string.search_dapp_results),
+                color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
             )
-            cacheStatusLabel(if (category == SearchCategory.COIN) coinCacheMetadata else dappCacheMetadata)?.let {
-                Text(it, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            cacheStatusLabel(context, if (category == SearchCategory.COIN) coinCacheMetadata else dappCacheMetadata)?.let {
+                Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
+            }
+            if (isSearching && (coinResults.isNotEmpty() || dappResults.isNotEmpty())) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 1.8.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        context.getString(R.string.search_updating_cached),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
             when (category) {
                 SearchCategory.COIN -> if (coinResults.isEmpty()) {
-                    Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的币种", color = AppColors.TextHelper)
-                } else coinResults.forEach { coin -> MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
+                    SearchResultPlaceholder(
+                        loading = isSearching,
+                        title = if (isSearching) context.getString(R.string.search_finding_coin) else if (searchError != null) context.getString(R.string.search_coin_unavailable) else context.getString(R.string.search_coin_empty),
+                        description = if (isSearching) context.getString(R.string.search_merging_coin) else searchError ?: context.getString(R.string.search_coin_try)
+                    )
+                } else coinResults.forEachIndexed { index, coin ->
+                    key(coin.symbol) {
+                        if (index < AppDesignTokens.Motion.MaxStaggerItems) {
+                            val delay = index * AppDesignTokens.Motion.StaggerMs
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn(tween(AppDesignTokens.Motion.FastMs, delayMillis = delay)) +
+                                    slideInVertically(tween(AppDesignTokens.Motion.FastMs, delayMillis = delay)) {
+                                        with(density) { 8.dp.roundToPx() }
+                                    }
+                            ) { MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
+                        } else {
+                            MarketCoinRow(coin) { recordAndSearchCoin(coin.symbol) }
+                        }
+                    }
+                }
                 SearchCategory.DAPP -> if (dappResults.isEmpty()) {
-                    Text(if (isSearching) "正在搜索…" else searchError ?: "没有找到匹配的 DApp", color = AppColors.TextHelper)
-                } else dappResults.forEach { project ->
-                    DappResultRow(project) { recordAndOpenDapp(project) }
+                    SearchResultPlaceholder(
+                        loading = isSearching,
+                        title = if (isSearching) context.getString(R.string.search_finding_dapp) else if (searchError != null) context.getString(R.string.search_dapp_unavailable) else context.getString(R.string.search_dapp_empty),
+                        description = if (isSearching) context.getString(R.string.search_merging_dapp) else searchError ?: context.getString(R.string.search_dapp_try)
+                    )
+                } else dappResults.forEachIndexed { index, project ->
+                    key(project.project_official_id) {
+                        if (index < AppDesignTokens.Motion.MaxStaggerItems) {
+                            val delay = index * AppDesignTokens.Motion.StaggerMs
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn(tween(AppDesignTokens.Motion.FastMs, delayMillis = delay)) +
+                                    slideInVertically(tween(AppDesignTokens.Motion.FastMs, delayMillis = delay)) {
+                                        with(density) { 8.dp.roundToPx() }
+                                    }
+                            ) { DappResultRow(project) { recordAndOpenDapp(project) } }
+                        } else {
+                            DappResultRow(project) { recordAndOpenDapp(project) }
+                        }
+                    }
                 }
             }
             if (searchError != null && (coinResults.isNotEmpty() || dappResults.isNotEmpty())) {
-                Text(searchError.orEmpty(), color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                Text(searchError.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultPlaceholder(
+    loading: Boolean,
+    title: String,
+    description: String
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(Icons.Default.Search, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -238,22 +394,22 @@ fun GlobalSearchScreen(
 @Composable
 private fun HotCoinRow(coin: HotCoin, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(AppColors.Surface)
-            .clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 11.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).background(MaterialTheme.colorScheme.surface)
+            .appPressFeedback(onClick = onClick, scale = 1f).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF0F2F5)), contentAlignment = Alignment.Center) {
-            Text(coin.symbol.take(1), color = AppColors.Primary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Box(Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
+            Text(coin.symbol.take(1), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
-            Text(coin.symbol, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-            Text(coin.name, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+            Text(coin.symbol, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+            Text(coin.name, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text("$ " + formatSearchPrice(coin.lastPrice), color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+            Text("$ " + formatSearchPrice(coin.lastPrice), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
             Text(String.format(Locale.US, "%+.2f%%", coin.change24hPercent),
-                color = if (coin.change24hPercent >= 0) AppColors.Success else AppColors.Danger,
+                color = if (coin.change24hPercent >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelSmall)
         }
     }
@@ -261,24 +417,25 @@ private fun HotCoinRow(coin: HotCoin, onClick: () -> Unit) {
 
 @Composable
 private fun MarketCoinRow(coin: MarketCoin, onClick: () -> Unit) {
+    val context = LocalContext.current
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(AppColors.Surface)
-            .clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).background(MaterialTheme.colorScheme.surface)
+            .appPressFeedback(onClick = onClick, scale = 1f).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFF0F2F5)), contentAlignment = Alignment.Center) {
-            Text(coin.symbol.take(1), color = AppColors.Primary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Box(Modifier.size(38.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
+            Text(coin.symbol.take(1), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("${coin.symbol} · ${coin.name}", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-            val context = listOfNotNull(coin.network, coin.contractAddress).joinToString(" · ")
-            if (context.isNotBlank()) Text(context, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("${coin.symbol} · ${coin.name}", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            val networkContext = listOfNotNull(coin.network, coin.contractAddress).joinToString(" · ")
+            if (networkContext.isNotBlank()) Text(networkContext, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(coin.priceUsd?.let { "$ " + formatSearchPrice(it) } ?: "价格暂缺", color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+            Text(coin.priceUsd?.let { "$ " + formatSearchPrice(it) } ?: context.getString(R.string.search_price_missing), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
             coin.change24hPercent?.let { change ->
-                Text(String.format(Locale.US, "%+.2f%%", change), color = if (change >= 0) AppColors.Success else AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                Text(String.format(Locale.US, "%+.2f%%", change), color = if (change >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -286,22 +443,23 @@ private fun MarketCoinRow(coin: MarketCoin, onClick: () -> Unit) {
 
 @Composable
 private fun DappResultRow(project: CommunityProjectCatalogDto, onClick: () -> Unit) {
+    val context = LocalContext.current
     val validUrl = Uri.parse(project.website_url).let { it.scheme.equals("https", true) && !it.host.isNullOrBlank() }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(AppColors.Surface)
-            .clickable(enabled = validUrl, onClick = onClick).padding(horizontal = 13.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).background(MaterialTheme.colorScheme.surface)
+            .appPressFeedback(onClick = onClick, scale = 1f, enabled = validUrl).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFEAF2FF)), contentAlignment = Alignment.Center) {
-            Text(project.name.take(1).uppercase(), color = Color(0xFF315A9D), fontWeight = FontWeight.Bold)
+        Box(Modifier.size(38.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+            Text(project.name.take(1).uppercase(), color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(project.name, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-            Text(project.chain, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
-            Text(if (validUrl) project.website_url else "链接待补充", color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(project.name, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(project.chain, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(if (validUrl) project.website_url else context.getString(R.string.search_link_missing), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
-        Text(if (validUrl) "打开" else "暂无链接", color = if (validUrl) AppColors.Primary else AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+        Text(if (validUrl) context.getString(R.string.search_open) else context.getString(R.string.search_no_link), color = if (validUrl) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -311,16 +469,16 @@ private fun formatSearchPrice(value: Double): String = NumberFormat.getNumberIns
 }.format(value)
 
 
-private fun cacheStatusLabel(metadata: CacheMetadataEntity?): String? {
+private fun cacheStatusLabel(context: android.content.Context, metadata: CacheMetadataEntity?): String? {
     metadata ?: return null
     val updated = metadata.fetchedAt?.let {
         java.text.SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(java.util.Date(it))
-    } ?: "暂无成功更新时间"
+    } ?: context.getString(R.string.cache_no_success_time)
     return when (CacheRefreshPolicy.displayStatus(metadata, System.currentTimeMillis())) {
-        CacheDisplayStatus.FRESH -> "数据更新于 $updated"
-        CacheDisplayStatus.REFRESHING -> "正在更新 · 保留上次数据（$updated）"
-        CacheDisplayStatus.STALE -> "缓存数据 · 上次更新 $updated"
-        CacheDisplayStatus.ERROR -> "更新失败 · 保留上次缓存（$updated）"
-        CacheDisplayStatus.UNKNOWN -> "等待首次更新"
+        CacheDisplayStatus.FRESH -> context.getString(R.string.cache_updated_at, updated)
+        CacheDisplayStatus.REFRESHING -> context.getString(R.string.cache_refreshing_keep_last, updated)
+        CacheDisplayStatus.STALE -> context.getString(R.string.cache_stale_at, updated)
+        CacheDisplayStatus.ERROR -> context.getString(R.string.cache_error_keep_last, updated)
+        CacheDisplayStatus.UNKNOWN -> context.getString(R.string.cache_waiting_first)
     }
 }

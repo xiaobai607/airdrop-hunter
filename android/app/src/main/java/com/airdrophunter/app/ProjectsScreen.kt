@@ -1,13 +1,21 @@
 package com.airdrophunter.app
 
 import android.widget.Toast
-import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.flow.collect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -19,18 +27,30 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.ProjectDto
-import com.airdrophunter.app.data.CommunityProjectCatalog
+import com.airdrophunter.app.data.matchesSearch
 import com.airdrophunter.app.data.officialIdentifier
 import com.airdrophunter.app.data.CacheStore
+import com.airdrophunter.app.data.ApiClient
+import com.airdrophunter.app.data.CommunityCatalogRepository
 import com.airdrophunter.app.data.shouldShowAccountingReminder
 import androidx.compose.runtime.collectAsState
 import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppChip
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.StaggeredListItem
+import com.airdrophunter.app.ui.components.AppIconButton
+import com.airdrophunter.app.ui.components.AppTextField
 import java.util.Locale
 
 @Composable
@@ -52,12 +72,16 @@ fun ProjectsScreen(
     val pnlRecords by CacheStore.observePnlRecords().collectAsState(initial = emptyList())
     val savedProjects by CacheStore.observeUserProjects().collectAsState(initial = emptyList())
     val allRatings by CacheStore.observeAllProjectRatings().collectAsState(initial = emptyList())
-    var selectedFilter by remember { mutableStateOf("全部") }
+    var communityDirectory by remember { mutableStateOf(emptyList<com.airdrophunter.app.data.CommunityProjectCatalogDto>()) }
+    var selectedFilter by remember { mutableStateOf("all") }
     var showAddDialog by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
     var newProjectDescription by remember { mutableStateOf("") }
     var newProjectOfficialUrl by remember { mutableStateOf("") }
     var newProjectClaimUrl by remember { mutableStateOf("") }
+    var selectedCommunityOfficialId by remember { mutableStateOf<String?>(null) }
+    var showCommunityPicker by remember { mutableStateOf(false) }
+    var communitySearchQuery by remember { mutableStateOf("") }
     var actionProject by remember { mutableStateOf<ProjectDto?>(null) }
     var editingProject by remember { mutableStateOf<ProjectDto?>(null) }
     var deletingProject by remember { mutableStateOf<ProjectDto?>(null) }
@@ -67,6 +91,41 @@ fun ProjectsScreen(
     var editProjectClaimUrl by remember { mutableStateOf("") }
     var editProjectTwitterUrl by remember { mutableStateOf("") }
     var editProjectStatus by remember { mutableStateOf("tracking") }
+    val projectListState = rememberLazyListState()
+    var compactFab by remember { mutableStateOf(false) }
+    LaunchedEffect(projectListState) {
+        var previousIndex = projectListState.firstVisibleItemIndex
+        var previousOffset = projectListState.firstVisibleItemScrollOffset
+        snapshotFlow {
+            Triple(
+                projectListState.isScrollInProgress,
+                projectListState.firstVisibleItemIndex,
+                projectListState.firstVisibleItemScrollOffset
+            )
+        }.collect { (scrolling, index, offset) ->
+            val movingDown = index > previousIndex || (index == previousIndex && offset > previousOffset)
+            compactFab = scrolling && movingDown
+            previousIndex = index
+            previousOffset = offset
+        }
+    }
+    val fabScale by animateFloatAsState(
+        targetValue = if (compactFab) 0.88f else 1f,
+        animationSpec = tween(AppDesignTokens.Motion.FastMs),
+        label = "project-fab-scale"
+    )
+    val fabAlpha by animateFloatAsState(
+        targetValue = if (compactFab) 0.6f else 1f,
+        animationSpec = tween(AppDesignTokens.Motion.FastMs),
+        label = "project-fab-alpha"
+    )
+
+    LaunchedEffect(Unit) {
+        ApiClient.initialize(context)
+        communityDirectory = CommunityCatalogRepository.readCatalog().orEmpty()
+        runCatching { CommunityCatalogRepository.refreshCatalog() }
+            .onSuccess { communityDirectory = it }
+    }
 
     LaunchedEffect(isGuest, sessionScopeKey) {
         actionProject = null
@@ -77,6 +136,9 @@ fun ProjectsScreen(
         newProjectDescription = ""
         newProjectOfficialUrl = ""
         newProjectClaimUrl = ""
+        selectedCommunityOfficialId = null
+        showCommunityPicker = false
+        communitySearchQuery = ""
         editProjectName = ""
         editProjectDescription = ""
         editProjectOfficialUrl = ""
@@ -91,174 +153,218 @@ fun ProjectsScreen(
             name = saved.projectName,
             description = "",
             status = saved.status,
-            official_url = CommunityProjectCatalog.findByOfficialId(saved.projectOfficialId)?.officialUrl.orEmpty(),
+            official_url = communityDirectory.firstOrNull { it.project_official_id == saved.projectOfficialId }?.website_url.orEmpty(),
             communityOfficialId = saved.projectOfficialId
         )
     }
+    val delistedOfficialIds = remember(communityDirectory) {
+        communityDirectory.filterNot { it.is_active }.map { it.project_official_id }.toSet()
+    }
     val visibleProjects = (savedProjectDtos + state.projects).distinctBy {
         it.communityOfficialId?.let { officialId -> "official:$officialId" } ?: "local:${it.id}"
+    }.map { project ->
+        project.copy(communityDelisted = project.communityOfficialId in delistedOfficialIds)
     }
 
-    val filterOptions = listOf("全部" to visibleProjects.size) +
-        listOf(
-            "进行中" to visibleProjects.count { it.status == "tracking" },
-            "待开始" to visibleProjects.count { it.status == "upcoming" },
-            "已完成" to visibleProjects.count { it.status == "completed" }
-        )
+    val filterOptions = listOf(
+        Triple("all", R.string.projects_filter_all, visibleProjects.size),
+        Triple("tracking", R.string.projects_filter_tracking, visibleProjects.count { it.status == "tracking" }),
+        Triple("upcoming", R.string.projects_filter_upcoming, visibleProjects.count { it.status == "upcoming" }),
+        Triple("completed", R.string.projects_filter_completed, visibleProjects.count { it.status == "completed" })
+    )
     val filtered = when (selectedFilter) {
-        "进行中" -> visibleProjects.filter { it.status == "tracking" }
-        "待开始" -> visibleProjects.filter { it.status == "upcoming" }
-        "已完成" -> visibleProjects.filter { it.status == "completed" }
+        "tracking" -> visibleProjects.filter { it.status == "tracking" }
+        "upcoming" -> visibleProjects.filter { it.status == "upcoming" }
+        "completed" -> visibleProjects.filter { it.status == "completed" }
         else -> visibleProjects
     }
 
-    Column(modifier.fillMaxSize().background(AppColors.Background)) {
+    Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 16.dp),
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("库管理", Modifier.weight(1f), color = AppColors.TextPrimary,
-                style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { selectedFilter = if (selectedFilter == "全部") "进行中" else "全部" }) {
-                Icon(Icons.Default.FolderOpen, "筛选项目", tint = AppColors.TextSecondary)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(context.getString(R.string.projects_management_title), modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+                Text(context.getString(R.string.projects_management_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall)
             }
+            AppIconButton(
+                icon = Icons.Default.Add,
+                contentDescription = context.getString(R.string.projects_create),
+                onClick = { showAddDialog = true }
+            )
         }
 
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(7.dp)
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            filterOptions.forEach { (label, count) ->
-                val selected = selectedFilter == label
-                Surface(
-                    onClick = { selectedFilter = label },
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (selected) AppColors.Primary else AppColors.Surface,
-                    border = if (selected) null else BorderStroke(1.dp, AppColors.Border)
-                ) {
-                    Text(
-                        "$label $count",
-                        Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        color = if (selected) AppColors.Surface else AppColors.TextSecondary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                }
+            filterOptions.forEach { (filterKey, labelRes, count) ->
+                AppChip(
+                    text = "${context.getString(labelRes)} $count",
+                    selected = selectedFilter == filterKey,
+                    onClick = { selectedFilter = filterKey }
+                )
             }
         }
 
         state.error?.takeIf { visibleProjects.isNotEmpty() }?.let { error ->
-            Text(error, Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-                color = AppColors.Danger, style = MaterialTheme.typography.bodySmall)
+            Text(context.getString(R.string.projects_server_error), Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
 
         when {
             state.isLoading && visibleProjects.isEmpty() -> Box(
                 Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator(color = AppColors.Primary) }
+            ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
             state.error != null && visibleProjects.isEmpty() -> EmptyProjects(
                 modifier = Modifier.weight(1f),
-                title = "暂时无法加载项目",
-                subtitle = "服务器繁忙，请稍后重试。"
+                title = context.getString(R.string.projects_load_error),
+                subtitle = context.getString(R.string.projects_server_error)
             )
             filtered.isEmpty() -> EmptyProjects(
                 modifier = Modifier.weight(1f),
-                title = "还没有添加项目",
-                subtitle = if (isGuest) "添加的项目只保存在这台设备上。" else "添加项目后，这里会显示你的项目与任务进度。"
+                title = if (visibleProjects.isEmpty()) context.getString(R.string.projects_empty) else context.getString(R.string.projects_empty_filtered),
+                subtitle = if (visibleProjects.isEmpty()) {
+                    if (isGuest) context.getString(R.string.projects_guest_storage) else context.getString(R.string.projects_empty_help)
+                } else {
+                    context.getString(R.string.projects_filter_empty, context.getString(filterOptions.firstOrNull { it.first == selectedFilter }?.second ?: R.string.projects_filter_all))
+                }
             )
             else -> LazyColumn(
+                state = projectListState,
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 108.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(filtered, key = { it.id }) { project ->
+                itemsIndexed(filtered, key = { _, project -> project.id }) { index, project ->
+                    StaggeredListItem(project.id, index) {
                     val pnl = pnlRecords.firstOrNull { it.projectLocalId == project.id }
                     val savedProjectRecord = savedProjects.firstOrNull { it.projectLocalId == project.id }
                     val showAccountingReminder = savedProjectRecord?.let {
                         shouldShowAccountingReminder(it.createdAt, it.interactionCount, System.currentTimeMillis())
                     } ?: false
-                    val gasTotal = pnl?.totalGasCostUsd ?: 0.0
-                    val rewardTotal = pnl?.totalRewardUsd ?: 0.0
-                    val netProfit = pnl?.netProfitUsd ?: 0.0
+                    val netProfit = pnl?.takeIf { it.usdProfitComplete }?.netProfitUsd
                     val projectRatings = allRatings.filter { it.projectOfficialId == project.communityOfficialId }
-                    val communityAverage = if (projectRatings.isEmpty()) 4.9 else projectRatings.map { it.score }.average()
-                    val positiveRate = if (projectRatings.isEmpty()) 96 else projectRatings.count { it.score >= 4 } * 100 / projectRatings.size
+                    val communityAverage = projectRatings.takeIf { it.isNotEmpty() }?.map { it.score }?.average()
+                    val positiveRate = projectRatings.takeIf { it.isNotEmpty() }
+                        ?.let { ratings -> ratings.count { it.score >= 4 } * 100 / ratings.size }
                     val communityLabel = when {
-                        positiveRate >= 95 -> "好评如潮"
-                        positiveRate >= 85 -> "特别好评"
-                        positiveRate >= 75 -> "多半好评"
-                        else -> "褒贬不一"
+                        positiveRate == null -> context.getString(R.string.projects_no_rating)
+                        positiveRate >= 95 -> context.getString(R.string.projects_reputation_positive)
+                        positiveRate >= 85 -> context.getString(R.string.projects_reputation_great)
+                        positiveRate >= 75 -> context.getString(R.string.projects_reputation_good)
+                        else -> context.getString(R.string.projects_reputation_mixed)
                     }
                     Card(
-                        modifier = Modifier.fillMaxWidth().clickable { onProjectSelected(project) },
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                        border = BorderStroke(1.dp, AppColors.Border),
+                        modifier = Modifier.fillMaxWidth()
+                            .appPressFeedback(onClick = { onProjectSelected(project) }, scale = 0.96f),
+                        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         elevation = CardDefaults.cardElevation(0.dp)
                     ) {
-                        Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically,
+                        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(project.name, Modifier.weight(1f), color = AppColors.TextPrimary,
-                                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-                                    val statusLabel = when (project.status) { "tracking" -> "进行中"; "completed" -> "已完成"; else -> "待开始" }
-                                    Surface(color = AppColors.TealTint, shape = RoundedCornerShape(999.dp)) {
-                                        Text(statusLabel, Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                            color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                                    Text(project.name, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
+                                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                    val statusLabel = when (project.status) { "tracking" -> context.getString(R.string.projects_filter_tracking); "completed" -> context.getString(R.string.projects_filter_completed); else -> context.getString(R.string.projects_filter_upcoming) }
+                                    Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
+                                        Text(statusLabel, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                                     }
-                                    if (showAccountingReminder) {
-                                        Surface(color = Color(0xFFFFF4E5), shape = RoundedCornerShape(999.dp)) {
-                                            Text("待记账", Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                                color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.SemiBold)
+                                }
+                                if (project.communityDelisted || showAccountingReminder) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        if (project.communityDelisted) {
+                                            Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
+                                                Text(context.getString(R.string.projects_status_delisted), Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                    color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.SemiBold)
+                                            }
+                                        }
+                                        if (showAccountingReminder) {
+                                            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
+                                                Text(context.getString(R.string.projects_pending_accounting), Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                    color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.SemiBold)
+                                            }
                                         }
                                     }
                                 }
-                                Text(String.format(Locale.US, "累计消耗 $%.2f  ·  累计收益 $%.2f", gasTotal, rewardTotal),
-                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                                Text(String.format(Locale.US, "真实净盈亏  %s$%.2f",
-                                    if (netProfit >= 0) "+" else "-", kotlin.math.abs(netProfit)),
-                                    color = if (netProfit >= 0) AppColors.Success else AppColors.Danger,
-                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-                                Text("去交互  ›", color = AppColors.Primary, style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable {
-                                        if (project.official_url.startsWith("https://")) {
-                                            context.startActivity(Intent(context, BrowserActivity::class.java)
-                                                .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
-                                                .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
-                                        } else onProjectSelected(project)
-                                    })
+                                if (project.description.isNotBlank()) {
+                                    Text(project.description, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.bodySmall, maxLines = 2,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(context.getString(R.string.projects_real_pnl), color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                                    Text(
+                                        when {
+                                            pnl == null -> context.getString(R.string.projects_no_ledger)
+                                            !pnl.usdProfitComplete -> context.getString(R.string.projects_estimate_incomplete)
+                                            else -> String.format(Locale.US, "%s$%.2f",
+                                                if ((netProfit ?: 0.0) >= 0) "+" else "-",
+                                                kotlin.math.abs(netProfit ?: 0.0))
+                                        },
+                                        color = when {
+                                            pnl == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            !pnl.usdProfitComplete -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            (netProfit ?: 0.0) >= 0 -> MaterialTheme.colorScheme.secondary
+                                            else -> MaterialTheme.colorScheme.error
+                                        },
+                                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                }
                             }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Surface(onClick = {
-                                    if (project.communityOfficialId != null) onOpenCommunity(project)
-                                    else Toast.makeText(context, "这是纯本地项目，尚未关联社区标准项目", Toast.LENGTH_SHORT).show()
-                                }, shape = RoundedCornerShape(999.dp),
-                                    color = Color(0xFFFFF4E5), border = BorderStroke(1.dp, Color(0xFFFFD9A8))) {
-                                    Row(Modifier.padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically,
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Surface(
+                                    modifier = Modifier.appPressFeedback(
+                                        onClick = {
+                                            when {
+                                                project.communityDelisted -> Toast.makeText(context, context.getString(R.string.projects_delisted_notice), Toast.LENGTH_SHORT).show()
+                                                project.communityOfficialId != null -> onOpenCommunity(project)
+                                                else -> Toast.makeText(context, context.getString(R.string.projects_local_notice), Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        scale = 0.94f
+                                    ),
+                                    shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                ) {
+                                    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(if (project.communityOfficialId != null) "微社区" else "本地项目", color = Color(0xFF9A5B12), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFA629), modifier = Modifier.size(13.dp))
-                                        Text(String.format(Locale.US, "%.1f", communityAverage), color = Color(0xFF9A5B12),
-                                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        Text(if (project.communityDelisted) context.getString(R.string.projects_private_mode) else if (project.communityOfficialId != null) context.getString(R.string.projects_community) else context.getString(R.string.projects_local), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        if (!project.communityDelisted && project.communityOfficialId != null && communityAverage != null) {
+                                            Icon(Icons.Default.Star, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(13.dp))
+                                            Text(String.format(Locale.US, "%.1f", communityAverage), color = MaterialTheme.colorScheme.tertiary,
+                                                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
-                                Text(communityLabel, color = Color(0xFFB7791F), style = MaterialTheme.typography.labelSmall)
+                                Text(communityLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                             }
                             if (state.projects.any { it.id == project.id }) {
                                 Box {
-                                    IconButton(onClick = { actionProject = project }) {
-                                        Icon(Icons.Default.MoreVert, contentDescription = "项目管理",
-                                            tint = AppColors.TextSecondary)
-                                    }
+                                    AppIconButton(
+                                        icon = Icons.Default.MoreVert,
+                                        contentDescription = context.getString(R.string.projects_management_title),
+                                        onClick = { actionProject = project }
+                                    )
                                     DropdownMenu(
                                         expanded = actionProject?.id == project.id,
                                         onDismissRequest = { actionProject = null }
                                     ) {
                                         DropdownMenuItem(
-                                            text = { Text("编辑项目") },
+                                            text = { Text(context.getString(R.string.projects_edit)) },
                                             onClick = {
                                                 actionProject = null
                                                 editProjectName = project.name
@@ -271,7 +377,7 @@ fun ProjectsScreen(
                                             }
                                         )
                                         DropdownMenuItem(
-                                            text = { Text("删除项目", color = AppColors.Danger) },
+                                            text = { Text(context.getString(R.string.projects_delete), color = MaterialTheme.colorScheme.error) },
                                             onClick = {
                                                 actionProject = null
                                                 deletingProject = project
@@ -282,6 +388,7 @@ fun ProjectsScreen(
                             }
                         }
                     }
+                    }
                 }
             }
         }
@@ -291,46 +398,31 @@ fun ProjectsScreen(
     editingProject?.let { project ->
         AlertDialog(
             onDismissRequest = { if (!state.isSaving) editingProject = null },
-            containerColor = AppColors.Surface,
-            title = { Text("编辑项目", color = AppColors.TextPrimary) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(context.getString(R.string.projects_edit), color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = editProjectName, onValueChange = { editProjectName = it },
-                        label = { Text("项目名称") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editProjectDescription, onValueChange = { editProjectDescription = it },
-                        label = { Text("项目说明") }, modifier = Modifier.fillMaxWidth()
-                    )
-                    Text("项目状态", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("tracking" to "进行中", "upcoming" to "待开始", "completed" to "已完成").forEach { (value, label) ->
-                            FilterChip(
+                    AppTextField(editProjectName, { editProjectName = it }, context.getString(R.string.projects_name))
+                    AppTextField(editProjectDescription, { editProjectDescription = it }, context.getString(R.string.projects_description), singleLine = false)
+                    Text(context.getString(R.string.projects_status), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("tracking" to R.string.projects_filter_tracking, "upcoming" to R.string.projects_filter_upcoming, "completed" to R.string.projects_filter_completed).forEach { (value, label) ->
+                            AppChip(
+                                text = context.getString(label),
                                 selected = editProjectStatus == value,
-                                onClick = { editProjectStatus = value },
-                                label = { Text(label) }
+                                onClick = { editProjectStatus = value }
                             )
                         }
                     }
-                    OutlinedTextField(
-                        value = editProjectOfficialUrl, onValueChange = { editProjectOfficialUrl = it },
-                        label = { Text("项目官网 HTTPS 链接") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editProjectClaimUrl, onValueChange = { editProjectClaimUrl = it },
-                        label = { Text("资格查询 HTTPS 链接") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editProjectTwitterUrl, onValueChange = { editProjectTwitterUrl = it },
-                        label = { Text("社交链接 HTTPS") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                    )
-                    state.error?.let { Text(it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
+                    AppTextField(editProjectOfficialUrl, { editProjectOfficialUrl = it }, context.getString(R.string.projects_website))
+                    AppTextField(editProjectClaimUrl, { editProjectClaimUrl = it }, context.getString(R.string.projects_claim_url))
+                    AppTextField(editProjectTwitterUrl, { editProjectTwitterUrl = it }, context.getString(R.string.projects_social_url))
+                    state.error?.let { Text(localizedProjectMessage(context, it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 }
             },
             confirmButton = {
-                Button(
-                    enabled = editProjectName.isNotBlank() && !state.isSaving,
+                AppButton(
+                    text = context.getString(R.string.projects_save_changes),
                     onClick = {
                         projectsViewModel.updateProject(
                             project,
@@ -350,11 +442,12 @@ fun ProjectsScreen(
                         )
                         editingProject = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                ) { Text(if (state.isSaving) "保存中…" else "保存修改") }
+                    enabled = editProjectName.isNotBlank() && !state.isSaving,
+                    loading = state.isSaving
+                )
             },
             dismissButton = {
-                TextButton(enabled = !state.isSaving, onClick = { editingProject = null }) { Text("取消") }
+                AppTextButton(enabled = !state.isSaving, onClick = { editingProject = null }) { Text(context.getString(R.string.cancel)) }
             }
         )
     }
@@ -362,75 +455,149 @@ fun ProjectsScreen(
     deletingProject?.let { project ->
         AlertDialog(
             onDismissRequest = { deletingProject = null },
-            containerColor = AppColors.Surface,
-            title = { Text("删除项目？", color = AppColors.TextPrimary) },
-            text = { Text("将从项目列表中移除“${project.name}”。已确认的 Gas、收益和历史账本不会被删除。", color = AppColors.TextSecondary) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(context.getString(R.string.projects_delete_title), color = MaterialTheme.colorScheme.onSurface) },
+            text = { Text(context.getString(R.string.projects_delete_message, project.name), color = MaterialTheme.colorScheme.onSurfaceVariant) },
             confirmButton = {
-                TextButton(onClick = {
+                AppTextButton(onClick = {
                     projectsViewModel.deleteProject(project, isGuest)
                     deletingProject = null
-                }) { Text("确认删除", color = AppColors.Danger) }
+                }) { Text(context.getString(R.string.projects_confirm_delete), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { deletingProject = null }) { Text("取消") } }
+            dismissButton = { AppTextButton(onClick = { deletingProject = null }) { Text(context.getString(R.string.cancel)) } }
         )
     }
 
-    if (showAddDialog) AlertDialog(
+    if (showCommunityPicker) {
+        val selectableProjects = communityDirectory.filter {
+            it.is_active && (communitySearchQuery.isBlank() || it.matchesSearch(communitySearchQuery))
+        }
+        AlertDialog(
+            onDismissRequest = { showCommunityPicker = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(context.getString(R.string.projects_choose_community), color = MaterialTheme.colorScheme.onSurface) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppTextField(communitySearchQuery, { communitySearchQuery = it }, context.getString(R.string.projects_search))
+                    if (selectableProjects.isEmpty()) {
+                        Text(
+                            if (communityDirectory.isEmpty()) context.getString(R.string.projects_community_loading)
+                            else context.getString(R.string.projects_community_no_match),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
+                        )
+                    } else {
+                        Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            selectableProjects.forEach { item ->
+                                Surface(
+                                    onClick = {
+                                        selectedCommunityOfficialId = item.project_official_id
+                                        newProjectName = item.name
+                                        newProjectDescription = item.description
+                                        newProjectOfficialUrl = item.website_url
+                                        newProjectClaimUrl = ""
+                                        showCommunityPicker = false
+                                    },
+                                    color = MaterialTheme.colorScheme.surface,
+                                    shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                ) {
+                                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(item.name, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                                        Text(item.chain, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                        if (item.description.isNotBlank()) Text(item.description, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { AppTextButton(onClick = { showCommunityPicker = false }) { Text(context.getString(R.string.projects_done)) } },
+            dismissButton = { AppTextButton(onClick = { showCommunityPicker = false }) { Text(context.getString(R.string.cancel)) } }
+        )
+    } else if (showAddDialog) AlertDialog(
         onDismissRequest = { showAddDialog = false },
-        containerColor = AppColors.Surface,
-        title = { Text("添加项目", color = AppColors.TextPrimary) },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(context.getString(R.string.projects_add), color = MaterialTheme.colorScheme.onSurface) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                OutlinedTextField(newProjectName, { newProjectName = it }, label = { Text("项目名称") }, singleLine = true)
-                OutlinedTextField(newProjectDescription, { newProjectDescription = it }, label = { Text("项目说明") })
-                OutlinedTextField(newProjectOfficialUrl, { newProjectOfficialUrl = it }, label = { Text("项目官网 HTTPS 链接") }, singleLine = true)
-                OutlinedTextField(newProjectClaimUrl, { newProjectClaimUrl = it }, label = { Text("官方资格查询 HTTPS 链接（可选）") }, singleLine = true)
-                Text("资格查询链接请填写项目方官方页面，不要填写来历不明的第三方链接。",
-                    color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                state.error?.let { Text(it, color = AppColors.Danger) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AppTextField(newProjectName, { newProjectName = it }, context.getString(R.string.projects_name), modifier = Modifier.weight(1f))
+                    AppTextButton(onClick = { communitySearchQuery = ""; showCommunityPicker = true }) {
+                        Text(if (selectedCommunityOfficialId == null) context.getString(R.string.projects_select_community) else context.getString(R.string.projects_change_link))
+                    }
+                }
+                AppTextField(newProjectDescription, { newProjectDescription = it }, context.getString(R.string.projects_intro), singleLine = false)
+                AppTextField(newProjectOfficialUrl, { newProjectOfficialUrl = it }, context.getString(R.string.projects_website))
+                AppTextField(newProjectClaimUrl, { newProjectClaimUrl = it }, context.getString(R.string.projects_claim_url_optional))
+                Text(context.getString(R.string.projects_claim_url_help),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                state.error?.let { Text(localizedProjectMessage(context, it), color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
-            Button(enabled = newProjectName.isNotBlank() && !state.isSaving,
+            AppButton(
+                text = context.getString(R.string.projects_save),
                 onClick = {
                     projectsViewModel.createProject(com.airdrophunter.app.data.ProjectWriteRequest(
                         name = newProjectName.trim(),
                         description = newProjectDescription.trim(),
                         status = "tracking",
                         official_url = newProjectOfficialUrl.trim(),
-                        claim_url = newProjectClaimUrl.trim()
+                        claim_url = newProjectClaimUrl.trim(),
+                        community_official_id = selectedCommunityOfficialId
                     ), isGuest)
                     showAddDialog = false
-                    newProjectName = ""; newProjectDescription = ""; newProjectOfficialUrl = ""; newProjectClaimUrl = ""
-                }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) { Text("保存项目") }
+                    newProjectName = ""; newProjectDescription = ""; newProjectOfficialUrl = ""; newProjectClaimUrl = ""; selectedCommunityOfficialId = null
+                },
+                enabled = newProjectName.isNotBlank() && !state.isSaving,
+                loading = state.isSaving
+            )
         },
-        dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = { showAddDialog = false }) { Text(context.getString(R.string.cancel)) } }
     )
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
         FloatingActionButton(
-            onClick = { showAddDialog = true },
-            modifier = Modifier.padding(end = 20.dp, bottom = 20.dp).size(58.dp),
+            onClick = {
+                newProjectName = ""; newProjectDescription = ""; newProjectOfficialUrl = ""; newProjectClaimUrl = ""
+                selectedCommunityOfficialId = null
+                showAddDialog = true
+            },
+            modifier = Modifier.padding(end = 16.dp, bottom = 16.dp).size(56.dp)
+                .graphicsLayer { scaleX = fabScale; scaleY = fabScale; alpha = fabAlpha },
             shape = RoundedCornerShape(50),
-            containerColor = AppColors.Primary,
-            contentColor = AppColors.Surface
-        ) { Icon(Icons.Default.Add, "添加项目") }
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.surface
+        ) { Icon(Icons.Default.Add, context.getString(R.string.projects_add_accessibility)) }
     }
 }
 
 @Composable
 private fun EmptyProjects(modifier: Modifier = Modifier, title: String, subtitle: String) {
     Column(
-        modifier.fillMaxWidth().padding(28.dp),
+        modifier.fillMaxWidth().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(Icons.Default.FolderOpen, contentDescription = null,
-            tint = AppColors.TextHelper, modifier = Modifier.size(54.dp))
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), modifier = Modifier.size(54.dp))
         Spacer(Modifier.height(12.dp))
-        Text(title, color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium,
+        Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(5.dp))
-        Text(subtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+        Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
     }
 }
+
+private fun localizedProjectMessage(context: android.content.Context, message: String): String = when (message) {
+    "__PROJECT_SYNC_CACHED__" -> context.getString(R.string.projects_sync_cached)
+    "__PROJECT_NETWORK_ERROR__" -> context.getString(R.string.projects_network_error)
+    "__PROJECT_ADDED__" -> context.getString(R.string.projects_added)
+    "__PROJECT_UPDATED__" -> context.getString(R.string.projects_updated)
+    "__PROJECT_DELETED__" -> context.getString(R.string.projects_deleted)
+    else -> message
+}
+

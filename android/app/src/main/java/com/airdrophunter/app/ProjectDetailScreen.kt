@@ -20,7 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -39,7 +42,12 @@ import com.airdrophunter.app.data.ManualRewardInput
 import com.airdrophunter.app.data.ManualRewardKind
 import com.airdrophunter.app.data.ManualRewardAllocationMode
 import kotlinx.coroutines.launch
-import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.components.AppTextButton
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
+import com.airdrophunter.app.ui.components.AppButtonStyle
+import com.airdrophunter.app.ui.components.AppButton
+import com.airdrophunter.app.ui.components.AppTextField
 import java.util.Locale
 import java.math.BigDecimal
 import java.util.UUID
@@ -49,7 +57,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.DayOfWeek
 
-enum class LedgerPeriod(val label: String) { DAY("日"), WEEK("周"), MONTH("月") }
+enum class LedgerPeriod(val labelRes: Int) { DAY(R.string.period_day), WEEK(R.string.period_week), MONTH(R.string.period_month) }
 
 @Composable
 fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGuest: Boolean = false,
@@ -90,7 +98,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     var accountingRewardUnit by remember(project.id, sessionScopeKey) { mutableStateOf("") }
     var accountingRewardKind by remember(project.id, sessionScopeKey) { mutableStateOf(ManualRewardKind.USD) }
     var accountingAllocationMode by remember(project.id, sessionScopeKey) { mutableStateOf(ManualRewardAllocationMode.PER_WALLET) }
-    var accountingWalletPublicOptIns by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var accountingWalletNetworks by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var accountingTxHashes by remember(project.id, sessionScopeKey) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isSavingAccounting by remember(project.id, sessionScopeKey) { mutableStateOf(false) }
@@ -117,7 +124,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
             assignedWalletIds = assigned
             savedAssignedWalletIds = assigned
         } catch (error: Exception) {
-            assignmentError = error.message ?: "读取项目钱包关联失败"
+            assignmentError = error.message ?: context.getString(R.string.project_detail_assignment_error)
         } finally {
             isLoadingAssignments = false
         }
@@ -128,69 +135,92 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         if (parsed != null && parsed.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrBlank()) {
             context.startActivity(Intent(context, BrowserActivity::class.java)
                 .putExtra(BrowserActivity.EXTRA_URL, claimUrl)
-                .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取"))
-        } else Toast.makeText(context, "领取链接无效，已阻止打开", Toast.LENGTH_LONG).show()
+                .putExtra(BrowserActivity.EXTRA_TITLE, context.getString(R.string.project_detail_claim_title, project.name)))
+        } else Toast.makeText(context, context.getString(R.string.project_detail_claim_invalid), Toast.LENGTH_LONG).show()
         projectDetailViewModel.consumeClaimUrl()
     }
     LaunchedEffect(state.claimError) {
-        state.claimError?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+        state.claimError?.let { Toast.makeText(context, localizedProjectClaimError(context, it), Toast.LENGTH_LONG).show() }
     }
 
     LazyColumn(
-        modifier.fillMaxSize().background(AppColors.Background),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(15.dp)
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Card(modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border), shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 elevation = CardDefaults.cardElevation(0.dp)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(project.name, color = AppColors.TextPrimary,
-                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        if (project.description.isNotBlank()) Text(project.description,
-                            color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ProjectMetric(Modifier.weight(1f), "预期奖励", project.expected_income)
-                        ProjectMetric(Modifier.weight(1f), "Gas 费用", project.gas_cost)
-                        ProjectMetric(Modifier.weight(1f), "实际收益", project.actual_income)
-                    }
-                    project.deadline?.let { Text("${stringResource(R.string.deadline)}: $it",
-                        color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall) }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (project.claim_url.startsWith("https://", ignoreCase = true)) {
-                            Button(enabled = !isLoadingClaimWallets && !state.isClaimLoading, onClick = {
-                                scope.launch {
-                                    isLoadingClaimWallets = true
-                                    try {
-                                        val availableWallets = application.appContainer.walletRepository.load(isGuest)
-                                        claimWallets = availableWallets.sortedByDescending { it.id in assignedWalletIds }
-                                        if (claimWallets.isEmpty()) Toast.makeText(context, "请先在钱包管理中添加公开地址", Toast.LENGTH_LONG).show()
-                                        else showClaimWalletPicker = true
-                                    } catch (error: Exception) {
-                                        Toast.makeText(context, error.message ?: "读取钱包失败", Toast.LENGTH_LONG).show()
-                                    } finally { isLoadingClaimWallets = false }
-                                }
-                            }, shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
-                                Text(if (isLoadingClaimWallets || state.isClaimLoading) "准备中…" else "选择钱包并领取")
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(context.getString(R.string.project_detail_overview), color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        Text(project.name, modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                        if (project.communityDelisted) {
+                            Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
+                                Text(context.getString(R.string.project_detail_delisted_private), Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold)
                             }
                         }
-                        if (project.official_url.startsWith("https://")) OutlinedButton(onClick = {
-                            context.startActivity(Intent(context, BrowserActivity::class.java)
-                                .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
-                                .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
-                        }) { Text(stringResource(R.string.official_website)) }
-                        if (project.twitter_url.startsWith("https://")) OutlinedButton(onClick = {
-                            context.startActivity(Intent(context, BrowserActivity::class.java)
-                                .putExtra(BrowserActivity.EXTRA_URL, project.twitter_url)
-                                .putExtra(BrowserActivity.EXTRA_TITLE, twitterTitle))
-                        }) { Text(stringResource(R.string.twitter)) }
+                        if (project.description.isNotBlank()) Text(project.description,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
-                    OutlinedButton(
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProjectMetric(Modifier.weight(1f), context.getString(R.string.project_detail_expected_reward), project.expected_income)
+                        ProjectMetric(Modifier.weight(1f), context.getString(R.string.project_detail_gas_fee), project.gas_cost)
+                        ProjectMetric(Modifier.weight(1f), context.getString(R.string.project_detail_actual_income), project.actual_income)
+                    }
+                    project.deadline?.let { Text("${stringResource(R.string.deadline)}: $it",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (project.claim_url.startsWith("https://", ignoreCase = true)) {
+                            AppButton(
+                                text = context.getString(R.string.project_detail_claim_action),
+                                onClick = {
+                                    scope.launch {
+                                        isLoadingClaimWallets = true
+                                        try {
+                                            val availableWallets = application.appContainer.walletRepository.load(isGuest)
+                                            claimWallets = availableWallets.sortedByDescending { it.id in assignedWalletIds }
+                                            if (claimWallets.isEmpty()) Toast.makeText(context, context.getString(R.string.project_detail_add_wallet_first), Toast.LENGTH_LONG).show()
+                                            else showClaimWalletPicker = true
+                                        } catch (error: Exception) {
+                                            Toast.makeText(context, error.message ?: context.getString(R.string.project_detail_wallet_read_error), Toast.LENGTH_LONG).show()
+                                        } finally { isLoadingClaimWallets = false }
+                                    }
+                                },
+                                enabled = !isLoadingClaimWallets && !state.isClaimLoading,
+                                loading = isLoadingClaimWallets || state.isClaimLoading,
+                                fullWidth = false, heightDp = 44, fontSizeSp = 13
+                            )
+                        }
+                        if (project.official_url.startsWith("https://")) AppButton(
+                            text = stringResource(R.string.official_website),
+                            onClick = {
+                                context.startActivity(Intent(context, BrowserActivity::class.java)
+                                    .putExtra(BrowserActivity.EXTRA_URL, project.official_url)
+                                    .putExtra(BrowserActivity.EXTRA_TITLE, project.name))
+                            },
+                            style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 44, fontSizeSp = 13
+                        )
+                        if (project.twitter_url.startsWith("https://")) AppButton(
+                            text = stringResource(R.string.twitter),
+                            onClick = {
+                                context.startActivity(Intent(context, BrowserActivity::class.java)
+                                    .putExtra(BrowserActivity.EXTRA_URL, project.twitter_url)
+                                    .putExtra(BrowserActivity.EXTRA_TITLE, twitterTitle))
+                            },
+                            style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 44, fontSizeSp = 13
+                        )
+                    }
+                    AppButton(
+                        text = context.getString(R.string.project_detail_add_ledger),
                         enabled = !isLoadingAccountingWallets && !isSavingAccounting,
+                        loading = isLoadingAccountingWallets,
                         onClick = {
                             scope.launch {
                                 isLoadingAccountingWallets = true
@@ -198,31 +228,29 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     accountingWallets = application.appContainer.walletRepository.load(isGuest)
                                         .sortedByDescending { it.id in assignedWalletIds }
                                     if (accountingWallets.isEmpty()) {
-                                        Toast.makeText(context, "请先添加公开钱包地址，再进行记账", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, context.getString(R.string.project_detail_wallet_first_accounting), Toast.LENGTH_LONG).show()
                                     } else {
                                         selectedAccountingWalletIds = assignedWalletIds
                                             .intersect(accountingWallets.map { it.id }.toSet())
                                             .ifEmpty { accountingWallets.map { it.id }.toSet() }
                                         accountingTxHashes = emptyMap()
-                                        accountingWalletPublicOptIns = emptyMap()
                                         accountingBatchId = UUID.randomUUID().toString()
                                         showManualAccounting = true
                                     }
                                 } catch (error: Exception) {
-                                    Toast.makeText(context, error.message ?: "读取钱包失败", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, error.message ?: context.getString(R.string.project_detail_wallet_read_error), Toast.LENGTH_LONG).show()
                                 } finally {
                                     isLoadingAccountingWallets = false
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text(if (isLoadingAccountingWallets) "读取钱包…" else "＋ 记一笔") }
-                    if (project.communityOfficialId != null && onOpenCommunity != null) {
-                        OutlinedButton(
+                    )
+                    if (project.communityOfficialId != null && !project.communityDelisted && onOpenCommunity != null) {
+                        AppButton(
+                            text = context.getString(R.string.project_detail_global_stats),
                             onClick = { onOpenCommunity(project) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("查看全网大盘数据") }
+                            style = AppButtonStyle.SECONDARY
+                        )
                     }
                 }
             }
@@ -231,25 +259,25 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border),
-                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("项目关联钱包", color = AppColors.TextPrimary,
+                            Text(context.getString(R.string.project_detail_associated_wallets), color = MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text("可为同一项目绑定多个公开地址；领取时优先显示已关联钱包",
-                                color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text(context.getString(R.string.project_detail_wallet_binding_help),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                         }
-                        Text("${assignedWalletIds.size} 个", color = AppColors.Primary,
+                        Text(context.getString(R.string.project_detail_wallet_count, assignedWalletIds.size), color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     }
                     when {
-                        isLoadingAssignments -> LinearProgressIndicator(Modifier.fillMaxWidth(), color = AppColors.Primary)
-                        assignmentWallets.isEmpty() -> Text("还没有钱包地址，请先在钱包管理中添加。", color = AppColors.TextHelper,
+                        isLoadingAssignments -> LinearProgressIndicator(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
+                        assignmentWallets.isEmpty() -> Text(context.getString(R.string.project_detail_wallet_empty), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                             style = MaterialTheme.typography.bodySmall)
                         else -> assignmentWallets.forEach { wallet ->
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -262,20 +290,22 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     enabled = !isSavingAssignments
                                 )
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(wallet.wallet_name, color = AppColors.TextPrimary,
+                                    Text(wallet.wallet_name, color = MaterialTheme.colorScheme.onSurface,
                                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                     Text("${wallet.ecosystem} · ${wallet.address.take(8)}…${wallet.address.takeLast(5)}",
-                                        color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
                     }
                     assignmentError?.let {
-                        Text(it, color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                     }
                     if (assignedWalletIds != savedAssignedWalletIds) {
-                        Button(
+                        AppButton(
+                            text = context.getString(R.string.project_detail_save_wallet_binding),
                             enabled = !isSavingAssignments && !isLoadingAssignments,
+                            loading = isSavingAssignments,
                             onClick = {
                                 scope.launch {
                                     isSavingAssignments = true
@@ -286,19 +316,15 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                         )
                                         assignedWalletIds = saved
                                         savedAssignedWalletIds = saved
-                                        Toast.makeText(context, "项目钱包关联已保存", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.project_detail_wallet_binding_saved), Toast.LENGTH_SHORT).show()
                                     } catch (error: Exception) {
-                                        assignmentError = error.message ?: "保存项目钱包关联失败"
+                                        assignmentError = error.message ?: context.getString(R.string.project_detail_wallet_binding_save_failed)
                                     } finally {
                                         isSavingAssignments = false
                                     }
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                        ) {
-                            Text(if (isSavingAssignments) "保存中…" else "保存钱包关联")
-                        }
+                            }
+                        )
                     }
                 }
             }
@@ -320,74 +346,89 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 }
             }
             val estimateTotals = remember(periodInteractions) { aggregateLedgerEstimatePeriodTotals(periodInteractions) }
+            val hasPeriodLedger = periodInteractions.isNotEmpty()
             val periodGas = periodInteractions.sumOf { it.gasCostUsd }
             val periodUsdComplete = periodInteractions.all { it.usdProfitComplete }
-            val periodReward = if (periodUsdComplete) periodInteractions.sumOf { it.actualRewardUsd } else null
+            val periodReward = if (hasPeriodLedger && periodUsdComplete) periodInteractions.sumOf { it.actualRewardUsd } else null
             val periodNet = periodReward?.minus(periodGas)
             val gasAssetTotals = remember(periodInteractions) { aggregateLedgerAssetPeriodTotals(periodInteractions, "gas") }
             val rewardAssetTotals = remember(periodInteractions) { aggregateLedgerAssetPeriodTotals(periodInteractions, "reward") }
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border),
-                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("个人项目账本", Modifier.weight(1f), color = AppColors.TextPrimary,
+                        Text(context.getString(R.string.project_detail_personal_ledger), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
+                    val hasLedger = (userProject?.interactionCount ?: 0) > 0
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ProjectMetric(Modifier.weight(1f), "累计 Gas", userProject?.totalGasCostUsd ?: 0.0)
-                        ProjectMetric(Modifier.weight(1f), "实际收益",
-                            userProject?.let { if (it.usdProfitComplete) it.totalActualRewardUsd else null } ?: 0.0)
-                        ProjectMetric(Modifier.weight(1f), "净利润",
-                            userProject?.let { if (it.usdProfitComplete) it.netProfitUsd else null } ?: 0.0)
+                        ProjectMetric(Modifier.weight(1f), context.getString(R.string.project_detail_total_gas),
+                            userProject?.totalGasCostUsd.takeIf { hasLedger }, emptyLabel = context.getString(R.string.project_detail_no_ledger))
+                        ProjectMetric(Modifier.weight(1f), context.getString(R.string.project_detail_actual_income),
+                            userProject?.let { if (hasLedger && it.usdProfitComplete) it.totalActualRewardUsd else null },
+                            emptyLabel = if (hasLedger) context.getString(R.string.project_detail_incomplete_valuation) else context.getString(R.string.project_detail_no_ledger))
+                        ProjectMetric(Modifier.weight(1f), context.getString(R.string.project_detail_net_profit),
+                            userProject?.let { if (hasLedger && it.usdProfitComplete) it.netProfitUsd else null },
+                            emptyLabel = if (hasLedger) context.getString(R.string.project_detail_incomplete_valuation) else context.getString(R.string.project_detail_no_ledger))
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         LedgerPeriod.values().forEach { option ->
                             FilterChip(
                                 selected = ledgerPeriod == option,
                                 onClick = { ledgerPeriod = option },
-                                label = { Text(option.label) },
-                                shape = RoundedCornerShape(999.dp),
+                                label = { Text(context.getString(option.labelRes)) },
+                                shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = AppColors.TealTint,
-                                    selectedLabelColor = AppColors.Primary,
-                                    labelColor = AppColors.TextSecondary
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             )
                         }
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
-                            "预估 Gas：" + (estimateTotals.expectedGasCostUsd?.let { "USD $%.2f".format(Locale.US, it.toDouble()) } ?: "暂无完整估值"),
-                            color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
+                            context.getString(R.string.project_detail_estimated_gas, estimateTotals.expectedGasCostUsd?.let { "USD $%.2f".format(Locale.US, it.toDouble()) } ?: context.getString(R.string.project_detail_incomplete_valuation)),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
                         )
                         Text(
-                            "预估奖励：" + (estimateTotals.expectedRewardUsd?.let { "USD $%.2f".format(Locale.US, it.toDouble()) } ?: "暂无完整估值"),
-                            color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
+                            context.getString(R.string.project_detail_estimated_reward, estimateTotals.expectedRewardUsd?.let { "USD $%.2f".format(Locale.US, it.toDouble()) } ?: context.getString(R.string.project_detail_incomplete_valuation)),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
                         )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LedgerPeriodMetric(Modifier.weight(1f), "实际 Gas", periodGas, AppColors.Danger)
-                        LedgerPeriodMetric(Modifier.weight(1f), "实际收益", periodReward, AppColors.Success)
-                        LedgerPeriodMetric(Modifier.weight(1f), "净盈亏", periodNet,
-                            if ((periodNet ?: 0.0) >= 0.0) AppColors.Success else AppColors.Danger)
+                        LedgerPeriodMetric(Modifier.weight(1f), context.getString(R.string.project_detail_actual_gas),
+                            periodGas.takeIf { hasPeriodLedger },
+                            if (hasPeriodLedger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            emptyLabel = context.getString(R.string.project_detail_no_ledger))
+                        LedgerPeriodMetric(Modifier.weight(1f), context.getString(R.string.project_detail_actual_income), periodReward,
+                            if (periodReward != null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            emptyLabel = if (hasPeriodLedger) context.getString(R.string.project_detail_incomplete_valuation) else context.getString(R.string.project_detail_no_ledger))
+                        LedgerPeriodMetric(Modifier.weight(1f), context.getString(R.string.project_detail_net_pnl), periodNet,
+                            when {
+                                periodNet == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                periodNet >= 0.0 -> MaterialTheme.colorScheme.secondary
+                                else -> MaterialTheme.colorScheme.error
+                            },
+                            emptyLabel = if (hasPeriodLedger) context.getString(R.string.project_detail_incomplete_valuation) else context.getString(R.string.project_detail_no_ledger))
                     }
                     if (gasAssetTotals.isNotEmpty() || rewardAssetTotals.isNotEmpty()) {
                         Text(
-                            "原生币种明细（按网络分别统计，不跨币种相加）",
-                            color = AppColors.TextSecondary,
+                            context.getString(R.string.project_detail_native_assets),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.labelSmall
                         )
-                        NativeAssetPeriodSection("Gas 原生币种", gasAssetTotals)
-                        NativeAssetPeriodSection("实际奖励原生币种", rewardAssetTotals)
+                        NativeAssetPeriodSection(context.getString(R.string.project_detail_native_gas), gasAssetTotals)
+                        NativeAssetPeriodSection(context.getString(R.string.project_detail_native_rewards), rewardAssetTotals)
                     }
                     Text(
-                        "上方金额为 USD 估值汇总；原生币种数量独立展示，估值不完整时不会显示合计。",
-                        color = AppColors.TextHelper,
+                        context.getString(R.string.project_detail_native_assets_help),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -396,49 +437,47 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
 
         item {
             Card(modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border), shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
                 elevation = CardDefaults.cardElevation(0.dp)) {
-                Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("任务清单", color = AppColors.TextPrimary,
+                            Text(context.getString(R.string.project_detail_tasks), color = MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text("按步骤完成项目交互", color = AppColors.TextSecondary,
+                            Text(context.getString(R.string.project_detail_task_help), color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall)
                         }
-                        Text("$completed / ${state.tasks.size}", color = AppColors.Primary,
+                        Text("$completed / ${state.tasks.size}", color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     }
                     LinearProgressIndicator(progress = { progress },
-                        modifier = Modifier.fillMaxWidth().height(7.dp), color = AppColors.Primary,
-                        trackColor = AppColors.Border,
+                        modifier = Modifier.fillMaxWidth().height(6.dp), color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outlineVariant,
                         strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    OutlinedTextField(value = taskName, onValueChange = { taskName = it },
-                        modifier = Modifier.fillMaxWidth(), placeholder = { Text("添加一个待办任务…") },
-                        singleLine = true, shape = RoundedCornerShape(13.dp))
-                    Button(enabled = taskName.isNotBlank() && !state.isBusy,
-                        onClick = { projectDetailViewModel.addTask(project.id, taskName.trim(), projectUsesLocalTasks); taskName = "" },
-                        modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(13.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
-                        Text("＋ 添加任务", fontWeight = FontWeight.SemiBold)
-                    }
+                    AppTextField(taskName, { taskName = it }, context.getString(R.string.project_detail_new_task))
+                    AppButton(
+                        text = context.getString(R.string.project_detail_add_task),
+                        enabled = taskName.isNotBlank() && !state.isBusy,
+                        onClick = { projectDetailViewModel.addTask(project.id, taskName.trim(), projectUsesLocalTasks); taskName = "" }
+                    )
                 }
             }
         }
         if (state.isLoading && state.tasks.isEmpty()) item {
-            Box(Modifier.fillMaxWidth().padding(18.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = AppColors.Primary)
+            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("个人交互流水", color = AppColors.TextPrimary,
+                Text(context.getString(R.string.project_detail_interaction_history), color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 if (interactions.isEmpty()) {
-                    Text("完成交互并手动确认记账后，真实 Gas 和收益会显示在这里。",
-                        color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                    Text(context.getString(R.string.project_detail_history_help),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -446,26 +485,26 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
             InteractionLedgerRow(interaction)
         }
         items(state.tasks.sortedBy { it.step_order }, key = { it.id }) { task ->
-            Card(colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border), shape = RoundedCornerShape(15.dp),
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
                 elevation = CardDefaults.cardElevation(0.dp)) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = CircleShape, color = AppColors.NavIndicator) {
+                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
                         Text(task.step_order.toString(), Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                            color = AppColors.Primary, fontWeight = FontWeight.Bold)
+                            color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
                     Checkbox(checked = task.is_completed,
                         onCheckedChange = { checked -> projectDetailViewModel.setCompleted(project.id, task, checked, projectUsesLocalTasks) })
                     Text(task.task_name, Modifier.weight(1f),
-                        color = if (task.is_completed) AppColors.TextHelper else AppColors.TextPrimary,
+                        color = if (task.is_completed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f) else MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = {
+                    AppTextButton(onClick = {
                         editingTask = task
                         editedTaskName = task.task_name
-                    }) { Text("编辑", color = AppColors.Primary) }
-                    TextButton(onClick = { projectDetailViewModel.deleteTask(project.id, task, projectUsesLocalTasks) }) {
-                        Text("删除", color = AppColors.Danger)
+                    }) { Text(context.getString(R.string.common_edit), color = MaterialTheme.colorScheme.primary) }
+                    AppTextButton(onClick = { projectDetailViewModel.deleteTask(project.id, task, projectUsesLocalTasks) }) {
+                        Text(context.getString(R.string.projects_delete), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -475,17 +514,17 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         val selectedWallets = accountingWallets.filter { it.id in selectedAccountingWalletIds }
         AlertDialog(
             onDismissRequest = { if (!isSavingAccounting) showManualAccounting = false },
-            containerColor = AppColors.Surface,
-            title = { Text("记一笔 · " + project.name, color = AppColors.TextPrimary) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(context.getString(R.string.accounting_title, project.name), color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(
                     Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("项目已锁定：" + project.name, color = AppColors.TextSecondary,
+                    Text(context.getString(R.string.accounting_project_locked, project.name), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelMedium)
-                    Text("选择钱包并分别填写 Gas 和奖励；总奖励模式会按钱包均分。",
-                        color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                    Text(context.getString(R.string.accounting_help),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                     accountingWallets.forEach { wallet ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
@@ -497,28 +536,24 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 enabled = !isSavingAccounting
                             )
                             Column(Modifier.weight(1f)) {
-                                Text(wallet.wallet_name.ifBlank { "钱包" }, color = AppColors.TextPrimary)
+                                Text(wallet.wallet_name.ifBlank { context.getString(R.string.accounting_wallet) }, color = MaterialTheme.colorScheme.onSurface)
                                 Text(wallet.chain + " · " + wallet.address.take(8) + "…" + wallet.address.takeLast(5),
-                                    color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                             }
                         }
                         if (wallet.id in selectedAccountingWalletIds) {
-                            OutlinedTextField(
+                            AppTextField(
                                 value = accountingWalletGasAmounts[wallet.id].orEmpty(),
                                 onValueChange = { accountingWalletGasAmounts = accountingWalletGasAmounts + (wallet.id to it.filter { ch -> ch.isDigit() || ch == '.' }.take(18)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(wallet.wallet_name.ifBlank { "钱包" } + " · Gas（USD）") },
-                                singleLine = true,
+                                placeholder = context.getString(R.string.accounting_gas_hint, wallet.wallet_name.ifBlank { context.getString(R.string.accounting_wallet) }),
                                 enabled = !isSavingAccounting
                             )
                             if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET &&
                                 accountingRewardKind != ManualRewardKind.UNKNOWN) {
-                                OutlinedTextField(
+                                AppTextField(
                                     value = accountingWalletRewardAmounts[wallet.id].orEmpty(),
                                     onValueChange = { accountingWalletRewardAmounts = accountingWalletRewardAmounts + (wallet.id to it.filter { ch -> ch.isDigit() || ch == '.' }.take(24)) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text(wallet.wallet_name.ifBlank { "钱包" } + " · 实际奖励数量") },
-                                    singleLine = true,
+                                    placeholder = context.getString(R.string.accounting_reward_hint, wallet.wallet_name.ifBlank { context.getString(R.string.accounting_wallet) }),
                                     enabled = !isSavingAccounting
                                 )
                             }
@@ -538,26 +573,30 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             onClick = { accountingAllocationMode = ManualRewardAllocationMode.PER_WALLET },
                             enabled = !isSavingAccounting
                         )
-                        Text("逐钱包填写奖励", color = AppColors.TextPrimary)
+                        Text(context.getString(R.string.accounting_reward_per_wallet), color = MaterialTheme.colorScheme.onSurface)
                         RadioButton(
                             selected = accountingAllocationMode == ManualRewardAllocationMode.EVEN_SPLIT_TOTAL,
                             onClick = { accountingAllocationMode = ManualRewardAllocationMode.EVEN_SPLIT_TOTAL },
                             enabled = !isSavingAccounting
                         )
-                        Text("总奖励均分", color = AppColors.TextPrimary)
+                        Text(context.getString(R.string.accounting_reward_split), color = MaterialTheme.colorScheme.onSurface)
                     }
                     var rewardMenuExpanded by remember { mutableStateOf(false) }
                     Box {
-                        OutlinedButton(onClick = { rewardMenuExpanded = true }, enabled = !isSavingAccounting) {
-                            Text("奖励类型：" + when (accountingRewardKind) {
+                        AppButton(
+                            text = context.getString(R.string.accounting_reward_type, when (accountingRewardKind) {
                                 ManualRewardKind.USD -> "USD"
-                                ManualRewardKind.TOKEN -> "代币"
-                                ManualRewardKind.MANUAL_USD_VALUATION -> "手动 USD 估值"
-                                ManualRewardKind.POINTS -> "积分"
-                                ManualRewardKind.UNISSUED -> "未发放"
-                                ManualRewardKind.UNKNOWN -> "未知"
-                            })
-                        }
+                                ManualRewardKind.TOKEN -> context.getString(R.string.reward_kind_token)
+                                ManualRewardKind.MANUAL_USD_VALUATION -> context.getString(R.string.reward_kind_manual_usd)
+                                ManualRewardKind.POINTS -> context.getString(R.string.reward_kind_points)
+                                ManualRewardKind.UNISSUED -> context.getString(R.string.reward_kind_unissued)
+                                ManualRewardKind.UNKNOWN -> context.getString(R.string.reward_kind_unknown)
+                            }),
+                            onClick = { rewardMenuExpanded = true },
+                            enabled = !isSavingAccounting,
+                            style = AppButtonStyle.SECONDARY,
+                            fullWidth = false, heightDp = 44, fontSizeSp = 13
+                        )
                         DropdownMenu(expanded = rewardMenuExpanded, onDismissRequest = { rewardMenuExpanded = false }) {
                             ManualRewardKind.values().forEach { kind ->
                                 DropdownMenuItem(
@@ -565,7 +604,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     onClick = {
                                     accountingRewardKind = kind
                                     if (kind !in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION)) {
-                                        accountingWalletPublicOptIns = emptyMap()
                                     }
                                     rewardMenuExpanded = false
                                 }
@@ -576,37 +614,36 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     if (accountingRewardKind == ManualRewardKind.TOKEN ||
                         accountingRewardKind == ManualRewardKind.POINTS ||
                         accountingRewardKind == ManualRewardKind.UNISSUED) {
-                        OutlinedTextField(
+                        AppTextField(
                             value = accountingRewardUnit,
                             onValueChange = { accountingRewardUnit = it.take(32) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("代币/积分名称") },
-                            singleLine = true,
+                            placeholder = context.getString(R.string.accounting_reward_unit),
                             enabled = !isSavingAccounting
                         )
                     }
                     if (accountingAllocationMode == ManualRewardAllocationMode.EVEN_SPLIT_TOTAL &&
                         accountingRewardKind != ManualRewardKind.UNKNOWN) {
-                        OutlinedTextField(
+                        AppTextField(
                             value = accountingRewardAmount,
                             onValueChange = { accountingRewardAmount = it.filter { ch -> ch.isDigit() || ch == '.' }.take(24) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("本次活动总奖励数量") },
-                            singleLine = true,
+                            placeholder = context.getString(R.string.accounting_total_reward),
                             enabled = !isSavingAccounting
                         )
                     }
-                    Text("匿名贡献需选择每个钱包实际发生交易的 EVM 网络，并填写该钱包自己的 Tx Hash；仅公共项目和完整 USD 奖励可参与。",
-                        color = AppColors.TextHelper, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        if (project.communityDelisted) context.getString(R.string.accounting_delisted_notice)
+                        else context.getString(R.string.accounting_community_notice),
+                        color = if (project.communityDelisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                        style = MaterialTheme.typography.bodySmall)
                     selectedWallets.forEach { wallet ->
                         val selectedNetwork = accountingWalletNetworks[wallet.id].orEmpty()
                         var networkMenuExpanded by remember(wallet.id) { mutableStateOf(false) }
                         if (wallet.ecosystem == WalletEcosystem.EVM) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("核验网络", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Text(context.getString(R.string.accounting_verify_network), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                                 Spacer(Modifier.width(8.dp))
                                 Box {
-                                    TextButton(onClick = { networkMenuExpanded = true }, enabled = !isSavingAccounting) {
+                                    AppTextButton(onClick = { networkMenuExpanded = true }, enabled = !isSavingAccounting) {
                                         Text(
                                             when (selectedNetwork) {
                                                 "ethereum" -> "Ethereum"
@@ -616,7 +653,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                                 "optimism" -> "Optimism"
                                                 "base" -> "Base"
                                                 "avalanche" -> "Avalanche"
-                                                else -> "请选择网络"
+                                                else -> context.getString(R.string.accounting_choose_network)
                                             }
                                         )
                                     }
@@ -634,7 +671,6 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                                 text = { Text(label) },
                                                 onClick = {
                                                     accountingWalletNetworks = accountingWalletNetworks + (wallet.id to network)
-                                                    accountingWalletPublicOptIns = accountingWalletPublicOptIns + (wallet.id to false)
                                                     networkMenuExpanded = false
                                                 }
                                             )
@@ -643,30 +679,20 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 }
                             }
                         } else {
-                            Text("该钱包网络暂不支持公共链上核验，仍可保存个人账本。",
-                                color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                            Text(context.getString(R.string.accounting_unsupported_network),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = accountingWalletPublicOptIns[wallet.id] == true,
-                                onCheckedChange = { checked ->
-                                    accountingWalletPublicOptIns = accountingWalletPublicOptIns + (wallet.id to checked)
-                                },
-                                enabled = !isSavingAccounting &&
-                                    project.communityOfficialId != null &&
-                                    accountingRewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION) &&
-                                    ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)
-                            )
-                            Text("授权 " + wallet.wallet_name.ifBlank { "该钱包" } + " 匿名贡献",
-                                color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        if (!project.communityDelisted && project.communityOfficialId != null &&
+                            ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)) {
+                            Text(context.getString(R.string.accounting_txhash_help),
+                                color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                         }
-                        if (accountingWalletPublicOptIns[wallet.id] == true) {
-                            OutlinedTextField(
+                        if (!project.communityDelisted && project.communityOfficialId != null &&
+                            ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(selectedNetwork)) {
+                            AppTextField(
                                 value = accountingTxHashes[wallet.id].orEmpty(),
                                 onValueChange = { value -> accountingTxHashes = accountingTxHashes + (wallet.id to value.trim()) },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(wallet.wallet_name.ifBlank { "钱包" } + " · Tx Hash") },
-                                singleLine = true,
+                                placeholder = context.getString(R.string.accounting_txhash_hint, wallet.wallet_name.ifBlank { context.getString(R.string.accounting_wallet) }),
                                 enabled = !isSavingAccounting
                             )
                         }
@@ -674,7 +700,11 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                 }
             },
             confirmButton = {
-                Button(enabled = !isSavingAccounting && selectedWallets.isNotEmpty(), onClick = {
+                AppButton(
+                    text = context.getString(R.string.accounting_save),
+                    enabled = !isSavingAccounting && selectedWallets.isNotEmpty(),
+                    loading = isSavingAccounting,
+                    onClick = {
                     scope.launch {
                         isSavingAccounting = true
                         try {
@@ -685,10 +715,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 } else accountingRewardAmount
                                 val rewardAmount = rewardAmountText.trim().takeIf { it.isNotEmpty() }?.let(::BigDecimal)
                                 val reward = when (accountingRewardKind) {
-                                    ManualRewardKind.USD -> ManualRewardInput(ManualRewardKind.USD, requireNotNull(rewardAmount) { "请填写 USD 奖励" })
-                                    ManualRewardKind.TOKEN -> ManualRewardInput(ManualRewardKind.TOKEN, requireNotNull(rewardAmount) { "请填写代币数量" }, accountingRewardUnit.trim())
-                                    ManualRewardKind.MANUAL_USD_VALUATION -> ManualRewardInput(ManualRewardKind.MANUAL_USD_VALUATION, requireNotNull(rewardAmount) { "请填写手动 USD 估值" })
-                                    ManualRewardKind.POINTS -> ManualRewardInput(ManualRewardKind.POINTS, requireNotNull(rewardAmount) { "请填写积分数量" }, accountingRewardUnit.trim())
+                                    ManualRewardKind.USD -> ManualRewardInput(ManualRewardKind.USD, requireNotNull(rewardAmount) { context.getString(R.string.accounting_required_usd_reward) })
+                                    ManualRewardKind.TOKEN -> ManualRewardInput(ManualRewardKind.TOKEN, requireNotNull(rewardAmount) { context.getString(R.string.accounting_required_token_amount) }, accountingRewardUnit.trim())
+                                    ManualRewardKind.MANUAL_USD_VALUATION -> ManualRewardInput(ManualRewardKind.MANUAL_USD_VALUATION, requireNotNull(rewardAmount) { context.getString(R.string.accounting_required_manual_valuation) })
+                                    ManualRewardKind.POINTS -> ManualRewardInput(ManualRewardKind.POINTS, requireNotNull(rewardAmount) { context.getString(R.string.accounting_required_points) }, accountingRewardUnit.trim())
                                     ManualRewardKind.UNISSUED -> ManualRewardInput(ManualRewardKind.UNISSUED, rewardAmount, accountingRewardUnit.trim().takeIf { it.isNotEmpty() })
                                     ManualRewardKind.UNKNOWN -> ManualRewardInput(ManualRewardKind.UNKNOWN)
                                 }
@@ -699,21 +729,20 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                     gasCostUsd = gas,
                                     txHash = accountingTxHashes[wallet.id].orEmpty(),
                                     reward = if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET) reward else null,
-                                    publicContributionOptIn = accountingWalletPublicOptIns[wallet.id] == true &&
-                                        project.communityOfficialId != null &&
-                                        accountingRewardKind in setOf(ManualRewardKind.USD, ManualRewardKind.MANUAL_USD_VALUATION) &&
-                                        ManualProjectAccountingPolicy.isTransactionVerificationNetworkSupported(
-                                            accountingWalletNetworks[wallet.id].orEmpty()
-                                        )
+                                    publicContributionOptIn = !project.communityDelisted && ManualProjectAccountingPolicy.isEligibleForDefaultCommunityContribution(
+                                        project.communityOfficialId,
+                                        accountingWalletNetworks[wallet.id].orEmpty().ifBlank { wallet.chain.trim().lowercase() },
+                                        accountingTxHashes[wallet.id].orEmpty()
+                                    )
                                 )
                             }
                             val totalReward = if (accountingAllocationMode == ManualRewardAllocationMode.EVEN_SPLIT_TOTAL) {
                                 val amount = accountingRewardAmount.trim().takeIf { it.isNotEmpty() }?.let(::BigDecimal)
                                 when (accountingRewardKind) {
-                                    ManualRewardKind.USD -> ManualRewardInput(ManualRewardKind.USD, requireNotNull(amount) { "请填写 USD 总奖励" })
-                                    ManualRewardKind.TOKEN -> ManualRewardInput(ManualRewardKind.TOKEN, requireNotNull(amount) { "请填写代币总数量" }, accountingRewardUnit.trim())
-                                    ManualRewardKind.MANUAL_USD_VALUATION -> ManualRewardInput(ManualRewardKind.MANUAL_USD_VALUATION, requireNotNull(amount) { "请填写手动 USD 总估值" })
-                                    ManualRewardKind.POINTS -> ManualRewardInput(ManualRewardKind.POINTS, requireNotNull(amount) { "请填写积分总数量" }, accountingRewardUnit.trim())
+                                    ManualRewardKind.USD -> ManualRewardInput(ManualRewardKind.USD, requireNotNull(amount) { context.getString(R.string.accounting_required_total_usd) })
+                                    ManualRewardKind.TOKEN -> ManualRewardInput(ManualRewardKind.TOKEN, requireNotNull(amount) { context.getString(R.string.accounting_required_total_token) }, accountingRewardUnit.trim())
+                                    ManualRewardKind.MANUAL_USD_VALUATION -> ManualRewardInput(ManualRewardKind.MANUAL_USD_VALUATION, requireNotNull(amount) { context.getString(R.string.accounting_required_total_valuation) })
+                                    ManualRewardKind.POINTS -> ManualRewardInput(ManualRewardKind.POINTS, requireNotNull(amount) { context.getString(R.string.accounting_required_total_points) }, accountingRewardUnit.trim())
                                     ManualRewardKind.UNISSUED -> ManualRewardInput(ManualRewardKind.UNISSUED, amount, accountingRewardUnit.trim().takeIf { it.isNotEmpty() })
                                     ManualRewardKind.UNKNOWN -> ManualRewardInput(ManualRewardKind.UNKNOWN)
                                 }
@@ -726,23 +755,22 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             val saved = CacheStore.recordManualAccountingBatch(
                                 accountingBatchId, project.id, project.communityOfficialId, project.name, batch
                             )
-                            if (!saved) error("记账未保存，请检查是否存在重复交易或部分重复提交")
+                            if (!saved) error(context.getString(R.string.accounting_not_saved))
                             showManualAccounting = false
                             Toast.makeText(context,
-                                if (batch.hasPublicContributionOptIn) "私账已保存，已授权的钱包等待链上核验" else "记账成功",
+                                if (project.communityDelisted) context.getString(R.string.accounting_success_delisted)
+                                else if (batch.hasPublicContributionOptIn) context.getString(R.string.accounting_success_public) else context.getString(R.string.accounting_success),
                                 Toast.LENGTH_LONG).show()
                         } catch (error: Exception) {
-                            Toast.makeText(context, error.message ?: "记账失败，请检查输入", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, error.message ?: context.getString(R.string.accounting_failed), Toast.LENGTH_LONG).show()
                         } finally {
                             isSavingAccounting = false
                         }
                     }
-                }, colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)) {
-                    Text(if (isSavingAccounting) "保存中…" else "保存记账")
-                }
+                })
             },
             dismissButton = {
-                TextButton(onClick = { if (!isSavingAccounting) showManualAccounting = false }) { Text("取消") }
+                AppTextButton(onClick = { if (!isSavingAccounting) showManualAccounting = false }) { Text(context.getString(R.string.cancel)) }
             }
         )
     }
@@ -750,44 +778,43 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
     editingTask?.let { taskToEdit ->
         AlertDialog(
             onDismissRequest = { editingTask = null },
-            containerColor = AppColors.Surface,
-            title = { Text("编辑任务", color = AppColors.TextPrimary) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(context.getString(R.string.task_edit_title), color = MaterialTheme.colorScheme.onSurface) },
             text = {
-                OutlinedTextField(
+                AppTextField(
                     value = editedTaskName,
                     onValueChange = { if (it.length <= 240) editedTaskName = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("任务名称") }
+                    placeholder = context.getString(R.string.task_name)
                 )
             },
             confirmButton = {
-                Button(
+                AppButton(
+                    text = context.getString(R.string.common_save),
                     enabled = editedTaskName.isNotBlank() && !state.isBusy,
                     onClick = {
                         projectDetailViewModel.renameTask(
                             project.id, taskToEdit, editedTaskName, projectUsesLocalTasks
                         )
                         editingTask = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                ) { Text("保存") }
+                    }
+                )
             },
-            dismissButton = { TextButton(onClick = { editingTask = null }) { Text("取消") } }
+            dismissButton = { AppTextButton(onClick = { editingTask = null }) { Text(context.getString(R.string.cancel)) } }
         )
     }
 
     if (showClaimWalletPicker) {
         AlertDialog(
             onDismissRequest = { showClaimWalletPicker = false },
-            containerColor = AppColors.Surface,
-            title = { Text("选择领取钱包") },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(context.getString(R.string.claim_wallet_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("将使用所选钱包的公开地址打开项目资格页面，不会自动签名或发送交易。",
-                        color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text(context.getString(R.string.claim_wallet_help),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     claimWallets.forEach { wallet ->
-                        OutlinedButton(modifier = Modifier.fillMaxWidth(), enabled = !state.isClaimLoading, onClick = {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = {
                             showClaimWalletPicker = false
                             if (isGuest) {
                                 val parsed = runCatching { Uri.parse(project.claim_url) }.getOrNull()
@@ -797,20 +824,25 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                         .build().toString()
                                     context.startActivity(Intent(context, BrowserActivity::class.java)
                                         .putExtra(BrowserActivity.EXTRA_URL, url)
-                                        .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取"))
-                                } else Toast.makeText(context, "领取链接无效", Toast.LENGTH_LONG).show()
+                                        .putExtra(BrowserActivity.EXTRA_TITLE, context.getString(R.string.project_detail_claim_title, project.name)))
+                                } else Toast.makeText(context, context.getString(R.string.project_detail_claim_invalid), Toast.LENGTH_LONG).show()
                             } else projectDetailViewModel.requestClaimUrl(project.id, wallet.id)
-                        }) {
-                            Column(Modifier.fillMaxWidth()) {
-                                Text(wallet.wallet_name.ifBlank { "钱包" }, color = AppColors.TextPrimary)
+                        }, scale = 0.96f, enabled = !state.isClaimLoading),
+                            shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            elevation = CardDefaults.cardElevation(0.dp)
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                                Text(wallet.wallet_name.ifBlank { context.getString(R.string.accounting_wallet) }, color = MaterialTheme.colorScheme.onSurface)
                                 Text("${wallet.ecosystem} · ${wallet.address.take(8)}…${wallet.address.takeLast(5)}",
-                                    color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showClaimWalletPicker = false }) { Text("取消") } }
+            confirmButton = { AppTextButton(onClick = { showClaimWalletPicker = false }) { Text(context.getString(R.string.cancel)) } }
         )
     }
 
@@ -823,21 +855,22 @@ private fun NativeAssetPeriodSection(
     title: String,
     totals: List<com.airdrophunter.app.data.LedgerAssetPeriodTotal>
 ) {
+    val context = LocalContext.current
     if (totals.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Text(title, color = AppColors.TextPrimary, fontWeight = FontWeight.SemiBold,
+        Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold,
             style = MaterialTheme.typography.labelMedium)
         totals.forEach { total ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "${total.network.uppercase(Locale.US)} · ${total.amountNative.stripTrailingZeros().toPlainString()} ${total.symbol}",
                     modifier = Modifier.weight(1f),
-                    color = AppColors.TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    total.usdValuation?.let { "USD估值 $%.2f".format(Locale.US, it) } ?: "USD估值不完整",
-                    color = AppColors.TextHelper,
+                    total.usdValuation?.let { context.getString(R.string.estimate_usd_value, it) } ?: context.getString(R.string.estimate_incomplete),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.labelSmall
                 )
             }
@@ -847,46 +880,70 @@ private fun NativeAssetPeriodSection(
 
 @Composable
 private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
+    val context = LocalContext.current
     val time = remember(interaction.timestamp) {
         SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(interaction.timestamp))
     }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-        border = BorderStroke(1.dp, AppColors.Border),
-        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(time, color = AppColors.TextPrimary, style = MaterialTheme.typography.labelMedium,
+                Text(time, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold)
-                Text(interaction.network, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                Text(interaction.network, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
             Text(
-                "预估 Gas：" + (interaction.expectedGasCostUsd?.let { "USD $%.2f".format(Locale.US, it) } ?: "暂无估值"),
-                color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall
+                context.getString(R.string.project_detail_estimated_gas, interaction.expectedGasCostUsd?.let { "USD $%.2f".format(Locale.US, it) } ?: context.getString(R.string.estimate_no_value)),
+                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
             )
             interaction.expectedRewardUsd?.let {
-                Text("预估奖励：USD $%.2f".format(Locale.US, it), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                Text(context.getString(R.string.project_detail_estimated_reward, "USD $%.2f".format(Locale.US, it)), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("实际 Gas USD估值 $%.2f".format(Locale.US, interaction.gasCostUsd),
-                    color = AppColors.Danger, style = MaterialTheme.typography.bodySmall)
-                Text("实际收益 USD估值 +$%.2f".format(Locale.US, interaction.actualRewardUsd),
-                    color = AppColors.Success, style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    Modifier.weight(1f).background(
+                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f),
+                        RoundedCornerShape(AppDesignTokens.Radius.Md.dp)
+                    ).padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(context.getString(R.string.estimate_actual_gas_usd), color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("−$%.2f".format(Locale.US, interaction.gasCostUsd),
+                        color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
+                Column(
+                    Modifier.weight(1f).background(
+                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                        RoundedCornerShape(AppDesignTokens.Radius.Md.dp)
+                    ).padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(context.getString(R.string.estimate_actual_reward_usd), color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall, maxLines = 2)
+                    Text(
+                        if (interaction.usdProfitComplete) "+$%.2f".format(Locale.US, interaction.actualRewardUsd) else context.getString(R.string.estimate_incomplete),
+                        color = if (interaction.usdProfitComplete) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
             }
             formatLedgerAssetBreakdown(interaction.assetBreakdownJson).takeIf { it.isNotBlank() }?.let {
-                Text("币种明细：$it", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                Text(context.getString(R.string.estimate_asset_details, it), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
             if (interaction.publicContributionOptIn) {
                 val statusColor = when (interaction.publicContributionStatus) {
-                    "verified" -> AppColors.Success
-                    "rejected" -> AppColors.Danger
-                    else -> AppColors.Primary
+                    "verified" -> MaterialTheme.colorScheme.secondary
+                    "rejected" -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.primary
                 }
                 Text(
-                    communityContributionStatusLabel(interaction.publicContributionStatus, interaction.publicContributionTier),
+                    localizedCommunityContributionStatusLabel(interaction.publicContributionStatus, interaction.publicContributionTier),
                     color = statusColor,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold
@@ -894,35 +951,44 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                 interaction.publicContributionError?.takeIf {
                     interaction.publicContributionStatus == "rejected" && it.isNotBlank()
                 }?.let { message ->
-                    Text(message, color = AppColors.Danger, style = MaterialTheme.typography.labelSmall)
+                    Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                 }
             }
             if (interaction.txHash.isNotBlank()) {
-                Text("交易：${interaction.txHash.take(10)}…",
-                    color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall)
+                Text(context.getString(R.string.estimate_transaction, interaction.txHash.take(10) + "…"),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
         }
     }
 }
 
 @Composable
-private fun LedgerPeriodMetric(modifier: Modifier, label: String, value: Double?, color: Color) {
+private fun LedgerPeriodMetric(
+    modifier: Modifier, label: String, value: Double?, color: Color, emptyLabel: String? = null
+) {
+    val resolvedEmptyLabel = emptyLabel ?: stringResource(R.string.project_detail_incomplete_valuation)
     Column(
-        modifier.background(AppColors.Background, RoundedCornerShape(12.dp)).padding(horizontal = 9.dp, vertical = 11.dp),
+        modifier.background(MaterialTheme.colorScheme.background, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text(label, color = AppColors.TextHelper, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: "估值未完整", color = color,
-            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 2)
+        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: resolvedEmptyLabel.ifBlank { stringResource(R.string.project_detail_incomplete_valuation) }, color = color,
+            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-private fun ProjectMetric(modifier: Modifier = Modifier, label: String, value: Double) {
-    Column(modifier.background(Color(0xFFF1F8F5), RoundedCornerShape(14.dp)).padding(horizontal = 9.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text(label, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-        Text(String.format(Locale.US, "$%.2f", value), color = Color(0xFF16845B),
-            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+private fun ProjectMetric(
+    modifier: Modifier = Modifier, label: String, value: Double?, emptyLabel: String = ""
+) {
+    Column(modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 2)
+        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: stringResource(R.string.project_detail_incomplete_valuation), color = MaterialTheme.colorScheme.onPrimaryContainer,
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
     }
 }
+
+private fun localizedProjectClaimError(context: android.content.Context, message: String): String =
+    if (message == "__PROJECT_CLAIM_URL_FAILED__") context.getString(R.string.project_detail_claim_url_failed) else message
+

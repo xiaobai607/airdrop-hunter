@@ -1,11 +1,11 @@
-# Airdrop Hunter — UI 重构实施与进度台账
+# DropPilot — UI 重构实施与进度台账
 
 > 本文是 UI 改版的唯一实施进度台账；设计参数以《空投猎人-UI与动效重构设计说明书.docx》v1.1 为准。每完成一个页面、组件或交互改造，必须在同一提交中更新本文件，避免重复施工、遗漏和状态误报。
 
-- 产品：Airdrop Hunter（当前 Android / Kotlin + Jetpack Compose）
+- 产品：DropPilot（原 Airdrop Hunter；当前 Android / Kotlin + Jetpack Compose）
 - 设计基准：苹果式层级与材质 + 小米式信息密度与触感
-- 当前分支：`feature/mobile-browser-home-dock-batch`
-- 当前 PR：#135（Draft / Open / Unmerged）
+- 当前分支：`main`
+- 当前 PR：#141（统一代码基线；待合并与最终验收）
 - 台账创建基线：2026-11-13
 - 状态定义：
   - `未开始`：尚未核对或实现。
@@ -85,23 +85,23 @@
 
 | 页面/模块 | 当前已知改动 | 状态 / 未完成事项 |
 |---|---|---|
-| 首页 `HomeScreen.kt` | 已有快捷入口图标底板、共享文字操作；已有行情卡片基础结构 | 进行中：完整对齐首页三段布局、迷你走势、错峰入场、间距与底栏 |
-| 空投导航面板 | 现有导航入口逻辑存在 | 未开始专项验收：底部抽屉、品牌图标容器、搜索过滤与联动转场 |
+| 首页 `HomeScreen.kt` | 首页标题/副标题层级、行情区节奏、搜索入口圆角与文案、快捷卡片基础样式已收口 | 进行中：迷你走势、错峰入场与首页整体真机视觉验收 |
+| 空投导航面板 | 底部抽屉标题左对齐、平台数量提示、名称/域名搜索提示、站点卡片容器与图标尺寸已优化 | 进行中：图标清晰度/缓存策略、空态细节与抽屉转场真机验收 |
 | 浏览器 `BrowserActivity.kt` | 已有加载/错误状态、顶部容器与工具栏改动；系统状态栏/导航栏现按系统深浅色主题切换；TLS/DApp 安全策略保持严格 | 进行中：警示横幅、主机条、加载三态、工具栏材质/转场与真机打开网页验收 |
 | 浏览器记账工具栏 `BrowserAccountingToolbar.kt` | 已接入共享按钮/输入框的部分控件 | 进行中：全部操作的真实反馈、布局密度、触感与窄屏验收 |
 | 全局搜索 `GlobalSearchScreen.kt` | 共享设计组件已存在于工程 | 未完成页面级对照：焦点/键盘、历史/结果切换、紧凑结果卡 |
 | 钱包管理 `WalletManagerScreen.kt` | 已使用共享输入框、按钮、图标按钮、胶囊和列表组件 | 进行中：页面空态、72dp 行、添加钱包抽屉结构、WalletConnect 外层衔接 |
-| 钱包详情 `WalletDetailScreen.kt` | 已接入共享操作；资产/资格对话框已有语义色和卡片反馈改造 | 进行中：余额/交易列表密度、复制反馈、空态和页面转场 |
-| 钱包资产详情 `WalletAssetDetailDialog.kt` | 已做主题语义色与共享卡片/操作接入 | 代码已落地待验收 |
-| 钱包资格弹窗 `WalletCheckDialog.kt` | 已做主题语义色与共享卡片/操作接入 | 代码已落地待验收 |
+| 钱包详情 `WalletDetailScreen.kt` | 已移除已取消的资产总览入口；保留只读链上交易和待确认记账入口 | 进行中：交易列表密度、复制反馈、空态和页面转场 |
+| 钱包资产详情 `WalletAssetDetailDialog.kt` | 已删除旧资产总览弹窗及专用 Android 适配层 | 已清理；待 Gradle/测试确认无残余引用 |
+| 钱包资格弹窗 `WalletCheckDialog.kt` | 仍保留独立资格查询流程；当前分支未发现调用入口，尚未决定是否删除 | 待产品范围确认；不得误当成资产总览功能 |
 | WalletConnect 外层 | 已限制 SDK 强制浅色主题的影响范围 | 进行中：只调整外层容器/转场，不改 SDK 内部 UI |
-| TRON 能量助手 `TronEnergyAssistantScreen.kt` | 已使用 BaseCard/共享字段/按钮 | 进行中：删除重复标题、警告块语义色、布局与动效逐项验收 |
-| 项目管理 `ProjectsScreen.kt` | 列表卡片已精简；移除虚构评分/好评率；真实净盈亏展示 | 进行中：筛选胶囊、空态、FAB 与 Tab 避让、错峰列表 |
-| 项目详情 `ProjectDetailScreen.kt` | 领取、官网、社媒、真实记账、任务、钱包分配、奖励选择等操作已接入共享组件/加载反馈 | 进行中：详情页留白、信息层级、弹窗/抽屉和全部触控反馈 |
-| 微社区 `MicroCommunityScreen.kt` / `CommunitySquareScreen.kt` | 加入/评价动作已接入共享按钮；星级目标有即时按压反馈 | 进行中：榜单胶囊、标签、卡片密度和图标系统统一 |
+| TRON 能量助手 `TronEnergyAssistantScreen.kt` | 已完成标题层级、图标容器、地址输入分组和安全提示卡片的视觉收口；保留共享字段/按钮 | 代码已落地待验收：浅深色、窄屏、输入错误与点击反馈待设备验收 |
+| 项目管理 `ProjectsScreen.kt` | 已统一标题/副标题层级、页面左右边距与列表起始节奏；保留真实净盈亏、状态标签和错峰列表 | 进行中：筛选胶囊、空态、FAB 与 Tab 避让及完整视觉回归 |
+| 项目详情 `ProjectDetailScreen.kt` | 已统一项目概览标题、主卡片/钱包/账本/任务卡片圆角和内边距；交互流水实际 Gas/收益改为双列指标卡 | 进行中：弹窗/抽屉、交互流水剩余信息和全部触控反馈待完整回归 |
+| 微社区 `MicroCommunityScreen.kt` / `CommunitySquareScreen.kt` | 广场项目卡片窄屏适配；项目详情去除重复项目名标题、统计周期胶囊/评分卡片统一圆角边框与间距 | 进行中：榜单胶囊、标签样式、评分交互细节和图标系统统一 |
 | 社区验证等级 `CommunityVerificationTierBar.kt` | 文字颜色已改为主题语义色 | 代码已落地待验收 |
 | 我的/个人中心 `ProfileScreen.kt` | 设置行、图标容器、备份/导入按钮已有统一风格改动 | 进行中：统计区、列表分组、底部滚动/insets、空态和暗色模式 |
-| 行情详情 `CoinMarketDetailScreen.kt` | 已接入共享按钮/卡片等部分组件 | 进行中：价格等宽数字、涨跌符号、图表信息层级 |
+| 行情详情 `CoinMarketDetailScreen.kt` | 已统一页面左右边距、标题/交易对两级层次和指标卡片密度 | 代码已落地待验收：数字排版、涨跌语义、浅深色与加载/缓存状态待设备验收 |
 | 官方公告/活动 `AirdropHubScreen.kt`、`AirdropDiscoveryScreen.kt`、`AirdropCampaignsScreen.kt` | 已接入共享组件；活动卡片标签与描述有过适配；来源健康面板已接入 | 进行中：统一列表密度、空/错/加载态、筛选胶囊与详情层级 |
 | 登录/注册 `AuthScreen.kt` | 未按本轮 UI 范围改动 | 按当前产品决策暂不重开登录/注册功能；仅在明确批准后处理其 UI |
 
@@ -189,6 +189,33 @@
 - 代码静态检查：资产弹窗调用、状态和按钮文本均已从该页面移除。尚未运行 Gradle 编译、Android 测试或设备验收。
 - Commit：`b4ef5ead59b84d78c5637639b6a2903d53a184b9`
 
+## 补充实施计划：彻底隔离已取消的钱包资产总览代码
+
+- 移除钱包详情页入口后，继续确认旧资产弹窗、专用 repository/DTO 和 Android API 声明是否仅被这条已取消路径使用。
+- 若全仓引用检查确认无其他业务依赖，则删除这条不可达的 Android 资产总览 UI/数据适配代码和专用 API 声明。
+- 不删除共享 UnifiedAsset 数据类型或公共缓存通用基础设施，避免误伤其他仍在使用的功能；不擅自移除后端路由。
+
+### 2026-11-13 — 清理钱包资产总览不可达 Android 代码
+
+- 前置变更：钱包详情页已移除“资产”按钮与弹窗调用（`b4ef5ead`）。
+- 删除仅服务于已取消资产总览的 `WalletAssetDetailDialog.kt`、`data/WalletAssetRepository.kt`、`data/WalletAssetDto.kt`。
+- 从 `ApiService.kt` 删除专用 `api/wallet-assets/{chain}/{address}` 声明，避免 Android 客户端继续暴露不可用的旧入口。
+- 保留共享 `UnifiedAsset` 类型、Room/cache 通用结构与后端路由，未确认其他用途前不扩大删除范围；钱包交易活动、地址管理和真实记账链路未改。
+- 已确认 `/api/wallet/check` 在项目详情 VM/测试中仍有引用，因此没有连带删除该 API 或钱包核验数据类型。
+- 变更 commits：`1c14ae41`、`7098f0ac`、`40ac11b6`、`a0e811da`。
+- 当前只做 GitHub 源码级引用核对；尚未运行 Gradle 编译、Android 单元测试或设备验收，必须通过后续构建验证是否存在遗漏引用。
+
+
+### 2026-11-13 — 浏览器 Chrome 兼容 User-Agent
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/BrowserActivity.kt`
+- WebView 初始化时读取系统 WebView 自带 User-Agent，并移除 Android WebView 常见的 `; wv)` 与 `Version/4.0` 标记；保留运行时 Chromium 的真实版本号，不硬编码过期 Chrome 版本。
+- 目的：让普通网站优先按移动版 Chrome 页面布局/兼容路径返回内容，减少因明显 WebView 标记导致的兼容问题。
+- 说明：这只是 Chrome-compatible UA，不会把 WebView 变成完整 Chrome，也不能保证绕过网站的设备完整性、自动化或反机器人检测；不得用于伪造登录身份或绕过网站访问控制。
+- 本轮没有启用混合内容、没有全局开放第三方 Cookie、没有开放文件/地理位置/摄像头权限；HTTPS 强制升级、TLS 失败即取消、Safe Browsing、DApp origin 授权和钱包用户确认保持不变。
+- 静态核对：UA 从 WebView 默认值动态派生、保留 Chrome 版本号、无硬编码版本、仅在 WebView 初始化设置；未记录完整 UA 或用户数据。尚未运行 Gradle、Android tests、CI 或真机站点验收；网站是否可访问仍待设备验证。
+- Commit：`c21b08ea02c90bc17e285cce9cce5175031f097b`
+
 ## 6. 变更记录
 
 ### 2026-11-13 — P0 浏览器容器与钱包页面专项核对（已执行首轮）
@@ -219,3 +246,1016 @@
 - 目前只能确认“代码中存在/已接入共享组件”，不能据此宣称页面完整符合设计稿。
 - 当前尚未完成全量页面视觉验收、完整自动化测试、Gradle 编译、APK 构建和真机验收。
 - 下一步：按 P0 顺序推进浏览器、钱包和记账页面，并在每个页面提交时同步更新本台账。
+
+### 2026-11-13 — 钱包资格查询与真实记账中心静态审计
+
+- `WalletCheckDialog.kt` 已检查：它实现的是“选择项目/钱包 → 调用公开地址校验 → 打开项目官方 HTTPS 资格入口”，并非钱包资产总览。当前分支搜索未发现其调用入口，因此暂列为孤立 UI；本轮不擅自删除资格查询能力，避免把未明确取消的项目资格流程一并删掉。
+- `ProjectDetailViewModel.checkWallet()` / `walletResult` 在项目详情界面未发现实际消费点；但 `/api/wallet/check` 仍由独立 `WalletCheckDialog` 调用。暂不删除 API、响应 DTO 或 repository 合约，以免破坏保留的资格查询流程；后续若确认该弹窗正式废弃，再整体清理。
+- 真实记账中心定位已确认：`MainActivity.kt` 的记账入口打开 `AccountingCenterScreen`，其复用 `BrowserAccountingToolbar` 的待确认账单与手动记账表单，不是模拟账单页面。
+- 已核对关键记账边界：链上草稿仅在回执确认/确认失败后生成待确认账单；旧 `MOCK-*` 记录被过滤；手动记录使用 `MANUAL-*` 标识；确认入账前必须手动填写最终实际收益（明确允许输入 0，空值不能确认）；Gas 与收益原生资产分别保存；确认后才调用 `confirmPendingBill`。
+- **已修复（代码待验收）**：独立 `AccountingCenterScreen` 原先传入空钱包地址和 `unknown` 链名。现已加载当前本地数据范围的钱包列表，提供钱包选择器，并将所选钱包地址/链传给记账表单；无钱包或钱包未选中时，手动新建账单会被阻止并提示，不再生成空归属记录。已有待确认账单列表仍可显示。浏览器内工具栏保留原有页面钱包上下文，非空钱包地址路径不变。
+- 以上为源码静态审计，未运行 Gradle、Android tests、backend tests、APK 或设备验收；不得标记已验收。
+
+### 2026-11-13 — 记账中心新增真实钱包选择
+
+- 文件：`BrowserAccountingToolbar.kt`、`MainActivity.kt`。
+- 记账中心从当前 `isGuest` 数据范围加载钱包列表，默认选中首个钱包，并允许切换钱包；手动记账使用所选钱包地址与链名作为初始归属。
+- 在通用手动记账创建函数增加空钱包地址保护，防止记账中心无钱包时创建 `walletAddress=""` 的虚假归属账单；浏览器工具栏原有非空钱包上下文不受影响。
+- 保留已有待确认交易列表，即使当前没有可用钱包也仍可进入查看；新增手动账单需要先在钱包管理添加公开地址。
+- `MainActivity` 显式把当前 `isGuest` 范围传入记账中心，避免钱包列表读取范围与当前应用数据范围不一致。
+- 变更 commits：`371d6017`（记账中心钱包选择与空地址保护）、`82b7cf45`（传递当前数据范围）。
+- 静态核对完成；未运行 Gradle 编译、Android tests、backend tests、APK 或真机验收，状态为代码已落地待验收。
+
+### 2026-11-13 — 记账草稿与链上待确认记录保护
+
+- 修复前发现：`DisposableEffect(activeBill?.id)` 会在记账界面销毁时自动删除当前 `MANUAL-*` 草稿；待确认列表的删除按钮则对所有 pending bill 显示，链上 `WEB3-*` 记账候选也可能被删除。
+- 已移除界面销毁时自动删除手动草稿的副作用。手动草稿只有用户在确认弹窗明确点击“取消/关闭”或在列表主动删除时才会删除；单纯退出记账界面不再触发清理。
+- 待确认列表的删除按钮现在仅对 `MANUAL-*` 手动草稿显示；`WEB3-*` 链上待确认记录不再提供误删入口。删除函数本身也增加类型保护。
+- 现有规则不变：链上回执确认后才进入待确认账单；必须由用户手动输入实际 Gas/收益后才能确认入账；取消链上核验提醒不会改变链上交易状态。
+- 已知限制：当前 `PendingBillEntity` 没有独立保存未确认表单中的实际收益输入字段。因此进程被系统杀死时，手动草稿记录可保留，但尚未确认的表单输入值未保证恢复；本轮未扩展 Room schema，避免未经迁移设计引入数据风险。下一步需设计草稿字段的持久化及迁移测试。
+- 代码 commit：`3df10041`。静态检查已完成；未运行 Gradle、Android tests、backend tests、APK 或真机验收。
+
+
+### 2026-11-13 — 真实记账草稿持久化闭环（模块批次）
+
+- 本批按完整记账模块处理：Room 数据结构、24→25 非破坏性迁移、DAO、当前账户范围保护、repository、表单自动保存/恢复和确认后清理。
+- PendingBillEntity 新增可空 draftFormJson；旧记录迁移后默认为 NULL，不改写既有 Gas、交易哈希、钱包地址或资产拆分数据。
+- 新增 MIGRATION_24_25：仅执行 ALTER TABLE pending_bills ADD COLUMN draftFormJson TEXT；数据库版本从 24 升到 25，保留完整历史迁移链，不启用 destructive migration。
+- 草稿写入通过 accountScope + id 条件更新，只写当前本地 Room 数据；JSON 长度限制 32 KiB。草稿字段包括所选项目、Gas/实际收益输入、原生币数量/币种/精度、L1/L2/运营商费用拆分与估值元数据。
+- 表单字段变更后延迟 400ms 自动保存；重新打开待确认账单时优先恢复用户未确认输入，缺少草稿时回退到已有链上资产拆分/账单 Gas 信息。
+- 个人账本云端同步 payload 不包含 pending 表单草稿；此数据仅在本地 pending_bills 中保存。现有备份快照会随 PendingBillEntity 一并包含该字段，供用户本地备份恢复。
+- 确认入账仍走原有原子 Room transaction：写入正式账本后删除 pending bill，因此草稿字段随待确认记录一起清理；未更改手动输入实际收益（包括必须明确输入 0）、Gas/收益分开记录、社区贡献资格和 Web3 状态规则。
+- 静态核对：本轮修改目标均显式指定工作分支 feature/mobile-browser-home-dock-batch；新增 AccountingFormDraftCodecTest 覆盖完整字段往返与损坏/超长 JSON 拒绝，但尚未运行 Gradle 编译、该单元测试、Room migration instrumentation test、其他 Android tests、backend tests、CI、APK 或真机验收。当前状态为代码已提交、待构建和迁移实测；不能宣称迁移已通过。
+- 代码 commits：CacheDatabase 98def8241d55eca444410419b2b5ce455ebdb1c1；AccountingRepository 829f89d86c8bdd4143a9d12be779388d4af90cc3；BrowserAccountingToolbar 0370b73f62228cc5d86006336bdc720d46e7949f；项目选择恢复修正 ae32f87f46f6d6f81bd54d53db957454c999a1c4；草稿编解码单元测试 74c5ad27e40da09e678e2880aac7c2e1bc82fa44。
+
+## 下一完整模块批次
+
+- 继续推进记账中心页面整体改版与账单历史模块，不重复重做本批草稿持久化。
+- 重点审计：正式账本列表/筛选与日周月统计、实际金额与理论金额区分、Gas/收益原生资产明细、待确认/已确认/失败状态、空/加载/错误态，以及浅深色/窄屏/触感反馈。
+- 仍禁止自动结算、自动确认或用估算结果替代用户输入的实际最终金额。
+
+
+### 2026-11-13 — 记账中心与账单历史完整模块（实现批次）
+
+- 记账中心重构为「账单历史 / 收支统计 / 待确认」三个入口，保留钱包归属选择，并将待确认链上记录的既有安全处理流程作为独立管理入口。
+- 新增 AccountingRepository.loadPersonalLedger()：只读取当前 guest/user scope 的本地 personal_ledger，不触发网络请求、不读取其他账户；损坏/缺失 payload 安全回退为空；过滤历史 MOCK/demo 记录并按 occurred_at 倒序。
+- 历史列表展示已确认账单、项目、日期、链、钱包缩写、交易哈希缩写、实际 Gas、实际收益和净收益；展开后分别展示理论 Gas/理论收益（缺失明确显示「未记录」）及原生资产拆分。
+- 统计支持日/周/月；只使用正式账本中的实际 Gas 与实际收益。若任一笔收益 USD 估值不完整（usd_profit_complete=false），显示已估值收益部分并暂停净收益汇总，避免把未知收益误算为 0。
+- 待确认页提供真实待确认条目摘要，并通过原有 BrowserAccountingToolbar 打开完整待确认管理器；链上回执、失败交易 Gas、人工核验、手动草稿删除权限、实际金额确认逻辑均继续复用既有实现，不另造状态或自动结算。
+- 当前 UI 数据来自当前本地账本；刷新只重新读取本地数据，不绕过用户刷新节流、不发起额外 API。
+- 本轮代码已写入工作分支 feature/mobile-browser-home-dock-batch。提交：Repository 本地历史读取 a30d5f4ec6cc562f4eb52a0e324075d4a79f7e10；Repository 测试 999e812ea9254fbfb6d682e6ca7c90fc388d2161；记账中心/历史/统计 UI 794cd4ca73f6269e87492bf40ee61b4bdc63b5ff；刷新协程与周期筛选修正 927487d207582d4a6f8ac12ec2c66cb9341052e8、c4ca9c1cdc482bfc423f876f39b8878343cdc7dd；AppChip import 修正 e41a8d6f7027fceada16061304563ef14705408d；关闭待确认窗口后刷新历史 c6b9e08b38e69429e167216f310e99f39cd1a788；按真实时间排序 4db296d4fd770673f4f5a8bcb597e38853d7c8b2；实际收益汇总模型及测试 bd8a7ee1728010365070b1b5f0bb907ee2b50e2b、e45fd3f84a0caff47c1c79f507d13538706bb483、06d0505259290a34e378f5b85328265aff9482fc；状态文案修正 1be2756bb94b6ba914f71fb314ef007e80962311。尚未运行 Gradle、单元测试、Android tests、Room tests、CI、APK 或真机验收，状态为代码已落地待构建验收。
+- 继续遵守：理论金额与实际金额分离；收益实际金额必须人工确认；待确认/失败状态不得自动变成已完成。
+
+
+
+## 2026-11-13 — 浏览器登录与新窗口兼容性实施计划
+
+- 在现有 Chrome-compatible UA 基础上，补齐普通网页登录常见的跨站 Cookie 与用户主动打开新窗口/弹窗场景。
+- 第三方 Cookie 仅在应用内该 WebView 实例启用，不修改系统浏览器或其他应用的 Cookie 策略；需明确这是兼容性与跨站跟踪风险之间的折中。
+- 开启多窗口支持，但只接受用户手势触发的新窗口；弹窗导航仍限制为 HTTP/HTTPS，HTTP 升级 HTTPS，跨 Origin 必须经过现有顶部确认横幅。
+- 不启用自动弹窗、不允许任意 scheme 弹窗、不改变 TLS 失败即取消、Safe Browsing、文件/地理位置/摄像头权限拒绝、DApp Origin 授权及交易确认规则。
+- 对新窗口子 WebView 做生命周期管理，避免 Activity 退出后残留渲染实例；本轮不处理绕过验证码、反机器人挑战或网站访问控制。
+
+
+### 2026-11-13 — 浏览器登录 Cookie 与用户主动弹窗兼容
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/BrowserActivity.kt`
+- 登录兼容：主 WebView 与受控弹窗 WebView 启用第三方 Cookie 接收，策略仅应用于本 App 创建的 WebView，不修改系统 Chrome 或其他应用。该调整可改善 OAuth/SSO、跨站登录回跳；代价是网页可能进行更多跨站 Cookie 读写，因此属于明确的兼容性折中。
+- 弹窗兼容：启用 WebView 多窗口支持，但 `javaScriptCanOpenWindowsAutomatically` 仍为 false；只有 WebChromeClient 收到真实用户手势后才创建子 WebView。
+- 弹窗导航：子 WebView 只接受 HTTP/HTTPS；HTTP 自动升级 HTTPS；拒绝非 HTTP(S) scheme、空 Host 和 userInfo；同 Origin 导航回主 WebView，跨 Origin 进入现有顶部确认横幅，用户确认后才切换主页面。
+- 生命周期：主浏览器退出时停止、清空并销毁所有子 WebView，避免弹窗渲染实例泄漏。
+- 安全边界：TLS 证书错误仍直接取消；Safe Browsing 保持开启；混合内容仍禁止；文件访问、内容访问和文件 URL 跨域访问仍关闭；地理位置/摄像头/麦克风和文件选择权限仍拒绝；DApp Origin 授权与交易签名确认逻辑未改。
+- 静态检查 11 项通过：用户手势门槛、HTTP(S) scheme 限制、HTTPS 升级、跨 Origin 确认、主/弹窗第三方 Cookie 策略、多窗口开关、自动弹窗仍关闭、子 WebView 生命周期、TLS fail-closed、Safe Browsing、文件访问限制。
+- 本轮 commits：`b9b3faf3`（先登记实施计划）、`09554f0a`（登录 Cookie 与安全弹窗）、`b52d4af5`（子 WebView Cookie 策略）。
+- 尚未运行 Gradle 编译、Android 单元测试、CI、APK 或真机站点验收；因此只能确认静态代码条件，不宣称第三方站点登录已实际成功。下一步需真机测试需要 SSO 的站点、`target=_blank` 链接及跨域跳转，并观察过滤后的错误日志。
+
+
+## 2026-11-13 — 首页与全局搜索主题一致性收口计划
+
+- 先完成可明确验证的首页/搜索页面视觉缺口，不触碰浏览器逻辑：替换首页站点默认字母图标和搜索结果图标中的硬编码底色，改用主题语义色，确保浅/深色一致。
+- 保持首页唯一全局搜索入口位于行情看板下方；快捷入口不新增重复搜索卡片。
+- 不改变搜索数据源、排序、筛选、导航行为、行情刷新节流或快捷入口布局持久化规则。
+- 完成后做源码静态核对并在本台账记录；不宣称全站 UI 完成，后续仍需逐页整体重构与真机视觉验收。
+
+
+### 2026-11-13 — 首页与全局搜索主题一致性收口（代码待验收）
+
+- 文件：`HomeScreen.kt`、`GlobalSearchScreen.kt`。
+- 首页站点无图标时的字母占位底色由硬编码浅绿改为 `MaterialTheme.colorScheme.primaryContainer`，跟随浅/深色主题。
+- 全局搜索的币种字母图标底色改为 `secondaryContainer`；项目字母图标底色/前景分别改为 `primaryContainer` / `onPrimaryContainer`，移除结果图标的硬编码颜色。
+- 保留首页唯一全局搜索框（行情看板下方）；没有在快捷入口新增重复搜索卡片。搜索数据源、排序、筛选、导航、刷新节流与快捷入口布局逻辑均未改。
+- 静态核对：HomeScreen/GlobalSearchScreen 不再含硬编码 `Color(0x...)`；首页全局搜索入口数量为 1；未发现快捷入口重复搜索 ID；移除未使用颜色导入。
+- commits：计划 `023e96e1`；首页 `3fe8fd74`、`b8aaa622`；搜索 `355904c0`、`fc784aca`。
+- 尚未运行 Gradle 编译、Android 单元测试、CI、APK 或真机视觉验收。此批仅收口两个页面的主题色一致性，不代表全站 UI 完成。
+
+
+## 2026-11-13 — 个人中心页面整理计划
+
+- 本批范围：仅调整 `ProfileScreen.kt` 的信息层级、统计卡片密度、设置列表分组与异步备份状态反馈。
+- 将统计信息组织为更紧凑的双行指标布局，保留当前实际统计字段及“估值未完整”保护文案，不重算收益、不新增虚构数据。
+- 将设置入口放入统一实底分组卡片，保留原有点击目标和钱包管理回调；不增加注册/登录入口，不把未实现功能伪装成可用功能。
+- 备份/导入期间明确显示进行中状态，防止重复触发；保留原有加密文件格式、密码规则、导入前确认与恢复流程。
+- 本批不改 ProfileViewModel、Repository、数据库、备份格式、统计口径或任何 API。
+- 完成后静态核对页面结构与业务调用差异，并在本台账记录；编译、自动化测试及真机浅/深色验收仍需后续执行。
+
+
+### 2026-11-13 — 个人中心页面整理（代码已落地待验收）
+
+- 文件：`ProfileScreen.kt`。
+- 增加清晰的“我的”页面标题；头像容器改用主题主色容器，浅/深色保持一致。
+- 新增“数据概览”分组标题；统计卡片两行高度由 96dp 收紧为 80dp，保留原跟踪项目、胜率、累计 Gas、实际收益、净收益和估值完整性判断，不更改统计口径。
+- “设置与管理”改为统一实底卡片，设置/安全/通知/钱包/关于使用 56dp 行高和分隔线，图标容器沿用统一语义色。
+- “关于”入口从无实际内容的 Toast 改为真实信息弹窗，展示应用名称、现有描述及设备安装包的 versionName。
+- 备份/导入进行中时按钮明确显示“正在处理…”，避免把导入过程误显示成普通备份状态；原有密码加密、文件选择、导入前确认、恢复调用未改。
+- 移除未使用的主题颜色导入。
+- 静态核对：页面层级、统计字段、设置回调、备份/导入 repository 调用均保留；本批未改 ViewModel、Repository、数据库、备份格式、API 或登录/注册流程。
+- commits：计划 `4df7389b`；页面整理 `97b025e6`；忙碌状态 `3cf85bcf`。
+- 尚未运行 Gradle 编译、Android 单元测试、CI、APK 或真机浅/深色视觉验收；不能标记为已验收。
+
+
+## 2026-11-13 — 项目管理与项目详情主题统一计划
+
+- 本批先核对列表页和详情页现有组件：列表页已有 AppChip、StaggeredListItem、空/错/加载态与 FAB，本轮不重复添加这些组件。
+- 重点修正项目详情页残留的硬编码红/绿颜色，改用 MaterialTheme 语义色，确保浅色/深色一致；统一项目头部卡片和收益指标的圆角、间距。
+- 列表页只做源码核对：确认筛选胶囊、错峰列表、空态和 FAB 已有真实实现；检查 FAB 与底部导航避让由父容器提供的空间，不擅自改动导航层级或业务排序。
+- 不改变项目状态、真实净盈亏计算、社区评价来源、记账、钱包分配、领取/官网跳转和任何 API/数据结构。
+- 完成后记录具体文件与静态检查；不宣称已通过编译或真机视觉验收。
+
+
+### 2026-11-13 — 项目管理与项目详情主题统一（代码已落地待验收）
+
+- 文件：`ProjectDetailScreen.kt`；同时复核 `ProjectsScreen.kt`，未重复添加已有组件。
+- 项目列表现有实现核对：状态筛选使用 `AppChip`；列表使用 `StaggeredListItem`；已有加载/错误/空状态；已有真实 FAB 添加项目入口；卡片继续展示真实净盈亏数据，未发现假评分文案或假评价数据。当前 FAB 位于页面底部 20dp；底部导航避让依赖宿主容器布局，尚未做真机覆盖验证，因此本轮不擅自改变导航层级。
+- 项目详情：下架状态提示由固定红色改为 `errorContainer/onErrorContainer` 语义色；下架说明使用主题 `error`；预期奖励/Gas/实际收益指标由固定浅绿和固定绿字改为 `primaryContainer/onPrimaryContainer`，适配浅色/深色模式。
+- 详情头部卡片圆角统一为设计令牌 Large，内边距由 18dp 调整为 16dp；收益指标使用设计令牌 Medium 圆角、8dp 水平内边距与统一 8dp 内容间距。
+- 静态核对：项目详情页不再含 `Color(0x...)` 硬编码颜色；错误提示和指标容器均引用 Material 语义色；项目列表已有筛选、错峰、空态和 FAB，未改列表数据、排序、状态、记账、领取、钱包分配或 API。
+- commits：计划 `a91311e9`；详情页 `c85edde2`。
+- 尚未运行 Gradle 编译、Android 单元测试、CI、APK 或真机浅/深色/底部导航避让验收；状态保持“代码已落地待验收”。
+
+
+## 2026-11-13 — 微社区广场主题语义与数据状态区分计划
+
+- 复核 `CommunitySquareScreen.kt`：筛选胶囊、错峰列表、收藏/筛选操作已存在，本批不重复添加。
+- 将测试演示/全网真实数据状态徽标改为 Material 主题语义容器；真实评分使用主题强调色；Gas 与奖励对比条使用主题错误色/次级色，保留原始比例计算和方向含义；项目标签改用主题表面变体。
+- 不修改演示数据来源、真实社区数据、评分统计、Gas/奖励数值与比例、筛选条件、收藏、提交/加入流程和 API。
+- 微社区本机评分的金色星级属于明确的评分符号色，本批不将其错误改成警告/错误色；后续只在设计系统确认统一星级色后再收口。
+- 完成后做静态检查并记录；编译、测试和真机深色验收仍未执行。
+
+
+### 2026-11-13 — 微社区广场主题语义与数据状态区分（代码已落地待验收）
+
+- 文件：`CommunitySquareScreen.kt`。
+- “测试演示数据”徽标改用 `tertiaryContainer/onTertiaryContainer`；“全网真实数据”徽标改用 `secondaryContainer/onSecondaryContainer`，使演示与真实来源有明确但符合主题的视觉区分。
+- 真实评分文字改用主题 `tertiary`；Gas/奖励比例条保留原 gasShare 数值与区间断点，颜色改用主题 `error`（Gas）与 `secondary`（奖励）；标签底板改用 `surfaceVariant`。
+- 已移除本页固定颜色值与不再需要的 Color 导入；保留 AppChip 筛选、StaggeredListItem 错峰、收藏/筛选/项目数据逻辑。
+- 静态核对：无 `Color(0x...)` 硬编码；演示/真实数据徽标、评分、Gas/奖励条和标签均使用 Material 语义色；比例断点和 gasShare 计算保持不变。
+- 微社区个人评分的金色星级暂保留，属于评分符号色而非数据状态色；本批未改该颜色。
+- commits：计划 `0715f751`；广场主题改造 `b8f070e0`。
+- 尚未运行 Gradle 编译、Android 单元测试、CI、APK 或真机深色模式验收；状态保持“代码已落地待验收”。
+
+## 2026-11-13 — 钱包管理与详情页 UI 第二轮实施计划
+
+- 本轮先处理钱包页面已确认的体验缺口：钱包管理初次加载失败时不能误显示“还没有添加钱包”；钱包详情在“无缓存交易 + 请求失败”时不能落入空白列表；交易列表增加稳定 key 首次进入动效；复制钱包地址使用 medium 级触感。
+- 钱包列表继续使用现有 72dp 最小行高和共享按压/操作组件，压缩卡片次要信息展示，避免备注把列表行无限拉长；完整备注仍保留在编辑流程。
+- 不改钱包 repository、账户/访客数据范围、刷新节流、链上交易查询、Gas 归属判断、待确认账单或真实金额确认逻辑；不改 WalletConnect SDK 内部页面，不触碰浏览器。
+- 验收边界：源码静态检查；不运行中途 APK 构建。Gradle、自动化测试、CI 和真机浅深色/窄屏验收仍待全量批次。
+
+
+### 2026-11-13 — 钱包管理与详情页 UI 第二轮落地
+
+- 文件：`WalletManagerScreen.kt`、`WalletDetailScreen.kt`。
+- 钱包管理：首次加载失败且列表为空时，明确显示“钱包列表加载失败”和重新加载操作，不再把网络/服务端错误误显示成“还没有添加钱包”；有既有钱包时仍保留列表并在顶部显示错误提示。
+- 钱包卡片：保留现有 72dp 最小行高、链图标、地址、生态和标签；卡片不再重复展示完整备注，备注仍保留在编辑弹窗中，减少长备注挤压操作按钮和拉高列表行的情况。
+- 钱包详情：修复“没有缓存交易且请求失败”时落入空 LazyColumn 的问题，提供明确错误说明与重试操作；真正无交易时提供独立空态和刷新入口；已有缓存交易时继续保留列表并显示非阻断错误提示。
+- 交易列表接入现有 `StaggeredListItem`，使用链与交易哈希作为稳定 key；复制钱包地址使用共享图标按钮的 medium 触感。
+- 保持原有钱包数据仓库、访客/登录数据隔离、Token 观察、手动刷新 30 秒节流、链上交易查询、Gas 付款归属判断、待确认账单创建和用户手动实际金额确认逻辑不变；未修改 WalletConnect SDK 内部或浏览器。
+- 静态检查：错误态/空态/重试入口、72dp 行高、备注仍可编辑、交易稳定 key 错峰、复制 medium 触感均已核对。未运行 Gradle 编译、Android 单元测试、CI、APK 构建或真机验收；本模块仍为“代码已落地待验收”，不能宣称 UI 已完成。
+- 代码 commits：钱包详情 `8d512dfc8620e0b91990fc54c13d9884a9d044ed`；钱包管理 `33064167d0e83495756edeff05142b84c8b6c972`；实施计划 `ca21058831db9f1e1f45e40a2414ad5e5aab155b`。
+
+- 钱包详情卡片的横向列表边距、卡片内边距与卡片间距统一为 16/16/12dp，避免继续沿用 14/13/10dp 的临时值；补充提交：`8ee8c4dd9967ce74215c66e81c17d8ab1e0405a2`。
+
+## 2026-11-13 — 全局帧率与钱包图标加载专项（按用户反馈）
+
+- 本轮不重新设计钱包页面、不调整钱包卡片/功能布局；只处理滚动/入场动画的帧时间开销，以及钱包链标识图标的网络依赖。
+- 已定位到共享 `StaggeredListItem` 对每个 LazyColumn 项创建延迟任务和 AnimatedVisibility（最多 6 项），可能放大低端设备首屏滚动/入场的合成与布局成本。本轮缩减为仅前 3 项做轻量淡入，取消位移动画和离场动画，其余项直接绘制；保留稳定 key 和首屏节奏。
+- 已定位到 `DynamicChainIcon` 通过 Trust Wallet GitHub raw URL 远程加载 PNG，虽有 Coil 内存/磁盘缓存，但仍依赖网络缓存策略。将钱包链图标改为使用 APK 内置的高分辨率/矢量 drawable，不再因进入钱包页请求网络；不触碰 Reown AppKit SDK 内部第三方钱包目录。
+- Reown AppKit 的 MetaMask/Trust Wallet 等“连接外部钱包”目录图标与本应用链图标属于不同加载路径；需确认用户指的是 SDK 选择器中的第三方钱包品牌图标后，再按 SDK 公开支持的缓存机制处理，禁止直接修改 SDK 内部实现。
+- 不改钱包数据、WalletConnect 会话/权限/交易安全、浏览器、网络 API 或业务流程。验收先做静态检查；设备帧率与断网复用仍需真机验证。
+
+### 2026-11-13 — 全局帧率与钱包链图标优化落地
+
+- 文件：`ui/components/StaggeredListItem.kt`、`ChainIcon.kt`。
+- 列表动效：原先每个 LazyColumn item 最多 6 项分别创建延迟任务和 AnimatedVisibility，并带淡入/位移/离场过渡；现在仅前 3 项保留 40ms 错峰淡入，取消位移与离场动画，其余条目直接绘制；稳定 item key 和滚动后不重复播放的行为保留。减少大量列表项同时参与动画/布局的工作量。
+- 钱包链图标：`DynamicChainIcon` 不再请求 Trust Wallet GitHub raw PNG，也不再为此创建 Coil loader；改为复用 APK 内置的 Ethereum、BNB、TRON、Solana、Bitcoin drawable，钱包管理页进入时不需要联网下载链图标，图标清晰度由本地资源决定。
+- 范围说明：以上改动解决的是钱包列表中的链/生态图标，不等于已解决 Reown AppKit 弹窗内 MetaMask、Trust Wallet 等第三方钱包品牌图标。AppKit 目录由 Reown SDK 自己渲染；本轮未修改 SDK 内部、未擅自复制品牌图标资源。需要按 SDK 公共 API 确认可用缓存扩展点，或由用户提供具体页面截图定位。
+- 静态检查：确认 ChainIcon 不再包含 Coil、远程 URL 或网络图片请求；五类本地 drawable 映射保留；列表动效仅前三项，取消 slide/fadeOut，保留 saveable key。源码检查 9 项通过（不含 Gradle/设备帧率测量）。
+- 未运行 Gradle 编译、自动化测试、CI、APK 构建或真机验收；因此只能确认网络图标依赖已从钱包链图标路径移除，不能承诺实测 FPS 提升数值。建议下一轮在低帧率设备上用系统帧时间/Perfetto 对首页、长列表和 WalletConnect 弹窗分别测量。
+- Commits：计划 `beb911c245de5d7961229e8f9688bdac52a80b16`；本地链图标 `5196bdf4c7fcc90a1a429faeddb7561a95a4c20a`；列表动效优化 `861abc545b660c84941b43ae1b1d94acca7309a4`；导入修复 `12ecdcaea0259ebf531b0cea19bb8fb7aba24234`；动效转场分支修正 `02285698bbc245d51185681dc8e0d44a81c513bc`。
+
+
+### 2026-11-13 — 共享按压反馈响应速度收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ui/components/AppPressFeedback.kt`。
+- 将共享按压缩放动画的弹簧刚度从 `Spring.StiffnessMedium` 提高为显式 `1500f`，阻尼比仍为 `0.9f`；目的是减少连续点击时按压状态显得迟缓的问题，保持设计说明书规定的弹簧式反馈方向。
+- 保留按钮 0.94、卡片调用方 0.96 的缩放约定、按下时触感分级、禁用状态不触发点击/触感的行为；未修改业务点击回调。
+- 本轮仅完成源码级核对，未执行 Gradle 编译、Android 测试、CI、APK 构建或真机触感/帧时间测量；必须在后续全量验收时验证实际手感，不能据此宣称已通过设备验收。
+- Commit：`78741f3fd5eab497fce34abd3648042fcc5daed9`。
+
+### 当前执行顺序补充（遵循用户最新验收安排）
+
+- 全站 UI 改版阶段暂缓浏览器功能/容器继续修改；浏览器留待用户验收 UI 改版 APK 后再处理。
+- Reown AppKit 第三方钱包品牌图标优化留待用户验收通过后处理；当前不改 SDK 内部目录或钱包品牌资源。
+- UI 全面完成前不构建 APK；本分支 PR #135 保持 Draft / Open / Unmerged。
+
+
+### 2026-11-13 — 全局筛选胶囊触控热区与无障碍状态补齐（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ui/components/AppChip.kt`。
+- 胶囊可视高度继续保持设计令牌 `ChipHeight`（34dp），外层可点击热区增加到至少 44dp，避免紧凑筛选控件难以准确点击；视觉胶囊仍居中，不把整行拉高成大按钮。
+- 增加 TalkBack 可读取的选中状态语义（`selected`），保留 Tab 角色、禁用态、主题色和现有按压/触感反馈。
+- 水平内边距从 14dp 修正为 16dp，回归设计说明书的 4dp 间距栅格。
+- 静态核对：外层 44dp 热区、内层 34dp 胶囊、选中语义、原有点击回调和主题色均保留。尚未运行 Gradle 编译、自动化测试、CI 或真机 TalkBack/触控验收。
+- Commit：`6dbb876811111b91569735123d7be3adc55a0e86`。
+
+- 后续静态复核补齐 `selected` 语义属性导入并清理该组件未使用的描边导入；修正提交：`5437c78581edfc377c346b404b8538d471e2d742`。这仍是源码检查，不替代 Gradle 编译。
+
+
+### 2026-11-13 — 底部导航边界与无障碍状态补齐（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ui/components/AppBottomBar.kt`。
+- 空导航项列表时直接不渲染，避免 `maxWidth / items.size` 的除零风险。
+- 对外部传入的 `selectedIndex` 做范围约束，避免越界时指示器位置异常；点击回调仍返回用户实际点击的索引。
+- 每个 Tab 增加 TalkBack 可读取的 `selected` 选中语义，保留原有 Tab 角色、56dp 高度、24dp 图标、玻璃底栏、顶部发丝线和 250ms 指示器动画。
+- 未改变导航目的地、Tab 顺序、业务状态或页面层级。
+- 静态核对：空列表提前返回、选中索引约束、选中语义导入和应用、点击索引回调及原动画参数均已检查。尚未运行 Gradle 编译、Android 测试、CI、APK 或真机 TalkBack/窄屏验收。
+- 代码 commit：`e34560584e2a093d6b3cb2c395db7dc723d8273a`。
+
+
+### 2026-11-13 — 底部导航与禁用按钮可读性收口（代码已落地待验收）
+
+- `AppBottomBar.kt`：空列表防除零、selectedIndex 边界保护、Tab selected 无障碍语义已落地；代码提交 `e34560584e2a093d6b3cb2c395db7dc723d8273a`。
+- `AppButton.kt`：主按钮/危险按钮在禁用或加载状态下，背景保持低饱和语义底色，前景继续使用对应品牌/错误色的适度透明度，不再把文字与加载指示器一并压成低对比的通用 onSurfaceVariant；点击仍由 `active = enabled && !loading` 严格禁用，未改变点击回调和业务流程。代码提交 `325d9da130d44cab87592220f69616613805b791`。
+- 同轮基础组件审计：`BaseCard.kt` 已符合实底、1dp 低对比描边、0dp elevation 的设计基线；不做重复修改。
+- 静态检查范围：按钮 enabled/loading 门槛、PRIMARY/DANGER 两种状态颜色、底栏空项/索引边界和 Tab 语义。尚未运行 Gradle 编译、自动化测试、CI、APK 或真机对比度/触控验收；最终颜色对比度仍需设备实测。
+
+
+### 2026-11-13 — 空投记录页信息层级与空/错状态优化（代码已落地待验收）
+
+- 文件：`AirdropDiscoveryScreen.kt`。
+- 页面背景统一跟随 MaterialTheme，标题明确为“空投记录”，列表卡片内边距/纵向间距统一为 16dp/8dp。
+- 记录卡片重排为：项目名称 + 核验状态徽标、简介、状态/链静态标签、奖励、参与条件、来源；核验徽标按已核验/待核验区分语义色。保留原始字段与链接，不伪造评分、收益或官方确认状态。
+- 加载态居中显示主题色进度指示器；空数据与加载失败拆分为不同说明，并提供对应“添加第一条记录”或“重新加载”入口。已有记录时不因错误而清空列表。
+- 保留原有添加弹窗、手动录入字段、verification_status 生成规则、ViewModel/Repository/API 调用和保存行为；没有增加自动搜索。
+- 静态复核：无硬编码颜色、无空回调伪按钮、原有字段及创建调用保留；未运行 Gradle 编译、单元测试、CI、APK 或真机视觉验收。
+- 代码 commits：页面层级 `2ed7a506dbda38c8521e5fec1b3e89e068a225eb`；静态标签修正 `ca81c1d390ed7c7fb7fc880175e070a4cfc0a840`。
+
+
+### 2026-11-13 — 活动目录与官方公告列表页整组改版（代码已落地待验收）
+
+- 文件：`AirdropCampaignsScreen.kt`、`AirdropHubScreen.kt`。
+- 活动目录：顶部改为标题/说明/刷新操作的明确层级；筛选胶囊放入横向可滚动行，窄屏不挤压刷新按钮；错误态与空结果态改为主题卡片，并分别提供重新加载/刷新操作；列表间距收敛到 10dp。
+- 官方公告：统一标题、说明与刷新入口；公告列表空态改为主题卡片并提供刷新；列表间距统一为 10dp。保留公告详情、原文链接、原有 HTTPS 用户点击导航限制与 WebView 安全设置，未修改浏览器功能。
+- 保留来源健康面板、真实活动数据、精选/普通筛选、KYC/链/状态标签、官方链接核验判断、公告详情加载逻辑；没有引入模拟活动、自动搜索或伪造内容。
+- 静态复核：两个页面均继续使用 MaterialTheme 语义色和设计圆角；筛选区使用水平滚动；错误/空态入口有实际 ViewModel 回调；公告详情安全限制未改。未运行 Gradle 编译、单元测试、CI、APK 构建或真机浅深色/窄屏验收。
+- 代码 commits：活动目录 `d3801a1b61b709f4954c7d67305922cd0c6a87ab`；官方公告 `b5d35638438fc4cb388b8da2698e711e119bea0f`。
+
+
+### 2026-11-13 — 全局搜索加载/无结果状态统一（代码已落地待验收）
+
+- 文件：`GlobalSearchScreen.kt`。
+- 币种与 DApp 搜索在“正在搜索 / 无匹配结果 / 目录请求失败且无本地结果”三种情况下，统一使用主题卡片占位组件；加载态显示轻量圆形进度，非加载态显示搜索图标，并提供针对币种/DApp 的简短下一步提示。
+- 保留输入自动聚焦、键盘唤起、300ms 防抖、本地缓存先展示、远程搜索、历史记录、分类切换、结果点击和 HTTPS DApp 链接校验；未改搜索数据源、缓存策略或导航行为。
+- 静态复核：占位卡片跟随 MaterialTheme，加载指示器尺寸 22dp/描边 2dp；两个分类都复用同一组件。未运行 Gradle 编译、自动化测试、CI、APK 或真机键盘/窄屏验收。
+- Commit：`b155595937831d6ec7b01de2a04b9bcac39761f8`。
+
+
+### 2026-11-13 — 首页与空投导航面板第一轮视觉收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/HomeScreen.kt`。
+- 首页：顶部标题调整为标题+副标题两级信息；页面模块纵向间距从 24dp 收敛到 20dp；行情区标题/内容节奏略作整理；全局搜索入口圆角回归设计令牌，并统一提示文字颜色。
+- 快捷入口：保留开发者控制的卡片尺寸、用户可编辑顺序/添加删除的既有能力；未开放用户缩放卡片，也未改变卡片跳转与持久化行为。
+- 空投导航抽屉：标题改为左对齐的清晰层级，副标题显示当前已配置平台数量；搜索提示明确支持名称或域名；站点卡片图标容器略微收紧并统一卡片底色/文字权重。
+- 业务边界：保留用户手动配置的平台列表、原有搜索过滤、点击记录、钱包列表传入浏览器和站点跳转；没有增加自动搜索、模拟站点或修改浏览器安全策略。
+- 静态核对：11 处定点替换已应用，修改只涉及首页/导航面板视觉参数与文案。尚未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色/窄屏/动效验收；当前仍为“代码已落地待验收”。
+- Commit：`6e391ae0d529113bccd60815f20ea372ae0bf18a`。
+
+
+### 2026-11-13 — 个人中心统计与分组视觉收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ProfileScreen.kt`。
+- 页面标题由过大的 display 样式调整为统一的 headline 层级；个人身份区头像容器增至 64dp 并增加低对比描边，用户名层级同步收敛；页面纵向模块间距统一为 20dp。
+- 数据概览：分组标题提升辨识度；两行统计区改为至少 76dp 的弹性高度，数值字号收敛为 headlineSmall 并限制单行省略，避免小屏或较长数值挤压；标签使用清晰的 labelMedium 语义色。
+- 数据迁移、设置与管理分组标题统一为 titleSmall；设置行图标底板由 32dp 增至 36dp，保持 56dp 点击行高、原点击回调和主题语义色。
+- 保留统计数据来源、实际收益完整性判断、访客/账户状态、备份加密与导入确认流程、设置目的地和钱包管理跳转；未改业务数据、备份格式、账户开关或登录注册状态。
+- 静态核对：本次 13 处定点样式调整已应用；未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色/窄屏验收，仍为“代码已落地待验收”。
+- Commit：`8867b542037621ac17e7dc1a80f26815255517de`。
+
+
+### 2026-11-13 — TRON 能量租赁助手页面视觉收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/TronEnergyAssistantScreen.kt`。
+- 将原本单独悬置的 Bolt 图标调整为 52dp 主题色图标容器，并补齐“TRON 能量租赁”标题与简短说明，形成明确的页面信息层级。
+- 地址输入增加字段标题并与说明分组；安全提示改为更明确的自有转出地址提醒，沿用浅/深色主题警告语义色；卡片内边距与模块间距统一到 16dp 栅格。
+- 保留原有 TRON Base58 地址校验、错误提示时机、有效地址才触发 `onOpenBrowser(normalized)` 的行为；未改租赁平台、浏览器、地址处理或业务流程。清理未使用的 Color 导入。
+- 静态核对：地址正则、attempted 状态重置、无效地址阻止跳转、有效地址传递及主题语义色均保留。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色/窄屏/触感验收。
+- Commit：`2acbfc8c1394055e141de7499e302cae483edff1`。
+
+
+### 2026-11-13 — 行情详情页信息层级与卡片密度收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/CoinMarketDetailScreen.kt`。
+- 页面左右边距由 18dp 统一为 16dp；顶部新增“行情详情”主标题，并将交易对作为次级说明，建立清楚的标题层级。
+- 24 小时指标卡片内边距由 18dp 收敛为 16dp，指标行间距由 15dp 调整为 12dp，保持信息可读同时减少纵向冗余。
+- 保留 OKX 行情 repository、缓存优先展示、刷新节流、错误/缓存状态文案、价格与涨跌计算及手动刷新行为；未改接口、缓存策略或行情数据。
+- 静态核对：只调整布局/文字层级参数，行情字段和 refresh 调用保持原样。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机数字可读性/浅深色验收。
+- Commit：`9b2f7ccbd916b302b7d495bc521e3d8a2c6b02b0`。
+
+
+### 2026-11-13 — 项目管理页标题层级与列表栅格统一（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ProjectsScreen.kt`。
+- 将原“库管理”单行大标题调整为“项目管理”主标题 + “跟踪参与进度与真实净盈亏”副标题，采用 headlineSmall/title 体系，避免标题过大且缺少页面说明。
+- 页面头部左右边距统一为 16dp；列表左右边距由 20dp 收敛为 16dp，列表顶部间距由 16dp 调整为 12dp；错误提示左右边距同步为 16dp，和全局设计栅格对齐。
+- 保留横向筛选胶囊、真实项目/社区状态、真实净盈亏计算、项目详情点击、项目管理菜单、编辑/删除流程及原有 FAB/弹窗逻辑；未修改项目数据、筛选规则或记账行为。
+- 本轮按设计说明书风格补齐台账中尚未细化的项目管理页标题和边距，不引入新业务功能。
+- 静态核对：仅替换标题文案/排版和 padding；筛选、项目数据、净盈亏计算及所有回调保持不变。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色/窄屏/Tab 避让验收。
+- Commit：`5077e9b4c20c620f2b32a3e49c278e843f68873f`。
+
+
+### 2026-11-13 — 空投库广场页标题说明层级补齐（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/CommunitySquareScreen.kt`。
+- 在“空投库”标题下增加“浏览公开项目目录与真实参与数据”说明，标题字重收敛为 SemiBold，延续页面 16dp 边距、实底卡片与主题语义色。
+- 保留提交项目按钮、搜索、收藏、榜单排序、真实目录/快照数据、DEBUG 演示数据隔离和项目详情跳转；没有新增业务入口或修改数据来源。
+- 此页面标题说明此前未在设计台账中细化，本轮参照 UI 设计说明书的两级信息层次补齐，不改变功能布局。
+- 静态核对：仅修改标题字重并插入一条说明文案；目录加载、筛选排序和按钮回调保持不变。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色/窄屏验收。
+- Commit：`cd70090f2b6d1496741bff83b19022adbd6cd7a6`。
+
+
+### 2026-11-13 — 项目详情页分区层级与卡片栅格统一（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ProjectDetailScreen.kt`。
+- 项目主卡片增加“项目概览”轻量分组标识，项目名称由 titleLarge 调整为 headlineSmall/SemiBold；主卡片与描述形成更清晰的信息层级。
+- 项目详情纵向列表统一为 16dp 页面内边距与 12dp 模块间距；项目关联钱包、个人项目账本和任务清单卡片统一使用设计令牌大圆角、16dp 内边距与 12dp 内部节奏。
+- 保留项目领取/官网/社媒跳转、项目钱包关联、真实账本汇总、日周月统计、任务增删改、手动记账与钱包选择等全部原有行为；未修改金额计算、奖励类型、账本数据或安全校验。
+- 静态核对：改动限于标题文案/排版、卡片圆角和 padding/spacing；相关 ViewModel 调用、钱包分配、实际收益完整性判断、记账保存和任务回调未改。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机窄屏/浅深色验收。
+- Commit：`3d3b7ddbc764c8220d9ee3ebf6d7e976c4c9c1f2`。
+
+### 2026-11-13 — 微社区项目卡片窄屏适配（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/CommunitySquareScreen.kt`。
+- 项目名称限制单行并使用省略号，避免长名称挤压右侧加入/收藏按钮；链名称同样限制单行。
+- 项目标签行改为横向滚动，并将标签间距统一为 6dp；长标签列表不会再挤压卡片宽度或导致窄屏横向溢出。
+- 保留项目卡片点击、加入项目、收藏、真实评分、收益/Gas 比例条、目录筛选与排序；没有修改数据或业务操作。
+- 静态核对：仅调整文本行数/溢出和标签容器滚动；按钮回调、数据计算及项目筛选逻辑保持不变。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机窄屏验收。
+- Commit：`5b6ec2fa1598503f2aac5a2ae793f9b125cb5233`。
+
+
+### 2026-11-13 — 项目详情真实交互流水金额层级优化（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ProjectDetailScreen.kt`，`InteractionLedgerRow`。
+- 将流水中的实际 Gas USD 估值与实际收益 USD 估值拆为并列双列指标块，分别使用 error/secondary 语义色的低透明度容器；金额提升到 titleSmall/SemiBold，标签单独显示，窄屏下两列各自等宽，避免长文本直接在同一行争抢空间。
+- 流水卡片圆角统一到设计令牌大圆角，内边距调整为 16dp、内部节奏调整为 8dp。
+- 保留预估 Gas/奖励、实际 Gas/奖励、原生币种明细、公共贡献核验状态、交易哈希及原有数值来源；未将预估值混入实际值，也未修改任何账本数据。
+- 静态核对：金额仍直接取自同一条 `UserInteractionEntity` 的 `gasCostUsd` / `actualRewardUsd`；只调整展示层级与布局。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色/窄屏验收。
+- Commit：`a6e7fad0171ea16ba47da24f9fcd18893424bbaf`。
+
+
+### 2026-11-13 — 微社区项目详情页层级与卡片规范化（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/MicroCommunityScreen.kt`。
+- 修正项目详情顶部重复展示项目名称的问题：保留页面主标题，统计模块改为“项目数据概览”，链/项目类型作为次级说明，避免连续重复标题。
+- 页面水平边距统一为 16dp，纵向模块间距统一为 12dp。
+- 总览统计卡片、个人评分记录卡片、星级评价卡片统一设计令牌大圆角、1dp 主题描边、0dp elevation 和 16dp 内边距。
+- 总览/近3天/近1小时切换胶囊增加至少 40dp 高度，选中态改为品牌主色及对应前景色，减少此前 tertiary 强调色与全站主色不一致的问题。
+- 保留真实快照、Room 缓存优先、远程刷新、演示数据隔离、本机评分权限判断、评分保存和项目加入流程；没有修改评分资格、数据来源或统计口径。
+- 静态核对：仅改标题文案、间距、卡片视觉和周期选中态颜色；API、缓存、钱包参与判断和评分保存调用未改。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色/窄屏验收。
+- Commit：`327288cc042eb8137bc4080a9ce92f378ff9e0d8`。
+
+
+### 2026-11-13 — 社区贡献核验等级条适配主题色（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/CommunityVerificationTierBar.kt`。
+- 移除核验等级条中固定写死的红/橙色，改用主题语义色：用户自报使用 surfaceVariant、链上已确认使用 primary、链上精确核验使用 secondary。
+- 保留三档等级的名称、数值比例计算、正数/非有限值过滤、紧凑模式高度和金额标签；不修改核验等级定义或统计逻辑。
+- 静态核对：颜色仅由 MaterialTheme.colorScheme 提供，数据比例算法与状态文案未改。未运行 Gradle 编译、Android 测试、CI、APK 构建或真机浅深色验收。
+- Commit：`49e03c1476b951d094a2804030593e124e7b7417`。
+
+
+### 2026-11-13 — 官方来源目录页标题与长域名适配（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/SourcesScreen.kt`。
+- 在来源列表顶部补齐“官方来源”标题和用途说明，沿用全站两级标题体系；来源卡片内边距统一为 16dp。
+- 来源名称与域名均限制单行并使用省略号，避免长名称/长域名挤压右侧打开提示；副标题展示简洁域名，点击仍使用原始完整 URL 打开内置浏览器。
+- 保留默认来源集合、favicon 加载及失败时首字母回退、BrowserActivity 跳转目标和原有点击反馈；未增加或移除来源，也未修改浏览器安全设置。
+- 静态核对：点击仍传入 `source.url`，展示层改为 `source.domain`；名称/域名均设置单行溢出策略。未运行 Gradle 编译、Android 测试、CI、APK 或真机窄屏/网络图标验收。
+- 代码 commit：`592fc05ffb5eaa429fe673314eb05bd2d258673a`。
+
+
+### 2026-11-13 — 个人中心设置/安全/通知弹层间距统一（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ProfileDestinations.kt`。
+- 设置、安全中心、消息通知共用弹层内容区左右内边距统一为 16dp，模块纵向间距统一为 12dp。
+- 信息卡片圆角改为全局 `AppDesignTokens.Radius.Lg`，卡片内边距统一为 16dp；通知空状态的纵向留白调整为 20dp，避免不同弹层卡片密度不一致。
+- 保留外部钱包会话只读展示、网站授权逐项/全部撤销、撤销确认链路、非托管安全说明、开发中功能说明及通知空状态；未新增推送、未伪造设置开关，也未改变授权状态管理。
+- 静态核对：仅调整间距/圆角 token；`revokeAll()`、`revoke(origin)` 和现有状态收集保持原样。未运行 Gradle 编译、Android 测试、CI、APK 或真机浅深色/窄屏验收。
+- 代码 commit：`3c80212cbd3c32a3ec11e9dc15291d92f142d7d7`。
+
+
+### 2026-11-13 — 全局底部导航材质与渲染开销收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/MainActivity.kt`。
+- 底部导航背景移除覆盖整个导航区域的实时 20dp 模糊层，改为高不透明度主题 Surface，并增加 1dp 低对比顶部边界线；浅色/深色均由 MaterialTheme 语义色驱动。
+- 目的：保留轻量悬浮分层感，同时避免底栏每帧执行大面积 blur 带来的额外 GPU 合成开销，降低滚动/切页时的掉帧风险。
+- 保留四个 Tab、选中索引、点击切换、二级页面隐藏底栏、底栏 80dp 宿主高度和 AppBottomBar 原有无障碍语义；未修改导航状态或业务路由。
+- 静态核对：已移除 MainActivity 的 blur 调用及对应 import；底栏容器尺寸与 AppBottomBar 调用保持不变。此项只能说明减少了模糊合成负担，实际帧率改善仍需真机 Profiling。
+- Commit：`fb2dfd4bf484f6e89064c903fa3255c6c5a810bc`。尚未运行 Gradle 编译、Android tests、CI、APK 或真机 FPS/视觉验收。
+
+
+### 2026-11-13 — 数据源诊断面板窄屏文本防溢出（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ui/components/AirdropSourceHealthPanel.kt`。
+- 展开诊断列表中的数据源名称限制单行并省略，避免长名称挤压右侧状态胶囊；错误详情最多显示两行并省略，避免异常响应文本无限拉长页面。
+- 保留数据源启用/成功/异常统计、状态映射、最近成功/尝试时间、错误颜色和诊断展开交互；没有修改健康状态判定或数据源请求逻辑。
+- 静态核对：仅增加 TextOverflow 展示约束；窄屏布局和长错误文案仍需真机检查。未运行 Gradle 编译、Android tests、CI、APK 或设备验收。
+- Commit：`5b93c56be2ca8470912a41f2f1be7b09705b7173`。
+
+
+### 2026-11-13 — 官方公告与活动卡片长标题适配（代码已落地待验收）
+
+- 文件：`AirdropHubScreen.kt`、`AirdropCampaignsScreen.kt`。
+- 官方公告列表标题限制单行并使用省略号，避免长公告名称挤压右侧 Binance 来源标识；活动目录卡片标题同样限制单行，保持卡片标题行高度与徽标布局稳定。
+- 保留完整公告/活动名称的数据，不截断底层字段；详情页标题、公告详情加载、活动筛选、官方链接点击和浏览器跳转均未修改。
+- 静态核对：仅增加标题 Text 的 maxLines/overflow 展示策略；未改变列表 key、数据源或点击回调。未运行 Gradle 编译、Android tests、CI、APK 或真机窄屏验收。
+- 代码 commits：公告列表 `87732111fe0645a70309a566f4c9980c0146c104`；活动卡片 `a26b3038964ae8d480a6caa03a4c4c6d8ace7fd2`。
+
+
+### 2026-11-13 — 微社区与全局搜索页面收尾
+
+- `MicroCommunityScreen.kt`：Gas/奖励指标标题移除装饰性 emoji，回归统一文字与语义色表达；官方网站长链接增加单行省略，保留原始 HTTPS 地址与点击打开行为。
+- `GlobalSearchScreen.kt`：币种/DApp 结果卡片统一使用设计圆角令牌；币种名称、DApp 名称与链名称增加单行省略，避免窄屏挤压右侧价格/操作信息；搜索空态说明最多两行，避免长错误文案撑高卡片。
+- `CommunityVerificationTierBar.kt`：复核后无需改动，当前文件已使用主题语义色；金额说明行本轮未发现需要扩大改动的风险。
+- 代码变更 commits：`8216b48826f93404100e59ed50a65cc7d581da6a`、`b7bb1d08c03b489c91feabc46991e656c831b6de`。
+- 本轮仅完成源码层面的 UI 收口；未运行 Gradle、Android tests、CI、APK 构建或真机视觉/触感验收。
+
+
+### 2026-11-13 — 个人中心子页面深色模式收口
+
+- 文件：`ProfileDestinations.kt`
+- 设置、安全中心、消息通知三个全屏弹窗统一从固定浅色兼容色迁移到 `MaterialTheme.colorScheme` 语义色，覆盖页面背景、卡片、标题、正文、辅助文字、描边与危险操作。
+- 保留现有网站授权撤销、外部钱包会话说明、通知空态和设置入口行为；没有增加虚构设置能力，也没有改变钱包连接/授权逻辑。
+- Commit：`fec72d51fc37f974bfe213635799d7c0aee193f6`。
+- 本次只做源码静态核对；未运行编译、测试、CI、APK 或设备验收。
+
+### 本轮 UI 收尾范围说明
+
+- 已完成本轮可安全收口的微社区详情、全局搜索结果、验证等级说明和个人中心子页面主题适配。
+- 钱包管理/详情主页面按用户此前意见保留现状；浏览器容器与悬浮工具栏的专项改造继续按验收顺序暂缓，不在本轮擅自扩大范围。
+- 登录/注册保持关闭；废弃的 Discover 占位页不恢复；WalletConnect SDK 内部 UI 不改。
+- 当前源码改动仍属于“代码已落地待验收”，不能标记为 UI 最终完成。下一步需做整仓 UI 静态回归与主题/窄屏/交互检查；用户明确要求在全面 UI 完成后才统一构建 APK，因此此处不提前构建。
+
+
+### 2026-11-13 — 空投记录与个人中心窄屏收口
+
+- `AirdropDiscoveryScreen.kt`：项目名称单行省略；简介最多三行；奖励和参与条件最多两行；官方/来源 URL 单行省略，避免用户录入的长内容挤压卡片布局。原始字段、保存内容和记录行为不变。
+- `ProfileScreen.kt`：个人中心用户名限制单行并省略；账户辅助信息最多两行，避免超长用户名/UID 文案破坏顶部身份区布局。
+- Commits：`cb0351c3677f94eddfa6272a867dc44f0332aa03`、`896b76bc9d831641688258d52819826490d40ee1`。
+- 未运行 Gradle、Android tests、CI、APK 或真机检查；此处仅为源码 UI 适配提交。
+
+
+### 2026-11-13 — 项目详情与社区页面圆角令牌统一
+
+- `ProjectDetailScreen.kt`：任务子卡片、账本周期指标及全圆角标签统一引用 `AppDesignTokens.Radius`，移除零散的 15dp/12dp/999dp 形状常量。
+- `CommunitySquareScreen.kt`：全圆角筛选/标签统一引用 Full 令牌，避免页面内重复硬编码。
+- `MicroCommunityScreen.kt`：项目标识容器和全圆角标签改用 Md/Full 令牌。
+- Commits：`eb2242923a44cd150337d301d89ed41a87ea149b`、`f2f595de491736805dbd28b55622305bb82ade05`、`4042250beacf236118328b355334438e4244e9a9`。
+- 这是视觉令牌统一，不改变卡片内容、项目数据、筛选、账本或社区交互。
+
+
+### 2026-11-13 — 全局圆角令牌补齐与主要页面统一
+
+- `AppDesignTokens.Radius` 新增 Sm=8dp，补齐小尺寸图标容器的统一圆角档位。
+- `HomeScreen.kt`、`ProjectsScreen.kt`、`AirdropCampaignsScreen.kt`、`AirdropHubScreen.kt`、`AirdropDiscoveryScreen.kt`：将剩余 8/10/14/999dp 的散落圆角常量迁移到 Sm/Md/Full 设计令牌。
+- 与上一轮一起完成的 `ProjectDetailScreen.kt`、`CommunitySquareScreen.kt`、`MicroCommunityScreen.kt` 已统一引用相同令牌。
+- Commits：`327cd93cf11486447a43f77ac80b31ddbbd93bba`、`f25de47c1daa56762d6b4e31e04b8b5bec395fef`、`b34441e69d2da5a880b8733d81e5da5a8f977de5`、`6cedcbfeba91506073d529f4e8f14e04376b3a43`、`ebd8ff94277dde665c05d2f2b1defc33af5690ca`、`55151dbcd54d3fc1834dfc2caa73fe2ad146dfb2`。
+- 本轮仍未构建 APK 或执行编译/设备验收。
+
+
+### 2026-11-13 — 主导航页面 UI 静态巡检第二轮
+
+- 对 Home、项目管理、项目详情、空投库、官方公告、官方来源、全局搜索、行情详情、微社区、个人中心、能量助手等主要 Compose 页面再次检查。
+- 将全局搜索和官方来源卡片剩余的 14/12/999dp 圆角硬编码统一到 Md/Full 令牌；微型比例条保留 5dp 圆角作为图表细节，不强行套用卡片令牌。
+- 当前上述主要页面未发现残留的 `AppColors` 固定浅色兼容色引用；主要卡片圆角已统一使用 `AppDesignTokens.Radius`。
+- Commits：`da1e83ccdc8b5923e58a1d0187224fe997ab92d3`、`b29cda04bc2d2e46a96c702eca315cdc3d83856d`。
+- 此轮为代码静态巡检，不等同于构建/设备验收。
+
+
+### 2026-11-13 — 官方公告详情 WebView 深色主题适配
+
+- `AirdropAnnouncementHtml.kt`：保留公告原始 HTML 内容与既有 CSP 安全限制，增加 `color-scheme: light dark` 与系统深色模式 CSS；只调整正文背景/文字、链接、引用块和表格边框颜色，不改写公告条款、不启用脚本或额外网络能力。
+- Commits：`752f75a7c9bf76b5a937c19baeb8fb5198f8bbc9`、`0d804b15652899c138374a183ae8aff8dde4783c`（后者修正 meta 标签换行）。
+- 仍需在真实 Android WebView 上确认系统深色模式媒体查询表现；当前仅源码检查。
+
+
+### 2026-11-13 — 公共组件圆角令牌最后一轮统一
+
+- `AppBottomBar.kt`：底部导航选中指示条使用 Radius.Full 令牌。
+- `AirdropSourceHealthPanel.kt`：来源状态胶囊统一使用 Radius.Full 令牌。
+- 公共组件其余检查项（AppChip、AppIconButton、BaseCard）未发现需要额外调整的圆角硬编码。
+- Commits：`f9363bf2e8526819f4a043ccfe17bb75ae0521c4`、`7efefaa6a368ae179120b780367a16e5d17a308a`。
+
+
+### 2026-11-13 — 公共组件长文本与 APK 构建时机保护
+
+- `CommunityVerificationTierBar.kt`：核验等级金额汇总说明在紧凑模式最多一行、普通模式最多两行并省略，避免代币/金额组合文案在窄屏横向溢出。Commit：`2518b6d1a5d9cf9a204278a33db442641836b1df`。
+- `AppBottomBar.kt`、`AirdropSourceHealthPanel.kt`：全圆角指示条/状态胶囊统一使用 Full 令牌。Commits：`f9363bf2e8526819f4a043ccfe17bb75ae0521c4`、`7efefaa6a368ae179120b780367a16e5d17a308a`。
+- `.github/workflows/android-build.yml`：发现原工作流会在每次 Android 源码 push 时自动执行 `assembleDebug`，与“UI 全面完成后再统一构建 APK”的验收顺序冲突。现已拆分为：普通 push/PR 只跑 Android 单元测试；只有手动 workflow_dispatch 才执行 APK 打包。原有自动后端测试保留。Commit：`12670652a695e146a9aa841ffcc0450357ef211a`。
+- 工作流改动之前已启动的一次旧版自动打包任务（run 43448872646）当时仍处于运行中；后续新版本工作流已排队。此任务不由本次手动构建触发，需再核对其最终状态。未来不会因普通 Android 源码 push 自动打包。
+
+
+### 2026-11-13 — 主页面布局编译阻断修复
+
+- CI 的 Android 单元测试任务已启动并实际进入 Kotlin 编译阶段；发现 `MainActivity.kt` 中 AnimatedContent/Scaffold 内容区多余一层右花括号，导致后续记账弹窗声明被解析为顶层代码。
+- 已删除多余闭合括号，保留页面路由、底部导航和记账弹窗原有逻辑。Commit：`99e96a991095daef14e6eec2b398c4815f01f05d`。
+- 首轮检查 run `43449051114` 因该语法错误失败；已提交修复，等待新一轮 CI 验证。APK 打包 job 按策略跳过，没有构建 APK。
+
+
+### 2026-11-13 — Kotlin 编译错误第二轮修复
+
+- 根据 Android CI 编译日志修复多个 Compose 页面缺失的组件/主题导入、窄屏滚动扩展导入、WalletManager Material3 实验 API opt-in，以及 DApp 目录实体错误使用 `id`（正确字段为 `project_official_id`）。
+- WalletConnect 响应中的 session topic 现在先做空值校验，避免将 nullable topic 传入非空数据库字段。
+- Web3 记账完成状态改为 DAO 内带账户作用域及允许状态集合的原子更新（`markAccounted`），不再调用不存在的 `setStatus`；只允许确认/待人工补录等可记账状态进入 accounted。
+- CI 同时暴露出钱包余额后台同步 Worker 引用了仓库中不存在的 `WalletAssetRepository` 与 `RetrofitWalletAssetsRemoteDataSource`，且 API 层没有对应资产余额接口。为避免发布一个永远无法执行的虚假后台任务，已暂时停用该未完成 Worker 的调度并移除其孤立源码；现有钱包页面/手动查询不在本次改动范围。后续需在明确数据源/API 契约后单独实现余额后台同步，不能把它标记为已完成。
+- 相关提交：`416bd358`、`5a7ae962`、`bdff9916`、`1b15d805`、`938fe06e`、`fadc48a4`、`b42478d3`、`96f0f893`、`d73c734a`、`ac86ccfc`、`ecfd03ef`、`5afdc3ef`、`e4cb83fe`。
+- 第二轮检查发现的编译问题已逐项修正，等待新一轮 CI；APK 仍未构建。
+
+
+### 2026-11-13 — 全局搜索与列表入场动效并发数收敛（代码已落地待验收）
+
+- 文件：`GlobalSearchScreen.kt`、`ui/theme/Color.kt`、`ui/components/StaggeredListItem.kt`。
+- 按设计基线“同一时刻最多两处元素运动”收敛列表错峰：只有前两条币种/DApp 结果执行淡入与轻微位移，其余结果直接稳定呈现，避免大量搜索结果同时执行入场动画。
+- 共享错峰组件同步读取 `MaxStaggerItems=2` 令牌，避免页面与组件规则不一致；保留前两条 40ms 错峰间隔。
+- 不改搜索请求、缓存优先级、结果顺序、点击行为或数据展示内容。待 CI 与真机快速滚动/重复搜索检查。
+
+
+## 2026-11-13 CI 编译回归修复（第三轮）
+
+- 最新单元测试运行 `43451807602` 在 `:app:compileDebugKotlin` 阶段失败，定位到两处编译错误：
+  - `AirdropHunterApplication.kt`：WalletConnect 响应中的 `chainId` 为可空字符串，原代码直接调用 `removePrefix`。
+  - `WalletManagerScreen.kt`：同一 Composable 函数连续声明两个 `@OptIn`，导致注解重复。
+- 已修复：对 `chainId` 使用安全调用并保留无效链 ID 的提前返回；将三个实验性 API 标记合并为一个 `@OptIn`。
+- 对应提交：`2b581e5e`、`ee6b2132`。
+- 验证状态：修复已推送，等待新一轮 Android 单元测试；本轮未触发 APK 打包，未进行设备 UI 验收。
+
+
+## 2026-11-13 单元测试失败项回归处理
+
+- 最新运行 `43452260454` 已通过 `:app:compileDebugKotlin` 与测试源码编译，224 个单元测试中 222 个通过、2 个失败。
+- `CommunityVerificationTierTest`：失败原因是 rejected 状态文案从测试约定的“核验拒绝”变成“公共贡献核验拒绝”。已恢复为既有产品文案“核验拒绝”，不修改测试断言。
+- `Web3TransactionAccountingTest.receiptIdentityMustMatchSavedTransactionHash`：大小写规范化断言失败。当前先不放宽交易哈希/回执校验；需继续追踪 verifier 的真实实现来源后再做最小修复，防止无关回执被错误绑定到账本交易。
+- 修复提交：`5a3d8c8b`。新一轮 CI 将验证文案修复；Web3 identity 测试仍为明确未解决项。
+- 本轮未构建 APK；未更改钱包页面或交易安全边界。
+
+
+## 2026-11-13 Web3 回执哈希大小写校验修复（等待 CI）
+
+- 最新 CI `43454252560`：Kotlin 编译成功，224 项 Android 单元测试中 223 项通过，唯一失败为 `Web3TransactionAccountingTest.receiptIdentityMustMatchSavedTransactionHash`。
+- 根因：`Web3ReceiptIdentityVerifier` 的哈希格式正则限定前缀必须为小写 `0x`；测试传入 `hash.uppercase()` 后前缀变为 `0X`，被格式校验提前拒绝。
+- 已将格式正则改为 `RegexOption.IGNORE_CASE`，不改变 0x + 64 位十六进制格式约束，也不改变 expected/receipt 必须为同一哈希的比较规则。Commit：`e1304d7a210695bbe9bb4b15697825a8292e5d01`。
+- 新 CI：`43454715043` 正在执行 Android 单元测试；尚未得到最终结果。APK job 按既定策略跳过，未构建 APK。
+- PR #135 仍保持 Draft / Open / Unmerged。UI 仍为代码已落地待全面验收，不能标记最终完成。
+
+
+### 2026-11-13 — 游客模式文案纠偏（代码已落地待验收）
+
+- `ProfileScreen.kt`：个人中心身份标签由“本地模式”改为“游客模式”，说明由“个人数据仅保存在本机”改为“当前以游客身份使用”。
+- `MainActivity.kt`：关闭注册/登录时的提示只说明当前版本暂不开放注册/登录，不再错误宣称个人数据仅保存在本机；同时移除未使用的旧主题色 import。
+- 原因：产品需求已明确游客公共贡献与个人账本需要云端同步；当前同步实现仍有待后续专项完成，UI 不应把尚未完成的同步能力表述为已确定的纯本地策略，也不能虚称云同步已经实现。
+- 本批仅调整身份/提示文案，不修改登录开关、数据同步代码、个人账本或账户状态。待 CI 与设备验收。
+
+
+### 2026-11-13 — 微社区 Gas / 收益比例条文字对比度收口（代码已落地待验收）
+
+- 文件：`MicroCommunityScreen.kt`。
+- 比例条的 Gas 区段使用 `error` 语义色背景，百分比文字改用 `onError`；收益区段使用 `secondary` 背景，百分比文字改用 `onSecondary`，不再对两种主题背景都固定使用白字。
+- 保留区段比例、最小显示阈值、颜色含义与金额计算；只修正文字/背景配对，改善浅色和深色主题下的可读性。
+- 本批与游客模式文案纠偏一起验收；尚未进行真机对比度检查。
+
+
+### 2026-11-13 — 设置诊断文案与数据源诊断卡片收尾（代码已落地待验收）
+
+- `ProfileDestinations.kt`：诊断信息说明不再把个人账本描述成永远只在本地保存；改为明确诊断导出仍在开发中，并强调私钥、助记词、签名材料不属于诊断数据。没有宣称个人账本云同步已经完成。
+- `AirdropSourceHealthPanel.kt`：卡片内容边距统一为 16dp、纵向间距调整为 10dp；顶部错误信息限制为最多两行并省略，避免异常文案过长挤压诊断列表。
+- 本批不改数据源请求、诊断状态计算、钱包会话或授权逻辑。
+- 前一批 CI run `43455345479` 尚在排队/运行；本次提交会触发一次累计变更验证，旧运行由 concurrency 策略取消。未构建 APK。
+
+
+### 2026-11-13 — 全量 UI 文案巡检补充修正（代码已落地待验收）
+
+- 巡检覆盖 Android 主源码中的 107 个 Kotlin 文件，重点检查 20 余个 Compose 页面、通用组件、主题文件中的硬编码颜色、圆角、长文本、旧存储文案和待实现标记。
+- `ProjectDetailScreen.kt`：项目下架后的记账成功提示不再错误表示个人账本“仅保存在本机”，改为说明记录仍保留在个人账本；不宣称云同步已经完成。
+- `MicroCommunityScreen.kt`：评分提示不再把“个人账本不上传”与本地评分混为一谈，明确当前版本星级评分暂存在本机、不会提交全网评分。真实参与资格校验与评分存储行为不变。
+- 其余发现：微社区星级颜色为有意使用的金色强调色；公共主题令牌中的色值属于设计系统定义，不作为页面硬编码缺陷。钱包管理/详情保持原样；AuthScreen 属于已关闭登录流程的遗留代码，不擅自启用或重构；DiscoverScreen 是明确退役的薄封装。
+- 本次仅修正两处容易误导的文案，不改账本同步、社区评分上传、钱包或认证逻辑。待 CI 和设备验收。
+
+
+### 2026-11-13 — Material 3 字阶完整映射收口（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ui/theme/Theme.kt`。
+- 设计说明书定义了 34/28/22/20/17/15/14/13/12/11sp 字阶；此前 Theme.kt 只显式定义部分 Material 3 Typography slots，未定义的 displayMedium、displaySmall、headlineSmall、titleSmall 会回退到 Material 默认字号，导致使用这些样式的页面可能突然出现过大标题或不一致层级。
+- 现在显式定义全部 15 个 Material 3 Typography slots，并映射到设计字阶；保留原有颜色方案、字体粗细方向和浅/深色主题切换，不改页面业务逻辑。
+- 源码静态核对：15 个 slots 均已显式赋值；未定义的默认字号回退风险已消除。尚未运行 Gradle 编译、Android 单元测试、CI 或真机排版验收。
+- 代码 commit：`dcee8c29b3500c1e83706f3997d2834f983401a8`。状态为代码已落地待验收，不代表 UI 最终完成。
+
+
+### 2026-11-14 — 个人中心游客数据说明纠偏（代码已落地待验收）
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/ProfileScreen.kt`。
+- 将游客模式提示从“钱包、项目、任务和个人账本均保存在本机”修正为“个人数据同步能力仍在完善中”，避免把当前同步实现状态误写成产品最终的数据归属策略。
+- 保留注册/登录关闭状态、现有加密备份/导入流程和本地数据操作；没有虚称云同步已经完成，也没有改动数据同步实现。
+- 静态检查：目标旧文案仅替换一次，新提示明确同步能力仍在完善并提醒定期加密备份。尚未运行 Gradle 编译、Android 单元测试或真机验收。
+- Commit：本次提交。
+
+
+### 2026-11-14 — 公共交互组件点击区域与设置页语义收口（代码已落地待验收）
+
+- `AppDesignTokens.Control.IconHitTarget` 从 44dp 调整为 48dp，`AppIconButton` 统一使用该令牌；图标视觉尺寸保持 24dp 不变，只扩大可点击区域。
+- `AppChip` 最小交互高度从 44dp 提升至 48dp，胶囊本身的视觉高度、圆角、选中颜色和按压反馈不变。
+- `AppButton` 文本样式默认高度从 44dp 提升至 48dp；主按钮仍使用既定 52dp 高度。`AppTextButton` 的最小宽高也统一为 48dp，避免刷新/清空等轻量操作仍保留 44dp 点击区。按钮文字与业务点击逻辑不变。
+- `ProfileDestinations.kt` 为“应用偏好”“数据与诊断”增加 Compose heading 语义，方便 TalkBack/辅助技术按章节导航；视觉排版不变。
+- 依据 Android 官方 Compose 无障碍建议，交互目标至少 48dp，并为内容分区提供语义信息。源码静态检查已完成；待 Android CI、TalkBack 和真机验收。
+- 不涉及浏览器、悬浮工具栏、钱包页面或业务逻辑；未构建 APK。
+
+
+### 2026-11-14 — 主页面标题语义与窄屏滚动收口（代码已落地待验收）
+
+- `CommunitySquareScreen.kt`：将内容标题纠正为“微社区广场”，副标题明确页面用于发现 Web3 项目及查看社区真实参与数据；标题增加无障碍 heading 语义，避免页面名称与底部“空投库”导航目的地内容标题混淆。
+- `ProjectsScreen.kt`、`HomeScreen.kt`：主标题增加 Compose heading 语义，方便 TalkBack 按页面章节导航。
+- `TronEnergyAssistantScreen.kt`：外层内容增加垂直滚动，窄屏、小字体或系统显示缩放下，安全提示与提交按钮不会被固定视口裁切。
+- `CoinMarketDetailScreen.kt`：详情页增加垂直滚动；行情指标行的标签和值均分配弹性宽度，长数值单行省略并右对齐，避免窄屏横向溢出。
+- 不修改项目数据、行情刷新限流、TRON 地址校验或导航行为。尚未进行真机/字体缩放验收；本次代码需等待 Android CI 验证。
+
+
+### 2026-11-14 — 内容页标题导航语义补齐（代码已落地待验收）
+
+- `AirdropDiscoveryScreen.kt`、`AirdropHubScreen.kt`、`ProfileScreen.kt`、`SourcesScreen.kt`：页面主标题增加 Compose heading 语义，TalkBack 可按标题快速定位页面内容。
+- `ProjectDetailScreen.kt`、`MicroCommunityScreen.kt`：将动态项目名称标记为页面主标题，项目名称较长时仍保留原有自然换行，不截断用户识别项目所需的信息。
+- 仅补充无障碍语义，不改登录状态、项目数据、社区评分、公告刷新或来源打开行为；待 Android CI 与设备辅助功能验收。
+
+
+### 2026-11-14 — 行情指标完整可读与活动目录标题语义收尾
+
+- `CoinMarketDetailScreen.kt`：行情指标行改为顶部对齐；标签最多两行并保留省略保护，指标值不再限制单行/省略，允许较长金额、成交量和市值自然换行完整显示。值列略宽于标签列，仍保持右对齐，避免窄屏信息被静默截断。
+- `AirdropCampaignsScreen.kt`：为“活动目录”主标题补充 Compose heading 语义，TalkBack 可按标题导航。
+- 不修改行情数据、格式化规则、刷新策略、活动筛选和列表行为；待本次 Android CI 验证及真机窄屏/大字体验收。未构建 APK。
+
+
+### 2026-11-14 — 底部导航边界状态与 TalkBack 重复朗读修正
+
+- `AppBottomBar.kt`：选中项语义与视觉指示器统一使用安全夹取后的索引；当调用方传入越界索引时，指示器和实际选中 Tab 不再出现不一致。
+- 底部 Tab 图标不再重复播报与旁边文字相同的 contentDescription，保留 Tab 角色、selected 状态和可见文字标签，减少 TalkBack 重复朗读。
+- 不改变四项导航顺序、Tab 高度、玻璃材质、指示器动画和页面切换行为。待 Android CI 与设备 TalkBack 验收。
+
+
+### 2026-11-14 — 页面转场参数与 TRON 重复标题修复
+
+- `MainActivity.kt`：二级页推入/返回转场按设计说明书统一为 320ms；新页完整从屏幕边缘进入，旧页仅移动 20% 并保留 92% 亮度，避免页面内容突然整体消失。一级 Tab 之间改为 200ms 纯交叉淡入淡出，不再错误套用二级页的层级滑动。
+- `Color.kt`：增加独立 `TabMs=200` 动效令牌，区分 Tab 切换与普通内容替换时长。
+- `TronEnergyAssistantScreen.kt`：移除页面卡片内部重复的“TRON 能量租赁”标题，保留导航栏唯一页面标题、图标和说明，修复设计说明书列明的重复标题问题。
+- `StaggeredListItem.kt`：修正文档注释与实际令牌不一致的问题，明确仅前两项执行错峰入场；错峰间隔仍为 40ms。
+- 不改路由、返回行为、TRON 地址校验、租赁平台跳转或业务数据。待 Android CI 与设备转场/窄屏验收。
+
+
+### 2026-11-14 — 应用图标与冷启动底色收尾
+
+- `ic_launcher_background.xml`：移除旧深蓝渐变，统一为品牌深青 `#0D8279` 实底。
+- `ic_launcher_foreground.xml`：简化为单色白色“圆形准星 + 向下箭头”符号，去掉亮青描边、渐变和细碎装饰，按 48dp 图标缩放仍保持主体识别度。
+- `themes.xml`：系统启动屏背景同步为品牌深青，避免冷启动先闪出浅灰底，与新图标保持同一视觉。
+- 自适应圆角仍由 Android launcher 系统裁切；不改变应用包名、启动流程或运行时功能。待构建资源校验及不同 launcher 设备验收。
+
+
+### 2026-11-14 — 全局数字等宽特性统一
+
+- `Theme.kt`：为全部 15 个 Material 3 Typography slots 启用 OpenType `tnum` 等宽数字特性，价格、Gas、收益、统计值和时间中的数字在刷新/更新时不再因字符宽度变化而左右跳动。
+- 不更换系统字体、不改变字阶字号/行高/字重；只启用系统字体支持的等宽数字特性。待 Android CI 与真实设备字体回归。
+
+
+### 2026-11-14 — 二级页面统一标题导航语义
+
+- `MainActivity.kt`：所有二级页面共享的顶部导航标题统一标记为 Compose heading；返回入口、标题文本、导航层级和布局保持不变，TalkBack 可直接按标题定位详情页。
+- 与一级页面标题语义补齐形成一致规则，不再出现一级页可按标题导航、二级页只能逐项朗读的差异。待 CI 与 TalkBack 设备验收。
+
+
+### 2026-11-14 — 项目列表标题与悬浮按钮尺寸对齐
+
+- `ProjectsScreen.kt`：项目卡片名称超长时使用单行省略号，避免窄屏直接裁切文字；悬浮新建按钮按设计规格调整为 56dp，右侧与列表底部安全间距均为 16dp，避免压近底部 Tab。
+- 不改项目筛选、卡片信息、真实净盈亏、创建流程与数据来源。待 Android CI、窄屏及底部导航避让验收。
+
+
+### 2026-11-14 — 微社区默认展示真实数据
+
+- `CommunitySquareScreen.kt`：调试构建不再默认进入合成测试项目模式，首次打开默认展示真实社区目录与云端统计；只有用户主动点击“测试演示”才切换到隔离的演示样本。
+- 保留 DEBUG 专用演示数据入口供 UI/QA 验证；演示项目仍不进入真实目录、个人项目库、账本或贡献队列，真实与演示数据集继续互斥。
+- 不改真实目录/快照请求、统计口径、收藏与参与行为。待 Android CI 验证。
+
+
+### 2026-11-14 — 项目列表悬浮按钮滚动避让动效
+
+- `ProjectsScreen.kt`：项目列表向下滚动时，新建悬浮按钮平滑缩至 88% 并降至 60% 透明度；向上滚动或停止后恢复原尺寸与不透明度。动画采用 150ms 快速令牌，点击热区和 56dp 布局尺寸不随视觉缩放改变。
+- 使用现有 LazyListState 观察滚动方向，不增加定时任务、不影响列表数据/筛选/项目创建。
+- 待 CI 与真机滚动方向、快速滑动、TalkBack 点击热区回归。
+
+
+### 2026-11-14 — 四个一级页面大标题字号统一
+
+- `HomeScreen.kt`、`ProjectsScreen.kt`、`CommunitySquareScreen.kt`、`ProfileScreen.kt`：四个一级 Tab 页的页面主标题统一使用 Display 34 / Bold，按设计说明书建立一致的一级页面层级；标题原有文案、位置、导航语义与右侧操作保持不变。
+- 不调整二级页面 Title-3 头部，不改变列表标题或卡片标题字号。待窄屏/1.3 倍字体与设备截图验收。
+
+
+### 2026-11-14 — 首页按设计稿重排信息顺序
+
+- `HomeScreen.kt`：首页改为“页头 → 快捷入口 → 行情看板”的结构，符合设计说明书第 6.2 节；移除行情卡下方重复占据整行的搜索条，将搜索入口放到页头，与通知并列为两个 48dp 图标热区。
+- 行情看板编辑、刷新、缓存状态和币种筛选逻辑整体保留；快捷卡片的拖拽排序、添加/移除与打开动作不变。
+- 不增加新业务功能，不改行情数据来源与刷新策略。待 Android CI 与真机首屏/窄屏布局验收。
+
+
+### 2026-11-14 — 一级页面右侧操作入口统一
+
+- `CommunitySquareScreen.kt`：将原有“提交新空投项目”主操作从页头整行按钮收进标题右侧 48dp 加号图标，动作仍调用原提交弹窗，减少首屏垂直占用。
+- `ProfileScreen.kt`：在“我的”一级页标题右侧增加设置图标，直接打开已有设置目的地；原设置列表入口继续保留，作为同一功能的第二个入口。
+- 与首页搜索/通知、项目管理筛选入口形成一致的一级页面头部结构；不新增业务流程。待窄屏和 TalkBack 验收。
+
+
+### 2026-11-14 — 按压缩放默认值按组件类型区分
+
+- `AppPressFeedback.kt`：通用点击反馈默认缩放调整为卡片规格 0.96；`AppButton.kt` 显式使用按钮规格 0.94。图标按钮、胶囊、列表卡片和文字按钮原有显式缩放值不变。
+- 统一“卡片 0.96 / 按钮 0.94”的设计令牌意图，避免未显式传值的卡片误用按钮压缩幅度。触感、动画曲线、按压覆盖层和点击行为不变。
+
+
+### 2026-11-14 — 二级来源与活动页移除重复页内标题
+
+- `SourcesScreen.kt`：页面已由统一二级导航栏显示“官方来源”，移除内容区重复的同名大标题，保留说明与来源列表。
+- `AirdropCampaignsScreen.kt`：统一导航栏已显示“空投活动”，移除内容区语义重复的“活动目录”标题，保留活动说明、刷新入口和筛选器。
+- 二级页标题现在由 MainActivity 顶部栏统一承载并带 heading 语义；不改来源列表、活动数据、刷新和筛选行为。
+
+
+### 2026-11-14 — 页面间距与微社区进度条按设计栅格收口
+
+- 本轮检查的页面区块间距回归 4dp 基线：10dp 间距调整为 12dp，搜索结果图标间距 10dp 调整为 8dp；来源、公告、活动、行情、首页、空投记录、个人中心与项目详情页面统一处理。
+- `CommunitySquareScreen.kt`：微社区 Gas/收益比例条高度由 10dp 调整为设计规格 6dp；标签横向间距统一为 8dp。
+- `ProjectDetailScreen.kt`：加载占位边距回归 16dp；账本指标卡片内边距统一为 12×8dp；项目进度条高度统一为 6dp。
+- 本批仅调整视觉栅格，不改页面信息、数值、点击路径或业务逻辑；浏览器与钱包页面按既定暂停/保留范围未触碰。
+
+
+### 2026-11-14 — 间距栅格复查第二轮
+
+- `HomeScreen.kt`、`MicroCommunityScreen.kt`：剩余 14dp 区块间距收敛为 12dp。
+- `AirdropHubScreen.kt`：公告卡片内的 6dp 垂直间距调整为 8dp。
+- `ProjectDetailScreen.kt`：账本指标卡内边距统一为 12×8dp；周期指标卡内边距统一为 8×12dp；任务/流水区块的 6dp 元素间距统一为 8dp。
+- 继续遵守 4、8、12、16、20、24、32dp 间距栅格；图标尺寸、进度条高度和阴影高度不按间距规则误改。
+
+
+### 2026-11-14 — 微社区统计周期切换触控与无障碍收口
+
+- `MicroCommunityScreen.kt`：总览/近3天/近1小时分段切换控件由裸 `clickable` 改为共享按压反馈，补齐 Tab 角色与 selected 语义；点击反馈即时且带 light 触感。
+- 点击热区最小高度由 40dp 提升至 44dp；内部间距统一为 4/8dp，保持原有选中颜色、统计周期与数据请求不变。
+
+
+### 2026-11-14 — 项目页头操作改为新建入口
+
+- `ProjectsScreen.kt`：页头右侧图标从含义不符的“文件夹筛选”改为加号“新建项目”，直接打开既有创建对话框；筛选仍由下方全部/进行中/待开始/已完成胶囊承担。
+- 与设计说明书“项目页头右侧图标为新建入口之一”保持一致，不新增或更改项目创建流程。
+
+
+### 2026-11-14 — 设置/安全/通知全屏目的地标题语义
+
+- `ProfileDestinations.kt`：设置、安全中心、消息通知三个全屏目的地的导航标题统一标记为 heading，与普通二级页面的顶部标题语义一致。
+- 不改变对话框导航、设置内容或返回操作。
+
+
+### 2026-11-14 — 我的页身份区比例微调
+
+- `ProfileScreen.kt`：游客/账户头像由 64dp 收敛到设计规格 56dp；身份名称提升至 Title-2 对应字阶，增强身份区层级，说明文字与数据统计卡片不变。
+
+
+### 2026-11-14 — 10dp 区块间距余项清理
+
+- 复查发现前批有多处文件只替换了首个 10dp 间距；本次补齐 `AirdropCampaignsScreen.kt`、`CoinMarketDetailScreen.kt`、`AirdropDiscoveryScreen.kt` 中所有剩余的 10dp 区块间距，统一为 12dp。
+- 本轮对其余已检查页面再次检索，未发现剩余 9dp/14dp 布局间距；18dp/22dp 命中均为图标或拖拽阴影尺寸，不属于间距栅格。
+
+
+### 2026-11-14 — 系统状态栏/导航栏颜色接入主题令牌
+
+- `MainActivity.kt`：状态栏与系统导航栏颜色不再在 Activity 内硬编码浅/深色 RGB，直接读取当前 `MaterialTheme.colorScheme.background`，保证浅色/深色模式与页面背景令牌一致。
+- 保留系统栏图标明暗模式判断与现有窗口行为。
+
+### 2026-11-14 — 系统栏主题色编译回归修复
+
+- 修复 `MainActivity.kt` 中主题颜色读取位置不正确导致的 Kotlin 编译失败：`MaterialTheme.colorScheme.background` 在 Composable 上下文内提前读取，再由 `SideEffect` 应用到系统状态栏和导航栏。
+- 保留浅/深色系统栏图标逻辑、系统栏颜色来源及窗口行为；不改页面 UI 或业务流程。
+- 前一版 CI #1914 在 `MainActivity.kt:140` 报错“Composable invocations can only happen from the context of a @Composable function”；本次修复后需以新提交的 Android 单元测试结果为准。未构建 APK。
+
+
+### 2026-11-14 — 个人中心统计数值完整显示修正
+
+- `ProfileScreen.kt`：数据概览的累计 Gas、实际收益等统计值不再强制单行省略；改为允许完整换行显示，并将单位与数值放在同一文本流中，避免窄屏或较大金额被截断。
+- 统计行仍保留最小高度，内容较长时由行高自然扩展；标签最多两行，避免标签挤压数值。
+- 不改统计口径、金额格式、数据来源或钱包页面；待 Android 单元测试与窄屏/大字体真机验收。
+
+### 2026-11-14 — 首页与个人中心通知空状态文案统一
+
+- `HomeScreen.kt`：首页通知入口不再显示笼统的“通知功能正在开发中”，改为与个人中心通知页一致的真实空状态：当前暂无站内通知、未读 0 条。
+- 明确真实通知服务接入前不会生成测试通知或擅自开启推送；首页仍为现有轻量弹窗，不改变导航、推送权限或通知数据逻辑。
+- 不新增通知后端或假数据；待本次 Android CI 验证。
+
+### 2026-11-14 — 项目账本未完整估值状态纠偏
+
+- `ProjectDetailScreen.kt`：项目详情“实际收益”“净利润”在 USD 估值未完整时不再将 `null` 兜底成 `0.0`，避免把未知/未完整误显示为实际零收益；统一显示“估值未完整”。
+- `ProjectMetric` 接受可空数值，标签最多两行，金额文本允许自然换行，避免三列指标卡片在窄屏或大金额下静默截断。
+- 不改账本金额、估值完整性判断、数据来源或计算逻辑；待 Android CI 验证与真机窄屏/大字体验收。
+
+### 2026-11-14 — 项目列表与交互流水真实估值状态收尾
+
+- `ProjectsScreen.kt`：项目尚无账本记录时显示“暂无记账”；存在记录但 USD 估值不完整时显示“估值未完整”；仅在估值完整时显示真实净盈亏数值，不再把空记录或未估值数据伪装成 +$0.00。
+- `ProjectDetailScreen.kt`：单条交互流水的实际收益在估值不完整时显示“估值未完整”，不再把未估值奖励显示为 $0.00；周期指标标签允许最多两行，金额不再强制单行截断。
+- 保留 Gas 真实金额、原生币种明细、收益确认状态、数据来源和既有计算逻辑；仅修正 UI 对未知/不完整状态的表达。
+- 本批与前一笔项目汇总指标修正合并回归；待 Android 单元测试及真机窄屏/大字体验收。未构建 APK。
+
+### 2026-11-14 — 输入框规格与全站剩余验收边界
+
+- `AppTextField.kt`：单行输入框含 48dp 清除按钮时，不再叠加上下各 4dp 内边距造成整体自然高度达到 56dp；单行字段由 52dp 最小高度令牌控制，多行输入仍保留 4dp 垂直内边距。保留清除按钮热区、焦点/错误态和输入行为。
+- 首页行情迷你走势暂不绘制：当前 `OkxTicker` 仅提供最新价与 24 小时涨跌幅，没有历史时间序列；禁止用随机点或合成曲线冒充真实走势。待有真实 K 线/历史数据源后再补齐 52×18 迷你折线。
+- 全量设备验收仍需覆盖深浅色、1.3 倍字体、减少动效、TalkBack、触控热区与低端机滚动帧率；源码检查不能替代真机验收。
+- 按用户确认的顺序，浏览器与悬浮工具栏专项继续暂停，待 UI 改版整体验收后再恢复；本阶段不构建 APK。
+
+### 2026-11-14 — 项目详情账本空记录与筛选空态收尾
+
+- `ProjectDetailScreen.kt`：项目尚无任何已确认交互流水时，累计 Gas、实际收益、净利润及所选周期指标统一显示“暂无记账”，不再把空集合求和得到的 0.00 当作实际收益；已有流水但 USD 估值不完整时显示“估值未完整”，未知状态使用中性色而非盈亏颜色。
+- `ProjectsScreen.kt`：区分项目列表真实为空与已有项目但筛选结果为空，后者提示当前分类无项目并引导切换筛选；保留游客项目本地保存策略。
+- 不改账本金额、累加规则、实际确认流程、项目状态筛选和数据同步；待 Android CI 与设备窄屏/大字体验收。
+
+### 2026-11-14 — 个人中心空账本统计状态纠偏
+
+- `ProfileScreen.kt`：无任何已确认账本流水时，累计 Gas、实际收益和净收益显示“暂无记账”，不再把汇总默认值 0.00 表示为真实支出/收益；USD 估值不完整时继续显示“估值未完整”。
+- 胜率统计在没有已估值项目样本时显示“暂无样本”，不再把 0.0% 误读为已有样本且胜率为零。
+- 保留跟踪项目数、已完成项目数、交互天数和现有统计接口；不改账本数据、计算或同步流程。
+
+### 2026-11-14 — 微社区项目卡补齐真实收益与 Gas 双列信息
+
+- `CommunitySquareScreen.kt`：项目卡在评分区下方补齐“收益概况 · 含预估”与“Gas 支出”双列数据，直接使用现有社区聚合字段；没有任何贡献数据时显示“暂无数据”，不把默认 0.00 伪装成真实统计。
+- 收益字段明确标注含预估，避免把预估收益误读为已实现收益；保留原有收益/Gas 比例条、榜单排序、项目收藏与添加操作。
+- 不新增接口、不改变社区汇总口径或贡献上传；待 Android CI 与窄屏/大字体设备验收。
+
+
+### 2026-11-14 — 最后一轮源码巡检与数据源状态措辞修正
+
+- 全量复查主要一级/二级页面、公共 Compose 组件、页面导航、空数据状态、统计金额和窄屏文字约束；未发现需要擅自改动钱包页面、注册登录流程或浏览器/悬浮工具栏专项的遗留问题。
+- `AirdropSourceHealthPanel.kt`：数据源汇总中的“正常”改为“可用”。该计数包含成功、暂无新记录和使用缓存三种状态，使用“可用”比“正常”准确；展开诊断仍分别显示各数据源真实状态。
+- 本轮仅修正状态文案与变量命名，不改变数据源状态判定、刷新、缓存或错误处理逻辑。待精确提交 CI 验证；未构建 APK，仍需真机视觉与无障碍验收。
+
+
+## 2026-11-14：首页与页面切换问题（第一批修复）
+
+- 首页副标题改为“空投发现 · 项目任务 · 行情追踪”，避免宣称已具备完整资产管理能力。
+- 行情搜索入口从首页右上角移至行情看板标题下方，与币种列表相邻。
+- 首页行情币种行增加点击反馈并进入对应行情详情；搜索页热门币种与搜索结果原有详情回调保留。
+- 快捷入口半宽卡片高度由 104dp 调整为 120dp，给标题和副标题留出完整空间。
+- 行情看板“编辑/刷新”统一为 labelMedium 与一致点击区域。
+- 页面横向切换时，旧页面完整移出并淡出至透明，避免只移出五分之一而露出旧页面内容。
+- 本批尚未覆盖：记账中心三页统一、钱包连接及最近交易拉取流程；需核对 WalletConnect 会话与链上交易同步实现后再接入，不做假按钮。
+
+- 记账中心三个一级分区改为等宽、同高、居中标签，统一选中态、文字字号与点击区域。
+
+
+## 2026-11-14：清理模拟数据与演示入口
+
+- 删除社区广场内置的虚构项目、模拟收益/Gas/评分及 DEBUG 演示切换；列表只展示真实目录数据和实际社区统计。
+- 删除项目微社区内置的演示统计样本、假时间区间缩放值和 DEBUG 演示切换；没有真实快照时明确显示暂无数据。
+- 清理钱包资格查询的旧模拟结果文案与开发 Mock 验证码资源，避免遗留文案误导。
+- 保留仅用于隔离历史 MOCK 账单的兼容过滤和防止模拟记录进入公共贡献的校验；不会把这些旧记录当作真实交易展示。
+- 单元测试中的 Fake 数据源、测试夹具不属于 APP 功能，不会打包进正式 UI。
+
+- 同步清除印尼语、土耳其语、韩语、越南语、巴西葡萄牙语和印地语资源中的旧模拟资格结果文案。
+
+
+## 2026-11-14：记账中心复用钱包管理连接入口
+
+- 记账中心不再自行承担钱包连接流程；增加“钱包管理”入口，直接打开现有 WalletManagerScreen，复用 WalletConnect 会话、钱包添加/保存和地址管理逻辑。
+- 从记账中心进入钱包管理后，返回时自动重新打开记账中心，并重新读取同一钱包仓库中的钱包列表；记账中心仍只维护当前账单筛选用的钱包选择，不复制连接状态。
+- 无钱包时提示通过现有钱包管理入口添加/连接；既有账本与待确认记录继续可查看。
+
+
+## 2026-11-14：记账中心直达 WalletConnect 钱包选择面板
+
+- 记账中心的“连接钱包”按钮直接打开现有钱包管理页内的 WalletConnect AppKit 选择面板，不再要求用户额外点击“添加钱包”或“连接外部钱包”。
+- 复用 WalletManagerScreen 的 AppKit、会话监听和公开地址保存流程；连接后仍由钱包管理现有流程提示保存地址。
+- 从记账中心发起后，关闭钱包管理页面会返回记账中心；普通进入钱包管理的行为不变。
+
+
+### 2026-11-14 — WalletConnect delegate 源码修复与成功连接计数接线
+
+- 文件：`android/app/src/main/java/com/airdrophunter/app/WalletConnectSessionDelegate.kt`、`docs/UI_REFACTOR_PROGRESS.md`
+- 修复 delegate 声明区域被写成字面量 `\\n` 的源码问题，恢复为真实 Kotlin 换行；该问题会导致 Kotlin 源码无法正常解析。
+- 在 `onSessionApproved` 成功回调中记录钱包名称与成功连接次数；拒绝、点击或连接失败不计数。统计仍保存在设备本地，不进入公共缓存或个人账本。
+- 当前边界：成功连接计数存储与回调已接通，但尚未接入 Reown 钱包目录的排序；钱包目录全局去重、精选 ID 核验、预热缓存仍待继续。尚未运行 Gradle/CI/真机验收，不标记为已验收。
+- 对应代码提交：`990aa6d1b1ea0a6a3c3f2be80b595b6cc5b548f9`。
+
+### 2026-11-14 — 钱包连接身份补充官方元数据域名
+
+- `WalletConnectSessionDelegate.kt`：成功连接计数除钱包名称外，同时传入 WalletConnect 会话元数据中的官网 URL。
+- `WalletUsageStore` 优先按官网主机名归并同一钱包的不同显示名称，减少品牌名/语言差异造成的重复计数；Coinbase 会话仍按固定名称记录。
+- 仅在 AppKit 成功批准会话时执行；不记录点击、拒绝或失败。尚未实现钱包目录 ID 映射与按次数排序，也未运行 Gradle/CI。
+- 对应代码提交：`aa85de7acc2ac0281ac93b08fddcddb462cd355c`。
+
+### 2026-11-14 — 钱包排序/缓存接入边界复核
+
+- 确认 AppKit 1.3.3 的 `Modal.Params.Init` 支持 `includeWalletIds`；可由 APP 在初始化时传入精选钱包 ID，让 SDK 只展示白名单钱包。该配置能力尚未接入。
+- 产品方案以 APP 自主管理的固定精选名单为准：只把精选名单中的钱包送入展示层，名单配置本身保证每个钱包只有一个标准 ID；不再把 SDK 全量目录的分页去重列为产品待办。
+- 成功连接回调目前只提供 peer metadata（名称、URL 等），没有 Reown 目录 ID；本地连接次数尚未映射到精选名单中的标准 ID，因此不能安全地按连接次数排序。目录 ID 必须逐个从官方 WalletGuide/Explorer 核验，不能按品牌名称臆造。
+- 已有共享缓存引擎用于行情、OKX 热门币、DApp 目录及部分钱包资产数据；Reown AppKit 钱包目录本身不在该缓存引擎中。后续应缓存 APP 自己的精选目录和图标，不必预热/缓存 SDK 的全量钱包目录。
+- 当前仍未接入精选钱包白名单、连接次数排序及图标缓存；AppKit 仍按需初始化并使用原生连接流程。尚未运行 Gradle/CI。
+
+
+### 2026-11-14 — 钱包连接统计身份校验收尾
+
+- `WalletUsageStore.kt`：钱包会话 metadata 的 URL 只有通过主机名校验后才用于归并；非法空格、下划线、无效域名等不再被误当作官网 host，统一回退到规范化钱包名称。
+- 域名先转为 ASCII/IDN 并统一大小写、去除 `www.` 与末尾点；同一有效官网仍可合并不同显示形式。
+- `WalletUsageIdentityTest.kt`：补充非法域名回退与大小写/路径/末尾点规范化用例。尚未运行 Gradle 单元测试。
+- 钱包精选名单接入仍未完成：当前 AppKit 仍直接打开 SDK 钱包面板；本次不伪造目录 ID，也不把全量目录去重作为产品待办。
+
+
+### 2026-11-14 — APP 精选钱包目录接入 Reown 官方 Explorer
+
+- 新增 `ReownWalletCatalog.kt`：APP 固定维护 15 个候选钱包（MetaMask、OKX Wallet、Trust Wallet、Rabby、Phantom、Bitget Wallet、Binance Wallet、SafePal、TokenPocket、imToken、Coinbase Wallet、Backpack、Zerion、Rainbow、Uniswap Wallet）。
+- 不写死或猜测 Reown ID。启动预热/连接流程前，按名称查询官方 Explorer，并限定 Android 平台、`eip155:1` 和 `sign_v2`；只有名称精确匹配、官方 homepage 主机名核验通过、ID 为有效 64 位十六进制且带有 Logo ID 的条目才会进入精选目录。重复 ID/名称会阻止目录初始化，不做静默拼接或重复展示。
+- 仅将核验通过的精选条目保存到统一公共远程缓存（`CacheStore.readRemoteCache/writeRemoteCache` + `CacheRefreshCoordinator`），TTL 7 天；不下载或缓存 SDK 的完整钱包目录。首页启动后由后台任务预热，和连接入口共用全 APP 的 `CacheRefreshCoordinator.shared`，与行情/搜索/钱包资产缓存复用同一套去重、重试和元数据策略，避免同时请求同一目录。连接/钱包回跳优先读取已有精选缓存，过期缓存也可快速恢复；后台预热负责更新，避免 WalletConnect 回跳因目录网络请求超过 Activity 等待窗口。首次在线核验少于 8 个时 fail closed，显示错误并允许重试，不回退到全量目录。
+- 初始化 AppKit 时把按成功连接次数、最近成功时间排序后的 ID 传入 `includeWalletIds`。核对了 Reown Kotlin 1.3.3 源码：`includeWalletIds` 非空时 SDK 直接走 include 列表分支，不会把默认推荐/已安装目录混入；`recommendedWalletsIds` 在该分支不参与列表排序，因此已去掉重复传参。APP 已按使用次数排列 include ID，但服务端返回顺序是否原样保留仍需真机验证。AppKit 1.3.3 初始化后目录配置不可热更新，因此新成功连接次数会在下一次 AppKit/进程重新初始化时反映，不会在当前已打开的弹窗会话中即时重排。
+- `AirdropHunterApplication` 配置 Coil 2.7.0 单例的内存缓存与磁盘缓存。核对 Reown Kotlin 1.3.3 的 `WalletImage`：它使用 Coil singleton、`getWalletImage/{imageId}` URL 和项目/SDK 请求头；APP 预热时使用相同 URL 与请求头，目标是让 AppKit 弹窗复用同一磁盘/内存缓存，而不是另存一份不同 URL 的图片。
+- `WalletManagerScreen` 增加目录/连接服务初始化失败提示和重试入口，避免目录请求失败后按钮永久停留在“初始化中”。
+- 当前明确限制：现有 `AppKitChainsPresets.ethChains` 与会话账户解析仍为 EVM；本批目录只筛选 EVM 主网兼容钱包。Solana 原生 namespace/adapter 尚未接入，不能把 Phantom 等钱包的 Solana 连接能力算作已完成。
+- 本批尚未运行 Gradle 单元测试、Android 编译、CI 或真机验收；官方 API 的实际返回数据、最终核验到的数量、AppKit 1.3.3 allowlist 的真实显示顺序、Logo 缓存命中率和连接兼容性均待设备验证。未构建 APK。
+
+
+### 2026-11-14 — 钱包生态能力边界核对
+
+- 钱包连接：当前 APP 的 AppKit 初始化明确调用 `AppKitChainsPresets.ethChains`；`WalletConnectSessionDelegate.parseAccounts` 只接受 `eip155`，因此即使对端会话返回 Solana namespace，当前 APP 也会过滤掉，不会保存为已连接账户。
+- 钱包目录：精选目录查询要求 `chains=eip155:1`，这是“支持 EVM 的精选钱包”，不是“已完成 EVM + Solana 的多链钱包目录”。Phantom/Backpack 等多生态钱包只能按其 EVM 能力进入当前列表；Solana-only 钱包不应被误标为已支持。
+- SDK 核对：Reown Kotlin 协议层包含 Solana 签名结果模型，但 APP 当前 pinned AppKit 配置仍只提供 EVM chain presets。不能仅凭协议层存在 Solana 数据类型就宣称 APP 已有 Solana 连接、签名、交易解析和记账闭环。下一阶段需按 SDK 版本确认 Solana namespace 所需 methods/events、账户格式、签名请求回调及链上交易同步，然后补齐 delegate 与账本网络类型测试。
+- 本轮只修正文档和源码注释，未改变云同步行为、WalletConnect 安全流程或钱包展示范围；未运行 Gradle/CI/真机测试，未构建 APK。
+
+
+### 2026-11-14 — 设计系统组件规范对齐
+
+- 文件：`ui/theme/Color.kt`、`ui/components/StaggeredListItem.kt`、`ui/components/AppChip.kt`。
+- 错峰入场：按设计说明书调整为前 6 个条目参与错峰，后续条目立即显示；入场由单纯淡入补齐为 8dp 上移至原位 + 淡入，延迟仍为 40ms/项，单项时长 150ms，不加入循环装饰动画。
+- 胶囊筛选：未选中态改为 surface 实底 + 细描边，选中态使用品牌实底，横向内边距统一为 14dp；保留 48dp 无障碍触控热区与原有点击/触感行为。
+- 未改业务逻辑、数据结构、网络接口、钱包连接和记账流程；未新增产品功能。
+- 状态：代码已提交，等待本次最新提交的 CI 单元测试；尚未进行真机浅/深色与动效验收。
+
+
+### 2026-11-14 — 首页行情区布局对齐
+
+- 文件：`HomeScreen.kt`。
+- 将“搜索币种名称或代号”入口从行情卡片上方移至行情看板列表下方，与行情币种列表归为同一区域，按此前明确的首页布局要求调整。
+- 行情行仍使用真实 OKX ticker 数据并可点击进入对应币种详情；没有行情 K 线/历史点列数据，因此本轮不伪造迷你走势图。
+- 保留行情刷新节流、缓存状态、币种编辑与已有导航行为；没有改动行情数据接口。
+- 状态：代码已提交待 CI；未做真机窄屏与滚动验收。
+
+
+### 2026-11-14 — 全局搜索结果反馈与动效单位修正
+
+- 文件：`GlobalSearchScreen.kt`。
+- 修正币种/DApp 搜索结果的入场位移：由固定 8px 改为 8dp 按当前屏幕密度换算，避免不同密度设备上实际位移不一致。
+- 搜索结果入场时长统一使用设计令牌 `Motion.FastMs`；搜索历史展开/收起时长统一引用 `Motion.TabMs` 与 `Motion.ExitMs`。
+- 远程搜索正在更新但本地缓存已有结果时，增加轻量进度提示，明确告知用户现有缓存结果仍可使用，避免误以为列表已经停止响应。
+- 保留输入防抖、本地优先展示、远程查询、历史记录、分类切换、结果点击和 DApp HTTPS 校验；不改搜索接口、数据规则或导航行为。
+- 状态：代码已提交，等待 CI；未做真机键盘、窄屏和浅/深色验收。
+
+
+### 2026-11-14 — 行情看板精度与详情窄屏布局修正
+
+- 文件：`HomeScreen.kt`、`CoinMarketDetailScreen.kt`。
+- 首页行情价格显示精度由固定 2 位调整为 2–8 位小数，避免低单价币种被显示成 `0.00` 而丢失有效价格信息；仍使用真实 OKX ticker 数据。
+- 行情详情指标行调整标签/数值宽度比例，数值最多两行并允许换行/省略，降低窄屏下成交量、成交额等长数值挤压或溢出的风险。
+- 未改行情接口、缓存策略、刷新节流或数据源；未构建 APK。当前提交尚未完成 Gradle/CI 与真机窄屏验收。
+
+
+### 2026-11-14 — 行情模块窄屏文本溢出收尾
+
+- `HomeScreen.kt`：首页行情行的币种名称限制为单行并以省略号收尾；价格列固定单行、右对齐，避免极长低价币价格字符串挤压或撑破行布局。
+- `CoinMarketDetailScreen.kt`：详情页最新价格允许最多两行自然换行，避免窄屏或较大字体下价格被横向裁切。
+- 仅调整文本布局约束，不改价格精度、行情数据、刷新与缓存逻辑；仍需 Android CI 和真机窄屏/大字体验收，未构建 APK。
+
+
+### 2026-11-14 — 空投记录与活动卡片窄屏布局收尾
+
+- `AirdropDiscoveryScreen.kt`：空投记录标题允许最多两行；状态与链标签改为可自动换行的流式布局，避免较长链名称在窄屏横向挤压。
+- `AirdropCampaignsScreen.kt`：公开活动标题允许最多两行，精选/普通标记与标题顶部对齐，避免长项目名被过早截断。
+- 仅调整卡片文字和标签布局，不改变活动数据、筛选、来源核验、跳转或记账行为；未构建 APK。
+
+
+### 2026-11-14 — 官方公告列表与详情标题窄屏布局
+
+- `AirdropHubScreen.kt`：官方公告卡片标题允许最多两行，来源标记与标题顶部对齐，避免长公告标题挤压标记或被过早截断。
+- 公告详情页标题允许最多三行并安全省略，避免长标题占满横向空间；公告内容加载、原文链接、安全 WebView 策略与导航行为均未改变。
+- 仅调整文本布局，不改公告数据源、刷新、缓存或链接安全逻辑；未构建 APK，仍待整体验收时的设备验证。

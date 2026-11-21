@@ -87,7 +87,7 @@ class ProjectDetailViewModel(private val repository: ProjectsRepository) : ViewM
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                _uiState.value = _uiState.value.copy(isClaimLoading = false, claimError = error.message ?: "无法生成资格领取入口")
+                _uiState.value = _uiState.value.copy(isClaimLoading = false, claimError = error.message ?: "__PROJECT_CLAIM_URL_FAILED__")
             }
         }
     }

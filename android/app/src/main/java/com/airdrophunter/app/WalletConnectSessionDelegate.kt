@@ -1,5 +1,6 @@
 package com.airdrophunter.app
 
+import android.content.Context
 import com.reown.appkit.client.AppKit
 import com.reown.appkit.client.Modal
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -15,21 +16,46 @@ data class WalletConnectAccount(
 )
 
 object WalletConnectSessionDelegate : AppKit.ModalDelegate {
+    @Volatile private var applicationContext: Context? = null
+
+    fun attachApplicationContext(context: Context) {
+        applicationContext = context.applicationContext
+    }
     private val _accounts = MutableStateFlow<List<WalletConnectAccount>>(emptyList())
     val accounts = _accounts.asStateFlow()
     private val _sessionGeneration = MutableStateFlow(0L)
     val sessionGeneration = _sessionGeneration.asStateFlow()
     private val _sessionTopic = MutableStateFlow<String?>(null)
     val sessionTopic = _sessionTopic.asStateFlow()
-    private val _requestResponses = MutableSharedFlow<Modal.Model.SessionRequestResponse>(extraBufferCapacity = 32)
+    // Wallet redirects can cold-start the process. Keep a bounded replay window so a
+    // response emitted while the reconciliation collector is attaching is not lost.
+    // Repository reconciliation is request/topic/chain-bound and idempotent.
+    private val _requestResponses = MutableSharedFlow<Modal.Model.SessionRequestResponse>(
+        replay = 32,
+        extraBufferCapacity = 32
+    )
     val requestResponses = _requestResponses.asSharedFlow()
 
     private fun publishAccounts(accounts: List<WalletConnectAccount>) {
+        DappOriginPermissionStore.revokeAll()
         _accounts.value = accounts
         _sessionGeneration.value += 1L
     }
 
     override fun onSessionApproved(approvedSession: Modal.Model.ApprovedSession) {
+        val walletName = when (approvedSession) {
+            is Modal.Model.ApprovedSession.WalletConnectSession ->
+                approvedSession.metaData?.name.orEmpty()
+            is Modal.Model.ApprovedSession.CoinbaseSession -> "Coinbase Wallet"
+        }
+        applicationContext?.let { context ->
+            WalletUsageStore.recordSuccessfulConnection(
+                context = context,
+                walletName = walletName,
+                walletUrl = (approvedSession as? Modal.Model.ApprovedSession.WalletConnectSession)
+                    ?.metaData?.url
+            )
+        }
         _sessionTopic.value = when (approvedSession) {
             is Modal.Model.ApprovedSession.WalletConnectSession -> approvedSession.topic
             is Modal.Model.ApprovedSession.CoinbaseSession -> null
@@ -81,5 +107,5 @@ object WalletConnectSessionDelegate : AppKit.ModalDelegate {
                 chainId = parts[1],
                 walletLabel = walletLabel.ifBlank { "External Wallet" }
             )
-        }.distinctBy { it.address.lowercase() }
+        }.distinctBy { it.chainId.lowercase() + ":" + it.address.lowercase() }
 }

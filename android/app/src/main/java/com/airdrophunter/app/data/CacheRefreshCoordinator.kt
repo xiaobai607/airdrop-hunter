@@ -19,9 +19,6 @@ class ProviderHttpException(
 ) : IOException(message)
 
 object CacheRefreshPolicy {
-    fun walletAssetCacheKey(accountScope: String, walletId: String, chain: String): String =
-        "wallet-assets:$accountScope:$walletId:${chain.lowercase()}"
-
     fun displayStatus(metadata: CacheMetadataEntity?, now: Long): CacheDisplayStatus {
         metadata ?: return CacheDisplayStatus.UNKNOWN
         return when {
@@ -91,11 +88,17 @@ data class CacheRefreshResult<T>(
     val throttled: Boolean = false
 )
 
-/** Persistent stale-while-revalidate coordinator for market/search and per-wallet asset caches. */
+/** Shared cache refresh engine for app data sources: TTL, deduplication, retries and stale-data retention. */
 class CacheRefreshCoordinator(
     private val clock: () -> Long = System::currentTimeMillis,
     private val wait: suspend (Long) -> Unit = { delay(it) },
-    private val jitter: () -> Double = { Random.nextDouble(0.8, 1.2) }
+    private val jitter: () -> Double = { Random.nextDouble(0.8, 1.2) },
+    private val readMetadata: suspend (String, String) -> CacheMetadataEntity? = { key, source ->
+        CacheStore.readCacheMetadata(key, source)
+    },
+    private val writeMetadata: suspend (CacheMetadataEntity) -> Unit = { metadata ->
+        CacheStore.writeCacheMetadata(metadata)
+    }
 ) {
     // Fixed stripes bound memory while ensuring same-key work never runs concurrently.
     private val locks = Array(64) { Mutex() }
@@ -105,38 +108,39 @@ class CacheRefreshCoordinator(
         source: String,
         ttlMillis: Long = CacheRefreshPolicy.DEFAULT_TTL_MILLIS,
         manual: Boolean = false,
+        force: Boolean = false,
         readCache: suspend () -> T?,
         fetch: suspend () -> T,
         save: suspend (T) -> Unit
     ): CacheRefreshResult<T> {
         val initialCached = readCache()
-        var metadata = CacheStore.readCacheMetadata(cacheKey, source)
+        var metadata = readMetadata(cacheKey, source)
         val initialNow = clock()
         val initialFresh = CacheRefreshPolicy.isFresh(metadata, initialNow)
-        if (!manual && initialCached != null && initialFresh) return CacheRefreshResult(initialCached, false)
-        if (!manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, initialNow)) {
+        if (!force && !manual && initialCached != null && initialFresh) return CacheRefreshResult(initialCached, false)
+        if (!force && !manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, initialNow)) {
             return CacheRefreshResult(initialCached, stale = true, errorMessage = metadata?.lastError)
         }
-        if (manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, initialNow)) {
+        if (!force && manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, initialNow)) {
             return CacheRefreshResult(initialCached, stale = !initialFresh, throttled = true)
         }
 
         val lock = locks[(("$source:$cacheKey").hashCode() and Int.MAX_VALUE) % locks.size]
         return lock.withLock {
             var cached = readCache()
-            metadata = CacheStore.readCacheMetadata(cacheKey, source)
+            metadata = readMetadata(cacheKey, source)
             val lockedNow = clock()
             val fresh = CacheRefreshPolicy.isFresh(metadata, lockedNow)
-            if (!manual && cached != null && fresh) return@withLock CacheRefreshResult(cached, false)
-            if (!manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, lockedNow)) {
+            if (!force && !manual && cached != null && fresh) return@withLock CacheRefreshResult(cached, false)
+            if (!force && !manual && CacheRefreshPolicy.isFailureCooldownActive(metadata, lockedNow)) {
                 return@withLock CacheRefreshResult(cached, stale = true, errorMessage = metadata?.lastError)
             }
-            if (manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, lockedNow)) {
+            if (!force && manual && CacheRefreshPolicy.isManualRefreshThrottled(metadata, lockedNow)) {
                 return@withLock CacheRefreshResult(cached, stale = !fresh, throttled = true)
             }
 
             val lastManual = if (manual) lockedNow else metadata?.lastManualRefreshAt
-            CacheStore.writeCacheMetadata(
+            writeMetadata(
                 CacheMetadataEntity(cacheKey, source, metadata?.fetchedAt, metadata?.expiresAt,
                     ttlMillis, "refreshing", null, lastManual)
             )
@@ -164,13 +168,13 @@ class CacheRefreshCoordinator(
                 save(value)
                 val completedAt = clock()
                 val safeTtl = ttlMillis.coerceAtLeast(1L)
-                CacheStore.writeCacheMetadata(
+                writeMetadata(
                     CacheMetadataEntity(cacheKey, source, completedAt, completedAt + safeTtl,
                         safeTtl, "ready", null, lastManual)
                 )
                 CacheRefreshResult(value, false)
             } catch (cancelled: CancellationException) {
-                CacheStore.writeCacheMetadata(
+                writeMetadata(
                     CacheMetadataEntity(cacheKey, source, metadata?.fetchedAt, metadata?.expiresAt,
                         ttlMillis, "idle", null, lastManual)
                 )
@@ -178,7 +182,7 @@ class CacheRefreshCoordinator(
             } catch (error: Exception) {
                 cached = readCache()
                 val failedAt = clock()
-                CacheStore.writeCacheMetadata(
+                writeMetadata(
                     CacheMetadataEntity(
                         cacheKey, source, metadata?.fetchedAt,
                         failedAt + CacheRefreshPolicy.FAILURE_COOLDOWN_MILLIS,

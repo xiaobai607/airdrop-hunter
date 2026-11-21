@@ -11,12 +11,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import coil.compose.SubcomposeAsyncImage
 import com.airdrophunter.app.data.AirdropSiteStore
-import com.airdrophunter.app.ui.theme.AppColors
+import com.airdrophunter.app.ui.theme.AppDesignTokens
+import com.airdrophunter.app.ui.components.appPressFeedback
 
 @Composable
 fun SourcesScreen(modifier: Modifier = Modifier) {
@@ -25,27 +27,41 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    stringResource(R.string.sources_screen_description),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
         items(sources, key = { it.id }) { source ->
             Card(
-                onClick = {
-                    context.startActivity(Intent(context, BrowserActivity::class.java)
-                        .putExtra(BrowserActivity.EXTRA_URL, source.url)
-                        .putExtra(BrowserActivity.EXTRA_TITLE, source.name))
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                border = BorderStroke(1.dp, AppColors.Border),
+                modifier = Modifier.fillMaxWidth().appPressFeedback(
+                    onClick = {
+                        context.startActivity(Intent(context, BrowserActivity::class.java)
+                            .putExtra(BrowserActivity.EXTRA_URL, source.url)
+                            .putExtra(BrowserActivity.EXTRA_TITLE, source.name))
+                    },
+                    scale = 0.96f
+                ),
+                shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Row(
-                    Modifier.fillMaxWidth().padding(14.dp),
+                    Modifier.fillMaxWidth().padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Surface(Modifier.size(42.dp), shape = RoundedCornerShape(12.dp), color = Color(0xFFF3F5F7)) {
+                    Surface(Modifier.size(42.dp), shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                         SubcomposeAsyncImage(
                             model = "https://www.google.com/s2/favicons?domain=${source.domain}&sz=128",
                             contentDescription = source.name,
@@ -55,11 +71,23 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
                         )
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(source.name, color = AppColors.TextPrimary,
-                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(source.url, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            source.name,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            source.domain,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                    Text("›", color = AppColors.TextHelper, style = MaterialTheme.typography.headlineSmall)
+                    Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.headlineSmall)
                 }
             }
         }
@@ -69,6 +97,6 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun SourceLetter(name: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(name.take(1).uppercase(), color = AppColors.Primary, fontWeight = FontWeight.Bold)
+        Text(name.take(1).uppercase(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
     }
 }
