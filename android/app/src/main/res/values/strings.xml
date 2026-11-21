@@ -431,4 +431,27 @@
     <string name="loc_campaign_claim_open">Claim open</string>
     <string name="loc_campaign_ended">Ended</string>
     <string name="loc_campaign_status_pending">Status pending confirmation</string>
+    <string name="loc_hub_official_announcements">Official announcements</string>
+    <string name="loc_hub_latest_official_airdrops">Latest airdrop updates from official sources</string>
+    <string name="loc_hub_refreshing">Refreshing…</string>
+    <string name="loc_hub_refresh">Refresh</string>
+    <string name="loc_hub_announcement_load_failed">Unable to load airdrop announcements</string>
+    <string name="loc_hub_check_network_retry">Check your network and try again.</string>
+    <string name="loc_hub_reload">Reload</string>
+    <string name="loc_hub_no_new_announcements">No new announcements</string>
+    <string name="loc_hub_announcement_empty_hint">There are no new items in the official announcement directory right now. Check again later.</string>
+    <string name="loc_hub_refresh_announcements">Refresh announcements</string>
+    <string name="loc_hub_announcement_time">Announcement date: %1$s</string>
+    <string name="loc_hub_open_full_announcement">Tap to view the full announcement</string>
+    <string name="loc_hub_view_details">View details →</string>
+    <string name="loc_hub_announcement_body_failed">Unable to load the announcement. Retry or open the original Binance page.</string>
+    <string name="loc_hub_back_to_list">Back to list</string>
+    <string name="loc_hub_announcement_details">Announcement details</string>
+    <string name="loc_hub_binance_official_original">Original Binance announcement</string>
+    <string name="loc_hub_announcement_body_unavailable">Announcement content is unavailable</string>
+    <string name="loc_hub_announcement_link">Announcement link</string>
+    <string name="loc_hub_open_binance_original">Open original on Binance</string>
+    <string name="loc_hub_cannot_open_announcement">Unable to open announcement link</string>
+    <string name="loc_hub_cannot_open_binance">Unable to open the original Binance page</string>
+    <string name="loc_hub_announcement_count">%1$d airdrop announcements</string>
 </resources>
