@@ -125,3 +125,5 @@ Retry APK after backup-dialog resource formatting fix (2026-11-21).
 Fix Kotlin Compose resource calls in toolbar/home/profile/project-detail/wallet manager; rebuild bilingual APK (2026-11-21).
 
 Final compile validation after callback/context and enum label fixes (2026-11-21).
+
+Rebuild after removing unused dashboard label helpers causing Kotlin compilation failure (2026-11-21).
