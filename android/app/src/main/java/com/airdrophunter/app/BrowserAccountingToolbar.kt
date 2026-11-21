@@ -200,7 +200,7 @@ fun BrowserAccountingToolbar(
                     selectedProjectLocalId = project.id
                     onSaved()
                 }
-                .onFailure { Toast.makeText(context, "项目保存失败，请重试", Toast.LENGTH_SHORT).show() }
+                .onFailure { Toast.makeText(context, stringResource(R.string.acct_ui_project_save_failed), Toast.LENGTH_SHORT).show() }
         }
     }
 
@@ -267,7 +267,7 @@ fun BrowserAccountingToolbar(
 
     fun createManualAccountingEntry() {
         if (walletAddress.isBlank()) {
-            Toast.makeText(context, "请先在记账中心选择一个钱包，再新增手动账单", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, stringResource(R.string.acct_ui_wallet_required), Toast.LENGTH_LONG).show()
             return
         }
         scope.launch {
@@ -284,7 +284,7 @@ fun BrowserAccountingToolbar(
                 accountingRepository.addPendingBill(bill)
                 openBill(bill)
             } catch (_: Exception) {
-                Toast.makeText(context, "创建记账记录失败，请重试", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, stringResource(R.string.acct_ui_create_failed), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -299,7 +299,7 @@ fun BrowserAccountingToolbar(
         if (!bill.txHash.startsWith("MANUAL-")) return
         scope.launch {
             val ok = runCatching { accountingRepository.deletePendingBill(bill.id) }.isSuccess
-            if (!ok) Toast.makeText(context, "删除失败，请重试", Toast.LENGTH_SHORT).show()
+            if (!ok) Toast.makeText(context, stringResource(R.string.acct_ui_delete_failed), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -434,7 +434,7 @@ fun BrowserAccountingToolbar(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Add,
-                                    contentDescription = "添加工具",
+                                    contentDescription = stringResource(R.string.acct_ui_add_tool),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -469,9 +469,9 @@ fun BrowserAccountingToolbar(
                     Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("同步链上交易", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.acct_ui_sync_transaction), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(
-                        "粘贴钱包中已提交的 TxHash。App 会通过该草稿对应的链 RPC 核对发送地址、目标地址、金额和调用数据；核对不一致不会绑定。",
+                        stringResource(R.string.acct_ui_sync_txhash_help),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -486,7 +486,7 @@ fun BrowserAccountingToolbar(
                             modifier = Modifier.weight(1f)
                         ) { Text(stringResource(R.string.acct_ui_53)) }
                         AppButton(
-                            text = "核对并同步",
+                            text = stringResource(R.string.acct_ui_verify_sync),
                             enabled = web3HashSyncDraftId != null && web3HashSyncInput.isNotBlank(),
                             onClick = {
                                 val id = web3HashSyncDraftId ?: return@AppButton
@@ -497,9 +497,9 @@ fun BrowserAccountingToolbar(
                                     if (accepted) {
                                         com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, id)
                                         showWeb3HashSync = false
-                                        Toast.makeText(context, "TxHash 已核对，开始同步链上回执", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, stringResource(R.string.acct_ui_txhash_verified), Toast.LENGTH_SHORT).show()
                                     } else {
-                                        Toast.makeText(context, "TxHash 不匹配或链上尚未找到该交易", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, stringResource(R.string.acct_ui_txhash_mismatch), Toast.LENGTH_LONG).show()
                                     }
                                 }
                             },
@@ -514,10 +514,10 @@ fun BrowserAccountingToolbar(
     if (showToolManager) {
         AlertDialog(
             onDismissRequest = { showToolManager = false },
-            title = { Text("管理工具") },
+            title = { Text(stringResource(R.string.acct_ui_manage_tools)) },
             text = {
                 Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("勾选显示的工具；使用上下箭头调整顺序。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.acct_ui_tool_manager_help), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                     toolOptions.forEach { option ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
@@ -547,12 +547,12 @@ fun BrowserAccountingToolbar(
                             ) { Text("↓") }
                         }
                     }
-                    if (selectedToolIds.isEmpty()) Text("至少选择一个工具，或稍后通过默认配置恢复。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
+                    if (selectedToolIds.isEmpty()) Text(stringResource(R.string.acct_ui_tool_minimum), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                 }
             },
-            confirmButton = { AppTextButton(onClick = { showToolManager = false }) { Text("完成") } },
+            confirmButton = { AppTextButton(onClick = { showToolManager = false }) { Text(stringResource(R.string.acct_ui_done)) } },
             dismissButton = {
-                AppTextButton(onClick = { selectedToolIds = toolOptions.map { it.first } }) { Text("恢复默认") }
+                AppTextButton(onClick = { selectedToolIds = toolOptions.map { it.first } }) { Text(stringResource(R.string.acct_ui_restore_defaults)) }
             }
         )
     }
@@ -758,7 +758,7 @@ fun BrowserAccountingToolbar(
                             style = AppButtonStyle.SECONDARY
                         )
                         AppButton(
-                            text = "完成",
+                            text = stringResource(R.string.acct_ui_done),
                             onClick = { if (showDock) showBillList = false else onCloseAccounting() },
                             modifier = Modifier.weight(1f)
                         )
@@ -806,7 +806,7 @@ fun BrowserAccountingToolbar(
                             onClick = { activeBill?.let(::discardManualDraft); showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() }
                         )
                     }
-                    Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账（非链上交易）" else stringResource(R.string.acct_ui_27)) + if (bill.txHash.startsWith("MANUAL-")) "" else bill.txHash.take(8) + "..." + bill.txHash.takeLast(6), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
+                    Text((if (bill.txHash.startsWith("MANUAL-")) stringResource(R.string.acct_ui_manual_nonchain) else stringResource(R.string.acct_ui_27)) + if (bill.txHash.startsWith("MANUAL-")) "" else bill.txHash.take(8) + "..." + bill.txHash.takeLast(6), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                     if (bill.id.startsWith("WEB3-") && bill.interactionMethod.contains("手动核验")) {
                         Text(
                             stringResource(R.string.acct_ui_28),
@@ -1375,7 +1375,7 @@ fun AccountingCenterScreen(
                                     }
                                     Text(
                                         stringResource(R.string.acct_ui_actual_gas_amount, row.actual_gas_cost_usd) +
-                                            if (incomplete) "  ·  收益 USD估值未完成"
+                                            if (incomplete) stringResource(R.string.acct_ui_reward_usd_incomplete)
                                             else stringResource(R.string.acct_ui_actual_reward_amount, row.actual_reward_usd),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                                     )
@@ -1397,7 +1397,7 @@ fun AccountingCenterScreen(
                                         val assets = formatLedgerAssetBreakdown(row.extra["asset_breakdown"])
                                         if (assets.isNotBlank()) Text(assets, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             style = MaterialTheme.typography.labelSmall)
-                                        Text("记账方式：${row.interaction_method}",
+                                        Text(stringResource(R.string.acct_ui_entry_method, row.interaction_method),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
@@ -1443,7 +1443,7 @@ fun AccountingCenterScreen(
                                     ?: MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                             if (incompleteRewardRows > 0) {
-                                Text("${incompleteRewardRows} 笔记录的收益 USD 估值不完整，净收益暂不汇总，避免把未估值金额当作 0。",
+                                Text(stringResource(R.string.acct_ui_incomplete_reward_summary, incompleteRewardRows),
                                     color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall)
                             }
                         }
