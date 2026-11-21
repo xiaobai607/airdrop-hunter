@@ -56,14 +56,14 @@ fun AirdropCampaignsScreen(
                         style = MaterialTheme.typography.labelSmall)
                 }
                 AppTextButton(onClick = vm::refresh, enabled = !state.isRefreshing) {
-                    Text(if (state.isRefreshing) context.getString(R.string.loc_refreshing) else "刷新", color = MaterialTheme.colorScheme.primary)
+                    Text(if (state.isRefreshing) context.getString(R.string.loc_refreshing) else context.getString(R.string.loc_refresh), color = MaterialTheme.colorScheme.primary)
                 }
             }
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf("全部" to null, "精选" to "featured", "普通" to "ordinary").forEach { (label, tier) ->
+                listOf(context.getString(R.string.loc_campaign_all) to null, context.getString(R.string.loc_campaign_featured) to "featured", context.getString(R.string.loc_campaign_ordinary) to "ordinary").forEach { (label, tier) ->
                     AppChip(text = label, selected = state.selectedTier == tier, onClick = { vm.selectTier(tier) })
                 }
             }
@@ -226,7 +226,7 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
                     shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)
                 ) {
                     Text(
-                        if (campaign.tier == "featured") "精选" else "普通",
+                        if (campaign.tier == "featured") context.getString(R.string.loc_campaign_featured) else context.getString(R.string.loc_campaign_ordinary),
                         Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelSmall
@@ -246,7 +246,7 @@ private fun CampaignCard(campaign: AirdropCampaignDto, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                CampaignTag("Binance 官方")
+                CampaignTag(context.getString(R.string.loc_binance_official))
                 CampaignTag(campaign.chain ?: context.getString(R.string.loc_chain_pending))
                 CampaignTag(campaignStatusText(campaign.campaign_status))
                 CampaignTag(if (campaign.requires_kyc == true) context.getString(R.string.loc_kyc_required) else if (campaign.requires_kyc == false || campaign.is_kyc_free == true) context.getString(R.string.loc_kyc_free) else context.getString(R.string.loc_kyc_unknown))
