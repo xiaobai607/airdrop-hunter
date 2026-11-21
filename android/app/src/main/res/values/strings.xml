@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">Airdrop Hunter</string>
-    <string name="tab_home">首页</string><string name="tab_profile">我的</string><string name="tab_community">空投库</string><string name="tab_wallet">钱包</string><string name="tab_accounting">记账中心</string>
+    <string name="tab_home">Home</string><string name="tab_profile">Profile</string><string name="tab_community">Airdrop Hub</string><string name="tab_wallet">Wallet</string><string name="tab_accounting">Accounting</string>
     <string name="home_title">Your airdrop command center</string><string name="home_subtitle">Discover, track and manage Web3 opportunities.</string>
     <string name="quick_airdrop">Airdrop directory</string><string name="quick_wallet">Check wallet</string><string name="quick_projects">My projects</string>
     <string name="market_title">Market watch</string><string name="market_provider">Live prices by CoinPaprika</string><string name="add_coin">Add coin</string><string name="remove_coin">Remove</string>
@@ -19,4 +19,9 @@
     <string name="guest_auth_title">Login required</string>
     <string name="guest_auth_message">Please log in to sync your data and manage projects.</string>
     <string name="guest_auth_login">Log in / Register</string>
+    <string name="language_settings">App language</string>
+    <string name="language_title">Choose language</string>
+    <string name="language_english">English</string>
+    <string name="language_chinese">简体中文</string>
+    <string name="language_change_note">The app will restart to apply the selected language.</string>
 </resources>
