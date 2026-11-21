@@ -261,7 +261,6 @@
     <string name="acct_ui_gas_usd_pending">真实 Gas 已获取 · USD 待填写</string>
     <string name="acct_ui_pending_explanation">。链上回执、手动记录与失败交易的费用核对均在这里继续处理；不会自动算作已完成。</string>
     <string name="acct_ui_not_recorded">未记录</string>
-    <string name="acct_ui_gas_usd_pending">真实 Gas 已获取 · USD 待填写</string>
     <string name="acct_ui_actual_gas_short">真实 Gas $%1$.2f</string>
     <string name="acct_ui_manual_nonchain">手动记账（非链上交易）</string>
     <string name="acct_ui_reward_usd_incomplete">  ·  收益 USD估值未完成</string>
