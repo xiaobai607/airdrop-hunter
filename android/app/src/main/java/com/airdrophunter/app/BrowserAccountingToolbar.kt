@@ -728,8 +728,8 @@ fun BrowserAccountingToolbar(
                                                 if (bill.id.startsWith("WEB3-") && bill.gasCostUsd == 0.0) {
                                                     val quote = LedgerAssetBreakdownCodec.decode(bill.assetBreakdownJson)
                                                         .firstOrNull { it.kind == "gas" }?.usd_valuation
-                                                    quote?.let { String.format(Locale.US, "真实 Gas $%.2f", it) }
-                                                        ?: "真实 Gas 已获取 · USD 待填写"
+                                                    quote?.let { stringResource(R.string.acct_ui_actual_gas_short, it) }
+                                                        ?: stringResource(R.string.acct_ui_gas_usd_pending)
                                                 } else String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd),
                                                 color = MaterialTheme.colorScheme.tertiary,
                                                 fontWeight = FontWeight.Bold
