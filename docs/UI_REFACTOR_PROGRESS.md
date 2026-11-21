@@ -4,7 +4,7 @@
 
 - 产品：DropPilot（原 Airdrop Hunter；当前 Android / Kotlin + Jetpack Compose）
 - 设计基准：苹果式层级与材质 + 小米式信息密度与触感
-- 当前分支：`main`
+- 目标主分支：`main`
 - 当前 PR：#141（统一代码基线；待合并与最终验收）
 - 台账创建基线：2026-11-13
 - 状态定义：
