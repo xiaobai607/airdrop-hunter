@@ -263,7 +263,7 @@ private fun X5BrowserScreen(
             kotlinx.coroutines.delay(30_000)
             if (pageState == X5PageState.Loading) {
                 pageState = X5PageState.Error
-                pageError = "错误类型：网页加载超时\n等待时间：30 秒\n当前网站：${Uri.parse(currentUrl).host.orEmpty().ifBlank { "未知网站" }}\n说明：浏览器内核未能在等待时间内提交首屏内容。"
+                pageError = context.getString(R.string.loc_x5_timeout_detail, Uri.parse(currentUrl).host.orEmpty().ifBlank { context.getString(R.string.loc_x5_unknown_site) })
             }
         }
     }
@@ -592,7 +592,7 @@ private fun X5BrowserScreen(
                                                     failingUrl: String?
                                                 ) {
                                                     pageState = X5PageState.Error
-                                                    pageError = "错误类型：网页网络错误\n错误码：$errorCode\n错误描述：${description ?: "系统未提供"}\n失败网址：${failingUrl ?: currentUrl}"
+                                                    pageError = context.getString(R.string.loc_x5_network_error_detail, errorCode, description ?: context.getString(R.string.loc_x5_system_not_provided), failingUrl ?: currentUrl)
                                                     Log.e("AirdropX5Browser", "X5 load error code=$errorCode description=$description url=$failingUrl")
                                                 }
 
@@ -603,7 +603,7 @@ private fun X5BrowserScreen(
                                                 ) {
                                                     handler?.cancel()
                                                     pageState = X5PageState.Error
-                                                    pageError = "错误类型：HTTPS/SSL 证书验证失败\n证书错误：${error ?: "未知"}\n网址：$currentUrl\n安全处理：已阻止连接，没有跳过证书验证。"
+                                                    pageError = context.getString(R.string.loc_x5_ssl_error_detail, error ?: context.getString(R.string.loc_x5_unknown_error), currentUrl)
                                                     Log.e("AirdropX5Browser", "Blocked X5 page because TLS validation failed: $error")
                                                 }
                                             }
@@ -843,7 +843,7 @@ private fun X5BrowserScreen(
                                         }
                                     }.getOrElse { error ->
                                         pageState = X5PageState.Error
-                                        pageError = "错误类型：X5 WebView 创建失败\n原因：${error.javaClass.simpleName}: ${error.localizedMessage ?: "未提供"}"
+                                        pageError = context.getString(R.string.loc_x5_create_failed, error.javaClass.simpleName, error.localizedMessage ?: context.getString(R.string.loc_x5_system_not_provided))
                                         Log.e("AirdropX5Browser", "Could not create X5 WebView", error)
                                         android.widget.FrameLayout(ctx)
                                     }
@@ -918,7 +918,7 @@ private fun X5BrowserScreen(
             title = { Text(context.getString(R.string.loc_x5_28)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("来源网站：$requestedHost", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    Text(context.getString(R.string.loc_x5_origin_label, requestedHost), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                     Text(context.getString(R.string.loc_x5_29))
                 }
             },
