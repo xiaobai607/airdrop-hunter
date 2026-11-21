@@ -261,4 +261,27 @@
     <string name="acct_ui_gas_usd_pending">真实 Gas 已获取 · USD 待填写</string>
     <string name="acct_ui_pending_explanation">。链上回执、手动记录与失败交易的费用核对均在这里继续处理；不会自动算作已完成。</string>
     <string name="acct_ui_not_recorded">未记录</string>
+    <string name="acct_ui_gas_usd_pending">真实 Gas 已获取 · USD 待填写</string>
+    <string name="acct_ui_actual_gas_short">真实 Gas $%1$.2f</string>
+    <string name="acct_ui_manual_nonchain">手动记账（非链上交易）</string>
+    <string name="acct_ui_reward_usd_incomplete">  ·  收益 USD估值未完成</string>
+    <string name="acct_ui_entry_method">记账方式：%1$s</string>
+    <string name="acct_ui_incomplete_reward_summary">%1$d 笔记录的收益 USD 估值不完整，净收益暂不汇总，避免把未估值金额当作 0。</string>
+    <string name="acct_ui_project_save_failed">项目保存失败，请重试</string>
+    <string name="acct_ui_wallet_required">请先在记账中心选择一个钱包，再新增手动账单</string>
+    <string name="acct_ui_create_failed">创建记账记录失败，请重试</string>
+    <string name="acct_ui_delete_failed">删除失败，请重试</string>
+    <string name="acct_ui_add_tool">添加工具</string>
+    <string name="acct_ui_sync_transaction">同步链上交易</string>
+    <string name="acct_ui_sync_txhash_help">粘贴钱包中已提交的 TxHash。App 会通过该草稿对应的链 RPC 核对发送地址、目标地址、金额和调用数据；核对不一致不会绑定。</string>
+    <string name="acct_ui_verify_sync">核对并同步</string>
+    <string name="acct_ui_txhash_verified">TxHash 已核对，开始同步链上回执</string>
+    <string name="acct_ui_txhash_mismatch">TxHash 不匹配或链上尚未找到该交易</string>
+    <string name="acct_ui_manage_tools">管理工具</string>
+    <string name="acct_ui_tool_manager_help">勾选显示的工具；使用上下箭头调整顺序。</string>
+    <string name="acct_ui_tool_minimum">至少选择一个工具，或稍后通过默认配置恢复。</string>
+    <string name="acct_ui_done">完成</string>
+    <string name="acct_ui_restore_defaults">恢复默认</string>
+    <string name="acct_ui_estimated_gas_label">理论 Gas：%1$s</string>
+    <string name="acct_ui_estimated_reward_label">理论收益：%1$s</string>
 </resources>
