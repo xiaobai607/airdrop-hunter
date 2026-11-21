@@ -342,4 +342,6 @@
     <string name="loc_projects_50">Enter the project\'s official eligibility page. Do not use untrusted third-party links.</string>
     <string name="loc_projects_51">Save project</string>
     <string name="loc_projects_filter_empty">No projects in “%1$s”. Change the filter to view other projects.</string>
+    <string name="loc_projects_all">All</string>
+    <string name="loc_projects_delete_message">“%1$s” will be removed from the project list. Confirmed gas fees, earnings, and ledger history will not be deleted.</string>
 </resources>
