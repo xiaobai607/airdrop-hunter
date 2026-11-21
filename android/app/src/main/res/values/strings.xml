@@ -140,4 +140,7 @@
     <string name="wallet_ui_address_hint">%1$s address</string>
     <string name="wallet_ui_connection_source">Source: %1$s · EVM chain %2$s</string>
     <string name="wallet_ui_connection_disclaimer">Saving stores only the public address and does not grant websites permission to transact or sign. Every transaction must still be confirmed in the external wallet.</string>
+    <string name="wallet_ui_filter_all">All</string>
+    <string name="wallet_ui_address_count_unit">addresses</string>
+    <string name="wallet_ui_network_type_count_unit">network types</string>
 </resources>
