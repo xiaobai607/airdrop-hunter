@@ -1,5 +1,6 @@
 package com.airdrophunter.app
 
+import android.app.Activity
 import android.widget.Toast
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
@@ -62,6 +64,7 @@ fun ProfileScreen(
     var showBackupPasswordDialog by remember { mutableStateOf(false) }
     var showImportPasswordDialog by remember { mutableStateOf(false) }
     var showRestoreConfirmDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
     var backupPassword by remember { mutableStateOf("") }
     var backupPasswordConfirm by remember { mutableStateOf("") }
     var importPassword by remember { mutableStateOf("") }
@@ -265,6 +268,8 @@ fun ProfileScreen(
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                     SettingRow("设置", Icons.Default.Settings) { activeProfileDestination = ProfileDestination.SETTINGS }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingRow(context.getString(R.string.language_settings), Icons.Default.Language) { showLanguageDialog = true }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow("安全中心", Icons.Default.Security) { activeProfileDestination = ProfileDestination.SECURITY }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow("消息通知", Icons.Default.NotificationsNone) { activeProfileDestination = ProfileDestination.NOTIFICATIONS }
@@ -272,6 +277,40 @@ fun ProfileScreen(
                     SettingRow("钱包管理", Icons.Default.Wallet, onManageWallets)
                 }
             }
+        }
+
+        if (showLanguageDialog) {
+            AlertDialog(
+                onDismissRequest = { showLanguageDialog = false },
+                title = { Text(stringResource(R.string.language_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            stringResource(R.string.language_change_note),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        AppTextButton(
+                            onClick = {
+                                AppLocale.setLanguage(context, "en")
+                                showLanguageDialog = false
+                                (context as? Activity)?.recreate()
+                            }
+                        ) { Text(stringResource(R.string.language_english)) }
+                        AppTextButton(
+                            onClick = {
+                                AppLocale.setLanguage(context, "zh-CN")
+                                showLanguageDialog = false
+                                (context as? Activity)?.recreate()
+                            }
+                        ) { Text(stringResource(R.string.language_chinese)) }
+                    }
+                },
+                confirmButton = {
+                    AppTextButton(onClick = { showLanguageDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
         }
 
         if (showBackupPasswordDialog) {
