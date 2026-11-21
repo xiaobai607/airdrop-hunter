@@ -734,7 +734,7 @@ fun BrowserAccountingToolbar(
                                                 color = MaterialTheme.colorScheme.tertiary,
                                                 fontWeight = FontWeight.Bold
                                             )
-                                            Text((if (bill.txHash.startsWith("MANUAL-")) stringResource(R.string.acct_ui_manual_entry_prefix) else stringResource(R.string.acct_ui_pending_tx_prefix)) + bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                            Text(if (bill.txHash.startsWith("MANUAL-")) stringResource(R.string.acct_ui_manual_nonchain) else stringResource(R.string.acct_ui_pending_tx_prefix) + bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                                         }
                                         if (bill.txHash.startsWith("MANUAL-")) {
