@@ -87,7 +87,7 @@ fun AirdropDiscoveryScreen(
             Text(state.message!!, color = MaterialTheme.colorScheme.primary)
         }
         if (state.error != null) {
-            Text("读取失败：${state.error}", color = MaterialTheme.colorScheme.error)
+            Text(context.getString(R.string.loc_airdrop_read_error, state.error), color = MaterialTheme.colorScheme.error)
         }
         if (state.isLoading && state.items.isEmpty()) {
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
@@ -150,14 +150,14 @@ fun AirdropDiscoveryScreen(
                                     }
                                 }
                             }
-                            if (item.reward_details.isNotBlank()) Text("奖励 · ${item.reward_details}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                            if (item.eligibility.isNotBlank()) Text("参与条件 · ${item.eligibility}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                            Text("来源 · ${item.source_name}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (item.reward_details.isNotBlank()) Text(context.getString(R.string.loc_airdrop_reward_value, item.reward_details), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            if (item.eligibility.isNotBlank()) Text(context.getString(R.string.loc_airdrop_eligibility_value, item.eligibility), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            Text(context.getString(R.string.loc_airdrop_source_value, if (item.source_name == "手动录入") context.getString(R.string.loc_airdrop_manual_entry) else item.source_name), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (item.official_url.isNotBlank()) {
-                                Text("官方链接：${item.official_url}", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                Text(context.getString(R.string.loc_airdrop_official_url, item.official_url), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             }
                             if (item.source_url.isNotBlank()) {
-                                Text("来源链接：${item.source_url}", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                Text(context.getString(R.string.loc_airdrop_source_url, item.source_url), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             }
                         }
                     }
