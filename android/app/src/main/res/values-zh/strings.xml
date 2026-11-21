@@ -783,4 +783,6 @@
     <string name="loc_browser_switch_site_notice">即将切换网站：%1$s。请核对域名，不要输入助记词或私钥。</string>
     <string name="loc_browser_security_notice">安全提醒：本 App 不保存私钥。签名和交易由外部钱包确认；请核对网站域名。</string>
     <string name="loc_browser_origin_label">来源网站：%1$s</string>
+    <string name="loc_browser_unknown">未知</string>
+    <string name="loc_browser_system_not_provided">系统未提供</string>
 </resources>
