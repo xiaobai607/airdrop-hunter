@@ -455,4 +455,12 @@
     <string name="loc_hub_cannot_open_announcement">无法打开公告链接</string>
     <string name="loc_hub_cannot_open_binance">无法打开 Binance 原文</string>
     <string name="loc_hub_announcement_count">%1$d 条空投公告</string>
+    <string name="loc_airdrop_read_error">读取失败：%1$s</string>
+    <string name="loc_airdrop_reward_value">奖励 · %1$s</string>
+    <string name="loc_airdrop_eligibility_value">参与条件 · %1$s</string>
+    <string name="loc_airdrop_source_value">来源 · %1$s</string>
+    <string name="loc_airdrop_official_url">官方链接：%1$s</string>
+    <string name="loc_airdrop_source_url">来源链接：%1$s</string>
+    <string name="loc_airdrop_manual_entry">手动录入</string>
+    <string name="loc_campaign_count">%1$d 个公开活动</string>
 </resources>
