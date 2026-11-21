@@ -343,4 +343,6 @@
     <string name="loc_projects_50">资格查询链接请填写项目方官方页面，不要填写来历不明的第三方链接。</string>
     <string name="loc_projects_51">保存项目</string>
     <string name="loc_projects_filter_empty">「%1$s」分类下暂无项目，切换筛选条件即可查看其他项目。</string>
+    <string name="loc_projects_all">全部</string>
+    <string name="loc_projects_delete_message">将从项目列表中移除“%1$s”。已确认的 Gas、收益和历史账本不会被删除。</string>
 </resources>
