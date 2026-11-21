@@ -1,4 +1,6 @@
 <resources>
+    <string name="tab_accounting">记账中心</string>
+    <string name="wallet_project_library">我的项目库</string>
     <string name="app_name">DropPilot</string>
     <string name="tab_home">首页</string><string name="tab_profile">我的</string><string name="tab_community">空投库</string><string name="tab_projects">库管理</string><string name="tab_wallet">钱包</string>
     <string name="home_title">你的空投指挥中心</string><string name="home_subtitle">发现、追踪和管理 Web3 机会。</string>
