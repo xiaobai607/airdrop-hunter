@@ -808,22 +808,6 @@ private object HomeDashboardLayoutStore {
         HomeDashboardCard("tron_energy"),
     )
     private val supported = listOf("airdrop_navigation", "accounting", "wallet_management", "tron_energy", "project_library")
-    fun title(id: String) = when (id) {
-        "airdrop_navigation" -> context.getString(R.string.home_airdrop_directory)
-        "accounting" -> "记账"
-        "wallet_management" -> "钱包管理"
-        "tron_energy" -> "TRON 能量租赁"
-        "project_library" -> "库管理"
-        else -> "快捷入口"
-    }
-    fun subtitle(id: String) = when (id) {
-        "airdrop_navigation" -> "常用活动网站"
-        "accounting" -> "记录Gas与收益"
-        "wallet_management" -> "管理已保存地址"
-        "tron_energy" -> "租赁前核对转出地址"
-        "project_library" -> "管理个人项目与任务"
-        else -> ""
-    }
     fun available(selected: Set<String>) = supported.filterNot { it in selected }
     fun load(context: android.content.Context): List<HomeDashboardCard> {
         val preferences = context.getSharedPreferences("home_dashboard_layout", android.content.Context.MODE_PRIVATE)
