@@ -550,4 +550,14 @@
     <string name="loc_detail_85">暂无估值</string>
     <string name="loc_detail_86">实际 Gas · USD估值</string>
     <string name="loc_detail_87">实际收益 · USD估值</string>
+    <string name="loc_detail_claim_title">%1$s · 资格领取</string>
+    <string name="loc_detail_linked_wallet_count">%1$d 个</string>
+    <string name="loc_detail_usd_valuation">USD估值 $%1$.2f</string>
+    <string name="loc_detail_estimated_reward">预估奖励：USD $%1$.2f</string>
+    <string name="loc_detail_asset_breakdown">币种明细：%1$s</string>
+    <string name="loc_detail_transaction_hash">交易：%1$s…</string>
+    <string name="loc_detail_period_day">日</string>
+    <string name="loc_detail_period_week">周</string>
+    <string name="loc_detail_period_month">月</string>
+    <string name="loc_detail_ledger_period_title">%1$s</string>
 </resources>
