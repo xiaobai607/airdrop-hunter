@@ -718,4 +718,13 @@
     <string name="loc_x5_43">Intermediate pre-initialization state; this does not indicate an installation failure.</string>
     <string name="loc_x5_44">Installation did not succeed or is in another state. Keep this code for troubleshooting.</string>
     <string name="loc_x5_invalid_start_url">Invalid URL. Check the link and try again.</string>
+    <string name="loc_x5_unknown_site">Unknown site</string>
+    <string name="loc_x5_system_not_provided">Not provided by the system</string>
+    <string name="loc_x5_unknown_error">Unknown</string>
+    <string name="loc_x5_timeout_detail">Page load timed out after 30 seconds. Site: %1$s. The browser engine did not provide first-screen content in time.</string>
+    <string name="loc_x5_network_error_detail">Web page network error. Code: %1$d. Description: %2$s. Failed URL: %3$s</string>
+    <string name="loc_x5_ssl_error_detail">HTTPS/SSL certificate verification failed. Certificate error: %1$s. URL: %2$s. Connection was blocked; certificate validation was not bypassed.</string>
+    <string name="loc_x5_download_detected">A download link was detected. Open it in an external browser: %1$s</string>
+    <string name="loc_x5_create_failed">X5 WebView creation failed. Reason: %1$s: %2$s</string>
+    <string name="loc_x5_origin_label">Source website: %1$s</string>
 </resources>
