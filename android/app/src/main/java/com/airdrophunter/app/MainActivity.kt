@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -183,7 +184,7 @@ private val startupSyncLock = Any()
 
 private data class Destination(val label: Int, val icon: ImageVector)
 
-private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY }
+private enum class AppOverlay { NONE, SOURCES, AIRDROP_HUB, AIRDROP_CAMPAIGNS, WALLET_MANAGER, PROJECT_LIBRARY, GLOBAL_SEARCH, MARKET_DETAIL, TRON_ENERGY }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -201,16 +202,14 @@ private fun AirdropHunterApp(
     var selectedMarketSymbol by rememberSaveable { mutableStateOf("BTC") }
     var selectedProject by remember { mutableStateOf<ProjectDto?>(null) }
     var selectedCommunityProject by remember { mutableStateOf<ProjectDto?>(null) }
-    var showAccountingSheet by rememberSaveable { mutableStateOf(false) }
     var reopenAccountingAfterWalletManager by rememberSaveable { mutableStateOf(false) }
     var launchWalletConnectOnOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(activeOverlay, reopenAccountingAfterWalletManager) {
         if (activeOverlay == AppOverlay.NONE && reopenAccountingAfterWalletManager) {
             reopenAccountingAfterWalletManager = false
-            showAccountingSheet = true
+            tab = 3
         }
     }
-    val accountingSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Never leave a previous account's secondary screen or editor alive after a session switch.
     LaunchedEffect(sessionScopeKey) {
@@ -220,7 +219,7 @@ private fun AirdropHunterApp(
     }
 
     val hasSecondaryDestination = activeOverlay != AppOverlay.NONE || selectedProject != null || selectedCommunityProject != null
-    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.WALLET_MANAGER, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
+    val showTopBar = activeOverlay in setOf(AppOverlay.SOURCES, AppOverlay.AIRDROP_HUB, AppOverlay.AIRDROP_CAMPAIGNS, AppOverlay.WALLET_MANAGER, AppOverlay.PROJECT_LIBRARY, AppOverlay.MARKET_DETAIL, AppOverlay.TRON_ENERGY) || selectedProject != null || selectedCommunityProject != null
 
     BackHandler(hasSecondaryDestination) {
         activeOverlay = AppOverlay.NONE
@@ -231,8 +230,8 @@ private fun AirdropHunterApp(
     val destinations = listOf(
         Destination(R.string.tab_home, Icons.Default.Home),
         Destination(R.string.tab_community, Icons.Default.Public),
-        Destination(R.string.tab_projects, Icons.Default.GridView),
         Destination(R.string.tab_wallet, Icons.Default.AccountBalanceWallet),
+        Destination(R.string.tab_accounting, Icons.Default.ReceiptLong),
         Destination(R.string.tab_profile, Icons.Default.Person)
     )
     val projectTransitionSnapshots = remember { mutableStateMapOf<String, ProjectDto>() }
@@ -251,6 +250,7 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "global-search"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "market-detail"
         activeOverlay == AppOverlay.WALLET_MANAGER -> "wallet-manager"
+        activeOverlay == AppOverlay.PROJECT_LIBRARY -> "project-library"
         selectedCommunityProject != null -> "community:${selectedCommunityProject!!.id}"
         selectedProject != null -> "project:${selectedProject!!.id}"
         else -> "tab:$tab"
@@ -260,6 +260,7 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.AIRDROP_HUB -> stringResource(R.string.main_overlay_airdrop_discovery)
         activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> stringResource(R.string.main_overlay_airdrop_events)
         activeOverlay == AppOverlay.WALLET_MANAGER -> stringResource(R.string.main_overlay_wallet_manager)
+        activeOverlay == AppOverlay.PROJECT_LIBRARY -> stringResource(R.string.wallet_project_library)
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> stringResource(R.string.main_overlay_global_search)
         activeOverlay == AppOverlay.MARKET_DETAIL -> stringResource(R.string.main_market_detail_title, selectedMarketSymbol)
         activeOverlay == AppOverlay.TRON_ENERGY -> stringResource(R.string.main_overlay_tron_energy)
@@ -392,6 +393,14 @@ private fun AirdropHunterApp(
                         symbol = selectedMarketSymbol,
                         modifier = Modifier.fillMaxSize()
                     )
+                    route == "project-library" -> ProjectsScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onProjectSelected = { selectedProject = it },
+                        isGuest = isGuest,
+                        onRequireAuth = onRequireAuth,
+                        onOpenCommunity = { selectedCommunityProject = it },
+                        sessionScopeKey = sessionScopeKey
+                    )
                     route == "wallet-manager" -> WalletManagerScreen(
                         modifier = Modifier.fillMaxSize(),
                         isGuest = isGuest,
@@ -446,16 +455,16 @@ private fun AirdropHunterApp(
                         HomeScreen(
                             modifier = Modifier.fillMaxSize(),
                             onOpenSources = { activeOverlay = AppOverlay.SOURCES },
-                            onOpenWallet = { tab = 3 },
+                            onOpenWallet = { tab = 2 }
                             onOpenGlobalSearch = { activeOverlay = AppOverlay.GLOBAL_SEARCH },
                             onOpenMarketDetail = { symbol ->
                                 selectedMarketSymbol = symbol
                                 activeOverlay = AppOverlay.MARKET_DETAIL
                             },
-                            onOpenProjects = { tab = 2 },
+                            onOpenProjects = { tab = 2; activeOverlay = AppOverlay.PROJECT_LIBRARY }
                             onOpenAirdropCampaigns = { activeOverlay = AppOverlay.AIRDROP_CAMPAIGNS },
                             onOpenTronEnergy = { activeOverlay = AppOverlay.TRON_ENERGY },
-                            onOpenAccounting = { showAccountingSheet = true },
+                            onOpenAccounting = { tab = 3 }
                             isGuest = isGuest,
                             onRequireAuth = onRequireAuth,
                             sessionScopeKey = sessionScopeKey
@@ -470,17 +479,8 @@ private fun AirdropHunterApp(
                         )
                     }
                     route == "tab:2" -> tabStateHolder.SaveableStateProvider("bottom-tab-2") {
-                        ProjectsScreen(
-                            Modifier.fillMaxSize(),
-                            { selectedProject = it },
-                            isGuest,
-                            onRequireAuth,
-                            onOpenCommunity = { selectedCommunityProject = it },
-                            sessionScopeKey = sessionScopeKey
-                        )
-                    }
-                    route == "tab:3" -> tabStateHolder.SaveableStateProvider("bottom-tab-3") {
                         WalletManagerScreen(
+                            onOpenProjectLibrary = { activeOverlay = AppOverlay.PROJECT_LIBRARY },
                             modifier = Modifier.fillMaxSize(),
                             isGuest = isGuest,
                             sessionScopeKey = sessionScopeKey,
@@ -505,37 +505,30 @@ private fun AirdropHunterApp(
                             }
                         )
                     }
+                    route == "tab:3" -> tabStateHolder.SaveableStateProvider("bottom-tab-3") {
+                        AccountingCenterScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            isGuest = isGuest,
+                            onClose = { tab = 0 },
+                            onConnectWallet = {
+                                reopenAccountingAfterWalletManager = true
+                                launchWalletConnectOnOpen = true
+                                activeOverlay = AppOverlay.WALLET_MANAGER
+                            }
+                        )
+                    }
                     else -> tabStateHolder.SaveableStateProvider("bottom-tab-4") {
                         ProfileScreen(
                             Modifier.fillMaxSize(),
                             onLogout,
                             isGuest,
                             onRequireAuth,
-                            onManageWallets = { tab = 3 },
+                            onManageWallets = { tab = 2 },
                             sessionScopeKey = sessionScopeKey
                         )
                     }
                 }
             }
-        }
-    }
-    if (showAccountingSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showAccountingSheet = false },
-            sheetState = accountingSheetState,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
-            AccountingCenterScreen(
-                modifier = Modifier.fillMaxWidth(),
-                isGuest = isGuest,
-                onClose = { showAccountingSheet = false },
-                onConnectWallet = {
-                    reopenAccountingAfterWalletManager = true
-                    launchWalletConnectOnOpen = true
-                    showAccountingSheet = false
-                    activeOverlay = AppOverlay.WALLET_MANAGER
-                }
-            )
         }
     }
 }
