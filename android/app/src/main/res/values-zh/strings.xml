@@ -608,4 +608,6 @@
     <string name="loc_profile_46">确认导入</string>
     <string name="loc_profile_47">备份时间：%1$s
 包含 %2$d 条本地记录。导入后将替换当前设备此会话的数据，此操作不能自动撤销。</string>
+    <string name="loc_profile_stats_line">参与项目 %1$d · 净收益 %2$s · 已完成 %3$d · 交互 %4$d 天</string>
+    <string name="loc_profile_backup_help">支持 .ahbackup 和 .hunter 文件。备份文件经过密码加密；换机时选择文件并输入相同密码即可恢复，请妥善保存文件和密码。</string>
 </resources>
