@@ -91,7 +91,7 @@ fun HomeScreen(
     val state by homeViewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(state.marketError) {
         if (state.marketError?.startsWith("刚刚刷新过") == true) {
-            android.widget.Toast.makeText(context, state.marketError, android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.home_market_recently_refreshed), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
     val scope = rememberCoroutineScope()
