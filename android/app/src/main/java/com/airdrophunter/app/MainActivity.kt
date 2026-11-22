@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         applicationContext,
-                        "交易回调未通过校验，请使用链上同步补单",
+                        getString(R.string.loc_main_tx_callback_invalid),
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -162,7 +162,7 @@ class MainActivity : ComponentActivity() {
                     onRequireAuth = {
                         Toast.makeText(
                             applicationContext,
-                            "当前版本暂不开放注册/登录",
+                            getString(R.string.loc_main_login_unavailable),
                             Toast.LENGTH_LONG
                         ).show()
                     },
@@ -170,7 +170,7 @@ class MainActivity : ComponentActivity() {
                     onOpenAuth = {
                         Toast.makeText(
                             applicationContext,
-                            "当前版本暂不开放注册/登录",
+                            getString(R.string.loc_main_login_unavailable),
                             Toast.LENGTH_LONG
                         ).show()
                     }
