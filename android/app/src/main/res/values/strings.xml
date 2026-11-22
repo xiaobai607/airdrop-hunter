@@ -836,4 +836,8 @@
     <string name="comm_submit">Submit</string>
     <string name="comm_cancel">Cancel</string>
     <string name="comm_catalog_error">The project directory is temporarily unavailable. It will retry when you are online.</string>
+    <string name="comm_filter_count">Airdrop filters · %1$d</string>
+    <string name="comm_added_project">%1$s added to your project library</string>
+    <string name="comm_submit_success">Project submitted: %1$s</string>
+    <string name="comm_campaigns_title">Airdrop campaigns</string>
 </resources>
