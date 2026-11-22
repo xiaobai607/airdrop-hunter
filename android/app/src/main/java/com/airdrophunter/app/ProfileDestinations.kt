@@ -1,5 +1,9 @@
 package com.airdrophunter.app
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +16,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -25,6 +32,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.airdrophunter.app.ui.components.BaseCard
 import com.airdrophunter.app.ui.theme.AppDesignTokens
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
 
 enum class ProfileDestination(val titleRes: Int) {
     SETTINGS(R.string.profile_settings),
@@ -74,6 +87,19 @@ fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String
 @Composable
 private fun SettingsDestinationContent(appVersion: String) {
     val context = LocalContext.current
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    var languageChoice by remember { mutableStateOf(AppLocale.selectedLanguageChoice(context)) }
+    val languageLabel = when (languageChoice) {
+        "zh-CN" -> context.getString(R.string.language_chinese)
+        "en" -> context.getString(R.string.language_english)
+        else -> context.getString(R.string.language_system)
+    }
+    fun applyLanguage(choice: String) {
+        AppLocale.setLanguage(context, choice)
+        languageChoice = choice
+        showLanguageDialog = false
+        context.findActivity()?.recreate()
+    }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             context.getString(R.string.loc_profile_dest_01),
@@ -85,10 +111,43 @@ private fun SettingsDestinationContent(appVersion: String) {
         DestinationInfoCard {
             SettingsInfoRow(
                 icon = { Icon(Icons.Default.Language, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                title = context.getString(R.string.loc_profile_dest_02),
-                description = context.getString(R.string.loc_profile_dest_03)
+                title = context.getString(R.string.language_settings),
+                description = languageLabel,
+                trailing = context.getString(R.string.language_change_action)
             )
+            TextButton(onClick = { showLanguageDialog = true }, modifier = Modifier.align(Alignment.End)) {
+                Text(context.getString(R.string.language_change_action))
+            }
         }
+    }
+
+    if (showLanguageDialog) {
+        AlertDialog(
+            onDismissRequest = { showLanguageDialog = false },
+            title = { Text(context.getString(R.string.language_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(context.getString(R.string.language_change_note), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    listOf(
+                        "system" to context.getString(R.string.language_system),
+                        "zh-CN" to context.getString(R.string.language_chinese),
+                        "en" to context.getString(R.string.language_english)
+                    ).forEach { (choice, label) ->
+                        TextButton(onClick = { applyLanguage(choice) }, modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(selected = languageChoice == choice, onClick = null)
+                                Text(label, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLanguageDialog = false }) {
+                    Text(context.getString(R.string.cancel))
+                }
+            }
+        )
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
