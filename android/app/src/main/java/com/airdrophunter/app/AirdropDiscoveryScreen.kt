@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airdrophunter.app.data.AirdropWriteRequest
@@ -65,20 +66,20 @@ fun AirdropDiscoveryScreen(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("空投记录", modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+        Text(stringResource(R.string.loc_airdrop_records), modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
         Text(
-            "这里只展示已保存的活动记录。请核对官方链接；未验证记录不会被标记为官方确认。",
+            stringResource(R.string.loc_airdrop_records_intro),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AppButton(
-                text = "刷新", onClick = { airdropsViewModel.loadAirdrops() },
+                text = stringResource(R.string.loc_hub_refresh), onClick = { airdropsViewModel.loadAirdrops() },
                 enabled = !state.isLoading, loading = state.isLoading,
                 style = AppButtonStyle.SECONDARY, fullWidth = false, heightDp = 44, fontSizeSp = 14
             )
             AppButton(
-                text = "添加空投", onClick = { showAddDialog = true },
+                text = stringResource(R.string.loc_add_airdrop), onClick = { showAddDialog = true },
                 enabled = !state.isSaving, fullWidth = false, heightDp = 44, fontSizeSp = 14
             )
         }
@@ -86,7 +87,7 @@ fun AirdropDiscoveryScreen(
             Text(state.message!!, color = MaterialTheme.colorScheme.primary)
         }
         if (state.error != null) {
-            Text("读取失败：${state.error}", color = MaterialTheme.colorScheme.error)
+            Text(stringResource(R.string.loc_airdrop_read_error, state.error), color = MaterialTheme.colorScheme.error)
         }
         if (state.isLoading && state.items.isEmpty()) {
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
@@ -100,10 +101,10 @@ fun AirdropDiscoveryScreen(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(if (state.error != null) "暂时无法读取空投记录" else "还没有空投记录", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Text(if (state.error != null) "请检查网络后重试；已保存的记录不会因此被删除。" else "添加你找到的项目和官方来源链接，集中管理参与条件与奖励信息。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (state.error != null) AppButton("重新加载", onClick = { airdropsViewModel.loadAirdrops() }, fullWidth = false)
-                    else AppButton("添加第一条记录", onClick = { showAddDialog = true }, fullWidth = false)
+                    Text(if (state.error != null) stringResource(R.string.loc_airdrop_load_failed) else stringResource(R.string.loc_empty_airdrops), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(if (state.error != null) stringResource(R.string.loc_airdrop_retry_hint) else stringResource(R.string.loc_airdrop_empty_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (state.error != null) AppButton(stringResource(R.string.loc_hub_reload), onClick = { airdropsViewModel.loadAirdrops() }, fullWidth = false)
+                    else AppButton(stringResource(R.string.loc_add_first_airdrop), onClick = { showAddDialog = true }, fullWidth = false)
                 }
             }
         } else {
@@ -143,20 +144,20 @@ fun AirdropDiscoveryScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                listOf(airdropStatusLabel(item.status), item.chain.ifBlank { "链未填写" }).forEach { tag ->
+                                listOf(airdropStatusLabel(item.status), item.chain.ifBlank { stringResource(R.string.loc_airdrop_chain_missing) }).forEach { tag ->
                                     Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)) {
                                         Text(tag, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             }
-                            if (item.reward_details.isNotBlank()) Text("奖励 · ${item.reward_details}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                            if (item.eligibility.isNotBlank()) Text("参与条件 · ${item.eligibility}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                            Text("来源 · ${item.source_name}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (item.reward_details.isNotBlank()) Text(stringResource(R.string.loc_airdrop_reward_value, item.reward_details), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            if (item.eligibility.isNotBlank()) Text(stringResource(R.string.loc_airdrop_eligibility_value, item.eligibility), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            Text(stringResource(R.string.loc_airdrop_source_value, item.source_name), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (item.official_url.isNotBlank()) {
-                                Text("官方链接：${item.official_url}", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                Text(stringResource(R.string.loc_airdrop_official_url, item.official_url), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             }
                             if (item.source_url.isNotBlank()) {
-                                Text("来源链接：${item.source_url}", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                Text(stringResource(R.string.loc_airdrop_source_url, item.source_url), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -194,24 +195,24 @@ private fun AddAirdropDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text("添加空投记录", color = MaterialTheme.colorScheme.onSurface) },
+        title = { Text(stringResource(R.string.loc_add_airdrop_record), color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(
                 Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                AppTextField(name, { name = it }, placeholder = "项目名称 *")
-                AppTextField(description, { description = it }, placeholder = "项目简介", singleLine = false)
-                AppTextField(chain, { chain = it }, placeholder = "所属链，例如 Base")
-                AppTextField(reward, { reward = it }, placeholder = "奖励说明", singleLine = false)
-                AppTextField(eligibility, { eligibility = it }, placeholder = "参与条件", singleLine = false)
-                AppTextField(officialUrl, { officialUrl = it }, placeholder = "官方活动链接")
-                AppTextField(sourceUrl, { sourceUrl = it }, placeholder = "信息来源链接")
+                AppTextField(name, { name = it }, placeholder = stringResource(R.string.loc_project_name_required))
+                AppTextField(description, { description = it }, placeholder = stringResource(R.string.loc_project_intro), singleLine = false)
+                AppTextField(chain, { chain = it }, placeholder = stringResource(R.string.loc_airdrop_chain_hint))
+                AppTextField(reward, { reward = it }, placeholder = stringResource(R.string.loc_airdrop_reward_hint), singleLine = false)
+                AppTextField(eligibility, { eligibility = it }, placeholder = stringResource(R.string.loc_airdrop_eligibility_hint), singleLine = false)
+                AppTextField(officialUrl, { officialUrl = it }, placeholder = stringResource(R.string.loc_official_campaign_url))
+                AppTextField(sourceUrl, { sourceUrl = it }, placeholder = stringResource(R.string.loc_airdrop_source_hint))
             }
         },
         confirmButton = {
             AppButton(
-                text = "保存",
+                text = stringResource(R.string.home_save),
                 enabled = name.isNotBlank() && !saving,
                 loading = saving,
                 onClick = {
@@ -234,7 +235,7 @@ private fun AddAirdropDialog(
                 }
             )
         },
-        dismissButton = { AppTextButton(onClick = onDismiss, enabled = !saving) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = onDismiss, enabled = !saving) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
