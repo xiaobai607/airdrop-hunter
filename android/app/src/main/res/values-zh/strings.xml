@@ -920,4 +920,11 @@
     <string name="acct_manual_25">未关联项目</string>
     <string name="acct_manual_26">已保存到个人账本</string>
     <string name="acct_manual_27">保存失败，请重试</string>
+    <string name="loc_main_global_search">全局搜索</string>
+    <string name="loc_main_market_title">%1$s 行情</string>
+    <string name="loc_main_tron_energy">TRON 能量租赁助手</string>
+    <string name="loc_main_community">项目微社区</string>
+    <string name="loc_main_project_library">库管理</string>
+    <string name="loc_main_accounting">记账</string>
+    <string name="loc_main_tron_energy_browser">TRON 能量租赁</string>
 </resources>
