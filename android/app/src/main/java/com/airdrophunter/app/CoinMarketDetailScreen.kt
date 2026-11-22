@@ -15,6 +15,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,7 +49,7 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
         error = null
         val result = repository.loadSpotTickerDetail(symbol, manual)
         detail = result.data ?: detail
-        error = result.errorMessage ?: if (result.throttled) "刚刚刷新过，请 30 秒后再试" else null
+        error = result.errorMessage ?: if (result.throttled) context.getString(R.string.market_detail_recently_refreshed) else null
         cacheMetadata = CacheStore.readCacheMetadata("market-detail:${symbol.uppercase()}", "okx-spot-detail")
         loading = false
     }
@@ -74,7 +75,7 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "行情详情",
+                stringResource(R.string.market_detail_title),
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold
@@ -90,9 +91,9 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             error != null && detail == null -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("暂时无法获取行情", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.market_detail_unavailable), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 Text(error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                AppButton("重新加载", onClick = { scope.launch { refresh(manual = true) } })
+                AppButton(stringResource(R.string.market_detail_reload), onClick = { scope.launch { refresh(manual = true) } })
             }
             detail != null -> {
                 val value = detail!!
@@ -104,7 +105,7 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("最新价格", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.market_detail_latest_price), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
                             "$ " + priceFormat.format(value.lastPrice),
                             color = MaterialTheme.colorScheme.onSurface,
@@ -114,7 +115,7 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
                             softWrap = true,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Text(String.format(Locale.US, "%+.2f%%（24小时）", value.change24hPercent),
+                        Text(String.format(Locale.US, stringResource(R.string.market_detail_change_24h), value.change24hPercent),
                             color = if (positive) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     }
@@ -126,21 +127,21 @@ fun CoinMarketDetailScreen(symbol: String, modifier: Modifier = Modifier) {
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        MarketMetricRow("24小时最高", "$ " + priceFormat.format(value.high24h))
+                        MarketMetricRow(stringResource(R.string.market_detail_high_24h), "$ " + priceFormat.format(value.high24h))
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        MarketMetricRow("24小时最低", "$ " + priceFormat.format(value.low24h))
+                        MarketMetricRow(stringResource(R.string.market_detail_low_24h), "$ " + priceFormat.format(value.low24h))
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        MarketMetricRow("24小时成交量", priceFormat.format(value.volume24h) + " $symbol")
+                        MarketMetricRow(stringResource(R.string.market_detail_volume_24h), priceFormat.format(value.volume24h) + " $symbol")
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        MarketMetricRow("24小时成交额", priceFormat.format(value.volumeCurrency24h) + " USDT")
+                        MarketMetricRow(stringResource(R.string.market_detail_turnover_24h), priceFormat.format(value.volumeCurrency24h) + " USDT")
                     }
                 }
                 Text(
-                    "数据来源：OKX · " + marketCacheStatusLabel(cacheMetadata),
+                    stringResource(R.string.market_detail_source, marketCacheStatusLabel(cacheMetadata)),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall
                 )
                 AppButton(
-                    text = "刷新行情",
+                    text = stringResource(R.string.market_detail_refresh),
                     onClick = { scope.launch { refresh(manual = true) } },
                     enabled = !loading,
                     loading = loading,
@@ -175,16 +176,17 @@ private fun MarketMetricRow(label: String, value: String) {
     }
 }
 
+@Composable
 private fun marketCacheStatusLabel(metadata: CacheMetadataEntity?): String {
-    if (metadata == null) return "等待首次更新"
+    if (metadata == null) return stringResource(R.string.market_detail_cache_waiting)
     val updated = metadata.fetchedAt?.let {
         SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(Date(it))
-    } ?: "暂无成功更新时间"
+    } ?: stringResource(R.string.market_detail_cache_no_success_time)
     return when (CacheRefreshPolicy.displayStatus(metadata, System.currentTimeMillis())) {
-        CacheDisplayStatus.FRESH -> "更新于 $updated"
-        CacheDisplayStatus.REFRESHING -> "正在更新 · 保留上次数据（$updated）"
-        CacheDisplayStatus.STALE -> "缓存数据 · 上次更新 $updated"
-        CacheDisplayStatus.ERROR -> "更新失败 · 保留上次缓存（$updated）"
-        CacheDisplayStatus.UNKNOWN -> "等待首次更新"
+        CacheDisplayStatus.FRESH -> stringResource(R.string.market_detail_cache_updated, updated)
+        CacheDisplayStatus.REFRESHING -> stringResource(R.string.market_detail_cache_refreshing, updated)
+        CacheDisplayStatus.STALE -> stringResource(R.string.market_detail_cache_stale, updated)
+        CacheDisplayStatus.ERROR -> stringResource(R.string.market_detail_cache_error, updated)
+        CacheDisplayStatus.UNKNOWN -> stringResource(R.string.market_detail_cache_waiting)
     }
 }
