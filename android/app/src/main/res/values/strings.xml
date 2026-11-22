@@ -1102,4 +1102,7 @@
     <string name="community_tier_not_eligible">Not eligible for public contribution statistics</string>
     <string name="community_tier_pending">Awaiting submission to public statistics</string>
     <string name="community_tier_private">Private record</string>
+    <string name="home_market_network_error">Network connection failed. Check your connection or VPN and try again.</string>
+    <string name="home_market_timeout">Market request timed out. Tap retry later.</string>
+    <string name="home_market_service_error">Market data is temporarily unavailable. Please try again later.</string>
 </resources>
