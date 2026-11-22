@@ -146,3 +146,5 @@ To-do screen bilingual localization (2026-11-22): replace every hardcoded Chines
 Centralized bilingual app language system (2026-11-22): implement Android 13+ per-app LocaleManager integration, Android 8-12 persisted locale context wrapping across all manifest activities, in-app Follow system / Simplified Chinese / English selector, and Android system localeConfig. Run unit tests and build Debug APK.
 
 Retry Android build after escaping the ampersand in the English settings resource XML; verify unit tests and Debug APK artifact.
+
+Fix Compose setValue import found by Kotlin compile; rerun Android unit tests and Debug APK build.
