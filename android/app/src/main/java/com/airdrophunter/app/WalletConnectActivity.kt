@@ -1,5 +1,7 @@
 package com.airdrophunter.app
 
+import androidx.compose.ui.res.stringResource
+
 import android.app.Application
 import android.content.Context
 import android.os.Bundle
@@ -94,8 +96,8 @@ private fun WalletConnectScreen(onClose: () -> Unit) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("连接外部钱包") },
-                    navigationIcon = { TextButton(onClick = onClose) { Text("返回") } }
+                    title = { Text(stringResource(R.string.loc_browser_05)) },
+                    navigationIcon = { TextButton(onClick = onClose) { Text(stringResource(R.string.loc_browser_04)) } }
                 )
             }
         ) { padding ->
@@ -106,36 +108,36 @@ private fun WalletConnectScreen(onClose: () -> Unit) {
             ) {
                 when {
                     accounts.isNotEmpty() -> {
-                        Text("钱包已连接", style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.loc_wallet_connect_connected), style = MaterialTheme.typography.titleLarge)
                         Spacer(Modifier.height(8.dp))
-                        Text("已连接 ${accounts.size} 个授权账户")
+                        Text(stringResource(R.string.loc_wallet_connect_account_count, accounts.size))
                         accounts.take(3).forEach { account -> Text(account.address) }
                         Spacer(Modifier.height(16.dp))
                         Button(onClick = { navController.openAppKit() }) {
-                            Text("管理钱包连接")
+                            Text(stringResource(R.string.loc_wallet_connect_manage))
                         }
                     }
                     ready -> {
-                        Text("使用 WalletConnect 连接外部钱包")
+                        Text(stringResource(R.string.loc_wallet_connect_intro))
                         Spacer(Modifier.height(16.dp))
                         Button(onClick = { navController.openAppKit() }) {
-                            Text("选择钱包")
+                            Text(stringResource(R.string.loc_browser_35))
                         }
                     }
                     else -> {
                         if (initializing) CircularProgressIndicator()
                         Spacer(Modifier.height(16.dp))
-                        Text(error ?: "正在初始化钱包连接服务…")
+                        Text(error ?: stringResource(R.string.loc_browser_32))
                         Button(
                             onClick = {
                                 WalletConnectInitializer.ensureInitialized(context.applicationContext as Application)
-                                Toast.makeText(context, "正在检查钱包连接服务", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.loc_wallet_connect_checking), Toast.LENGTH_SHORT).show()
                             }
-                        ) { Text("重新检查") }
+                        ) { Text(stringResource(R.string.loc_wallet_connect_retry)) }
                     }
                 }
                 Spacer(Modifier.height(16.dp))
-                TextButton(onClick = onClose) { Text("返回网页") }
+                TextButton(onClick = onClose) { Text(stringResource(R.string.loc_wallet_connect_back_webpage)) }
             }
         }
         NavHost(navController, startDestination = "wallet_connect_host") {
