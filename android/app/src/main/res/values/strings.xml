@@ -1072,4 +1072,7 @@
     <string name="loc_x5_install_failed">Kernel installation failed. Status code: %1$d</string>
     <string name="loc_x5_unavailable_fallback">X5 kernel unavailable. Switched automatically to Android System WebView.</string>
     <string name="loc_x5_init_exception">X5 initialization error. Switched to Android System WebView: %1$s</string>
+    <string name="loc_x5_using_x5">Using Tencent X5 to load webpage</string>
+    <string name="loc_x5_using_system">Using Android System WebView to load webpage</string>
+    <string name="loc_x5_wallet_actions_notice">Wallet operations must be started from the original wallet DApp browser entry.</string>
 </resources>
