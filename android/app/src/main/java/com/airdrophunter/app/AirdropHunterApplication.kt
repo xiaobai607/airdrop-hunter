@@ -199,7 +199,7 @@ object WalletConnectInitializer {
                     onError = { error ->
                         initializationStarted = false
                         _initializing.value = false
-                        _error.value = getString(R.string.loc_wallet_connect_init_failed)
+                        _error.value = application.getString(R.string.loc_wallet_connect_init_failed)
                         Log.e("AirdropWallet", "AppKit initialization failed", error.throwable)
                     }
                 )
@@ -207,7 +207,7 @@ object WalletConnectInitializer {
             } catch (error: Exception) {
                 initializationStarted = false
                 _initializing.value = false
-                _error.value = error.message ?: getString(R.string.loc_wallet_connect_init_network_failed)
+                _error.value = error.message ?: application.getString(R.string.loc_wallet_connect_init_network_failed)
                 Log.e("AirdropWallet", "WalletConnect initialization failed", error)
             }
         }
