@@ -1093,4 +1093,13 @@
     <string name="market_detail_cache_refreshing">Updating · Keeping previous data (%1$s)</string>
     <string name="market_detail_cache_stale">Cached data · Last updated %1$s</string>
     <string name="market_detail_cache_error">Update failed · Keeping previous cache (%1$s)</string>
+    <string name="community_tier_user_reported">User reported</string>
+    <string name="community_tier_transaction_linked">On-chain confirmed</string>
+    <string name="community_tier_amount_verified">Precisely verified on-chain</string>
+    <string name="community_tier_user_reported_public">User-reported · included in public statistics</string>
+    <string name="community_tier_verified">On-chain verified</string>
+    <string name="community_tier_rejected">Verification rejected</string>
+    <string name="community_tier_not_eligible">Not eligible for public contribution statistics</string>
+    <string name="community_tier_pending">Awaiting submission to public statistics</string>
+    <string name="community_tier_private">Private record</string>
 </resources>
