@@ -1011,4 +1011,5 @@
     <string name="auth_screen_wait">Please wait…</string>
     <string name="auth_screen_login">Log in</string>
     <string name="auth_screen_register">Register</string>
+    <string name="search_dapp_label">DApp</string>
 </resources>
