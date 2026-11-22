@@ -131,3 +131,4 @@ Rebuild after removing unused dashboard label helpers causing Kotlin compilation
 Rebuild after adding missing BrowserActivity diagnostic resources (2026-11-22).
 
 Bilingual community library and localized launcher label fixes (2026-11-22).
+Android 13+ package locale synchronization for localized launcher app name (2026-11-22).
