@@ -19,7 +19,13 @@ object AppLocale {
     fun selectedLanguageChoice(context: Context): String {
         val saved = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_LANGUAGE, null)
-        return normalizeChoice(saved)
+        if (saved != null) return normalizeChoice(saved)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val systemSelected = context.getSystemService(LocaleManager::class.java)
+                ?.applicationLocales?.toLanguageTags().orEmpty()
+            if (systemSelected.isNotBlank()) return normalizeChoice(systemSelected.substringBefore(','))
+        }
+        return "system"
     }
 
     /** Returns the effective language used to wrap pre-Android 13 Activities. */
