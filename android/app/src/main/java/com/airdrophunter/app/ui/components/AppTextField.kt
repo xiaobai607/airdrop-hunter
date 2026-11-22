@@ -2,6 +2,7 @@ package com.airdrophunter.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
