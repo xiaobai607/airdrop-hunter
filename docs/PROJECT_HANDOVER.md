@@ -225,7 +225,7 @@ uvicorn app.main:app --reload
 
 - 多语言代码：已提交到用户指定开发主线。
 - 中英文资源：已做键名配对、重复项和修改页面引用检查。
-- 最终 Android 单元测试 + Debug APK：<badge>已通过</badge>（Run #2790，Gradle `:app:testDebugUnitTest :app:assembleDebug` 成功）。
+- 最终 Android 单元测试 + Debug APK：**已通过**（Run #2790，Gradle `:app:testDebugUnitTest :app:assembleDebug` 成功）。
 - Artifact：`airdrop-hunter-debug-apk`，约 45.3 MB；SHA-256：`4c7e326ea92b4d658381ab56800089796c835dba952b388636314223d107d866`。
 - Artifact 下载：<https://github.com/xiaobai607/airdrop-hunter/actions/runs/45023235501>（进入 Artifacts 区域下载）；Artifact ID：`14754780724`，有效期至 2027-02-20。
 - 本次后端测试：未触发（本轮仅修改 Android 与文档，不代表后端测试通过）。
