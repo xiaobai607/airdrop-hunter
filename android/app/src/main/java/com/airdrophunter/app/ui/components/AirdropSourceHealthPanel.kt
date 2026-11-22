@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -45,15 +46,15 @@ fun AirdropSourceHealthPanel(
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("免费数据源状态", color = MaterialTheme.colorScheme.onSurface,
+                    Text(stringResource(R.string.source_health_title), color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "启用 $active · 可用 $available · 异常 $failed",
+                        stringResource(R.string.source_health_counts, active, available, failed),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
-                AppTextButton(onClick = onToggle) { Text(if (expanded) "收起" else "诊断") }
+                AppTextButton(onClick = onToggle) { Text(if (expanded) stringResource(R.string.source_health_collapse) else stringResource(R.string.source_health_diagnose)) }
             }
             if (error != null) {
                 Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -61,14 +62,14 @@ fun AirdropSourceHealthPanel(
             if (expanded) {
                 statuses.forEach { source ->
                     val statusLabel = when (source.status) {
-                        "success" -> "正常"
-                        "partial" -> "部分成功"
-                        "empty" -> "暂无新记录"
-                        "stale" -> "使用缓存"
-                        "failed" -> "获取失败"
-                        "disabled" -> "未配置"
-                        "not_run" -> "等待首次运行"
-                        else -> "状态未知"
+                        "success" -> stringResource(R.string.source_health_success)
+                        "partial" -> stringResource(R.string.source_health_partial)
+                        "empty" -> stringResource(R.string.source_health_empty)
+                        "stale" -> stringResource(R.string.source_health_stale)
+                        "failed" -> stringResource(R.string.source_health_failed)
+                        "disabled" -> stringResource(R.string.source_health_disabled)
+                        "not_run" -> stringResource(R.string.source_health_not_run)
+                        else -> stringResource(R.string.source_health_unknown)
                     }
                     val chipBackground = when (source.status) {
                         "success" -> MaterialTheme.colorScheme.primaryContainer
@@ -102,10 +103,10 @@ fun AirdropSourceHealthPanel(
                         val timeLabel = timeValue?.let {
                             runCatching { DateFormat.getDateTimeInstance().format(Date(Instant.parse(it).toEpochMilli())) }.getOrNull()
                         }
-                        val timePrefix = if (source.last_success_at != null) "最近成功" else "最近尝试"
+                        val timePrefix = if (source.last_success_at != null) stringResource(R.string.source_health_last_success) else stringResource(R.string.source_health_last_attempt)
                         Text(
                             buildString {
-                                append("记录 ${source.last_item_count}")
+                                append(stringResource(R.string.source_health_records, source.last_item_count))
                                 if (timeLabel != null) append(" · $timePrefix：$timeLabel")
                             },
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
