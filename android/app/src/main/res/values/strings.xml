@@ -20,6 +20,8 @@
     <string name="guest_auth_message">Please log in to sync your data and manage projects.</string>
     <string name="guest_auth_login">Log in / Register</string>
     <string name="language_settings">App language</string>
+    <string name="language_system">Follow system</string>
+    <string name="language_change_action">Change</string>
     <string name="language_title">Choose language</string>
     <string name="language_english">English</string>
     <string name="language_chinese">简体中文</string>
