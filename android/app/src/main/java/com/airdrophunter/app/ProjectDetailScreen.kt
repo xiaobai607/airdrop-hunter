@@ -70,6 +70,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         factory = ProjectDetailViewModelFactory(application.appContainer.projectsRepository)
     )
     val state by projectDetailViewModel.uiState.collectAsStateWithLifecycle()
+    val localizedClaimError = localizeKnownMessage(state.claimError)
     val userProject by CacheStore.observeUserProject(project.id).collectAsStateWithLifecycle(initialValue = null)
     val interactions by CacheStore.observeUserInteractions(project.id).collectAsStateWithLifecycle(initialValue = emptyList())
     var ledgerPeriod by remember(project.id) { mutableStateOf(LedgerPeriod.MONTH) }
@@ -139,8 +140,8 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         } else Toast.makeText(context, context.getString(R.string.loc_detail_02), Toast.LENGTH_LONG).show()
         projectDetailViewModel.consumeClaimUrl()
     }
-    LaunchedEffect(state.claimError) {
-        state.claimError?.let { Toast.makeText(context, localizeKnownMessage(it) ?: it, Toast.LENGTH_LONG).show() }
+    LaunchedEffect(localizedClaimError) {
+        localizedClaimError?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
     }
 
     LazyColumn(
