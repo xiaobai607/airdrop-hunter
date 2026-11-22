@@ -84,10 +84,10 @@ fun AirdropDiscoveryScreen(
             )
         }
         if (state.message != null) {
-            Text(state.message!!, color = MaterialTheme.colorScheme.primary)
+            Text(localizeKnownMessage(state.message) ?: state.message!!, color = MaterialTheme.colorScheme.primary)
         }
         if (state.error != null) {
-            Text(context.getString(R.string.loc_airdrop_read_error, state.error), color = MaterialTheme.colorScheme.error)
+            Text(context.getString(R.string.loc_airdrop_read_error, localizeKnownMessage(state.error) ?: state.error), color = MaterialTheme.colorScheme.error)
         }
         if (state.isLoading && state.items.isEmpty()) {
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
