@@ -145,3 +145,6 @@ App language system completion (2026-11-22): settings selector for Follow system
 
 
 Final multilingual release-candidate validation 2026-11-22: verify Simplified Chinese / English settings, Android 13+ per-app locales, legacy Android locale wrapping, all activity contexts, bilingual resource parity, and build the debug APK from the active development branch.
+
+
+Second final validation after Kotlin context/type fixes 2026-11-22: rerun Android unit tests and Debug APK assembly on the user-designated active development line.
