@@ -274,7 +274,7 @@ fun MicroCommunityScreen(
                         }
                     }
                     if (!canRate) {
-                        Text("仅限真实参与该项目的用户打分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.micro_rate_participants_only), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                     } else if (saved) {
                         Text(stringResource(R.string.micro_saved_locally), color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelMedium)
                     } else {
