@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -152,15 +153,15 @@ fun HomeScreen(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("首页", modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
+                Text(stringResource(R.string.home_screen_title), modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-                Text("空投发现 · 项目任务 · 行情追踪", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(stringResource(R.string.home_screen_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 com.airdrophunter.app.ui.components.AppIconButton(
                     icon = Icons.Default.NotificationsNone,
-                    contentDescription = "通知",
+                    contentDescription = stringResource(R.string.home_notifications),
                     onClick = { showNotifications = true }
                 )
             }
@@ -177,22 +178,22 @@ fun HomeScreen(
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("核心总览", color = MaterialTheme.colorScheme.onSurface,
+                            Text(stringResource(R.string.home_overview), color = MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("按当前已保存的数据汇总", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Text(stringResource(R.string.home_saved_data_summary), color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall)
                         }
-                        TextButton(onClick = onOpenAccounting) { Text("查看账目") }
+                        TextButton(onClick = onOpenAccounting) { Text(stringResource(R.string.home_view_ledger)) }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         HomeDashboardMetric(
-                            title = "参与项目",
+                            title = stringResource(R.string.home_active_projects),
                             value = dashboardProjects.count { it.status != "completed" }.toString(),
-                            unit = "个",
+                            unit = stringResource(R.string.home_items_unit),
                             modifier = Modifier.weight(1f)
                         )
                         HomeDashboardMetric(
-                            title = "已添加钱包",
+                            title = stringResource(R.string.home_wallets_added),
                             value = dashboardWalletCount.toString(),
                             unit = "个",
                             modifier = Modifier.weight(1f)
@@ -201,19 +202,19 @@ fun HomeScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         HomeDashboardMetric(
-                            title = "累计实际支出",
+                            title = stringResource(R.string.home_total_actual_spend),
                             value = formatHomeUsd(dashboardGasSpend),
                             modifier = Modifier.weight(1f)
                         )
                         HomeDashboardMetric(
-                            title = "实际收益",
+                            title = stringResource(R.string.home_actual_earnings),
                             value = formatHomeUsd(dashboardActualIncome),
                             modifier = Modifier.weight(1f),
                             valueColor = MaterialTheme.colorScheme.primary
                         )
                     }
                     Text(
-                        "钱包资产估值请进入「钱包」查看；预估收益不计入实际收益。",
+                        stringResource(R.string.home_wallet_valuation_note),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -229,22 +230,22 @@ fun HomeScreen(
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("待办事项", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
+                        Text(stringResource(R.string.home_todo), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("待处理", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Text(stringResource(R.string.home_pending), color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.labelSmall)
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Icon(Icons.Default.NotificationsNone, contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("待办数据将在下一阶段接入", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Text(stringResource(R.string.home_todo_coming_soon), color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = onOpenTodo) {
-                            Text("更多待办")
+                            Text(stringResource(R.string.home_more_todos))
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
                                 modifier = Modifier.size(16.dp))
                         }
@@ -254,7 +255,7 @@ fun HomeScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("空投项目动态", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
+                    Text(stringResource(R.string.home_airdrop_activity), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     TextButton(onClick = onOpenAirdropLibrary) { Text("查看全部") }
                 }
@@ -267,9 +268,9 @@ fun HomeScreen(
                 ) {
                     if (dashboardProjects.isEmpty()) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("还没有参与项目", color = MaterialTheme.colorScheme.onSurface,
+                            Text(stringResource(R.string.home_no_projects), color = MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                            Text("进入空投库查看项目并开始跟踪。", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Text(stringResource(R.string.home_explore_projects), color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall)
                         }
                     } else {
@@ -286,9 +287,9 @@ fun HomeScreen(
                                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(
                                         when (project.status) {
-                                            "completed" -> "已完成"
-                                            "upcoming" -> "即将开始"
-                                            else -> "进行中"
+                                            "completed" -> context.getString(R.string.home_status_completed)
+                                            "upcoming" -> context.getString(R.string.home_status_upcoming)
+                                            else -> context.getString(R.string.home_status_in_progress)
                                         },
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelSmall
@@ -314,9 +315,9 @@ fun HomeScreen(
             ) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("钱包概况", color = MaterialTheme.colorScheme.onSurface,
+                        Text(stringResource(R.string.home_wallet_overview), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("$dashboardWalletCount 个已保存钱包 · 资产估值与链上活动见钱包管理",
+                        Text(stringResource(R.string.home_wallet_count_summary, dashboardWalletCount),
                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
@@ -333,13 +334,13 @@ fun HomeScreen(
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("最近记账", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
+                        Text(stringResource(R.string.home_recent_ledger), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("查看全部", color = MaterialTheme.colorScheme.primary,
+                        Text(stringResource(R.string.home_view_all), color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelMedium)
                     }
                     if (dashboardRecentLedger.isEmpty()) {
-                        Text("还没有记账记录", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Text(stringResource(R.string.home_no_ledger), color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall)
                     } else {
                         dashboardRecentLedger.forEachIndexed { index, entry ->
@@ -349,7 +350,7 @@ fun HomeScreen(
                                     style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(
-                                    "支出 ${formatHomeUsd(entry.actual_gas_cost_usd)}  ·  收益 ${formatHomeUsd(entry.actual_reward_usd)}",
+                                    stringResource(R.string.home_ledger_entry_summary, formatHomeUsd(entry.actual_gas_cost_usd), formatHomeUsd(entry.actual_reward_usd)),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -368,20 +369,20 @@ fun HomeScreen(
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("行情看板", color = MaterialTheme.colorScheme.onSurface,
+                Text(stringResource(R.string.home_market_watch), color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 AppTextButton(onClick = {
                     marketSymbolDraft = marketSymbols.toSet()
                     showMarketEditor = true
-                }) { Text("编辑", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium) }
+                }) { Text(stringResource(R.string.home_edit), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium) }
                 AppTextButton(
                     onClick = { homeViewModel.refresh(isGuest) },
                     enabled = !state.isRefreshing,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        if (state.isRefreshing) "更新中" else "刷新",
+                        if (state.isRefreshing) stringResource(R.string.home_updating) else stringResource(R.string.home_refresh),
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium
                     )
@@ -398,7 +399,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("搜索币种名称或代号", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Text(stringResource(R.string.home_search_tokens), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium)
                 }
             }
@@ -417,12 +418,12 @@ fun HomeScreen(
                         Modifier.fillMaxWidth().padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("无法获取实时行情", color = MaterialTheme.colorScheme.onSurface,
+                        Text(stringResource(R.string.home_market_unavailable_title), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text(state.marketError ?: "请检查网络连接后重试。",
+                        Text(state.marketError ?: stringResource(R.string.home_check_connection),
                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                         AppTextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
-                            Text("点击重试", color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(R.string.home_retry), color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     else -> Column {
@@ -430,7 +431,7 @@ fun HomeScreen(
                             ticker.symbol.substringBefore("-").uppercase(Locale.US) in marketSymbols
                         }
                         if (visibleMarket.isEmpty()) {
-                            Text("所选币种暂无行情数据", modifier = Modifier.padding(16.dp),
+                            Text(stringResource(R.string.home_no_token_data), modifier = Modifier.padding(16.dp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
                         } else visibleMarket.forEachIndexed { index, ticker ->
                             MarketRow(ticker) { symbol -> onOpenMarketDetail(symbol) }
@@ -441,16 +442,16 @@ fun HomeScreen(
             }
             Text(
                 when {
-                    state.isRefreshing && state.lastSuccessfulUpdateAt != null -> "行情更新中 · 保留上次数据"
-                    state.marketError?.startsWith("刚刚刷新过") == true -> "刚刚刷新过 · 请30秒后再试"
-                    state.marketError != null && state.lastSuccessfulUpdateAt != null -> "更新失败 · 显示上次成功数据"
+                    state.isRefreshing && state.lastSuccessfulUpdateAt != null -> stringResource(R.string.home_market_updating_cached)
+                    state.marketError?.startsWith("刚刚刷新过") == true -> stringResource(R.string.home_market_recently_refreshed)
+                    state.marketError != null && state.lastSuccessfulUpdateAt != null -> stringResource(R.string.home_market_update_failed_cached)
                     state.marketCacheStatus == com.airdrophunter.app.data.CacheDisplayStatus.STALE && state.lastSuccessfulUpdateAt != null ->
-                        "缓存数据 · 上次更新 " + java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L))
+                        stringResource(R.string.home_cached_updated_at, java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L)))
                     state.marketCacheStatus == com.airdrophunter.app.data.CacheDisplayStatus.REFRESHING && state.lastSuccessfulUpdateAt != null ->
-                        "行情更新中 · 保留上次数据"
-                    state.lastSuccessfulUpdateAt != null -> "数据更新于 " + java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L))
-                    state.marketError != null -> "行情暂不可用"
-                    else -> "等待行情数据"
+                        stringResource(R.string.home_market_updating_cached)
+                    state.lastSuccessfulUpdateAt != null -> stringResource(R.string.home_updated_at, java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(java.util.Date(state.lastSuccessfulUpdateAt ?: 0L)))
+                    state.marketError != null -> stringResource(R.string.home_market_temporarily_unavailable)
+                    else -> stringResource(R.string.home_waiting_market_data)
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.labelSmall
@@ -460,10 +461,10 @@ fun HomeScreen(
             AlertDialog(
                 onDismissRequest = { showMarketEditor = false },
                 containerColor = MaterialTheme.colorScheme.surface,
-                title = { Text("自定义行情看板", color = MaterialTheme.colorScheme.onSurface) },
+                title = { Text(stringResource(R.string.home_customize_market), color = MaterialTheme.colorScheme.onSurface) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("选择要在首页显示的币种，至少保留一个。", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Text(stringResource(R.string.home_customize_market_hint), color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall)
                         listOf("BTC", "ETH", "SOL", "BNB", "TRX", "XRP").forEach { symbol ->
                             Row(Modifier.fillMaxWidth().appPressFeedback(onClick = {
@@ -484,7 +485,7 @@ fun HomeScreen(
                         marketSymbols = saved
                         showMarketEditor = false
                         scope.launch { runCatching { CacheStore.saveMarketDashboardSymbols(saved) } }
-                    }) { Text("保存") }
+                    }) { Text(stringResource(R.string.home_save)) }
                 },
                 dismissButton = {
                     AppTextButton(onClick = {
@@ -492,7 +493,7 @@ fun HomeScreen(
                         marketSymbols = defaultMarketSymbols
                         showMarketEditor = false
                         scope.launch { runCatching { CacheStore.saveMarketDashboardSymbols(defaultMarketSymbols) } }
-                    }) { Text("恢复默认") }
+                    }) { Text(stringResource(R.string.home_restore_defaults)) }
                 }
             )
         }
@@ -534,13 +535,13 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        "空投导航",
+                        stringResource(R.string.home_airdrop_directory),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "选择一个平台打开 · ${sites.size} 个平台", 
+                        stringResource(R.string.home_choose_platform_summary, sites.size), 
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -548,7 +549,7 @@ fun HomeScreen(
                 AppTextField(
                     value = siteSearchQuery,
                     onValueChange = { siteSearchQuery = it },
-                    placeholder = "搜索平台名称或域名",
+                    placeholder = stringResource(R.string.home_search_platforms),
                     trailingClear = true
                 )
                 if (filteredSites.isEmpty()) {
@@ -557,7 +558,7 @@ fun HomeScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            if (sites.isEmpty()) "还没有添加导航平台" else "没有匹配的平台",
+                            if (sites.isEmpty()) stringResource(R.string.home_no_platforms) else stringResource(R.string.home_no_matching_platforms),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -635,9 +636,9 @@ fun HomeScreen(
 
     if (showNotifications) AlertDialog(
         onDismissRequest = { showNotifications = false }, containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text("消息通知", color = MaterialTheme.colorScheme.onSurface) },
-        text = { Text("当前还没有站内通知，未读 0 条。真实通知服务接入前，不会生成测试通知或擅自开启推送。", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-        confirmButton = { AppTextButton(onClick = { showNotifications = false }) { Text("关闭") } }
+        title = { Text(stringResource(R.string.home_notifications_title), color = MaterialTheme.colorScheme.onSurface) },
+        text = { Text(stringResource(R.string.home_notifications_empty), color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        confirmButton = { AppTextButton(onClick = { showNotifications = false }) { Text(stringResource(R.string.home_close)) } }
     )
 }
 
