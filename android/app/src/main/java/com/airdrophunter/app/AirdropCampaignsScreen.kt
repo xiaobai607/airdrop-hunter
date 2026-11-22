@@ -268,11 +268,12 @@ private fun CampaignTag(value: String) {
     }
 }
 
+@Composable
 private fun campaignStatusText(status: String): String = when (status) {
-    "upcoming" -> context.getString(R.string.loc_campaign_upcoming)
-    "ongoing" -> context.getString(R.string.loc_campaign_ongoing)
-    "snapshot" -> context.getString(R.string.loc_campaign_snapshot)
-    "claim_open" -> context.getString(R.string.loc_campaign_claim_open)
-    "ended" -> context.getString(R.string.loc_campaign_ended)
-    else -> context.getString(R.string.loc_campaign_status_pending)
+    "upcoming" -> stringResource(R.string.loc_campaign_upcoming)
+    "ongoing" -> stringResource(R.string.loc_campaign_ongoing)
+    "snapshot" -> stringResource(R.string.loc_campaign_snapshot)
+    "claim_open" -> stringResource(R.string.loc_campaign_claim_open)
+    "ended" -> stringResource(R.string.loc_campaign_ended)
+    else -> stringResource(R.string.loc_campaign_status_pending)
 }
