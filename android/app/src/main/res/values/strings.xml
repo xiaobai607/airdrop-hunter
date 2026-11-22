@@ -919,4 +919,11 @@
     <string name="acct_manual_25">Unassigned project</string>
     <string name="acct_manual_26">Saved to your personal ledger</string>
     <string name="acct_manual_27">Save failed. Please try again.</string>
+    <string name="loc_main_global_search">Global search</string>
+    <string name="loc_main_market_title">%1$s market</string>
+    <string name="loc_main_tron_energy">TRON energy assistant</string>
+    <string name="loc_main_community">Project community</string>
+    <string name="loc_main_project_library">Project library</string>
+    <string name="loc_main_accounting">Accounting</string>
+    <string name="loc_main_tron_energy_browser">TRON energy rental</string>
 </resources>
