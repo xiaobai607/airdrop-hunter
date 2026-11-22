@@ -867,9 +867,9 @@ private fun X5BrowserScreen(
                             ) {
                                 Text(stringResource(R.string.loc_browser_42), color = MaterialTheme.colorScheme.error,
                                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                                Text(pageError ?: "X5 页面加载失败，请重试。", color = MaterialTheme.colorScheme.onBackground)
+                                Text(pageError ?: stringResource(R.string.loc_browser_42), color = MaterialTheme.colorScheme.onBackground)
                                 AppButton(
-                                    text = "重新加载",
+                                    text = stringResource(R.string.loc_browser_44),
                                     onClick = {
                                         if (browser != null && isBrowserInstanceReady) {
                                             pageState = X5PageState.Loading
@@ -886,7 +886,7 @@ private fun X5BrowserScreen(
                         } else if (pageState == X5PageState.Loading && browser != null) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 CircularProgressIndicator()
-                                Text(if (isUsingX5Core) "正在使用腾讯 X5 加载网页" else "正在使用系统内核加载网页", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(if (isUsingX5Core) stringResource(R.string.loc_x5_using_x5) else stringResource(R.string.loc_x5_using_system), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -896,17 +896,17 @@ private fun X5BrowserScreen(
                 walletAddress = "",
                 chainName = "unknown",
                 onCopyAddress = {
-                    Toast.makeText(context, "钱包相关操作请从原有钱包 DApp 入口进入", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.loc_x5_wallet_actions_notice), Toast.LENGTH_SHORT).show()
                 },
                 onRefreshPage = { browser?.reload() },
                 onCopyPageUrl = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText("Page URL", currentUrl))
-                    Toast.makeText(context, "网址已复制", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.loc_browser_29), Toast.LENGTH_SHORT).show()
                 },
                 onOpenPageExternally = {
                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl))) }
-                        .onFailure { Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show() }
+                        .onFailure { Toast.makeText(context, context.getString(R.string.loc_browser_26), Toast.LENGTH_SHORT).show() }
                 },
                 modifier = Modifier.fillMaxWidth().height(72.dp).navigationBarsPadding(),
                 showWalletTools = false
@@ -920,11 +920,11 @@ private fun X5BrowserScreen(
                 DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                 pendingDappConnection = null
             },
-            title = { Text("网站请求连接钱包") },
+            title = { Text(stringResource(R.string.loc_browser_30)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("来源网站：$requestedHost", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                    Text("确认后，该网站才能读取当前外部钱包的公开地址。本次不会签名消息或发送交易。")
+                    Text(stringResource(R.string.loc_browser_origin_label, requestedHost), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.loc_browser_31))
                 }
             },
             confirmButton = {
@@ -938,13 +938,13 @@ private fun X5BrowserScreen(
                         waitingDappWalletApproval = true
                         onConnectWallet(currentUrl)
                     }
-                }) { Text(if (connectedDappAccounts.isEmpty()) "连接钱包并授权" else "确认授权") }
+                }) { Text(if (connectedDappAccounts.isEmpty()) stringResource(R.string.loc_browser_33) else stringResource(R.string.loc_browser_10)) }
             },
             dismissButton = {
                 AppTextButton(onClick = {
                     DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                     pendingDappConnection = null
-                }) { Text("拒绝") }
+                }) { Text(stringResource(R.string.loc_browser_34)) }
             }
         )
     }
