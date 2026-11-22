@@ -12,8 +12,8 @@
 - 应用包名：`com.airdrophunter.app`
 - 当前应用版本：`0.10.0`（versionCode `10`）
 - 当前用户指定的开发主线：`feature/home-direct-manual-accounting-ui-base`
-- 当前代码快照：`73cbf81619d113f55ab149371bfa502c6b24d8d4`
-- 最终构建触发提交：`ecfec09cd4a47bf9170a3f7ead0e2b42a72fd697`
+- 当前代码快照：`8d72e5bfb6e919b668478944db3933573cfc9002`
+- 最终构建触发提交：`30d3411c2e2457702fc90ed503eee9aa367fdd70`
 - GitHub Actions：<https://github.com/xiaobai607/airdrop-hunter/actions>
 - 产品需求台账：<https://github.com/xiaobai607/airdrop-hunter/blob/feature/home-direct-manual-accounting-ui-base/docs/PRODUCT_REQUIREMENTS.md>
 - UI 规范与重构台账：<https://github.com/xiaobai607/airdrop-hunter/blob/feature/home-direct-manual-accounting-ui-base/docs/UI_REFACTOR_PROGRESS.md>
@@ -148,7 +148,7 @@ android/app/build/outputs/apk/debug/app-debug.apk
 - Artifact 名称：`airdrop-hunter-debug-apk`。
 - APK 文件：`app-debug.apk`。
 
-最终多语言 APK 验证运行：<https://github.com/xiaobai607/airdrop-hunter/actions/runs/45022653138>。该运行在本交接文档生成前仍处于执行中；必须等它完成后再把状态更新为成功或失败，不能仅凭已触发就宣称构建通过。
+最终多语言 APK 验证运行 #2790：<https://github.com/xiaobai607/airdrop-hunter/actions/runs/45023235501>。该运行已成功完成 Android 单元测试与 Debug APK 构建，并成功上传 Artifact。
 
 ### Backend 本地运行
 
@@ -225,12 +225,15 @@ uvicorn app.main:app --reload
 
 - 多语言代码：已提交到用户指定开发主线。
 - 中英文资源：已做键名配对、重复项和修改页面引用检查。
-- 最终 Android 单元测试 + Debug APK：运行 #2782，等待 GitHub Actions 最终结果。
+- 最终 Android 单元测试 + Debug APK：<badge>已通过</badge>（Run #2790，Gradle `:app:testDebugUnitTest :app:assembleDebug` 成功）。
+- Artifact：`airdrop-hunter-debug-apk`，约 45.3 MB；SHA-256：`4c7e326ea92b4d658381ab56800089796c835dba952b388636314223d107d866`。
+- Artifact 下载：<https://github.com/xiaobai607/airdrop-hunter/actions/runs/45023235501>（进入 Artifacts 区域下载）；Artifact ID：`14754780724`，有效期至 2027-02-20。
+- 本次后端测试：未触发（本轮仅修改 Android 与文档，不代表后端测试通过）。
 - 真实 Android 设备验收：未完成。
 - Release 签名 / 商店发布：未完成。
 - 私人账本云同步与跨设备恢复：未完成，见第 6A 节。
 
-**最终构建通过后**，在这里补充最终结论、Artifact 下载入口和实际构建时间；若失败，必须记录失败步骤和错误原因，不得把运行中或取消的旧 Run 当作成功。
+最终 CI 结论以 Run #2790 为准：Android 单元测试、Debug APK 构建、Artifact 上传均通过。真实设备验收和 Release 发布仍未完成。
 
 ## 8. 接手方建议顺序
 
