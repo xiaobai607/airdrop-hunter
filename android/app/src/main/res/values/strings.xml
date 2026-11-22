@@ -1018,7 +1018,7 @@
     <string name="loc_tron_energy_03">TRON sending address</string>
     <string name="loc_tron_energy_04">Base58 address starting with T</string>
     <string name="loc_tron_energy_05">Invalid address. Enter a valid TRON Base58 address.</string>
-    <string name="loc_tron_energy_06">Security: Enter only your own sending address. Never enter the recipient's address.</string>
+    <string name="loc_tron_energy_06">"Security: Enter only your own sending address. Never enter the recipient's address."</string>
     <string name="loc_tron_energy_07">Rent energy</string>
     <string name="loc_wallet_check_01">Unable to read data. Please try again later.</string>
     <string name="loc_wallet_check_02">Airdrop eligibility check</string>
@@ -1027,7 +1027,7 @@
     <string name="loc_wallet_check_05">Choose a saved project</string>
     <string name="loc_wallet_check_06">Choose a wallet</string>
     <string name="loc_wallet_check_07">Choose a saved wallet</string>
-    <string name="loc_wallet_check_08">The app first verifies the address on-chain, then opens the project's saved HTTPS eligibility page. The project website determines eligibility.</string>
+    <string name="loc_wallet_check_08">"The app first verifies the address on-chain, then opens the project's saved HTTPS eligibility page. The project website determines eligibility."</string>
     <string name="loc_wallet_check_09">No projects yet. Add a project and its eligibility URL in Project Management.</string>
     <string name="loc_wallet_check_10">No wallets yet. Add a public wallet address first.</string>
     <string name="loc_wallet_check_11">Check now</string>
