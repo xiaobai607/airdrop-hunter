@@ -140,7 +140,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         projectDetailViewModel.consumeClaimUrl()
     }
     LaunchedEffect(state.claimError) {
-        state.claimError?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+        state.claimError?.let { Toast.makeText(context, localizeKnownMessage(it) ?: it, Toast.LENGTH_LONG).show() }
     }
 
     LazyColumn(
