@@ -1076,4 +1076,22 @@
     <string name="loc_x5_using_x5">正在使用腾讯 X5 加载网页</string>
     <string name="loc_x5_using_system">正在使用系统内核加载网页</string>
     <string name="loc_x5_wallet_actions_notice">钱包相关操作请从原有钱包 DApp 入口进入</string>
+    <string name="market_detail_recently_refreshed">刚刚刷新过，请 30 秒后再试</string>
+    <string name="market_detail_title">行情详情</string>
+    <string name="market_detail_unavailable">暂时无法获取行情</string>
+    <string name="market_detail_reload">重新加载</string>
+    <string name="market_detail_latest_price">最新价格</string>
+    <string name="market_detail_change_24h">%1$.2f%%（24小时）</string>
+    <string name="market_detail_high_24h">24小时最高</string>
+    <string name="market_detail_low_24h">24小时最低</string>
+    <string name="market_detail_volume_24h">24小时成交量</string>
+    <string name="market_detail_turnover_24h">24小时成交额</string>
+    <string name="market_detail_source">数据来源：OKX · %1$s</string>
+    <string name="market_detail_refresh">刷新行情</string>
+    <string name="market_detail_cache_waiting">等待首次更新</string>
+    <string name="market_detail_cache_no_success_time">暂无成功更新时间</string>
+    <string name="market_detail_cache_updated">更新于 %1$s</string>
+    <string name="market_detail_cache_refreshing">正在更新 · 保留上次数据（%1$s）</string>
+    <string name="market_detail_cache_stale">缓存数据 · 上次更新 %1$s</string>
+    <string name="market_detail_cache_error">更新失败 · 保留上次缓存（%1$s）</string>
 </resources>
