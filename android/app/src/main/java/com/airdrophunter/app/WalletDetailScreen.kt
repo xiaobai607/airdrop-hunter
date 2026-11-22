@@ -464,7 +464,7 @@ private fun WalletActivityPanel(
                                                 )
                                                 android.widget.Toast.makeText(
                                                     context,
-                                                    context.getString(R.string.loc_wallet_detail_added_pending)
+                                                    context.getString(R.string.loc_wallet_detail_added_pending),
                                                     android.widget.Toast.LENGTH_LONG
                                                 ).show()
                                             }
