@@ -1105,4 +1105,19 @@
     <string name="home_market_network_error">Network connection failed. Check your connection or VPN and try again.</string>
     <string name="home_market_timeout">Market request timed out. Tap retry later.</string>
     <string name="home_market_service_error">Market data is temporarily unavailable. Please try again later.</string>
+    <string name="source_health_title">Free data source status</string>
+    <string name="source_health_counts">Enabled %1$d · Available %2$d · Issues %3$d</string>
+    <string name="source_health_collapse">Collapse</string>
+    <string name="source_health_diagnose">Diagnose</string>
+    <string name="source_health_success">Healthy</string>
+    <string name="source_health_partial">Partially successful</string>
+    <string name="source_health_empty">No new records</string>
+    <string name="source_health_stale">Using cache</string>
+    <string name="source_health_failed">Failed</string>
+    <string name="source_health_disabled">Not configured</string>
+    <string name="source_health_not_run">Waiting for first run</string>
+    <string name="source_health_unknown">Unknown status</string>
+    <string name="source_health_last_success">Last success</string>
+    <string name="source_health_last_attempt">Last attempt</string>
+    <string name="source_health_records">%1$d records</string>
 </resources>
