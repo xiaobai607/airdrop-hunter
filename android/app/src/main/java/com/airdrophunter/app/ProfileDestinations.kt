@@ -1,5 +1,6 @@
 package com.airdrophunter.app
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -24,22 +27,25 @@ import androidx.compose.ui.window.DialogProperties
 import com.airdrophunter.app.ui.components.BaseCard
 import com.airdrophunter.app.ui.theme.AppDesignTokens
 
-enum class ProfileDestination(val title: String) {
-    SETTINGS("设置"),
-    SECURITY("安全中心"),
-    NOTIFICATIONS("消息通知")
+enum class ProfileDestination(val titleRes: Int) {
+    SETTINGS(R.string.settings_title),
+    SECURITY(R.string.security_title),
+    NOTIFICATIONS(R.string.notifications_title)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String = "未知", onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var showLanguageDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    val selectedLanguageTag = AppLocale.selectedLanguageTag(context)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize()) {
                 TopAppBar(
                     title = {
                         Text(
-                            destination.title,
+                            stringResource(destination.titleRes),
                             modifier = Modifier.semantics { heading() },
                             color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.SemiBold,
@@ -58,7 +64,9 @@ fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     when (destination) {
-                        ProfileDestination.SETTINGS -> SettingsDestinationContent(appVersion)
+                        ProfileDestination.SETTINGS -> SettingsDestinationContent(appVersion) {
+                            showLanguageDialog = true
+                        }
                         ProfileDestination.SECURITY -> SecurityDestinationContent()
                         ProfileDestination.NOTIFICATIONS -> NotificationsDestinationContent()
                     }
@@ -66,30 +74,98 @@ fun ProfileDestinationDialog(destination: ProfileDestination, appVersion: String
             }
         }
     }
+    if (showLanguageDialog) {
+        AlertDialog(
+            onDismissRequest = { showLanguageDialog = false },
+            title = { Text(stringResource(R.string.language_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    LanguageOption(
+                        title = stringResource(R.string.language_follow_system),
+                        selected = selectedLanguageTag == null,
+                        onClick = {
+                            AppLocale.setLanguage(context, null)
+                            showLanguageDialog = false
+                        }
+                    )
+                    LanguageOption(
+                        title = stringResource(R.string.language_chinese),
+                        selected = selectedLanguageTag?.startsWith("zh", ignoreCase = true) == true,
+                        onClick = {
+                            AppLocale.setLanguage(context, "zh-Hans")
+                            showLanguageDialog = false
+                        }
+                    )
+                    LanguageOption(
+                        title = stringResource(R.string.language_english),
+                        selected = selectedLanguageTag?.startsWith("en", ignoreCase = true) == true,
+                        onClick = {
+                            AppLocale.setLanguage(context, "en")
+                            showLanguageDialog = false
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLanguageDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 }
 
 @Composable
-private fun SettingsDestinationContent(appVersion: String) {
+private fun LanguageOption(title: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(title, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+    }
+}
+
+@Composable
+private fun SettingsDestinationContent(appVersion: String, onChooseLanguage: () -> Unit) {
+    val context = LocalContext.current
+    val selectedLanguageTag = AppLocale.selectedLanguageTag(context)
+    val currentLanguageLabel = when {
+        selectedLanguageTag == null -> stringResource(R.string.language_follow_system)
+        selectedLanguageTag.startsWith("zh", ignoreCase = true) -> stringResource(R.string.language_chinese)
+        else -> stringResource(R.string.language_english)
+    }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            "偏好与工具",
+            stringResource(R.string.settings_preferences),
             modifier = Modifier.semantics { heading() },
             color = MaterialTheme.colorScheme.onSurface,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold
         )
         DestinationInfoCard {
-            SettingsInfoRow(
-                icon = { Icon(Icons.Default.Language, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                title = "浏览器工具栏",
-                description = "工具显示与排序可在浏览器页面的“添加”入口管理"
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SettingsInfoRow(
+                    icon = { Icon(Icons.Default.Language, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    title = stringResource(R.string.language_settings),
+                    description = stringResource(R.string.language_change_note),
+                    trailing = currentLanguageLabel,
+                    onClick = onChooseLanguage
+                )
+                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                SettingsInfoRow(
+                    icon = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    title = stringResource(R.string.browser_toolbar_title),
+                    description = stringResource(R.string.browser_toolbar_description)
+                )
+            }
         }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            "关于应用",
+            stringResource(R.string.about_app),
             modifier = Modifier.semantics { heading() },
             color = MaterialTheme.colorScheme.onSurface,
             fontSize = 16.sp,
@@ -99,7 +175,7 @@ private fun SettingsDestinationContent(appVersion: String) {
             SettingsInfoRow(
                 icon = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 title = "Airdrop Hunter",
-                description = "空投项目管理 · 钱包追踪 · 个人记账",
+                description = stringResource(R.string.about_app_description),
                 trailing = "v$appVersion"
             )
         }
@@ -111,10 +187,13 @@ private fun SettingsInfoRow(
     icon: @Composable () -> Unit,
     title: String,
     description: String,
-    trailing: String? = null
+    trailing: String? = null,
+    onClick: (() -> Unit)? = null
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
