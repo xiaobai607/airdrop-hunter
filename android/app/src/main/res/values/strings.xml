@@ -882,4 +882,14 @@
     <string name="todo_ready_title">To-do management is ready</string>
     <string name="todo_ready_description">Automatic and manual tasks will be connected in a future update. No placeholder tasks are shown.</string>
     <string name="todo_add_next_phase">Add task · Coming soon</string>
+    <string name="settings_title">Settings</string>
+    <string name="security_title">Security</string>
+    <string name="notifications_title">Notifications</string>
+    <string name="settings_preferences">Preferences & tools</string>
+    <string name="browser_toolbar_title">Browser toolbar</string>
+    <string name="browser_toolbar_description">Manage toolbar items and their order from the Add menu in the browser.</string>
+    <string name="about_app">About</string>
+    <string name="about_app_description">Airdrop project management · Wallet tracking · Personal accounting</string>
+    <string name="language_follow_system">Follow device settings</string>
+    <string name="language_change_note">Choose the language used throughout Airdrop Hunter. Changes apply immediately.</string>
 </resources>
