@@ -27,6 +27,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collect
 
 class AirdropHunterApplication : Application(), ImageLoaderFactory {
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLocale.wrap(base))
+    }
+
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)
             .memoryCache {
