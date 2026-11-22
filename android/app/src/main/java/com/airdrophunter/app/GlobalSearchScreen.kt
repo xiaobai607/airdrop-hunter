@@ -59,9 +59,9 @@ import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
-private enum class SearchCategory(val key: String, val label: String) {
+private enum class SearchCategory(val key: String, val labelRes: Int) {
     COIN("coin", R.string.search_coin_label),
-    DAPP("dapp", "DApp")
+    DAPP("dapp", R.string.search_dapp_label)
 }
 
 @Composable
@@ -228,7 +228,7 @@ fun GlobalSearchScreen(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SearchCategory.values().forEach { option ->
                 AppChip(
-                    text = option.label,
+                    text = stringResource(option.labelRes),
                     selected = category == option,
                     onClick = { category = option; query = "" }
                 )
