@@ -276,7 +276,7 @@ fun CommunitySquareScreen(
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     AppButton(
-                        text = if (airdropFilterSelection.selectedCount == 0) stringResource(R.string.comm_filter) else "筛选空投条件 · ${airdropFilterSelection.selectedCount}",
+                        text = if (airdropFilterSelection.selectedCount == 0) stringResource(R.string.comm_filter) else context.getString(R.string.comm_filter_count, airdropFilterSelection.selectedCount),
                         onClick = { showAirdropFilters = true },
                         modifier = Modifier.weight(1f),
                         style = AppButtonStyle.SECONDARY,
@@ -398,7 +398,7 @@ fun CommunitySquareScreen(
                                     addingProjectIds = addingProjectIds - project.id
                                     Toast.makeText(
                                         context,
-                                        if (added) "${project.name} 已加入库管理" else stringResource(R.string.comm_add_failed),
+                                        if (added) context.getString(R.string.comm_added_project, project.name) else context.getString(R.string.comm_add_failed),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -560,7 +560,7 @@ fun CommunitySquareScreen(
                             }.onSuccess { result ->
                                 Toast.makeText(
                                     context,
-                                    result.message + (result.existing_project?.let { "：${it.name}" } ?: ""),
+                                    context.getString(R.string.comm_submit_success, result.existing_project?.name ?: submissionName.trim()),
                                     Toast.LENGTH_LONG
                                 ).show()
                                 if (result.status == "published") {
