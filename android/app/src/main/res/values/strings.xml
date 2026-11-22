@@ -1163,4 +1163,12 @@
     <string name="loc_x5_install_success">Installation succeeded</string>
     <string name="loc_x5_install_preinitializing">Pre-initialization intermediate state; this does not indicate failure</string>
     <string name="loc_x5_install_unknown">Installation did not succeed or returned an unclassified status. Keep the code for diagnosis.</string>
+    <string name="auth_error_invalid_credentials">Incorrect username or password.</string>
+    <string name="auth_error_session_expired">Your session is invalid or expired. Please sign in again.</string>
+    <string name="auth_error_registration_disabled">Registration is not available yet.</string>
+    <string name="auth_error_username_exists">This username is already in use.</string>
+    <string name="auth_error_username_format">Username must be 4–20 letters or numbers.</string>
+    <string name="auth_error_password_format">Password must be 8–30 characters.</string>
+    <string name="auth_error_format">Username or password format is invalid.</string>
+    <string name="auth_error_uid_unavailable">Unable to assign a user ID. Please try again later.</string>
 </resources>
