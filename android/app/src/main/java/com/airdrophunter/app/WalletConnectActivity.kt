@@ -1,5 +1,7 @@
 package com.airdrophunter.app
 
+import android.content.Context
+
 import android.app.Application
 import android.os.Bundle
 import android.widget.Toast
@@ -47,6 +49,10 @@ import com.reown.appkit.ui.openAppKit
  * It never receives or reloads the DApp URL, so X5 remains the browsing surface.
  */
 class WalletConnectActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { AirdropHunterTheme { WalletConnectScreen(onClose = { finish() }) } }
