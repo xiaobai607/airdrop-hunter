@@ -1,4 +1,6 @@
 package com.airdrophunter.app
+
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -1396,10 +1398,10 @@ private fun BrowserPageOverlay(
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 CircularProgressIndicator(Modifier.size(48.dp), color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 3.dp)
-                Text("正在连接网页，请稍候…", color = MaterialTheme.colorScheme.onBackground,
+                Text(stringResource(R.string.loc_browser_38), color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.titleMedium)
                 Text(
-                    if (isSlowLoading) "页面响应较慢，仍在等待首屏内容…" else "正在等待网页返回首屏内容",
+                    if (isSlowLoading) stringResource(R.string.loc_browser_39) else stringResource(R.string.loc_browser_40),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -1414,7 +1416,7 @@ private fun BrowserPageOverlay(
                 Icon(Icons.Default.CloudOff, contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(64.dp))
                 Text(
-                    if (errorDetail?.contains("超时") == true) "网页加载超时" else "网页无法打开",
+                    if (errorDetail?.contains("超时") == true) stringResource(R.string.loc_browser_41) else stringResource(R.string.loc_browser_42),
                     color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.titleLarge
                 )
@@ -1424,16 +1426,16 @@ private fun BrowserPageOverlay(
                     shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp)
                 ) {
                     Text(
-                        errorDetail ?: "网站未提供具体错误原因。请检查网络后重试。",
+                        errorDetail ?: stringResource(R.string.loc_browser_43),
                         modifier = Modifier.fillMaxWidth().padding(12.dp)
                             .verticalScroll(androidx.compose.foundation.rememberScrollState()),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                AppButton("重新加载", onClick = onRetry)
-                AppButton("用浏览器打开", onClick = onOpenExternally, style = AppButtonStyle.SECONDARY)
-                AppButton("返回", onClick = onBack, style = AppButtonStyle.TEXT)
+                AppButton(stringResource(R.string.loc_browser_44), onClick = onRetry)
+                AppButton(stringResource(R.string.loc_browser_45), onClick = onOpenExternally, style = AppButtonStyle.SECONDARY)
+                AppButton(stringResource(R.string.loc_browser_46), onClick = onBack, style = AppButtonStyle.TEXT)
             }
         }
     }
