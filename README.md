@@ -2,15 +2,16 @@
 
 Airdrop Hunter is an Android-first app for discovering verified airdrop announcements, organizing projects and tasks, tracking public wallet activity, and recording Gas costs and realized rewards.
 
-The authoritative product scope, privacy rules, confirmed UI behavior, implementation status, and next development order live in **[Product Requirements & Progress Ledger](docs/PRODUCT_REQUIREMENTS.md)**. That document is the single source of truth; this README is only a repository and setup guide.
+The authoritative product scope, privacy rules, confirmed UI behavior, implementation status, and next development order live in **[Product Requirements & Progress Ledger](docs/PRODUCT_REQUIREMENTS.md)**. For a complete technical transfer, see **[Project Handover](docs/PROJECT_HANDOVER.md)**. This README is only a repository and setup guide.
 
 ## Product boundaries
 
 - The primary discovery destination is **空投库**. It displays explicit airdrop campaign/announcement evidence, not a generic token screener or source-monitoring dashboard.
 - Current approved discovery sources are Binance public announcements, CoinGecko Demo API, manually reviewed GitHub Raw lists, and DexScreener public API. CoinGecko/GitHub/DexScreener observations are leads only; they are not proof of an active airdrop.
 - No paid data APIs, paid scraping, paid proxies, paid trials, or hidden metered fallbacks.
-- Personal wallets, detailed personal ledger entries, transaction hashes, private project/task records, and personal P&L remain local-only in this release. Only eligible anonymous/de-identified aggregate contribution data may be sent to the public community service.
-- Registration/login and private cloud restore are not current-release features.
+- **Current implementation limitation:** private personal-ledger cloud sync is disabled; detailed personal ledger records remain local in this release. The latest product direction requires user-scoped cloud ledger sync for cross-device access/recovery. This is an unfinished requirement, not a permanent local-only product decision.
+- Public community contribution sync is a separate anonymous/de-identified aggregate path. Do not treat it as private-ledger backup or expose private account identity in public statistics.
+- The backend login endpoint exists, but registration is disabled. Account-level private cloud restore is not currently available.
 - Demo data is isolated from real data and cannot enter real publication or public statistics.
 - Wallet support is non-custodial. The app never collects seed phrases/private keys or signs transactions for the user.
 - Chat, groups, DMs, mentoring, and teaching/social features are deferred.
