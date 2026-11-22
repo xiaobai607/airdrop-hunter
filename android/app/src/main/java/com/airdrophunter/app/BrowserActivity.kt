@@ -145,7 +145,7 @@ class BrowserActivity : ComponentActivity() {
         val site = intent.getStringExtra(EXTRA_TITLE).orEmpty()
         if (url == null) {
             Log.e(TAG, "Rejected invalid browser URL host: ${displayHost(receivedUrl)}")
-            Toast.makeText(this, "网址无效，请检查链接后重试", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.loc_browser_01), Toast.LENGTH_LONG).show()
             finish()
             return
         }
@@ -273,7 +273,7 @@ private fun BrowserScreen(
     val navigateToAddress: () -> Unit = {
         val targetUrl = normalizeBrowserHttpsUrl(addressInput.trim())
         if (targetUrl == null) {
-            Toast.makeText(context, "网址无效，请输入正确的网址", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.loc_browser_02), Toast.LENGTH_SHORT).show()
         } else {
             isAddressEditing = false
             addressInput = targetUrl
@@ -286,7 +286,7 @@ private fun BrowserScreen(
                 activeWebView.loadUrl(targetUrl)
                 Log.i("AirdropBrowser", "User address navigation requested: " + displayHost(targetUrl))
             } else {
-                Toast.makeText(context, "浏览器还在初始化，请稍后再试", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.loc_browser_03), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -327,7 +327,7 @@ private fun BrowserScreen(
             kotlinx.coroutines.delay(30_000)
             if (pageState == BrowserPageState.Loading) {
                 pageState = BrowserPageState.Error
-                pageErrorMessage = "错误类型：页面加载超时\n等待时间：30 秒\n当前网站：${displayHost(currentPageUrl)}\n说明：WebView 在等待时间内没有提交可显示的首屏内容。可能原因包括 DNS 解析失败、网络/VPN 连接受阻、服务器无响应或网站验证页面未完成。"
+                pageErrorMessage = context.getString(R.string.loc_browser_timeout_detail, displayHost(currentPageUrl))
                 Log.w("AirdropBrowser", "Main-frame load timed out after 30 seconds; host=${displayHost(currentPageUrl)}")
             }
         }
@@ -499,17 +499,17 @@ private fun BrowserScreen(
                     title = { Text(title, color = MaterialTheme.colorScheme.onBackground,
                         style = MaterialTheme.typography.titleLarge, maxLines = 1) },
                     navigationIcon = {
-                        AppIconButton(Icons.Default.ArrowBack, "返回", onExit)
+                        AppIconButton(Icons.Default.ArrowBack, stringResource(R.string.loc_browser_04), onExit)
                     },
                     actions = {
                         AppButton(
-                            text = if (walletConnectReady) "连接外部钱包" else "初始化钱包…",
+                            text = if (walletConnectReady) stringResource(R.string.loc_browser_05) else stringResource(R.string.loc_browser_06),
                             onClick = {
                                 if (walletConnectReady) {
                                     walletNavController.openAppKit()
                                 } else {
                                     WalletConnectInitializer.ensureInitialized(context.applicationContext as android.app.Application)
-                                    Toast.makeText(context, "钱包服务正在初始化，请稍后再试", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.loc_browser_07), Toast.LENGTH_SHORT).show()
                                 }
                             },
                             style = AppButtonStyle.SECONDARY,
@@ -520,7 +520,7 @@ private fun BrowserScreen(
                         )
                         if (selectedWallet != null) {
                             AppButton(
-                                text = "钱包 · ${selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }}",
+                                text = stringResource(R.string.loc_browser_wallet_title, selectedWallet!!.walletName.ifBlank { selectedWallet!!.chain }),
                                 onClick = { showWalletPicker = true },
                                 modifier = Modifier.widthIn(max = 124.dp),
                                 style = AppButtonStyle.TEXT,
@@ -548,7 +548,7 @@ private fun BrowserScreen(
                                 isAddressEditing = focusState.isFocused
                             },
                             singleLine = true,
-                            placeholder = { Text("输入网址或域名") },
+                            placeholder = { Text(stringResource(R.string.loc_browser_08)) },
                             textStyle = MaterialTheme.typography.bodyMedium,
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
@@ -564,7 +564,7 @@ private fun BrowserScreen(
                             keyboardActions = KeyboardActions(onGo = { navigateToAddress() })
                         )
                         IconButton(onClick = navigateToAddress) {
-                            Icon(Icons.Default.ArrowForward, contentDescription = "访问网址",
+                            Icon(Icons.Default.ArrowForward, contentDescription = stringResource(R.string.loc_browser_09),
                                 tint = MaterialTheme.colorScheme.primary)
                         }
                     }
@@ -613,9 +613,9 @@ private fun BrowserScreen(
                                     modifier = Modifier.size(18.dp))
                                 Text(
                                     if (targetHost != null)
-                                        "即将切换网站：$targetHost。请核对域名，不要输入助记词或私钥。"
+                                        stringResource(R.string.loc_browser_switch_site_notice, targetHost)
                                     else
-                                        "安全提醒：本 App 不保存私钥。签名和交易由外部钱包确认；请核对网站域名。",
+                                        stringResource(R.string.loc_browser_security_notice),
                                     Modifier.weight(1f),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.labelSmall,
@@ -627,9 +627,9 @@ private fun BrowserScreen(
                                     AppTextButton(onClick = {
                                         pendingNavigationUrl = null
                                         browser?.loadUrl(targetUrl)
-                                    }) { Text("确认访问") }
+                                    }) { Text(stringResource(R.string.loc_browser_10)) }
                                     AppTextButton(onClick = { pendingNavigationUrl = null }) {
-                                        Text("留在当前网站")
+                                        Text(stringResource(R.string.loc_browser_11))
                                     }
                                 }
                             } else {
@@ -637,7 +637,7 @@ private fun BrowserScreen(
                                     markBrowserSecurityBannerShown(context)
                                     showSecurityBanner = false
                                 }) {
-                                    Text("知道了")
+                                    Text(stringResource(R.string.loc_browser_12))
                                 }
                             }
                         }
