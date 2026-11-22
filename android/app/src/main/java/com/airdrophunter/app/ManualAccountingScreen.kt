@@ -123,7 +123,7 @@ fun ManualAccountingScreen(
                         isError = rewardUsd.isNotBlank() && reward == null
                     )
                     if (rewardUsd.isNotBlank() && reward == null) {
-                        Text("请输入有效的非负数字", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.acct_manual_09), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -170,17 +170,17 @@ fun ManualAccountingScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AppTextField(
                             value = rewardNative, onValueChange = { rewardNative = it },
-                            placeholder = "数量", modifier = Modifier.weight(1.2f),
+                            placeholder = stringResource(R.string.acct_manual_18), modifier = Modifier.weight(1.2f),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                         )
                         AppTextField(
                             value = rewardSymbol, onValueChange = { rewardSymbol = it.uppercase(Locale.US) },
-                            placeholder = "币种", modifier = Modifier.weight(0.8f)
+                            placeholder = stringResource(R.string.acct_manual_19), modifier = Modifier.weight(0.8f)
                         )
                     }
                     AppTextField(
                         value = rewardDecimals, onValueChange = { rewardDecimals = it.filter(Char::isDigit).take(2) },
-                        modifier = Modifier.fillMaxWidth(), placeholder = "精度（选填）",
+                        modifier = Modifier.fillMaxWidth(), placeholder = stringResource(R.string.acct_manual_20),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }
