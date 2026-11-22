@@ -1152,4 +1152,16 @@
     <string name="acct_ui_method_manual">手动记账</string>
     <string name="acct_ui_method_manual_nonchain">手动记账（非链上交易）</string>
     <string name="acct_ui_method_onchain_import">链上交易导入</string>
+    <string name="loc_x5_sdk_not_callback">SDK 尚未回调</string>
+    <string name="loc_x5_download_success">下载成功</string>
+    <string name="loc_x5_network_unavailable">网络不可用</string>
+    <string name="loc_x5_download_wifi_required">SDK 判定当前不是 Wi-Fi，拒绝下载</string>
+    <string name="loc_x5_download_limit">本进程已达到发起下载次数限制</string>
+    <string name="loc_x5_download_in_progress">已有下载请求进行中，未重复发起</string>
+    <string name="loc_x5_download_conditions">当前条件不满足下载请求；可能涉及请求间隔、重试次数或版本条件</string>
+    <string name="loc_x5_download_bandwidth_cancelled">带宽策略取消下载；腾讯官方建议调试阶段通过其内核调试页安装线上内核</string>
+    <string name="loc_x5_download_unknown">腾讯 SDK 返回未分类状态码，请保留此码用于定位</string>
+    <string name="loc_x5_install_success">安装成功</string>
+    <string name="loc_x5_install_preinitializing">预初始化中间状态，不代表安装失败</string>
+    <string name="loc_x5_install_unknown">安装未成功或处于其他状态，请保留此码用于定位</string>
 </resources>
