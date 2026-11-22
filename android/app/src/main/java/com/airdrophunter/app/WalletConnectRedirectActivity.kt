@@ -1,5 +1,7 @@
 package com.airdrophunter.app
 
+import android.content.Context
+
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -11,6 +13,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 class WalletConnectRedirectActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         dispatchWalletReturn(intent)
