@@ -1,4 +1,21 @@
 # Airdrop Hunter — Product Requirements & Progress Ledger
+
+# 2026-11-22 — latest user-confirmed data policy override (handover-critical)
+
+This section supersedes older local-only statements in the 2026-11-11 sections below wherever they conflict.
+
+1. **Public community aggregate:** both guest and logged-in users must contribute eligible Gas cost, reward, and project-participation facts to the public community dashboard. Public records must use anonymous/de-identified contributor identity and must not expose private account identity.
+2. **Private personal ledger:** the detailed personal cost/reward ledger must be uploaded to cloud storage/API and remain visible only to its owner, supporting cross-device access and recovery. It is not the public community dataset.
+3. **Local cache and drafts:** local Room data remains an offline cache/draft layer; it is not a substitute for the user's private cloud ledger or cross-device recovery.
+
+**Current implementation gap verified in source on 2026-11-22:** `CurrentReleaseDataPolicy.PRIVATE_PERSONAL_CLOUD_SYNC_ENABLED` is `false`; the Android API interceptor strips Authorization headers, `PersonalLedgerSyncWorker` exits early, and `PersonalLedgerSyncScheduler` is a no-op. The backend user-scoped `/api/personal-ledger` list/upsert/delete endpoints exist, but the current Android release does not use them. Do not claim private ledger cloud sync or cross-device restore is complete. The separate anonymous public contribution worker is implemented; verify guest and authenticated cases end-to-end before release.
+
+The older “current-release personal data boundary — local-only” paragraphs are historical implementation notes, not the latest product direction. Any handover or future implementation must preserve the three separate data layers above.
+
+# 2026-11-22 — bilingual application localization closeout
+
+The active development line now contains an app-language selector for Follow system / 简体中文 / English, Android 13+ native per-app locale support, legacy Activity context wrapping, and paired English/Simplified Chinese resources. Final CI/APK validation and real-device acceptance are separate gates; source changes alone do not establish device acceptance.
+
 # 2026-11-13 — free airdrop source diagnostics (active)
 
 The user needs to know why the public airdrop catalog is empty or stale without paying for commercial APIs. Keep the existing no-paid-service rule. The importer already records per-source status in the database, but the app previously exposed only an aggregate sync result and did not show which free source succeeded, failed, or is disabled. A sanitized public status endpoint, Android DTO/repository/ViewModel path, and shared expandable source-health panel are now implemented in both the official announcement hub and the main campaign library; backend tests cover the public response shape and disabled optional sources, while an Android repository test covers the new status fetch path. Tests have been authored but not yet run. The DexScreener empty-config fallback now matches the documented zero-key terms `SOL,ETH,USDC` instead of broad `airdrop`.
