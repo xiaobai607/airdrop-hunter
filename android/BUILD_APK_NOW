@@ -115,3 +115,30 @@ Browser reliability batch (2026-11-20): enable X5 kernel downloads over Wi-Fi an
 Wallet activity manual-refresh policy (2026-11-20): wallet detail opens cache-only; remove wallet activity from periodic dispatch and token-change triggers; user selects 30-minute or 1-hour cooldown; cooldown begins only after successful refresh and is persisted through cache metadata. Run Android unit tests and package one Debug APK for this batch.
 
 Wallet refresh migration safety (2026-11-20): cancel any persisted one-time wallet-activity WorkManager request left by older app versions at startup, so upgrades cannot perform one last passive chain fetch. Re-run Android unit tests and Debug APK packaging.
+
+Bilingual localization validation: project management, profile settings, airdrop records, public campaigns, official announcements, and project detail/ledger screens. Run Android unit tests and package Debug APK for review (2026-11-21).
+
+Bilingual build retry after Android string-resource apostrophe escaping fix (2026-11-21).
+
+Retry APK after backup-dialog resource formatting fix (2026-11-21).
+
+Fix Kotlin Compose resource calls in toolbar/home/profile/project-detail/wallet manager; rebuild bilingual APK (2026-11-21).
+
+Final compile validation after callback/context and enum label fixes (2026-11-21).
+
+Rebuild after removing unused dashboard label helpers causing Kotlin compilation failure (2026-11-21).
+
+Rebuild after adding missing BrowserActivity diagnostic resources (2026-11-22).
+
+Bilingual community library and localized launcher label fixes (2026-11-22).
+Android 13+ package locale synchronization for localized launcher app name (2026-11-22).
+Project micro-community bilingual localization and Android per-app locale configuration (2026-11-22): localize all detail/rating/snapshot labels and declare en + zh-CN for launcher label resolution. Run Android unit tests and package the exact Debug APK.
+
+Compile fix: import androidx.compose.ui.res.stringResource for the localized MicroCommunityScreen labels. Re-run Android unit tests and package APK.
+
+Fix tokenHint helper to be @Composable so it can resolve the localized no-token-details string. Re-run debug unit tests and APK build.
+
+Launcher name fix: replace the single localized launcher label with mutually exclusive English/Chinese activity-alias launchers. AppLocale toggles aliases whenever language changes and Application startup reconciles the selected language. Build and test debug APK.
+
+
+To-do screen bilingual localization (2026-11-22): replace every hardcoded Chinese string on TodoManagementScreen and the MainActivity to-do app-bar title with Android string resources; add matching English and Simplified Chinese translations. Run Android unit tests and build the exact Debug APK for device verification.
