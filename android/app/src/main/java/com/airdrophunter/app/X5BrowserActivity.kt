@@ -1,5 +1,7 @@
 package com.airdrophunter.app
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -949,23 +951,25 @@ private fun X5BrowserScreen(
     }
 }
 
+@Composable
 private fun x5DownloadCodeHint(code: Int?): String = when (code) {
-    null -> "SDK 尚未回调"
-    100 -> "下载成功"
-    101 -> "网络不可用"
-    111 -> "SDK 判定当前不是 Wi-Fi，拒绝下载"
-    127 -> "本进程已达到发起下载次数限制"
-    133 -> "已有下载请求进行中，未重复发起"
-    -122 -> "当前条件不满足下载请求；可能涉及请求间隔、重试次数或版本条件"
-    -134 -> "带宽策略取消下载；腾讯官方建议调试阶段通过其内核调试页安装线上内核"
-    else -> "腾讯 SDK 返回未分类状态码，请保留此码用于定位"
+    null -> stringResource(R.string.loc_x5_sdk_not_callback)
+    100 -> stringResource(R.string.loc_x5_download_success)
+    101 -> stringResource(R.string.loc_x5_network_unavailable)
+    111 -> stringResource(R.string.loc_x5_download_wifi_required)
+    127 -> stringResource(R.string.loc_x5_download_limit)
+    133 -> stringResource(R.string.loc_x5_download_in_progress)
+    -122 -> stringResource(R.string.loc_x5_download_conditions)
+    -134 -> stringResource(R.string.loc_x5_download_bandwidth_cancelled)
+    else -> stringResource(R.string.loc_x5_download_unknown)
 }
 
+@Composable
 private fun x5InstallCodeHint(code: Int?): String = when (code) {
     null -> "SDK 尚未回调"
-    200 -> "安装成功"
-    243 -> "预初始化中间状态，不代表安装失败"
-    else -> "安装未成功或处于其他状态，请保留此码用于定位"
+    200 -> stringResource(R.string.loc_x5_install_success)
+    243 -> stringResource(R.string.loc_x5_install_preinitializing)
+    else -> stringResource(R.string.loc_x5_install_unknown)
 }
 
 private fun x5DappAuthorizationStamp(): String {
