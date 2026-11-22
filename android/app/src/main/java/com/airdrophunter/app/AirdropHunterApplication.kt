@@ -98,6 +98,7 @@ class AirdropHunterApplication : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        AppLocale.syncLauncherAlias(this)
 
         // One coordinator serializes all background sync pipelines. Individual
         // tasks keep their own cadence, account boundary, and retry semantics.
