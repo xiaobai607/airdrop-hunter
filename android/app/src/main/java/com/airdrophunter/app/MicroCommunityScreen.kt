@@ -31,6 +31,7 @@ import kotlin.math.roundToInt
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airdrophunter.app.ui.components.AppButton
 import com.airdrophunter.app.ui.components.AppButtonStyle
