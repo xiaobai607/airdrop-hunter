@@ -100,7 +100,7 @@ fun AppTextField(
                     trailingClear && value.isNotEmpty() && enabled -> {
                         AppIconButton(
                             icon = Icons.Default.Close,
-                            contentDescription = "清除输入",
+                            contentDescription = stringResource(com.airdrophunter.app.R.string.common_clear_input),
                             onClick = { onValueChange("") }
                         )
                     }
