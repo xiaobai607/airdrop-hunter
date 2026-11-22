@@ -1,5 +1,7 @@
 package com.airdrophunter.app
 
+import android.content.Context
+
 import android.content.Intent
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideOutHorizontally
@@ -56,6 +58,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     @Volatile private var startupReady = false
     private val startupTokenState = mutableStateOf<String?>(null)
 
@@ -255,8 +261,8 @@ private fun AirdropHunterApp(
     }
     val secondaryTitle = when {
         activeOverlay == AppOverlay.SOURCES -> stringResource(R.string.sources_title)
-        activeOverlay == AppOverlay.AIRDROP_HUB -> "空投发现"
-        activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> "空投活动"
+        activeOverlay == AppOverlay.AIRDROP_HUB -> stringResource(R.string.loc_hub_official_announcements)
+        activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> stringResource(R.string.comm_campaigns_title)
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "$selectedMarketSymbol 行情"
         activeOverlay == AppOverlay.TRON_ENERGY -> "TRON 能量租赁助手"
@@ -264,7 +270,7 @@ private fun AirdropHunterApp(
         selectedProject != null -> stringResource(R.string.project_detail)
         activeOverlay == AppOverlay.PROJECT_LIBRARY -> "库管理"
         activeOverlay == AppOverlay.MANUAL_ACCOUNTING -> "记账"
-        activeOverlay == AppOverlay.TODO -> "待办事项"
+        activeOverlay == AppOverlay.TODO -> stringResource(R.string.todo_title)
         else -> stringResource(R.string.project_detail)
     }
 
