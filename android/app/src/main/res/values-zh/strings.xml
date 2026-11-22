@@ -942,4 +942,18 @@
     <string name="loc_airdrop_verified">已核实</string>
     <string name="loc_airdrop_source_linked">已附来源，待核实</string>
     <string name="loc_airdrop_unverified">未核实</string>
+    <string name="loc_wallet_detail_cooldown">%1$02d:%2$02d 后可刷新</string>
+    <string name="loc_wallet_detail_pending_count">该地址有 %1$d 笔待确认</string>
+    <string name="loc_wallet_detail_minutes">%1$d分钟</string>
+    <string name="loc_wallet_detail_hours">%1$d小时</string>
+    <string name="loc_wallet_detail_networks_unavailable">部分网络暂时不可用：%1$s</string>
+    <string name="loc_wallet_detail_hash">哈希：%1$s…</string>
+    <string name="loc_wallet_detail_time">时间：%1$s</string>
+    <string name="loc_wallet_detail_fee">费用：%1$s %2$s</string>
+    <string name="loc_wallet_detail_approx_usd">约 $%1$s</string>
+    <string name="loc_wallet_detail_assets_valued">已估值资产 · %1$d 项</string>
+    <string name="loc_wallet_detail_asset_summary">共读取 %1$d 项资产，覆盖 %2$d 条网络；此处先展示估值靠前的 5 项。</string>
+    <string name="loc_wallet_detail_updated">数据更新时间：%1$s</string>
+    <string name="loc_wallet_detail_tron_assets">TRON 当前展示 TRX 和已识别的 USDT；其他 TRC20 暂未纳入。</string>
+    <string name="loc_wallet_detail_asset_unverified"> · 未验证</string>
 </resources>
