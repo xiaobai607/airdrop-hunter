@@ -938,4 +938,7 @@
     <string name="loc_airdrop_reward_hint">Reward details</string>
     <string name="loc_airdrop_eligibility_hint">Eligibility requirements</string>
     <string name="loc_airdrop_source_hint">Source URL</string>
+    <string name="loc_airdrop_verified">Verified</string>
+    <string name="loc_airdrop_source_linked">Source linked · Verification pending</string>
+    <string name="loc_airdrop_unverified">Unverified</string>
 </resources>
