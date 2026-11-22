@@ -17,15 +17,14 @@ object AppLocale {
 
     /** Returns the user's selected option: system, en, or zh-CN. */
     fun selectedLanguageChoice(context: Context): String {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val appLocales = context.getSystemService(LocaleManager::class.java)
+                ?.applicationLocales?.toLanguageTags().orEmpty()
+            return if (appLocales.isBlank()) "system" else normalizeChoice(appLocales.substringBefore(','))
+        }
         val saved = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_LANGUAGE, null)
-        if (saved != null) return normalizeChoice(saved)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val systemSelected = context.getSystemService(LocaleManager::class.java)
-                ?.applicationLocales?.toLanguageTags().orEmpty()
-            if (systemSelected.isNotBlank()) return normalizeChoice(systemSelected.substringBefore(','))
-        }
-        return "system"
+        return normalizeChoice(saved)
     }
 
     /** Returns the effective language used to wrap pre-Android 13 Activities. */
@@ -38,14 +37,7 @@ object AppLocale {
 
     fun setLanguage(context: Context, languageTag: String) {
         val choice = normalizeChoice(languageTag)
-        val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (choice == "system") {
-            preferences.edit().remove(KEY_LANGUAGE).apply()
-        } else {
-            preferences.edit().putString(KEY_LANGUAGE, choice).apply()
-        }
-
-        // Android 13+ supports a native per-app language override and system Settings UI.
+        // Android 13+ keeps the platform per-app language as the single source of truth.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val locales = if (choice == "system") {
                 LocaleList.getEmptyLocaleList()
@@ -53,6 +45,11 @@ object AppLocale {
                 LocaleList.forLanguageTags(choice)
             }
             context.getSystemService(LocaleManager::class.java)?.applicationLocales = locales
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_LANGUAGE).apply()
+        } else {
+            val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            if (choice == "system") preferences.edit().remove(KEY_LANGUAGE).apply()
+            else preferences.edit().putString(KEY_LANGUAGE, choice).apply()
         }
         syncLauncherAlias(context, selectedLanguage(context))
     }
