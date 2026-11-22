@@ -837,4 +837,8 @@
     <string name="comm_submit">提交</string>
     <string name="comm_cancel">取消</string>
     <string name="comm_catalog_error">社区目录暂不可用，联网后会自动重试</string>
+    <string name="comm_filter_count">筛选空投条件 · %1$d</string>
+    <string name="comm_added_project">%1$s 已加入库管理</string>
+    <string name="comm_submit_success">项目提交成功：%1$s</string>
+    <string name="comm_campaigns_title">空投活动</string>
 </resources>
