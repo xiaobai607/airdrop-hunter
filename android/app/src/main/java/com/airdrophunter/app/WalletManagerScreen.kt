@@ -94,7 +94,7 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
             } catch (_: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    error = if (_state.value.wallets.isEmpty()) "服务器繁忙，请稍后重试" else null
+                    error = if (_state.value.wallets.isEmpty()) "wallet_error_load" else null
                 )
             }
         }
@@ -110,7 +110,7 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            _state.value = _state.value.copy(isSaving = false, error = "保存失败，请检查地址或稍后重试")
+            _state.value = _state.value.copy(isSaving = false, error = "wallet_error_save")
         }
         }
     }
@@ -125,7 +125,7 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            _state.value = _state.value.copy(isSaving = false, error = error.message ?: "更新钱包信息失败")
+            _state.value = _state.value.copy(isSaving = false, error = error.message ?: "wallet_error_update")
         }
         }
     }
@@ -140,7 +140,7 @@ class WalletManagerViewModel(private val repository: WalletRepository) : ViewMod
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            _state.value = _state.value.copy(isSaving = false, error = "删除失败，请稍后重试")
+            _state.value = _state.value.copy(isSaving = false, error = "wallet_error_delete")
         }
         }
     }
@@ -155,6 +155,15 @@ class WalletManagerViewModelFactory(private val repository: WalletRepository) : 
 }
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun walletManagerErrorText(error: String): String = when (error) {
+    "wallet_error_load" -> stringResource(R.string.wallet_error_load)
+    "wallet_error_save" -> stringResource(R.string.wallet_error_save)
+    "wallet_error_update" -> stringResource(R.string.wallet_error_update)
+    "wallet_error_delete" -> stringResource(R.string.wallet_error_delete)
+    else -> error
+}
+
 @Composable
 fun WalletManagerScreen(
     modifier: Modifier = Modifier,
@@ -392,7 +401,7 @@ fun WalletManagerScreen(
         if (state.wallets.isNotEmpty()) {
             state.error?.let { message ->
                 Text(
-                    message,
+                    walletManagerErrorText(message),
                     modifier = Modifier.padding(horizontal = 16.dp),
                     color = MaterialTheme.colorScheme.error
                 )
@@ -414,7 +423,7 @@ fun WalletManagerScreen(
                     Text(stringResource(R.string.wallet_ui_18), color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
-                    Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error,
+                    Text(state.error?.let { walletManagerErrorText(it) }.orEmpty(), color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(16.dp))
                     AppButton(
@@ -584,7 +593,7 @@ fun WalletManagerScreen(
                     AppTextField(editWalletName, { editWalletName = it }, stringResource(R.string.wallet_ui_32))
                     AppTextField(editWalletTags, { editWalletTags = it }, stringResource(R.string.wallet_ui_33))
                     AppTextField(editWalletNotes, { editWalletNotes = it }, stringResource(R.string.wallet_ui_34), singleLine = false)
-                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    state.error?.let { Text(walletManagerErrorText(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 }
             },
             confirmButton = {
