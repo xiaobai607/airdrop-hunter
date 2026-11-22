@@ -1066,4 +1066,10 @@
     <string name="loc_wallet_connect_checking">Checking wallet connection service</string>
     <string name="loc_wallet_connect_retry">Check again</string>
     <string name="loc_wallet_connect_back_webpage">Return to webpage</string>
+    <string name="loc_wallet_connect_init_failed">Wallet connection service initialization failed. Please try again.</string>
+    <string name="loc_wallet_connect_init_network_failed">Wallet connection service could not initialize. Check your network and try again.</string>
+    <string name="loc_x5_download_failed">Kernel download failed. Status code: %1$d</string>
+    <string name="loc_x5_install_failed">Kernel installation failed. Status code: %1$d</string>
+    <string name="loc_x5_unavailable_fallback">X5 kernel unavailable. Switched automatically to Android System WebView.</string>
+    <string name="loc_x5_init_exception">X5 initialization error. Switched to Android System WebView: %1$s</string>
 </resources>
