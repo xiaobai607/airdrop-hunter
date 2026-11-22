@@ -956,4 +956,7 @@
     <string name="loc_wallet_detail_updated">数据更新时间：%1$s</string>
     <string name="loc_wallet_detail_tron_assets">TRON 当前展示 TRX 和已识别的 USDT；其他 TRC20 暂未纳入。</string>
     <string name="loc_wallet_detail_asset_unverified"> · 未验证</string>
+    <string name="loc_wallet_detail_empty_address">当前地址还没有可展示的交易，稍后可再次刷新。</string>
+    <string name="loc_wallet_detail_empty_filter">切换「总交易活动、发送、接收」查看其他交易。</string>
+    <string name="loc_wallet_detail_added_pending">已加入待确认账单，请在浏览器记账工具栏选择项目并确认实际金额</string>
 </resources>
