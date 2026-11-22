@@ -469,16 +469,17 @@ private fun formatSearchPrice(value: Double): String = NumberFormat.getNumberIns
 }.format(value)
 
 
+@Composable
 private fun cacheStatusLabel(metadata: CacheMetadataEntity?): String? {
     metadata ?: return null
     val updated = metadata.fetchedAt?.let {
         java.text.SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(java.util.Date(it))
-    } ?: "暂无成功更新时间"
+    } ?: stringResource(R.string.search_no_update_time)
     return when (CacheRefreshPolicy.displayStatus(metadata, System.currentTimeMillis())) {
-        CacheDisplayStatus.FRESH -> "数据更新于 $updated"
-        CacheDisplayStatus.REFRESHING -> "正在更新 · 保留上次数据（$updated）"
-        CacheDisplayStatus.STALE -> "缓存数据 · 上次更新 $updated"
-        CacheDisplayStatus.ERROR -> "更新失败 · 保留上次缓存（$updated）"
-        CacheDisplayStatus.UNKNOWN -> "等待首次更新"
+        CacheDisplayStatus.FRESH -> stringResource(R.string.search_status_fresh, updated)
+        CacheDisplayStatus.REFRESHING -> stringResource(R.string.search_status_refreshing, updated)
+        CacheDisplayStatus.STALE -> stringResource(R.string.search_status_stale, updated)
+        CacheDisplayStatus.ERROR -> stringResource(R.string.search_status_error, updated)
+        CacheDisplayStatus.UNKNOWN -> stringResource(R.string.search_status_unknown)
     }
 }
