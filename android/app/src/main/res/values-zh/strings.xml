@@ -1067,4 +1067,10 @@
     <string name="loc_wallet_connect_checking">正在检查钱包连接服务</string>
     <string name="loc_wallet_connect_retry">重新检查</string>
     <string name="loc_wallet_connect_back_webpage">返回网页</string>
+    <string name="loc_wallet_connect_init_failed">钱包连接服务初始化失败，请重试</string>
+    <string name="loc_wallet_connect_init_network_failed">钱包连接服务初始化失败，请检查网络后重试</string>
+    <string name="loc_x5_download_failed">内核下载未成功，下载状态码：%1$d</string>
+    <string name="loc_x5_install_failed">内核安装未成功，安装状态码：%1$d</string>
+    <string name="loc_x5_unavailable_fallback">X5 内核暂不可用，已自动切换系统 WebView</string>
+    <string name="loc_x5_init_exception">X5 初始化异常，已切换系统 WebView：%1$s</string>
 </resources>
