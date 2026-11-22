@@ -148,3 +148,5 @@ Centralized bilingual app language system (2026-11-22): implement Android 13+ pe
 Retry Android build after escaping the ampersand in the English settings resource XML; verify unit tests and Debug APK artifact.
 
 Fix Compose setValue import found by Kotlin compile; rerun Android unit tests and Debug APK build.
+
+Bilingual localization batch 2026-11-22: migrate Home, Wallet Manager, Profile/backup, Manual Accounting, Projects, Airdrop Discovery, Campaigns, Airdrop Hub, and main overlay titles to existing/new EN and zh-Hans resources. Validate matching resource keys and run Android unit tests + Debug APK build.
