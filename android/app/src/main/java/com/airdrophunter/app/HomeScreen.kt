@@ -89,6 +89,15 @@ fun HomeScreen(
         factory = HomeViewModelFactory(application.appContainer)
     )
     val state by homeViewModel.uiState.collectAsStateWithLifecycle()
+    val marketErrorDisplay = when (state.marketError) {
+        "刚刚刷新过，请30秒后再试" -> stringResource(R.string.home_market_recently_refreshed)
+        "行情暂时不可用，正在显示上次缓存" -> stringResource(R.string.home_market_update_failed_cached)
+        "网络连接失败，请检查网络或 VPN 后重试。" -> stringResource(R.string.home_market_network_error)
+        "行情请求超时，请稍后点击重试。" -> stringResource(R.string.home_market_timeout)
+        "行情服务暂时不可用，请稍后重试。" -> stringResource(R.string.home_market_service_error)
+        else -> state.marketError?.takeUnless { message -> message.any { it in '\u4e00'..'\u9fff' } }
+            ?: if (state.marketError != null) stringResource(R.string.home_market_service_error) else null
+    }
     LaunchedEffect(state.marketError) {
         if (state.marketError?.startsWith("刚刚刷新过") == true) {
             android.widget.Toast.makeText(context, context.getString(R.string.home_market_recently_refreshed), android.widget.Toast.LENGTH_SHORT).show()
@@ -420,7 +429,7 @@ fun HomeScreen(
                     ) {
                         Text(stringResource(R.string.home_market_unavailable_title), color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text(state.marketError ?: stringResource(R.string.home_check_connection),
+                        Text(marketErrorDisplay ?: stringResource(R.string.home_check_connection),
                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                         AppTextButton(onClick = { homeViewModel.refresh(isGuest) }, contentPadding = PaddingValues(0.dp)) {
                             Text(stringResource(R.string.home_retry), color = MaterialTheme.colorScheme.primary)
