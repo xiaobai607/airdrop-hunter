@@ -1,5 +1,7 @@
 package com.airdrophunter.app
 
+import androidx.compose.ui.res.stringResource
+
 import android.net.Uri
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.focus.focusRequester
@@ -58,7 +60,7 @@ import java.text.NumberFormat
 import java.util.Locale
 
 private enum class SearchCategory(val key: String, val label: String) {
-    COIN("coin", "币种"),
+    COIN("coin", R.string.search_coin_label),
     DAPP("dapp", "DApp")
 }
 
@@ -157,7 +159,7 @@ fun GlobalSearchScreen(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                if (coinResults.isEmpty()) searchError = "暂时无法获取远程币种目录，本地结果仍可使用"
+                if (coinResults.isEmpty()) searchError = context.getString(R.string.search_coin_unavailable)
             }
             coinCacheMetadata = withContext(Dispatchers.IO) {
                 CacheStore.readCacheMetadata("market-prices-supported", "coinpaprika")
@@ -168,7 +170,7 @@ fun GlobalSearchScreen(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                if (dappResults.isEmpty()) searchError = "暂时无法获取 DApp 目录，本地结果仍可使用"
+                if (dappResults.isEmpty()) searchError = context.getString(R.string.search_dapp_unavailable)
             }
             dappCacheMetadata = withContext(Dispatchers.IO) {
                 CacheStore.readCacheMetadata("global-search-dapp-catalog", "community-catalog")
@@ -188,7 +190,7 @@ fun GlobalSearchScreen(
             scope.launch { CacheStore.saveSearchHistory(query.ifBlank { project.name }, SearchCategory.DAPP.key) }
             onDappSelected(project.name, url)
         } else {
-            searchError = "该 DApp 暂无有效 HTTPS 链接"
+            searchError = context.getString(R.string.search_invalid_dapp_link)
         }
     }
 
@@ -209,17 +211,17 @@ fun GlobalSearchScreen(
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.weight(1f).focusRequester(searchFocusRequester),
-                    placeholder = if (category == SearchCategory.COIN) "搜索币种名称或代号" else "搜索 DApp 名称、链或标签",
+                    placeholder = if (category == SearchCategory.COIN) stringResource(R.string.search_coin_placeholder) else stringResource(R.string.search_dapp_placeholder),
                     singleLine = true,
                     heightDp = 44
                 )
                 if (query.isNotEmpty()) AppIconButton(
                     icon = Icons.Default.Clear,
-                    contentDescription = "清空输入",
+                    contentDescription = stringResource(R.string.search_clear_input),
                     onClick = { query = "" }
                 )
             }
-            AppButton("取消", onClick = onCancel, style = AppButtonStyle.TEXT,
+            AppButton(stringResource(R.string.search_cancel), onClick = onCancel, style = AppButtonStyle.TEXT,
                 fullWidth = false, heightDp = 44, fontSizeSp = 14)
         }
 
@@ -242,9 +244,9 @@ fun GlobalSearchScreen(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(7.dp))
-                    Text("搜索历史", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.search_history), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     AppTextButton(onClick = { scope.launch { CacheStore.clearSearchHistory() } }) {
-                        Text("清空", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
+                        Text(stringResource(R.string.search_clear), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f))
                     }
                 }
                 history.take(10).forEach { item ->
@@ -256,7 +258,7 @@ fun GlobalSearchScreen(
                             }, scale = 1f).padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(if (item.category == SearchCategory.DAPP.key) "DApp" else "币种", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                        Text(if (item.category == SearchCategory.DAPP.key) stringResource(R.string.search_dapp_label) else stringResource(R.string.search_coin_label), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                         Spacer(Modifier.width(12.dp))
                         Text(item.query, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f), maxLines = 1)
                         Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), modifier = Modifier.size(16.dp))
@@ -267,18 +269,18 @@ fun GlobalSearchScreen(
 
         if (query.isBlank() && category == SearchCategory.COIN) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("热门币种", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.search_hot_coins), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                 cacheStatusLabel(hotCoinMetadata)?.let {
                     Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                 }
                 hotCoins.forEach { coin -> HotCoinRow(coin) { recordAndSearchCoin(coin.symbol) } }
-                if (hotCoins.isEmpty()) Text("热门行情暂不可用，输入币种名称仍可搜索", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
+                if (hotCoins.isEmpty()) Text(stringResource(R.string.search_hot_unavailable), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
         }
 
         if (query.isNotBlank()) {
             Text(
-                if (category == SearchCategory.COIN) "币种搜索结果" else "DApp 搜索结果",
+                if (category == SearchCategory.COIN) stringResource(R.string.search_coin_results) else stringResource(R.string.search_dapp_results),
                 color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium
             )
             cacheStatusLabel(if (category == SearchCategory.COIN) coinCacheMetadata else dappCacheMetadata)?.let {
@@ -295,7 +297,7 @@ fun GlobalSearchScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        "正在更新搜索结果，当前缓存结果仍可使用",
+                        stringResource(R.string.search_updating_results),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -305,8 +307,8 @@ fun GlobalSearchScreen(
                 SearchCategory.COIN -> if (coinResults.isEmpty()) {
                     SearchResultPlaceholder(
                         loading = isSearching,
-                        title = if (isSearching) "正在查找币种" else if (searchError != null) "币种目录暂时不可用" else "没有找到匹配的币种",
-                        description = if (isSearching) "正在合并本地缓存与远程搜索结果…" else searchError ?: "试试更短的名称、代号或合约地址。"
+                        title = if (isSearching) stringResource(R.string.search_coin_searching) else if (searchError != null) stringResource(R.string.search_coin_unavailable_title) else stringResource(R.string.search_no_coin_matches),
+                        description = if (isSearching) stringResource(R.string.search_coin_merge_hint) else searchError ?: stringResource(R.string.search_coin_try_shorter)
                     )
                 } else coinResults.forEachIndexed { index, coin ->
                     key(coin.symbol) {
@@ -327,8 +329,8 @@ fun GlobalSearchScreen(
                 SearchCategory.DAPP -> if (dappResults.isEmpty()) {
                     SearchResultPlaceholder(
                         loading = isSearching,
-                        title = if (isSearching) "正在查找 DApp" else if (searchError != null) "DApp 目录暂时不可用" else "没有找到匹配的 DApp",
-                        description = if (isSearching) "正在检索本地目录与已缓存的项目数据…" else searchError ?: "试试项目名称、所属链或相关标签。"
+                        title = if (isSearching) stringResource(R.string.search_dapp_searching) else if (searchError != null) stringResource(R.string.search_dapp_unavailable_title) else stringResource(R.string.search_no_dapp_matches),
+                        description = if (isSearching) stringResource(R.string.search_dapp_search_hint) else searchError ?: stringResource(R.string.search_dapp_search_hint)
                     )
                 } else dappResults.forEachIndexed { index, project ->
                     key(project.project_official_id) {
@@ -432,7 +434,7 @@ private fun MarketCoinRow(coin: MarketCoin, onClick: () -> Unit) {
             if (context.isNotBlank()) Text(context, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(coin.priceUsd?.let { "$ " + formatSearchPrice(it) } ?: "价格暂缺", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+            Text(coin.priceUsd?.let { "$ " + formatSearchPrice(it) } ?: stringResource(R.string.search_price_unavailable), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
             coin.change24hPercent?.let { change ->
                 Text(String.format(Locale.US, "%+.2f%%", change), color = if (change >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
             }
@@ -455,9 +457,9 @@ private fun DappResultRow(project: CommunityProjectCatalogDto, onClick: () -> Un
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(project.name, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             Text(project.chain, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            Text(if (validUrl) project.website_url else "链接待补充", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            Text(if (validUrl) project.website_url else stringResource(R.string.search_link_missing), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
-        Text(if (validUrl) "打开" else "暂无链接", color = if (validUrl) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
+        Text(if (validUrl) stringResource(R.string.search_open) else stringResource(R.string.search_no_link), color = if (validUrl) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
     }
 }
 
