@@ -94,8 +94,22 @@ fun CommunityVerificationTierBar(
     }
 }
 
-@Composable
 fun communityContributionStatusLabel(status: String, tier: String?): String = when (status) {
+    "verified" -> when (tier) {
+        "user_reported" -> "用户自报已计入公共统计"
+        "amount_verified" -> "链上精确核验"
+        "transaction_linked" -> "链上已确认"
+        else -> "链上已核验"
+    }
+    "rejected" -> "核验拒绝"
+    "not_eligible" -> "不符合公共贡献条件"
+    "pending_verification" -> "等待提交公共统计"
+    "private" -> "私人记录"
+    else -> "等待提交公共统计"
+}
+
+@Composable
+fun communityContributionStatusText(status: String, tier: String?): String = when (status) {
     "verified" -> when (tier) {
         "user_reported" -> stringResource(R.string.community_tier_user_reported_public)
         "amount_verified" -> stringResource(R.string.community_tier_amount_verified)
