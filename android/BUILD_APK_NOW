@@ -132,3 +132,4 @@ Rebuild after adding missing BrowserActivity diagnostic resources (2026-11-22).
 
 Bilingual community library and localized launcher label fixes (2026-11-22).
 Android 13+ package locale synchronization for localized launcher app name (2026-11-22).
+Project micro-community bilingual localization and Android per-app locale configuration (2026-11-22): localize all detail/rating/snapshot labels and declare en + zh-CN for launcher label resolution. Run Android unit tests and package the exact Debug APK.
