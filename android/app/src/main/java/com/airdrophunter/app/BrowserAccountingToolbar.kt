@@ -1464,7 +1464,7 @@ fun AccountingCenterScreen(
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.acct_ui_97), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                        Text(stringResource(R.string.acct_ui_pending_explanation) + stringResource(R.string.acct_ui_pending_count, realPendingCount),
+                        Text(stringResource(R.string.acct_ui_pending_summary, realPendingCount),
                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                         AppButton(stringResource(R.string.acct_ui_98), onClick = { showPendingManager = true })
                     }
