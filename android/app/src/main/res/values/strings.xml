@@ -1158,7 +1158,7 @@
     <string name="loc_x5_download_limit">This process has reached its download request limit</string>
     <string name="loc_x5_download_in_progress">A download request is already in progress</string>
     <string name="loc_x5_download_conditions">Download conditions were not met; check request interval, retries, and version requirements</string>
-    <string name="loc_x5_download_bandwidth_cancelled">Download was cancelled by the bandwidth policy. See Tencent's kernel diagnostics for details.</string>
+    <string name="loc_x5_download_bandwidth_cancelled">Download was cancelled by the bandwidth policy. See Tencent\'s kernel diagnostics for details.</string>
     <string name="loc_x5_download_unknown">Tencent SDK returned an unclassified status code. Keep the code for diagnosis.</string>
     <string name="loc_x5_install_success">Installation succeeded</string>
     <string name="loc_x5_install_preinitializing">Pre-initialization intermediate state; this does not indicate failure</string>
