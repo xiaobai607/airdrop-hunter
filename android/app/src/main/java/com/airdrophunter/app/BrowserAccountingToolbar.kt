@@ -210,7 +210,7 @@ fun BrowserAccountingToolbar(
         val project = ProjectDto(
             id = UUID.randomUUID().toString(),
             name = name,
-            description = "本地自定义项目",
+            description = context.getString(R.string.acct_ui_local_custom_project),
             status = "tracking"
         )
         saveProjectLocally(project) {
@@ -823,7 +823,7 @@ fun BrowserAccountingToolbar(
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(stringResource(R.string.acct_ui_29), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                                 if (gasL2Native.isNotBlank()) Text(
-                                    "$gasExecutionLabel：$gasL2Native $gasSplitSymbol" + (gasL2Usd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
+                                    "${if (gasExecutionLabel == "L2 执行费") context.getString(R.string.acct_ui_l2_execution_fee) else context.getString(R.string.acct_ui_execution_fee)}：$gasL2Native $gasSplitSymbol" + (gasL2Usd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                                 )
                                 if (gasL1Native.isNotBlank()) Text(
