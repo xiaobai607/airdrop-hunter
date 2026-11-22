@@ -128,6 +128,10 @@ private data class PendingDappExternalRequest(
 )
 
 class BrowserActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ApiClient.initialize(applicationContext)
