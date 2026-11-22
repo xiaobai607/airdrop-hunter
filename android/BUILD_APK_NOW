@@ -154,3 +154,5 @@ Bilingual localization batch 2026-11-22: migrate Home, Wallet Manager, Profile/b
 Run full Android resource merge, Kotlin compilation, unit tests, and Debug APK packaging for the expanded bilingual localization batch; verify artifact upload.
 
 Retry full Debug APK build after fixing WalletDetailScreen Toast argument separator reported by Kotlin compiler.
+
+Run full Android build and unit tests after browser, X5 browser, and external wallet connection localization. Verify Debug APK artifact upload.
