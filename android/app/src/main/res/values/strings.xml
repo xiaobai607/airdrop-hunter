@@ -1058,4 +1058,5 @@
     <string name="loc_x5_network_error">Web error: %1$s. Description: %2$s. Failed URL: %3$s</string>
     <string name="loc_x5_ssl_error">HTTPS/SSL certificate verification failed. Certificate error: %1$s. URL: %2$s. Connection blocked; certificate validation was not bypassed.</string>
     <string name="loc_x5_renderer_error">X5 WebView creation failed. Cause: %1$s — %2$s</string>
+    <string name="loc_x5_forward">Forward</string>
 </resources>
