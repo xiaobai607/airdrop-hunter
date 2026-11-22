@@ -1,5 +1,7 @@
 package com.airdrophunter.app
 
+import androidx.compose.ui.res.stringResource
+
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -75,32 +77,32 @@ fun ManualAccountingScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    "记录一次交互",
+                    stringResource(R.string.acct_manual_01),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    "填写实际发生的 Gas 支出和收益，保存后进入个人账本。",
+                    stringResource(R.string.acct_manual_02),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            AccountingFormSection(title = "基础信息", description = "项目可不关联，先把真实账目记录下来。") {
+            AccountingFormSection(title = stringResource(R.string.acct_manual_03), description = stringResource(R.string.acct_manual_04)) {
                 Column(verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)) {
-                    Text("归属项目（选填）", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                    Text(stringResource(R.string.acct_manual_04), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                     AppTextField(
                         value = projectName,
                         onValueChange = { projectName = it },
-                        placeholder = "例如：Linea、Scroll"
+                        placeholder = stringResource(R.string.acct_manual_05)
                     )
                 }
             }
 
-            AccountingFormSection(title = "费用与收益", description = "金额统一按 USD 记录；没有收益请填写 0。") {
+            AccountingFormSection(title = stringResource(R.string.acct_manual_06), description = stringResource(R.string.acct_manual_07)) {
                 Column(verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)) {
-                    Text("Gas 支出（USD）*", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                    Text(stringResource(R.string.acct_manual_08), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                     AppTextField(
                         value = gasUsd,
                         onValueChange = { gasUsd = it },
@@ -109,37 +111,37 @@ fun ManualAccountingScreen(
                         isError = gasUsd.isNotBlank() && gas == null
                     )
                     if (gasUsd.isNotBlank() && gas == null) {
-                        Text("请输入有效的非负数字", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.acct_manual_09), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(AppDesignTokens.Spacing.Sm.dp)) {
-                    Text("实际收益（USD）*", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                    Text(stringResource(R.string.acct_manual_10), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                     AppTextField(
                         value = rewardUsd,
                         onValueChange = { rewardUsd = it },
-                        placeholder = "没有收益请填 0",
+                        placeholder = stringResource(R.string.acct_manual_11),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         isError = rewardUsd.isNotBlank() && reward == null
                     )
                     if (rewardUsd.isNotBlank() && reward == null) {
-                        Text("请输入有效的非负数字", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.acct_manual_09), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
 
             AccountingFormSection(
-                title = "原生币种明细",
-                description = "可选填写具体币种和数量，便于后续核对。"
+                title = stringResource(R.string.acct_manual_12),
+                description = stringResource(R.string.acct_manual_13)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "补充链上资产数量",
+                        stringResource(R.string.acct_manual_14),
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     AppTextButton(onClick = { showNativeDetails = !showNativeDetails }) {
-                        Text(if (showNativeDetails) "收起" else "展开")
+                        Text(if (showNativeDetails) stringResource(R.string.acct_manual_15) else stringResource(R.string.acct_manual_16))
                         Icon(
                             if (showNativeDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                             contentDescription = null
@@ -147,39 +149,39 @@ fun ManualAccountingScreen(
                     }
                 }
                 if (showNativeDetails) {
-                    Text("Gas 原生金额", style = MaterialTheme.typography.labelLarge, color = AppColors.TextSecondary)
+                    Text(stringResource(R.string.acct_manual_17), style = MaterialTheme.typography.labelLarge, color = AppColors.TextSecondary)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AppTextField(
                             value = gasNative, onValueChange = { gasNative = it },
-                            placeholder = "数量", modifier = Modifier.weight(1.2f),
+                            placeholder = stringResource(R.string.acct_manual_18), modifier = Modifier.weight(1.2f),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                         )
                         AppTextField(
                             value = gasSymbol, onValueChange = { gasSymbol = it.uppercase(Locale.US) },
-                            placeholder = "币种", modifier = Modifier.weight(0.8f)
+                            placeholder = stringResource(R.string.acct_manual_19), modifier = Modifier.weight(0.8f)
                         )
                     }
                     AppTextField(
                         value = gasDecimals, onValueChange = { gasDecimals = it.filter(Char::isDigit).take(2) },
-                        modifier = Modifier.fillMaxWidth(), placeholder = "精度（选填）",
+                        modifier = Modifier.fillMaxWidth(), placeholder = stringResource(R.string.acct_manual_20),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Text("收益原生金额", style = MaterialTheme.typography.labelLarge, color = AppColors.TextSecondary)
+                    Text(stringResource(R.string.acct_manual_21), style = MaterialTheme.typography.labelLarge, color = AppColors.TextSecondary)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AppTextField(
                             value = rewardNative, onValueChange = { rewardNative = it },
-                            placeholder = "数量", modifier = Modifier.weight(1.2f),
+                            placeholder = stringResource(R.string.acct_manual_18), modifier = Modifier.weight(1.2f),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                         )
                         AppTextField(
                             value = rewardSymbol, onValueChange = { rewardSymbol = it.uppercase(Locale.US) },
-                            placeholder = "币种", modifier = Modifier.weight(0.8f)
+                            placeholder = stringResource(R.string.acct_manual_19), modifier = Modifier.weight(0.8f)
                         )
                     }
                     AppTextField(
                         value = rewardDecimals, onValueChange = { rewardDecimals = it.filter(Char::isDigit).take(2) },
-                        modifier = Modifier.fillMaxWidth(), placeholder = "精度（选填）",
+                        modifier = Modifier.fillMaxWidth(), placeholder = stringResource(R.string.acct_manual_20),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }
@@ -191,7 +193,7 @@ fun ManualAccountingScreen(
                 shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)
             ) {
                 Text(
-                    "无需连接钱包或填写交易哈希。本记录保存到你的个人账本，不会自动公开个人明细。",
+                    stringResource(R.string.acct_manual_22),
                     modifier = Modifier.padding(12.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
@@ -206,7 +208,7 @@ fun ManualAccountingScreen(
             shadowElevation = 4.dp
         ) {
             AppButton(
-                text = if (saving) "保存中…" else "保存记账",
+                text = if (saving) stringResource(R.string.acct_manual_23) else stringResource(R.string.acct_manual_24),
                 onClick = {
                     val safeGas = gas ?: return@AppButton
                     val safeReward = reward ?: return@AppButton
@@ -219,7 +221,7 @@ fun ManualAccountingScreen(
                     val entry = PersonalLedgerWriteRequest(
                         client_record_id = UUID.randomUUID().toString(),
                         project_id = null,
-                        project_name = projectName.trim().ifBlank { "未关联项目" },
+                        project_name = projectName.trim().ifBlank { context.getString(R.string.acct_manual_25) },
                         chain = "manual",
                         wallet_address = "",
                         tx_hash = "",
@@ -240,10 +242,10 @@ fun ManualAccountingScreen(
                         val saved = runCatching { repository.saveManualLedgerEntry(entry) }.getOrDefault(false)
                         saving = false
                         if (saved) {
-                            Toast.makeText(context, "已保存到个人账本", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.acct_manual_26), Toast.LENGTH_SHORT).show()
                             onBack()
                         } else {
-                            Toast.makeText(context, "保存失败，请重试", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.acct_manual_27), Toast.LENGTH_SHORT).show()
                         }
                     }
                 },
