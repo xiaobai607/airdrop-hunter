@@ -35,7 +35,7 @@ object AppLocale {
     fun selectedLanguageTag(context: Context): String? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val locales = context.getSystemService(LocaleManager::class.java).applicationLocales
-            if (locales.isEmpty) null else locales[0]?.toLanguageTag()
+            if (locales.isEmpty()) null else locales[0]?.toLanguageTag()
         } else {
             storedLanguageTag(context)
         }
@@ -46,7 +46,7 @@ object AppLocale {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val manager = context.getSystemService(LocaleManager::class.java)
             manager.applicationLocales = normalizedTag
-                ?.let(LocaleList::forLanguageTags)
+                ?.let { LocaleList.forLanguageTags(it) }
                 ?: LocaleList.getEmptyLocaleList()
         } else {
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().apply {
