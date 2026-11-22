@@ -996,4 +996,19 @@
     <string name="auth_screen_request_failed">Request failed. Check your connection and try again.</string>
     <string name="auth_screen_register_unavailable">Registration is under development. Please check back later.</string>
     <string name="auth_screen_guest">Browse as guest</string>
+    <string name="search_coin_results">Token search results</string>
+    <string name="search_dapp_results">DApp search results</string>
+    <string name="search_open">Open</string>
+    <string name="search_no_link">No link available</string>
+    <string name="search_no_update_time">No successful update yet</string>
+    <string name="search_status_fresh">Updated %1$s</string>
+    <string name="search_status_refreshing">Updating · Showing previous data (%1$s)</string>
+    <string name="search_status_stale">Cached data · Last updated %1$s</string>
+    <string name="search_status_error">Update failed · Keeping previous cache (%1$s)</string>
+    <string name="search_status_unknown">Waiting for first update</string>
+    <string name="auth_screen_server_waking">The server is waking up. Please try again shortly.</string>
+    <string name="auth_screen_network_failed">Network connection failed. Please try again.</string>
+    <string name="auth_screen_wait">Please wait…</string>
+    <string name="auth_screen_login">Log in</string>
+    <string name="auth_screen_register">Register</string>
 </resources>
