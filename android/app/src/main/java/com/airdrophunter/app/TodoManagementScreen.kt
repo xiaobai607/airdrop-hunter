@@ -1,5 +1,7 @@
 package com.airdrophunter.app
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,22 +40,22 @@ fun TodoManagementScreen(modifier: Modifier = Modifier) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "待办事项",
+                stringResource(R.string.todo_title),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                "集中查看需要跟进的项目、钱包和账目事项。",
+                stringResource(R.string.todo_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TodoFilterLabel("全部", selected = true)
-            TodoFilterLabel("待处理")
-            TodoFilterLabel("已完成")
+            TodoFilterLabel(stringResource(R.string.todo_filter_all), selected = true)
+            TodoFilterLabel(stringResource(R.string.todo_filter_pending))
+            TodoFilterLabel(stringResource(R.string.todo_filter_completed))
         }
 
         Card(
@@ -75,13 +77,13 @@ fun TodoManagementScreen(modifier: Modifier = Modifier) {
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    "待办管理页面已就绪",
+                    stringResource(R.string.todo_ready_title),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    "系统自动待办和手动待办将在下一阶段接入。当前不会显示虚构事项。",
+                    stringResource(R.string.todo_ready_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -96,7 +98,7 @@ fun TodoManagementScreen(modifier: Modifier = Modifier) {
             shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)
         ) {
             Icon(Icons.Outlined.NotificationsNone, contentDescription = null)
-            Text("添加待办 · 下一阶段开放")
+            Text(stringResource(R.string.todo_add_next_phase))
         }
     }
 }
