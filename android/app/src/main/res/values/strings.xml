@@ -1059,4 +1059,11 @@
     <string name="loc_x5_ssl_error">HTTPS/SSL certificate verification failed. Certificate error: %1$s. URL: %2$s. Connection blocked; certificate validation was not bypassed.</string>
     <string name="loc_x5_renderer_error">X5 WebView creation failed. Cause: %1$s — %2$s</string>
     <string name="loc_x5_forward">Forward</string>
+    <string name="loc_wallet_connect_connected">Wallet connected</string>
+    <string name="loc_wallet_connect_account_count">%1$d authorized accounts connected</string>
+    <string name="loc_wallet_connect_manage">Manage wallet connections</string>
+    <string name="loc_wallet_connect_intro">Connect an external wallet with WalletConnect</string>
+    <string name="loc_wallet_connect_checking">Checking wallet connection service</string>
+    <string name="loc_wallet_connect_retry">Check again</string>
+    <string name="loc_wallet_connect_back_webpage">Return to webpage</string>
 </resources>
