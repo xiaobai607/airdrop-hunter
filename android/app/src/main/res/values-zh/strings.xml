@@ -1094,4 +1094,13 @@
     <string name="market_detail_cache_refreshing">正在更新 · 保留上次数据（%1$s）</string>
     <string name="market_detail_cache_stale">缓存数据 · 上次更新 %1$s</string>
     <string name="market_detail_cache_error">更新失败 · 保留上次缓存（%1$s）</string>
+    <string name="community_tier_user_reported">用户自报</string>
+    <string name="community_tier_transaction_linked">链上已确认</string>
+    <string name="community_tier_amount_verified">链上精确核验</string>
+    <string name="community_tier_user_reported_public">用户自报已计入公共统计</string>
+    <string name="community_tier_verified">链上已核验</string>
+    <string name="community_tier_rejected">核验拒绝</string>
+    <string name="community_tier_not_eligible">不符合公共贡献条件</string>
+    <string name="community_tier_pending">等待提交公共统计</string>
+    <string name="community_tier_private">私人记录</string>
 </resources>
