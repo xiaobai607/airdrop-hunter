@@ -195,7 +195,7 @@ fun HomeScreen(
                         HomeDashboardMetric(
                             title = stringResource(R.string.home_wallets_added),
                             value = dashboardWalletCount.toString(),
-                            unit = "个",
+                            unit = stringResource(R.string.home_items_unit),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -257,7 +257,7 @@ fun HomeScreen(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.home_airdrop_activity), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    TextButton(onClick = onOpenAirdropLibrary) { Text("查看全部") }
+                    TextButton(onClick = onOpenAirdropLibrary) { Text(stringResource(R.string.home_view_all)) }
                 }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
