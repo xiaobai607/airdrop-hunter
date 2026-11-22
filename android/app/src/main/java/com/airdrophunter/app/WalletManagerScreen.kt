@@ -258,7 +258,7 @@ fun WalletManagerScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    walletConnectError.orEmpty(),
+                    localizeKnownMessage(walletConnectError).orEmpty(),
                     modifier = Modifier.weight(1f),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
