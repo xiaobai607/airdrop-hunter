@@ -135,3 +135,5 @@ Android 13+ package locale synchronization for localized launcher app name (2026
 Project micro-community bilingual localization and Android per-app locale configuration (2026-11-22): localize all detail/rating/snapshot labels and declare en + zh-CN for launcher label resolution. Run Android unit tests and package the exact Debug APK.
 
 Compile fix: import androidx.compose.ui.res.stringResource for the localized MicroCommunityScreen labels. Re-run Android unit tests and package APK.
+
+Fix tokenHint helper to be @Composable so it can resolve the localized no-token-details string. Re-run debug unit tests and APK build.
