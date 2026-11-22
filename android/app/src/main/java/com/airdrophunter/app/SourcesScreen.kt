@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import coil.compose.SubcomposeAsyncImage
 import com.airdrophunter.app.data.AirdropSiteStore
 import com.airdrophunter.app.ui.theme.AppDesignTokens
@@ -34,7 +35,7 @@ fun SourcesScreen(modifier: Modifier = Modifier) {
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    "查看已收录的官方活动与公告网站",
+                    stringResource(R.string.loc_sources_intro),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium
                 )
