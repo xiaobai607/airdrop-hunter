@@ -1038,4 +1038,10 @@
     <string name="acct_ui_l2_execution_fee">L2 execution fee</string>
     <string name="acct_ui_execution_fee">Execution fee</string>
     <string name="acct_ui_pending_summary">%1$d pending bills. On-chain receipts, manual entries, and failed transaction fee checks are handled here; nothing is automatically marked complete.</string>
+    <string name="wallet_error_load">The server is busy. Please try again later.</string>
+    <string name="wallet_error_save">Unable to save. Check the address or try again later.</string>
+    <string name="wallet_error_update">Unable to update wallet information.</string>
+    <string name="wallet_error_delete">Unable to delete wallet. Please try again later.</string>
+    <string name="loc_main_tx_callback_invalid">The transaction callback could not be verified. Use on-chain sync to reconcile the transaction.</string>
+    <string name="loc_main_login_unavailable">Registration and sign-in are not available in this version.</string>
 </resources>
