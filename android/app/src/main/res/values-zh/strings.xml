@@ -883,4 +883,14 @@
     <string name="todo_ready_title">待办管理页面已就绪</string>
     <string name="todo_ready_description">系统自动待办和手动待办将在下一阶段接入。当前不会显示虚构事项。</string>
     <string name="todo_add_next_phase">添加待办 · 下一阶段开放</string>
+    <string name="settings_title">设置</string>
+    <string name="security_title">安全中心</string>
+    <string name="notifications_title">消息通知</string>
+    <string name="settings_preferences">偏好与工具</string>
+    <string name="browser_toolbar_title">浏览器工具栏</string>
+    <string name="browser_toolbar_description">可在浏览器页面的“添加”入口管理工具显示与排序。</string>
+    <string name="about_app">关于应用</string>
+    <string name="about_app_description">空投项目管理 · 钱包追踪 · 个人记账</string>
+    <string name="language_follow_system">跟随系统设置</string>
+    <string name="language_change_note">选择 Airdrop Hunter 的显示语言，切换后立即生效。</string>
 </resources>
