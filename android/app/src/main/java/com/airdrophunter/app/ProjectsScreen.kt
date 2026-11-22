@@ -212,7 +212,7 @@ fun ProjectsScreen(
         }
 
         state.error?.takeIf { visibleProjects.isNotEmpty() }?.let { error ->
-            Text(error, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            Text(localizeKnownMessage(error).orEmpty(), Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
 
@@ -417,7 +417,7 @@ fun ProjectsScreen(
                     AppTextField(editProjectOfficialUrl, { editProjectOfficialUrl = it }, context.getString(R.string.loc_projects_33))
                     AppTextField(editProjectClaimUrl, { editProjectClaimUrl = it }, context.getString(R.string.loc_projects_34))
                     AppTextField(editProjectTwitterUrl, { editProjectTwitterUrl = it }, context.getString(R.string.loc_projects_35))
-                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    state.error?.let { Text(localizeKnownMessage(it).orEmpty(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 }
             },
             confirmButton = {
