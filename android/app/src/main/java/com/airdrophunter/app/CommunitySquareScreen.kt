@@ -514,7 +514,7 @@ fun CommunitySquareScreen(
                 }
             },
             confirmButton = {
-                AppTextButton(onClick = { showAirdropFilters = false }) { Text("完成 · ${displayedProjects.size} 个结果") }
+                AppTextButton(onClick = { showAirdropFilters = false }) { Text(context.getString(R.string.comm_filter_done, displayedProjects.size)) }
             },
             dismissButton = {
                 AppTextButton(onClick = { airdropFilterSelection = AirdropFilterSelection() }) { Text(stringResource(R.string.comm_reset)) }
