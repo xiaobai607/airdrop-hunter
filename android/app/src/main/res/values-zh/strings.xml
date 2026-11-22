@@ -1149,4 +1149,7 @@
     <string name="message_project_claim_error">无法生成资格领取入口</string>
     <string name="message_airdrop_saved_cloud">空投记录已保存到云端</string>
     <string name="common_clear_input">清除输入</string>
+    <string name="acct_ui_method_manual">手动记账</string>
+    <string name="acct_ui_method_manual_nonchain">手动记账（非链上交易）</string>
+    <string name="acct_ui_method_onchain_import">链上交易导入</string>
 </resources>
