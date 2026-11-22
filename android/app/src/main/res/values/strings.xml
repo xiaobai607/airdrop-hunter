@@ -885,7 +885,7 @@
     <string name="settings_title">Settings</string>
     <string name="security_title">Security</string>
     <string name="notifications_title">Notifications</string>
-    <string name="settings_preferences">Preferences & tools</string>
+    <string name="settings_preferences">Preferences &amp; tools</string>
     <string name="browser_toolbar_title">Browser toolbar</string>
     <string name="browser_toolbar_description">Manage toolbar items and their order from the Add menu in the browser.</string>
     <string name="about_app">About</string>
