@@ -122,7 +122,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                                             } catch (_: Exception) { "" }
                                             when {
                                                 e.code() == 429 -> context.getString(R.string.auth_screen_too_many_requests)
-                                                e.code() == 400 && (detail.contains("已存在") || detail.contains("已被占用")) ->
+                                                e.code() == 400 && (detail.contains("已存在") || detail.contains("已被占用") || detail.contains("already exists", ignoreCase = true)) ->
                                                     context.getString(R.string.auth_screen_username_exists)
                                                 e.code() == 400 && detail.isNotBlank() -> detail
                                                 e.code() == 401 -> context.getString(R.string.auth_screen_login_failed)
