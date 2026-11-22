@@ -1,5 +1,7 @@
 package com.airdrophunter.app
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,21 +55,21 @@ fun WalletCheckDialog(
                 projects = ApiClient.service.getProjects()
                 wallets = ApiClient.service.getWallets()
             }
-        } catch (_: Exception) { error = "读取数据失败，请稍后重试" }
+        } catch (_: Exception) { error = context.getString(R.string.loc_wallet_check_01) }
         finally { loading = false }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text("空投资格查询", color = MaterialTheme.colorScheme.onSurface) },
+        title = { Text(stringResource(R.string.loc_wallet_check_02), color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (loading) Text("正在读取项目和钱包…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("选择项目", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                if (loading) Text(stringResource(R.string.loc_wallet_check_03), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.loc_wallet_check_04), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Column {
                     AppButton(
-                        text = selectedProject?.name ?: "请选择已添加的项目",
+                        text = selectedProject?.name ?: stringResource(R.string.loc_wallet_check_05),
                         onClick = { projectExpanded = true },
                         style = AppButtonStyle.SECONDARY
                     )
@@ -79,10 +81,10 @@ fun WalletCheckDialog(
                         }
                     }
                 }
-                Text("选择钱包", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.loc_wallet_check_06), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Column {
                     AppButton(
-                        text = selectedWallet?.let { "${it.chain} · ${it.wallet_name} (${shortAddress(it.address)})" } ?: "请选择已保存的钱包",
+                        text = selectedWallet?.let { "${it.chain} · ${it.wallet_name} (${shortAddress(it.address)})" } ?: stringResource(R.string.loc_wallet_check_07),
                         onClick = { walletExpanded = true },
                         style = AppButtonStyle.SECONDARY,
                         fontSizeSp = 14
@@ -96,16 +98,16 @@ fun WalletCheckDialog(
                         }
                     }
                 }
-                Text("App 会先请求公链验证地址，再打开项目已保存的 HTTPS 资格入口。资格结果由项目方网页判定。",
+                Text(stringResource(R.string.loc_wallet_check_08),
                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-                if (projects.isEmpty() && !loading) Text("暂无项目，请先在项目管理中添加项目并填写资格入口。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (wallets.isEmpty() && !loading) Text("暂无钱包，请先添加公开钱包地址。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (projects.isEmpty() && !loading) Text(stringResource(R.string.loc_wallet_check_09), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (wallets.isEmpty() && !loading) Text(stringResource(R.string.loc_wallet_check_10), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
             AppButton(
-                text = "立即查询",
+                text = stringResource(R.string.loc_wallet_check_11),
                 enabled = selectedProject != null && selectedWallet != null && !submitting && !loading,
                 loading = submitting,
                 onClick = {
@@ -122,18 +124,18 @@ fun WalletCheckDialog(
                                 if (claimUrl.startsWith("https://")) {
                                     onOpenBrowser(claimUrl, wallet, wallets, project.name)
                                 } else {
-                                    error = "该项目尚未填写官方资格查询入口"
+                                    error = context.getString(R.string.loc_wallet_check_12)
                                 }
                             }
                         } catch (e: retrofit2.HttpException) {
-                            error = if (e.code() == 409) "该项目尚未设置官方资格查询入口" else "服务器繁忙，请稍后重试"
+                            error = if (e.code() == 409) context.getString(R.string.loc_wallet_check_12) else context.getString(R.string.loc_wallet_check_13)
                         } catch (_: Exception) {
-                            error = "服务器繁忙，请稍后重试"
+                            error = context.getString(R.string.loc_wallet_check_13)
                         } finally { submitting = false }
                     }
                 }
             )
         },
-        dismissButton = { AppTextButton(onClick = onDismiss) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = onDismiss) { Text(stringResource(R.string.loc_wallet_check_14)) } }
     )
 }
