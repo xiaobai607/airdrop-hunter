@@ -113,7 +113,6 @@ private fun SettingsDestinationContent(appVersion: String) {
                 icon = { Icon(Icons.Default.Language, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 title = context.getString(R.string.language_settings),
                 description = languageLabel,
-                trailing = context.getString(R.string.language_change_action)
             )
             TextButton(onClick = { showLanguageDialog = true }, modifier = Modifier.align(Alignment.End)) {
                 Text(context.getString(R.string.language_change_action))
