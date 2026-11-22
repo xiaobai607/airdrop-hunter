@@ -939,4 +939,7 @@
     <string name="loc_airdrop_reward_hint">奖励说明</string>
     <string name="loc_airdrop_eligibility_hint">参与条件</string>
     <string name="loc_airdrop_source_hint">信息来源链接</string>
+    <string name="loc_airdrop_verified">已核实</string>
+    <string name="loc_airdrop_source_linked">已附来源，待核实</string>
+    <string name="loc_airdrop_unverified">未核实</string>
 </resources>
