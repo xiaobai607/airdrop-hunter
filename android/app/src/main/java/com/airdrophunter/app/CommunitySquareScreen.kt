@@ -69,7 +69,6 @@ private data class CommunityProject(
 ) {
     val hasContributionData: Boolean get() = gas > 0.0 || reward > 0.0
 }
-}
 
 private enum class CommunityRanking(val titleRes: Int) {
     REWARD(R.string.comm_rank_reward), GAS(R.string.comm_rank_gas), NEW(R.string.comm_rank_new)
