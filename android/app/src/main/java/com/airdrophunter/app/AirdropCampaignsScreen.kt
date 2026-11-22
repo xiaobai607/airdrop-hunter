@@ -73,7 +73,7 @@ fun AirdropCampaignsScreen(
         if (state.sourceStatuses.isNotEmpty() || state.sourceStatusError != null) {
             AirdropSourceHealthPanel(
                 statuses = state.sourceStatuses,
-                error = if (state.items.isNotEmpty()) state.error ?: state.sourceStatusError else state.sourceStatusError,
+                error = localizeKnownMessage(if (state.items.isNotEmpty()) state.error ?: state.sourceStatusError else state.sourceStatusError),
                 expanded = showSourceDetails,
                 onToggle = { showSourceDetails = !showSourceDetails },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -128,7 +128,7 @@ fun AirdropCampaignsScreen(
                 if (state.error != null && state.sourceStatuses.isEmpty()) {
                     item {
                         Text(
-                            state.error.orEmpty(),
+                            localizeKnownMessage(state.error).orEmpty(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall
                         )
