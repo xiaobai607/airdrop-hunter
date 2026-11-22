@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         applicationContext,
-                        "交易回调未通过校验，请使用链上同步补单",
+                        getString(R.string.loc_main_tx_callback_invalid),
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -162,7 +162,7 @@ class MainActivity : ComponentActivity() {
                     onRequireAuth = {
                         Toast.makeText(
                             applicationContext,
-                            "当前版本暂不开放注册/登录",
+                            getString(R.string.loc_main_login_unavailable),
                             Toast.LENGTH_LONG
                         ).show()
                     },
@@ -170,7 +170,7 @@ class MainActivity : ComponentActivity() {
                     onOpenAuth = {
                         Toast.makeText(
                             applicationContext,
-                            "当前版本暂不开放注册/登录",
+                            getString(R.string.loc_main_login_unavailable),
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -263,14 +263,14 @@ private fun AirdropHunterApp(
         activeOverlay == AppOverlay.SOURCES -> stringResource(R.string.sources_title)
         activeOverlay == AppOverlay.AIRDROP_HUB -> stringResource(R.string.loc_hub_official_announcements)
         activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> stringResource(R.string.comm_campaigns_title)
-        activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
-        activeOverlay == AppOverlay.MARKET_DETAIL -> "$selectedMarketSymbol 行情"
-        activeOverlay == AppOverlay.TRON_ENERGY -> "TRON 能量租赁助手"
-        selectedCommunityProject != null -> "项目微社区"
+        activeOverlay == AppOverlay.GLOBAL_SEARCH -> stringResource(R.string.loc_main_global_search)
+        activeOverlay == AppOverlay.MARKET_DETAIL -> stringResource(R.string.loc_main_market_title, selectedMarketSymbol)
+        activeOverlay == AppOverlay.TRON_ENERGY -> stringResource(R.string.loc_main_tron_energy)
+        selectedCommunityProject != null -> stringResource(R.string.loc_main_community)
         selectedProject != null -> stringResource(R.string.project_detail)
-        activeOverlay == AppOverlay.PROJECT_LIBRARY -> "库管理"
-        activeOverlay == AppOverlay.MANUAL_ACCOUNTING -> "记账"
-        activeOverlay == AppOverlay.TODO -> "待办事项"
+        activeOverlay == AppOverlay.PROJECT_LIBRARY -> stringResource(R.string.loc_main_project_library)
+        activeOverlay == AppOverlay.MANUAL_ACCOUNTING -> stringResource(R.string.loc_main_accounting)
+        activeOverlay == AppOverlay.TODO -> stringResource(R.string.todo_title)
         else -> stringResource(R.string.project_detail)
     }
 
@@ -384,7 +384,7 @@ private fun AirdropHunterApp(
                             activeOverlay = AppOverlay.NONE
                             context.startActivity(Intent(context, BrowserActivity::class.java)
                                 .putExtra(BrowserActivity.EXTRA_URL, "https://feee.io/")
-                                .putExtra(BrowserActivity.EXTRA_TITLE, "TRON 能量租赁")
+                                .putExtra(BrowserActivity.EXTRA_TITLE, getString(R.string.loc_main_tron_energy_browser))
                                 // This flow carries the selected wallet address into the legacy
                                 // wallet-capable WebView; do not hand it off to the browsing-only X5 surface.
                                 .putExtra(BrowserActivity.EXTRA_QUICK_COPY_ADDRESS, address)
