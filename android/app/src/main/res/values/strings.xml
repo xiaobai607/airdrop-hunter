@@ -955,4 +955,7 @@
     <string name="loc_wallet_detail_updated">Updated: %1$s</string>
     <string name="loc_wallet_detail_tron_assets">TRON currently shows TRX and recognized USDT. Other TRC20 assets are not included yet.</string>
     <string name="loc_wallet_detail_asset_unverified"> · Unverified</string>
+    <string name="loc_wallet_detail_empty_address">This address has no transactions to display yet. Try refreshing later.</string>
+    <string name="loc_wallet_detail_empty_filter">Switch between All activity, Sent, and Received to view other transactions.</string>
+    <string name="loc_wallet_detail_added_pending">Added to pending ledger. Use the browser accounting toolbar to assign a project and confirm the actual amount.</string>
 </resources>
