@@ -117,9 +117,9 @@ fun MicroCommunityScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(projectName, modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Steam 式真实参与者评价 · 仅星级评分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.micro_rating_intro), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 AppButton(
-                    text = if (isJoined) "已添加到库管理" else "添加到库管理",
+                    text = if (isJoined) stringResource(R.string.micro_added_to_library) else stringResource(R.string.micro_add_to_library),
                     onClick = {
                         scope.launch {
                             val added = runCatching {
@@ -127,7 +127,7 @@ fun MicroCommunityScreen(
                             }.getOrDefault(false)
                             Toast.makeText(
                                 context,
-                                if (added) "${projectName} 已加入库管理" else "添加失败，请稍后重试",
+                                if (added) context.getString(R.string.micro_added_project, projectName) else context.getString(R.string.micro_add_failed),
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -140,8 +140,8 @@ fun MicroCommunityScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("项目数据概览", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(overallProject?.chain ?: "社区公开统计", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.micro_overview), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(overallProject?.chain ?: stringResource(R.string.micro_public_stats), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
                     overallProject?.logo?.takeIf { it.isNotBlank() }?.let { logo ->
                         Surface(shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp), color = MaterialTheme.colorScheme.surface) {
@@ -155,7 +155,7 @@ fun MicroCommunityScreen(
                 }
                 overallProject?.website_url?.takeIf { it.startsWith("https://", true) }?.let { url ->
                     AppTextButton(onClick = { runCatching { uriHandler.openUri(url) } }) {
-                        Text("官方网站：$url", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        Text(stringResource(R.string.micro_website, url), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                 }
 
@@ -170,7 +170,7 @@ fun MicroCommunityScreen(
                             Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, CircleShape).padding(4.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            listOf("overall" to "总览", "3d" to "近3天", "1h" to "近1小时").forEach { (window, label) ->
+                            listOf("overall" to stringResource(R.string.micro_period_overall), "3d" to stringResource(R.string.micro_period_3d), "1h" to stringResource(R.string.micro_period_1h)).forEach { (window, label) ->
                                 val selected = selectedPeriod == window
                                 Surface(
                                     modifier = Modifier.weight(1f).heightIn(min = 44.dp)
@@ -214,9 +214,9 @@ fun MicroCommunityScreen(
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                             Text(
                                 when {
-                                    statsLoading -> "正在读取快照…"
-                                    statsFailed -> "暂无快照缓存"
-                                    else -> "数据更新：" + (periodSnapshots[selectedPeriod]?.update_time?.replace("T", " ") ?: "暂无")
+                                    statsLoading -> context.getString(R.string.micro_loading_snapshot)
+                                    statsFailed -> context.getString(R.string.micro_no_snapshot_cache)
+                                    else -> context.getString(R.string.micro_updated_at, periodSnapshots[selectedPeriod]?.update_time?.replace("T", " ") ?: context.getString(R.string.micro_not_available))
                                 },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall
@@ -231,7 +231,7 @@ fun MicroCommunityScreen(
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("本机已保存的评分", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.micro_local_ratings), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(
                         if (ratings.isEmpty()) "暂无本机评分记录。当前版本不提交全网评分。"
                         else "本机评分记录：${ratings.size} 条 · 平均 ${String.format(java.util.Locale.US, "%.1f", average ?: 0.0)} 星",
@@ -239,7 +239,7 @@ fun MicroCommunityScreen(
                     )
                     ratings.take(3).forEach { rating ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("本机评分记录",
+                            Text(stringResource(R.string.micro_local_rating_record),
                                 Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                             Text("★".repeat(rating.score), color = Color(0xFFFFB12B), style = MaterialTheme.typography.bodySmall)
                         }
@@ -254,17 +254,17 @@ fun MicroCommunityScreen(
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("为这个项目打分", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.micro_rate_project), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         (1..5).forEach { score ->
                             Icon(
                                 imageVector = if (score <= selectedScore) Icons.Default.Star else Icons.Outlined.StarBorder,
-                                contentDescription = "$score 星",
+                                contentDescription = stringResource(R.string.micro_score_stars, score),
                                 tint = if (score <= selectedScore) Color(0xFFFFB12B) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(44.dp).appPressFeedback(
                                     onClick = {
                                         if (!participationChecked || !canRate) {
-                                            Toast.makeText(context, "仅限真实参与该项目的用户打分", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.micro_rate_participants_only), Toast.LENGTH_SHORT).show()
                                         } else selectedScore = score
                                     },
                                     enabled = !saved,
@@ -276,22 +276,22 @@ fun MicroCommunityScreen(
                     if (!canRate) {
                         Text("仅限真实参与该项目的用户打分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                     } else if (saved) {
-                        Text("已保存在本机", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.micro_saved_locally), color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelMedium)
                     } else {
-                        Text("星级评分暂存在本机，当前版本不会提交全网评分", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.micro_rating_local_only), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                     AppButton(
-                        text = if (saved) "已评价" else "保存星级评分",
+                        text = if (saved) stringResource(R.string.micro_rated) else stringResource(R.string.micro_save_rating),
                         onClick = {
                             if (!participationChecked || !canRate) {
-                                Toast.makeText(context, "仅限本机有真实参与记账记录的用户打分", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.micro_rate_with_ledger_only), Toast.LENGTH_SHORT).show()
                             } else if (selectedScore in 1..5 && !saved && !saving) {
                                 saving = true
                                 scope.launch {
                                     val ok = CacheStore.saveProjectRating(projectOfficialId, wallet, selectedScore)
                                     saving = false
                                     saved = ok
-                                    if (!ok) Toast.makeText(context, "本机评分保存失败", Toast.LENGTH_SHORT).show()
+                                    if (!ok) Toast.makeText(context, context.getString(R.string.micro_rating_save_failed), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
@@ -322,14 +322,14 @@ private fun CommunitySnapshotPeriodMetric(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("Gas 支出", color = gasColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.micro_gas_spend), color = gasColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 Text(formatCompactUsd(gas), color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(tokenHint(gasTokens), color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall, maxLines = 1)
             }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("奖励收益", color = rewardColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.micro_reward_income), color = rewardColor, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 Text(formatCompactUsd(reward), color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(tokenHint(rewardTokens), color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -371,7 +371,7 @@ private fun CommunitySnapshotPeriodMetric(
                 }
             }
         } else {
-            Text("暂无可比较的 Gas / 收益数据", color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Text(stringResource(R.string.micro_no_comparable_data), color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall)
         }
     }
@@ -384,5 +384,5 @@ private fun formatCompactUsd(value: Double): String = when {
 }
 
 private fun tokenHint(tokens: List<CommunityTokenAggregateDto>): String =
-    tokens.takeIf { it.isNotEmpty() }?.let { "≈ " + formatCommunityTokenBreakdown(it) } ?: "≈ 暂无代币明细"
+    tokens.takeIf { it.isNotEmpty() }?.let { "≈ " + formatCommunityTokenBreakdown(it) } ?: "≈ " + stringResource(R.string.micro_no_token_details)
 
