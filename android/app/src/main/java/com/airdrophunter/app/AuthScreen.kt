@@ -100,7 +100,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                         },
                         colors = authColors()
                     )
-                    error?.let { Text(it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
+                    error?.let { Text(localizeKnownMessage(it) ?: it, color = AppColors.Danger, style = MaterialTheme.typography.bodySmall) }
                     Button(
                         onClick = {
                             if (!requestInFlight.compareAndSet(false, true)) return@Button
