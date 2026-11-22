@@ -1039,4 +1039,10 @@
     <string name="acct_ui_l2_execution_fee">L2 执行费</string>
     <string name="acct_ui_execution_fee">执行费</string>
     <string name="acct_ui_pending_summary">%1$d 笔待确认账单。链上回执、手动记录与失败交易的费用核对均在这里继续处理；不会自动算作已完成。</string>
+    <string name="wallet_error_load">服务器繁忙，请稍后重试</string>
+    <string name="wallet_error_save">保存失败，请检查地址或稍后重试</string>
+    <string name="wallet_error_update">更新钱包信息失败</string>
+    <string name="wallet_error_delete">删除失败，请稍后重试</string>
+    <string name="loc_main_tx_callback_invalid">交易回调未通过校验，请使用链上同步补单</string>
+    <string name="loc_main_login_unavailable">当前版本暂不开放注册/登录</string>
 </resources>
