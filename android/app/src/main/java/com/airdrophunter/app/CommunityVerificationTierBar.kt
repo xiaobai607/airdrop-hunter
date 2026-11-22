@@ -60,6 +60,9 @@ fun CommunityVerificationTierBar(
 ) {
     val segments = remember(values) { communityVerificationTierSegments(values) }
     if (segments.isEmpty()) return
+    val userReportedLabel = stringResource(R.string.community_tier_user_reported)
+    val transactionLinkedLabel = stringResource(R.string.community_tier_transaction_linked)
+    val amountVerifiedLabel = stringResource(R.string.community_tier_amount_verified)
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp)) {
         Row(
@@ -81,7 +84,7 @@ fun CommunityVerificationTierBar(
         }
         Text(
             text = segments.joinToString(" · ") {
-                "${when (it.key) { "user_reported" -> stringResource(R.string.community_tier_user_reported); "transaction_linked" -> stringResource(R.string.community_tier_transaction_linked); "amount_verified" -> stringResource(R.string.community_tier_amount_verified); else -> it.label }} ${String.format(Locale.US, "$%,.2f", it.amount)}"
+                "${when (it.key) { "user_reported" -> userReportedLabel; "transaction_linked" -> transactionLinkedLabel; "amount_verified" -> amountVerifiedLabel; else -> it.label }} ${String.format(Locale.US, "$%,.2f", it.amount)}"
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelSmall,
