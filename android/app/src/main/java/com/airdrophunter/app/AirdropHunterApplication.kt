@@ -271,7 +271,7 @@ object X5KernelInitializer {
                     Log.i(TAG, "X5 download finished code=$errorCode")
                     if (errorCode != 100) {
                         _diagnostics.value = _diagnostics.value.copy(
-                            lastFailure = getString(R.string.loc_x5_download_failed, errorCode)
+                            lastFailure = appContext.getString(R.string.loc_x5_download_failed, errorCode)
                         )
                     }
                 }
@@ -281,7 +281,7 @@ object X5KernelInitializer {
                     Log.i(TAG, "X5 install finished code=$errorCode")
                     if (errorCode != 200) {
                         _diagnostics.value = _diagnostics.value.copy(
-                            lastFailure = getString(R.string.loc_x5_install_failed, errorCode)
+                            lastFailure = appContext.getString(R.string.loc_x5_install_failed, errorCode)
                         )
                     }
                 }
@@ -320,7 +320,7 @@ object X5KernelInitializer {
                             }.getOrNull()
                             _diagnostics.value = _diagnostics.value.copy(
                                 usingX5Core = false,
-                                lastFailure = getString(R.string.loc_x5_unavailable_fallback) +
+                                lastFailure = appContext.getString(R.string.loc_x5_unavailable_fallback) +
                                     help?.takeIf { it.isNotBlank() }?.let { "；$it" }.orEmpty()
                             )
                             Log.w(TAG, "X5 unavailable; system WebView fallback enabled; callbackAvailable=$isX5Available; help=$help")
@@ -335,7 +335,7 @@ object X5KernelInitializer {
             _state.value = X5KernelState.AVAILABLE
             _diagnostics.value = _diagnostics.value.copy(
                 usingX5Core = false,
-                lastFailure = getString(R.string.loc_x5_init_exception, error.message ?: error.javaClass.simpleName)
+                lastFailure = appContext.getString(R.string.loc_x5_init_exception, error.message ?: error.javaClass.simpleName)
             )
             Log.e(TAG, "X5 initialization failed; system WebView fallback selected", error)
         }
