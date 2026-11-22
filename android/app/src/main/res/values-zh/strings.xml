@@ -1148,4 +1148,5 @@
     <string name="message_projects_sync_cached">同步暂不可用，已保留本地项目</string>
     <string name="message_project_claim_error">无法生成资格领取入口</string>
     <string name="message_airdrop_saved_cloud">空投记录已保存到云端</string>
+    <string name="common_clear_input">清除输入</string>
 </resources>
