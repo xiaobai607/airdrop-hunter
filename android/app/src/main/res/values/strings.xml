@@ -1044,4 +1044,18 @@
     <string name="wallet_error_delete">Unable to delete wallet. Please try again later.</string>
     <string name="loc_main_tx_callback_invalid">The transaction callback could not be verified. Use on-chain sync to reconcile the transaction.</string>
     <string name="loc_main_login_unavailable">Registration and sign-in are not available in this version.</string>
+    <string name="loc_x5_kernel_timeout">X5 initialization timed out. Switched to Android System WebView.</string>
+    <string name="loc_x5_browser_preparing">Preparing browser</string>
+    <string name="loc_x5_kernel_fallback">System engine fallback</string>
+    <string name="loc_x5_kernel_preparing">Browser is preparing</string>
+    <string name="loc_x5_kernel_error">Browser engine error</string>
+    <string name="loc_x5_preparing_title">Preparing browser</string>
+    <string name="loc_x5_slow_hint">If X5 initialization takes too long, the system engine will be used automatically.</string>
+    <string name="loc_x5_system_error_title">Browser engine initialization failed</string>
+    <string name="loc_x5_system_error">The system browser engine could not start. Please try again later.</string>
+    <string name="loc_x5_blocked_protocol">Unsupported link protocol blocked. Only secure web links are allowed.</string>
+    <string name="loc_x5_download_link">Download link detected. Open it in an external browser: %1$s</string>
+    <string name="loc_x5_network_error">Web error: %1$s. Description: %2$s. Failed URL: %3$s</string>
+    <string name="loc_x5_ssl_error">HTTPS/SSL certificate verification failed. Certificate error: %1$s. URL: %2$s. Connection blocked; certificate validation was not bypassed.</string>
+    <string name="loc_x5_renderer_error">X5 WebView creation failed. Cause: %1$s — %2$s</string>
 </resources>
