@@ -1073,4 +1073,7 @@
     <string name="loc_x5_install_failed">内核安装未成功，安装状态码：%1$d</string>
     <string name="loc_x5_unavailable_fallback">X5 内核暂不可用，已自动切换系统 WebView</string>
     <string name="loc_x5_init_exception">X5 初始化异常，已切换系统 WebView：%1$s</string>
+    <string name="loc_x5_using_x5">正在使用腾讯 X5 加载网页</string>
+    <string name="loc_x5_using_system">正在使用系统内核加载网页</string>
+    <string name="loc_x5_wallet_actions_notice">钱包相关操作请从原有钱包 DApp 入口进入</string>
 </resources>
