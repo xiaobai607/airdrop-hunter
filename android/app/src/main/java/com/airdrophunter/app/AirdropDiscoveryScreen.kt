@@ -152,7 +152,7 @@ fun AirdropDiscoveryScreen(
                             }
                             if (item.reward_details.isNotBlank()) Text(stringResource(R.string.loc_airdrop_reward_value, item.reward_details), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             if (item.eligibility.isNotBlank()) Text(stringResource(R.string.loc_airdrop_eligibility_value, item.eligibility), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                            Text(stringResource(R.string.loc_airdrop_source_value, item.source_name), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.loc_airdrop_source_value, if (item.source_name == "手动录入") stringResource(R.string.loc_airdrop_manual_entry) else item.source_name), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (item.official_url.isNotBlank()) {
                                 Text(stringResource(R.string.loc_airdrop_official_url, item.official_url), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             }
@@ -239,15 +239,17 @@ private fun AddAirdropDialog(
     )
 }
 
+@Composable
 private fun airdropStatusLabel(status: String): String = when (status) {
-    "upcoming" -> "即将开始"
-    "ongoing" -> "进行中"
-    "ended" -> "已结束"
-    else -> "待确认"
+    "upcoming" -> stringResource(R.string.loc_campaign_upcoming)
+    "ongoing" -> stringResource(R.string.loc_campaign_ongoing)
+    "ended" -> stringResource(R.string.loc_campaign_ended)
+    else -> stringResource(R.string.loc_campaign_status_pending)
 }
 
+@Composable
 private fun verificationLabel(status: String): String = when (status) {
-    "verified" -> "已核实"
-    "source_linked" -> "已附来源，待核实"
-    else -> "未核实"
+    "verified" -> stringResource(R.string.loc_airdrop_verified)
+    "source_linked" -> stringResource(R.string.loc_airdrop_source_linked)
+    else -> stringResource(R.string.loc_airdrop_unverified)
 }
