@@ -384,6 +384,7 @@ private fun formatCompactUsd(value: Double): String = when {
     else -> String.format(java.util.Locale.US, "$%.0f", value.coerceAtLeast(0.0))
 }
 
+@Composable
 private fun tokenHint(tokens: List<CommunityTokenAggregateDto>): String =
     tokens.takeIf { it.isNotEmpty() }?.let { "≈ " + formatCommunityTokenBreakdown(it) } ?: "≈ " + stringResource(R.string.micro_no_token_details)
 
