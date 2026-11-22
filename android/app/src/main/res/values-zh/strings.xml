@@ -997,4 +997,19 @@
     <string name="auth_screen_request_failed">请求失败，请检查网络后重试</string>
     <string name="auth_screen_register_unavailable">注册功能开发中，请等待后续更新</string>
     <string name="auth_screen_guest">游客浏览</string>
+    <string name="search_coin_results">币种搜索结果</string>
+    <string name="search_dapp_results">DApp 搜索结果</string>
+    <string name="search_open">打开</string>
+    <string name="search_no_link">暂无链接</string>
+    <string name="search_no_update_time">暂无成功更新时间</string>
+    <string name="search_status_fresh">数据更新于 %1$s</string>
+    <string name="search_status_refreshing">正在更新 · 保留上次数据（%1$s）</string>
+    <string name="search_status_stale">缓存数据 · 上次更新 %1$s</string>
+    <string name="search_status_error">更新失败 · 保留上次缓存（%1$s）</string>
+    <string name="search_status_unknown">等待首次更新</string>
+    <string name="auth_screen_server_waking">服务器正在唤醒，请稍后重试</string>
+    <string name="auth_screen_network_failed">网络连接失败，请稍后重试</string>
+    <string name="auth_screen_wait">请稍候...</string>
+    <string name="auth_screen_login">登录</string>
+    <string name="auth_screen_register">注册</string>
 </resources>
