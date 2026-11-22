@@ -1060,4 +1060,11 @@
     <string name="loc_x5_ssl_error">错误类型：HTTPS/SSL 证书验证失败\n证书错误：%1$s\n网址：%2$s\n安全处理：已阻止连接，没有跳过证书验证。</string>
     <string name="loc_x5_renderer_error">错误类型：X5 WebView 创建失败\n原因：%1$s：%2$s</string>
     <string name="loc_x5_forward">前进</string>
+    <string name="loc_wallet_connect_connected">钱包已连接</string>
+    <string name="loc_wallet_connect_account_count">已连接 %1$d 个授权账户</string>
+    <string name="loc_wallet_connect_manage">管理钱包连接</string>
+    <string name="loc_wallet_connect_intro">使用 WalletConnect 连接外部钱包</string>
+    <string name="loc_wallet_connect_checking">正在检查钱包连接服务</string>
+    <string name="loc_wallet_connect_retry">重新检查</string>
+    <string name="loc_wallet_connect_back_webpage">返回网页</string>
 </resources>
