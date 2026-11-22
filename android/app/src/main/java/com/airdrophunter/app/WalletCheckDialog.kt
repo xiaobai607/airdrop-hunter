@@ -12,6 +12,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.airdrophunter.app.data.ApiClient
@@ -28,6 +29,7 @@ fun WalletCheckDialog(
     onOpenBrowser: (url: String, selectedWallet: WalletDto, wallets: List<WalletDto>, title: String) -> Unit,
     isGuest: Boolean = false
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var projects by remember { mutableStateOf<List<ProjectDto>>(emptyList()) }
     var wallets by remember { mutableStateOf<List<WalletDto>>(emptyList()) }
