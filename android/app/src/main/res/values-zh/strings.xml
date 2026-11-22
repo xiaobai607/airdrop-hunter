@@ -1121,4 +1121,20 @@
     <string name="source_health_last_success">最近成功</string>
     <string name="source_health_last_attempt">最近尝试</string>
     <string name="source_health_records">记录 %1$d</string>
+    <string name="loc_browser_net_dns">DNS 域名解析失败</string>
+    <string name="loc_browser_net_connect">无法连接服务器</string>
+    <string name="loc_browser_net_timeout">网络连接超时</string>
+    <string name="loc_browser_net_io">网络读写错误</string>
+    <string name="loc_browser_net_scheme">不支持的网址协议</string>
+    <string name="loc_browser_net_ssl_handshake">SSL/TLS 握手失败</string>
+    <string name="loc_browser_net_rate_limit">请求过于频繁</string>
+    <string name="loc_browser_net_unknown">未知网络错误</string>
+    <string name="loc_browser_net_webview">WebView 网络错误</string>
+    <string name="loc_browser_ssl_not_yet_valid">证书尚未生效</string>
+    <string name="loc_browser_ssl_expired">证书已过期</string>
+    <string name="loc_browser_ssl_domain_mismatch">证书域名与访问网址不匹配</string>
+    <string name="loc_browser_ssl_untrusted">证书颁发机构不受信任</string>
+    <string name="loc_browser_ssl_date_invalid">证书日期无效</string>
+    <string name="loc_browser_ssl_invalid">证书无效</string>
+    <string name="loc_browser_ssl_unknown">系统未提供更详细说明</string>
 </resources>
