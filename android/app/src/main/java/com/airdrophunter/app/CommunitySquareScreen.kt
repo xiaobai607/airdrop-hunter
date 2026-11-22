@@ -445,7 +445,7 @@ fun CommunitySquareScreen(
                             Text(stringResource(R.string.comm_gas_spend), color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall)
                             Text(
-                                if (hasContributionData) String.format(Locale.US, "$%.2f", project.gas.coerceAtLeast(0.0)) else "暂无数据",
+                                if (hasContributionData) String.format(Locale.US, "$%.2f", project.gas.coerceAtLeast(0.0)) else stringResource(R.string.comm_no_data),
                                 color = if (hasContributionData) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold
                             )
