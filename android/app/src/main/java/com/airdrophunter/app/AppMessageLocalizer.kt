@@ -24,6 +24,14 @@ internal fun localizeKnownMessage(message: String?): String? {
         "手动记账" -> stringResource(R.string.acct_ui_method_manual)
         "手动记账（非链上交易）" -> stringResource(R.string.acct_ui_method_manual_nonchain)
         "链上交易导入" -> stringResource(R.string.acct_ui_method_onchain_import)
+        "账号或密码错误" -> stringResource(R.string.auth_error_invalid_credentials)
+        "登录状态无效或已过期，请重新登录" -> stringResource(R.string.auth_error_session_expired)
+        "注册功能开发中，请等待后续更新" -> stringResource(R.string.auth_error_registration_disabled)
+        "该账号已存在" -> stringResource(R.string.auth_error_username_exists)
+        "账号只能由4到20位英文字母和数字组成" -> stringResource(R.string.auth_error_username_format)
+        "密码长度必须为8到30位" -> stringResource(R.string.auth_error_password_format)
+        "账号或密码格式不正确" -> stringResource(R.string.auth_error_format)
+        "暂时无法分配用户编号，请稍后重试" -> stringResource(R.string.auth_error_uid_unavailable)
         else -> if (message.any { it in '\u4e00'..'\u9fff' }) {
             stringResource(R.string.message_generic_error)
         } else {
