@@ -465,7 +465,7 @@ fun ProjectsScreen(
                     deletingProject = null
                 }) { Text(stringResource(R.string.loc_projects_39), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { AppTextButton(onClick = { deletingProject = null }) { Text("取消") } }
+            dismissButton = { AppTextButton(onClick = { deletingProject = null }) { Text(stringResource(R.string.loc_projects_37)) } }
         )
     }
 
@@ -516,7 +516,7 @@ fun ProjectsScreen(
                 }
             },
             confirmButton = { AppTextButton(onClick = { showCommunityPicker = false }) { Text(stringResource(R.string.loc_projects_44)) } },
-            dismissButton = { AppTextButton(onClick = { showCommunityPicker = false }) { Text("取消") } }
+            dismissButton = { AppTextButton(onClick = { showCommunityPicker = false }) { Text(stringResource(R.string.loc_projects_37)) } }
         )
     } else if (showAddDialog) AlertDialog(
         onDismissRequest = { showAddDialog = false },
@@ -557,7 +557,7 @@ fun ProjectsScreen(
                 loading = state.isSaving
             )
         },
-        dismissButton = { AppTextButton(onClick = { showAddDialog = false }) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = { showAddDialog = false }) { Text(stringResource(R.string.loc_projects_37)) } }
     )
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
