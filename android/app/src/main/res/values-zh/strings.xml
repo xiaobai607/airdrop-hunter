@@ -1038,4 +1038,5 @@
     <string name="acct_ui_local_custom_project">本地自定义项目</string>
     <string name="acct_ui_l2_execution_fee">L2 执行费</string>
     <string name="acct_ui_execution_fee">执行费</string>
+    <string name="acct_ui_pending_summary">%1$d 笔待确认账单。链上回执、手动记录与失败交易的费用核对均在这里继续处理；不会自动算作已完成。</string>
 </resources>
