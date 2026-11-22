@@ -23,7 +23,7 @@
     <string name="language_title">Choose language</string>
     <string name="language_english">English</string>
     <string name="language_chinese">简体中文</string>
-    <string name="language_change_note">The app will restart to apply the selected language.</string>
+    
     <string name="home_screen_title">Home</string>
     <string name="home_screen_subtitle">Discover airdrops · Track tasks · Follow markets</string>
     <string name="home_notifications">Notifications</string>
