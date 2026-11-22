@@ -104,9 +104,10 @@ fun AirdropSourceHealthPanel(
                             runCatching { DateFormat.getDateTimeInstance().format(Date(Instant.parse(it).toEpochMilli())) }.getOrNull()
                         }
                         val timePrefix = if (source.last_success_at != null) stringResource(R.string.source_health_last_success) else stringResource(R.string.source_health_last_attempt)
+                        val recordCount = stringResource(R.string.source_health_records, source.last_item_count)
                         Text(
                             buildString {
-                                append(stringResource(R.string.source_health_records, source.last_item_count))
+                                append(recordCount)
                                 if (timeLabel != null) append(" · $timePrefix：$timeLabel")
                             },
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
