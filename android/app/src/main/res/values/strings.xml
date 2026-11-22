@@ -1034,4 +1034,7 @@
     <string name="loc_wallet_check_12">This project does not have an official eligibility URL.</string>
     <string name="loc_wallet_check_13">The server is busy. Please try again later.</string>
     <string name="loc_wallet_check_14">Cancel</string>
+    <string name="acct_ui_local_custom_project">Custom local project</string>
+    <string name="acct_ui_l2_execution_fee">L2 execution fee</string>
+    <string name="acct_ui_execution_fee">Execution fee</string>
 </resources>
