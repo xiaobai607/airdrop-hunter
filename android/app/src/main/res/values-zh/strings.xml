@@ -841,4 +841,5 @@
     <string name="comm_added_project">%1$s 已加入库管理</string>
     <string name="comm_submit_success">项目提交成功：%1$s</string>
     <string name="comm_campaigns_title">空投活动</string>
+    <string name="comm_filter_done">完成 · %1$d 个结果</string>
 </resources>
