@@ -840,4 +840,5 @@
     <string name="comm_added_project">%1$s added to your project library</string>
     <string name="comm_submit_success">Project submitted: %1$s</string>
     <string name="comm_campaigns_title">Airdrop campaigns</string>
+    <string name="comm_filter_done">Done · %1$d results</string>
 </resources>
