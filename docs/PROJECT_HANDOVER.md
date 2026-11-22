@@ -2,7 +2,7 @@
 
 > 交接快照：2026-11-22  
 > 适用对象：项目接手开发者、技术买家、维护团队  
-> 当前状态：多语言系统已完成代码收尾，最终 Android CI / APK 构建正在验证；尚未完成真实设备验收，也不是可直接上架的正式 Release。
+> 当前状态：多语言系统代码已完成，最终 Android 单元测试与 Debug APK 构建已通过；尚未完成真实设备验收，也不是可直接上架的正式 Release。
 
 ## 1. 项目概况
 
@@ -72,7 +72,7 @@ PR #135 当前为 closed / draft 状态，不是当前交付入口：<https://gi
 - 系统语言配置文件：`android/app/src/main/res/xml/locales_config.xml`。
 - 英文资源：`android/app/src/main/res/values/strings.xml`。
 - 简体中文资源：`android/app/src/main/res/values-zh/strings.xml`。
-- 资源键已做中英文配对、重复项和代码引用检查；具体构建结果以本文件第 7 节的最终 CI 状态为准。
+- 英文与简体中文各有 1,239 个字符串资源键；已检查键名配对、重复项和本轮修改页面的代码引用，没有发现缺失或重复。
 - 仅声明 English 与 Simplified Chinese；没有宣称其他语言已支持。
 
 ## 3. 技术架构
