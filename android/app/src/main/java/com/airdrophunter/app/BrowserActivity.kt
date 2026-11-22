@@ -1015,14 +1015,14 @@ private fun BrowserScreen(
                                     }
                                     if (scheme == "wc") {
                                         if (!walletConnectReady) {
-                                            Toast.makeText(context, "钱包连接服务尚未就绪，请稍后重试", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, context.getString(R.string.loc_browser_13), Toast.LENGTH_LONG).show()
                                         } else {
                                             runCatching {
                                                 AppKit.handleDeepLink(target.toString()) { error ->
                                                     Log.e("AirdropWallet", "WalletConnect deep link failed", error.throwable)
                                                 }
                                             }.onFailure {
-                                                Toast.makeText(context, "无法处理 WalletConnect 链接", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, context.getString(R.string.loc_browser_14), Toast.LENGTH_LONG).show()
                                             }
                                         }
                                         return true
@@ -1041,7 +1041,7 @@ private fun BrowserScreen(
                                                 Log.e("AirdropBrowser", "Could not persist wallet transaction draft", it)
                                             }.getOrNull()
                                         } else if (parsed != null) {
-                                            Toast.makeText(context, "该网络暂未接入安全 RPC 自动核验，钱包仍可打开；请使用手动记账", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, context.getString(R.string.loc_browser_15), Toast.LENGTH_LONG).show()
                                         }
                                         draftId?.let {
                                             com.airdrophunter.app.data.Web3DraftTimeoutScheduler.enqueue(
@@ -1051,13 +1051,13 @@ private fun BrowserScreen(
                                         val walletIntent = Intent(Intent.ACTION_VIEW, target)
                                         if (walletIntent.resolveActivity(context.packageManager) == null) {
                                             draftId?.let { web3Repository.markWalletUnavailable(it) }
-                                            Toast.makeText(context, "未找到可处理此钱包链接的应用", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, context.getString(R.string.loc_browser_16), Toast.LENGTH_LONG).show()
                                         } else {
                                             runCatching {
-                                                context.startActivity(Intent.createChooser(walletIntent, "选择外部钱包"))
+                                                context.startActivity(Intent.createChooser(walletIntent, getString(R.string.loc_browser_17)))
                                             }.onFailure {
                                                 draftId?.let { id -> web3Repository.markWalletTimedOut(id) }
-                                                Toast.makeText(context, "无法打开外部钱包；交易草稿已保留待核对", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, context.getString(R.string.loc_browser_18), Toast.LENGTH_LONG).show()
                                             }
                                         }
                                     }
@@ -1238,7 +1238,7 @@ private fun BrowserScreen(
                         runCatching {
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(currentPageUrl)))
                         }.onFailure {
-                            Toast.makeText(context, "未找到可用的外部浏览器", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.loc_browser_26), Toast.LENGTH_SHORT).show()
                         }
                     },
                     onRetry = {
@@ -1254,18 +1254,18 @@ private fun BrowserScreen(
                 chainName = selectedWallet?.chain.orEmpty(),
                 onCopyAddress = {
                     val address = quickCopyAddress.ifBlank { selectedWallet?.address.orEmpty() }
-                    if (address.isBlank()) Toast.makeText(context, "当前没有可复制的钱包地址", Toast.LENGTH_SHORT).show()
+                    if (address.isBlank()) Toast.makeText(context, context.getString(R.string.loc_browser_27), Toast.LENGTH_SHORT).show()
                     else {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("Wallet address", address))
-                        Toast.makeText(context, "钱包地址已复制", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.loc_browser_28), Toast.LENGTH_SHORT).show()
                     }
                 },
                 onRefreshPage = { browser?.reload() },
                 onCopyPageUrl = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText("Page URL", currentPageUrl))
-                    Toast.makeText(context, "网址已复制", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.loc_browser_29), Toast.LENGTH_SHORT).show()
                 },
                 onOpenPageExternally = {
                     val uri = Uri.parse(currentPageUrl)
@@ -1289,11 +1289,11 @@ private fun BrowserScreen(
                 DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                 pendingDappConnection = null
             },
-            title = { Text("网站请求连接钱包", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.loc_browser_30), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("来源网站：$requestedHost", color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
-                    Text("该网站请求读取已连接钱包的公开地址。只有您确认后才会授权；本次不会签名消息、发送交易或读取助记词。", color = MaterialTheme.colorScheme.onSurface)
+                    Text(stringResource(R.string.loc_browser_origin_label, requestedHost), color = Color(0xFFB42318), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.loc_browser_31), color = MaterialTheme.colorScheme.onSurface)
                 }
             },
             confirmButton = {
@@ -1309,13 +1309,13 @@ private fun BrowserScreen(
                         waitingDappWalletApproval = true
                         if (walletConnectReady) walletNavController.openAppKit()
                     }
-                }) { Text(if (connectedDappAccounts.isEmpty() && !walletConnectReady) "钱包连接服务初始化中…" else "确认并连接", color = MaterialTheme.colorScheme.primary) }
+                }) { Text(if (connectedDappAccounts.isEmpty() && !walletConnectReady) stringResource(R.string.loc_browser_32) else stringResource(R.string.loc_browser_33), color = MaterialTheme.colorScheme.primary) }
             },
             dismissButton = {
                 AppTextButton(onClick = {
                     DappProviderBridge.error(pending.replyProxy, pending.request.id, 4001, "User rejected wallet connection")
                     pendingDappConnection = null
-                }) { Text("拒绝") }
+                }) { Text(stringResource(R.string.loc_browser_34)) }
             }
         )
     }
@@ -1339,14 +1339,14 @@ private fun BrowserScreen(
         Dialog(onDismissRequest = { showWalletPicker = false }) {
             Surface(shape = RoundedCornerShape(AppDesignTokens.Radius.Xl.dp), color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("选择钱包", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    if (wallets.isEmpty()) Text("尚未保存钱包地址", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.loc_browser_35), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    if (wallets.isEmpty()) Text(stringResource(R.string.loc_browser_36), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     wallets.forEach { wallet ->
                         AppTextButton(onClick = { selectedWallet = wallet; showWalletPicker = false }, modifier = Modifier.fillMaxWidth()) {
                             Text("${wallet.walletName.ifBlank { wallet.chain }}  ·  ${shortAddress(wallet.address)}")
                         }
                     }
-                    AppTextButton(onClick = { showWalletPicker = false }, modifier = Modifier.align(Alignment.End)) { Text("关闭") }
+                    AppTextButton(onClick = { showWalletPicker = false }, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.loc_browser_37)) }
                 }
             }
         }
@@ -1396,10 +1396,10 @@ private fun BrowserPageOverlay(
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 CircularProgressIndicator(Modifier.size(48.dp), color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 3.dp)
-                Text("正在连接网页，请稍候…", color = MaterialTheme.colorScheme.onBackground,
+                Text(stringResource(R.string.loc_browser_38), color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.titleMedium)
                 Text(
-                    if (isSlowLoading) "页面响应较慢，仍在等待首屏内容…" else "正在等待网页返回首屏内容",
+                    if (isSlowLoading) stringResource(R.string.loc_browser_39) else stringResource(R.string.loc_browser_40),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -1414,7 +1414,7 @@ private fun BrowserPageOverlay(
                 Icon(Icons.Default.CloudOff, contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(64.dp))
                 Text(
-                    if (errorDetail?.contains("超时") == true) "网页加载超时" else "网页无法打开",
+                    if (errorDetail?.contains("超时") == true) stringResource(R.string.loc_browser_41) else stringResource(R.string.loc_browser_42),
                     color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.titleLarge
                 )
@@ -1424,16 +1424,16 @@ private fun BrowserPageOverlay(
                     shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp)
                 ) {
                     Text(
-                        errorDetail ?: "网站未提供具体错误原因。请检查网络后重试。",
+                        errorDetail ?: stringResource(R.string.loc_browser_43),
                         modifier = Modifier.fillMaxWidth().padding(12.dp)
                             .verticalScroll(androidx.compose.foundation.rememberScrollState()),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                AppButton("重新加载", onClick = onRetry)
-                AppButton("用浏览器打开", onClick = onOpenExternally, style = AppButtonStyle.SECONDARY)
-                AppButton("返回", onClick = onBack, style = AppButtonStyle.TEXT)
+                AppButton(stringResource(R.string.loc_browser_44), onClick = onRetry)
+                AppButton(stringResource(R.string.loc_browser_45), onClick = onOpenExternally, style = AppButtonStyle.SECONDARY)
+                AppButton(stringResource(R.string.loc_browser_46), onClick = onBack, style = AppButtonStyle.TEXT)
             }
         }
     }
