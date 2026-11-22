@@ -35,6 +35,22 @@ object AppLocale {
             context.getSystemService(LocaleManager::class.java)
                 ?.applicationLocales = LocaleList.forLanguageTags(normalized)
         }
+        syncLauncherAlias(context, normalized)
+    }
+
+    fun syncLauncherAlias(context: Context, languageTag: String = selectedLanguage(context)) {
+        val english = languageTag.startsWith("en", ignoreCase = true)
+        val englishAlias = android.content.ComponentName(context, "com.airdrophunter.app.LauncherEnglish")
+        val chineseAlias = android.content.ComponentName(context, "com.airdrophunter.app.LauncherChinese")
+        val pm = context.packageManager
+        pm.setComponentEnabledSetting(englishAlias,
+            if (english) android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            else android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            android.content.pm.PackageManager.DONT_KILL_APP)
+        pm.setComponentEnabledSetting(chineseAlias,
+            if (english) android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            else android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            android.content.pm.PackageManager.DONT_KILL_APP)
     }
 
     fun wrap(base: Context): Context {
