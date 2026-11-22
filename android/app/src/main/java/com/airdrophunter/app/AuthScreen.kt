@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -58,10 +59,10 @@ fun AuthScreen(onGuestMode: () -> Unit) {
             Text("AIRDROP HUNTER", color = AppColors.Primary, fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(12.dp))
-            Text("欢迎回来",
+            Text(stringResource(R.string.auth_screen_welcome),
                 style = MaterialTheme.typography.headlineLarge, color = AppColors.TextPrimary,
                 fontWeight = FontWeight.Bold)
-            Text("使用账号和密码登录",
+            Text(stringResource(R.string.auth_screen_subtitle),
                 Modifier.padding(top = 8.dp, bottom = 24.dp), color = AppColors.TextSecondary)
             Card(
                 Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
@@ -74,13 +75,13 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                         value = username,
                         onValueChange = { username = it; error = null },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("账号") },
-                        placeholder = { Text("4-20位英文字母或数字") },
+                        label = { Text(stringResource(R.string.auth_screen_username)) },
+                        placeholder = { Text(stringResource(R.string.auth_screen_username_hint)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
                         isError = username.isNotEmpty() && !validUsername,
                         supportingText = {
-                            if (username.isNotEmpty() && !validUsername) Text("账号只能由4到20位英文字母和数字组成")
+                            if (username.isNotEmpty() && !validUsername) Text(stringResource(R.string.auth_screen_username_invalid))
                         },
                         colors = authColors()
                     )
@@ -88,13 +89,13 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                         value = password,
                         onValueChange = { password = it; error = null },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("密码") },
+                        label = { Text(stringResource(R.string.auth_screen_password)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         isError = password.isNotEmpty() && !validPassword,
                         supportingText = {
-                            Text(if (password.isNotEmpty() && !validPassword) "密码长度必须为8到30位" else "密码长度为8到30位")
+                            Text(if (password.isNotEmpty() && !validPassword) stringResource(R.string.auth_screen_password_length) else stringResource(R.string.auth_screen_password_length_hint))
                         },
                         colors = authColors()
                     )
@@ -119,16 +120,16 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                                                     .optString("detail")
                                             } catch (_: Exception) { "" }
                                             when {
-                                                e.code() == 429 -> "操作过于频繁，请稍后再试"
+                                                e.code() == 429 -> context.getString(R.string.auth_screen_too_many_requests)
                                                 e.code() == 400 && (detail.contains("已存在") || detail.contains("已被占用")) ->
-                                                    "该账号已存在，请直接登录"
+                                                    context.getString(R.string.auth_screen_username_exists)
                                                 e.code() == 400 && detail.isNotBlank() -> detail
-                                                e.code() == 401 -> "账号或密码错误"
-                                                else -> "请求失败，请检查网络后重试"
+                                                e.code() == 401 -> context.getString(R.string.auth_screen_login_failed)
+                                                else -> context.getString(R.string.auth_screen_request_failed)
                                             }
                                         }
-                                        is IOException -> "服务器正在唤醒，请稍后重试"
-                                        else -> "网络连接失败，请稍后重试"
+                                        is IOException -> context.getString(R.string.auth_screen_server_waking)
+                                        else -> context.getString(R.string.auth_screen_network_failed)
                                     }
                                 } finally {
                                     loading = false
@@ -143,11 +144,11 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                             containerColor = AppColors.Primary, contentColor = AppColors.Background
                         )
                     ) {
-                        Text(if (loading) "请稍候..." else "登录",
+                        Text(if (loading) stringResource(R.string.auth_screen_wait) else stringResource(R.string.auth_screen_login),
                             fontWeight = FontWeight.Bold)
                     }
                     Text(
-                        "注册功能开发中，请等待后续更新",
+                        context.getString(R.string.auth_screen_register_unavailable),
                         modifier = Modifier.fillMaxWidth(),
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
@@ -163,7 +164,7 @@ fun AuthScreen(onGuestMode: () -> Unit) {
                 border = BorderStroke(1.dp, AppColors.Primary),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Primary)
             ) {
-                Text("游客浏览", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.auth_screen_guest), fontWeight = FontWeight.SemiBold)
             }
         }
     }
