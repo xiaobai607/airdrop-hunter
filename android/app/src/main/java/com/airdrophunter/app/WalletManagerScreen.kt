@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -263,7 +264,7 @@ fun WalletManagerScreen(
                     style = MaterialTheme.typography.bodySmall
                 )
                 TextButton(onClick = { WalletConnectInitializer.ensureInitialized(application) }) {
-                    Text("重试")
+                    Text(stringResource(R.string.wallet_ui_1))
                 }
             }
         }
@@ -275,19 +276,19 @@ fun WalletManagerScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        "我的钱包",
+                        stringResource(R.string.wallet_ui_2),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        "统一管理多链地址与链上活动",
+                        stringResource(R.string.wallet_ui_3),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
                 TextButton(onClick = { walletViewModel.load(isGuest) }, enabled = !state.isLoading && !state.isSaving) {
-                    Text("刷新")
+                    Text(stringResource(R.string.wallet_ui_4))
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -298,9 +299,9 @@ fun WalletManagerScreen(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("已管理地址", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.wallet_ui_5), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                         Text("${state.wallets.size}", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Text("个地址", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.wallet_ui_address_count_unit), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                 }
                 Surface(
@@ -310,9 +311,9 @@ fun WalletManagerScreen(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("覆盖生态", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.wallet_ui_6), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                         Text("${state.wallets.map { it.ecosystem }.distinct().size}", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Text("种网络类型", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.wallet_ui_network_type_count_unit), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -332,8 +333,8 @@ fun WalletManagerScreen(
                 ) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text("添加钱包地址", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
-                        Text("手动添加与管理", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.wallet_ui_7), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.wallet_ui_8), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                 }
                 Surface(
@@ -347,8 +348,8 @@ fun WalletManagerScreen(
                 ) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text("连接钱包", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
-                        Text("连接已有钱包", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.wallet_ui_9), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.wallet_ui_10), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -360,10 +361,10 @@ fun WalletManagerScreen(
             ) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("我的项目库", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                        Text("管理已收集项目、参与状态与个人进度", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.wallet_ui_11), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.wallet_ui_12), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
-                    Text("进入  ›", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.wallet_ui_13), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -374,17 +375,17 @@ fun WalletManagerScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("WalletConnect 已连接", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                    Text("已读取外部钱包公开地址；连接不代表允许交易", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.wallet_ui_14), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.wallet_ui_15), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                 }
                 AppTextButton(onClick = {
                     AppKit.disconnect(
                         onSuccess = { WalletConnectSessionDelegate.clearSession() },
                         onError = { error ->
-                            android.widget.Toast.makeText(context, "断开连接失败", android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.wallet_ui_16), android.widget.Toast.LENGTH_LONG).show()
                         }
                     )
-                }) { Text("断开连接", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.wallet_ui_17), color = MaterialTheme.colorScheme.error) }
             }
         }
 
@@ -410,14 +411,14 @@ fun WalletManagerScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text("钱包列表加载失败", color = MaterialTheme.colorScheme.onSurface,
+                    Text(stringResource(R.string.wallet_ui_18), color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
                     Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(16.dp))
                     AppButton(
-                        text = "重新加载",
+                        text = stringResource(R.string.wallet_ui_19),
                         onClick = { walletViewModel.load(isGuest) },
                         modifier = Modifier.widthIn(min = 132.dp),
                         enabled = !state.isLoading && !state.isSaving
@@ -441,16 +442,16 @@ fun WalletManagerScreen(
                         }
                     }
                     Spacer(Modifier.height(16.dp))
-                    Text("还没有添加钱包", color = MaterialTheme.colorScheme.onBackground,
+                    Text(stringResource(R.string.wallet_ui_20), color = MaterialTheme.colorScheme.onBackground,
                         style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "添加公开地址后，可查看链上交易记录并导入待确认账单",
+                        stringResource(R.string.wallet_ui_21),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(Modifier.height(16.dp))
-                    AppButton("添加钱包", onClick = {
+                    AppButton(stringResource(R.string.wallet_ui_22), onClick = {
                         address = ""
                         selectedEcosystem = WalletEcosystem.EVM
                         walletName = ""
@@ -470,7 +471,7 @@ fun WalletManagerScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "钱包地址",
+                                    stringResource(R.string.wallet_ui_23),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
@@ -490,7 +491,7 @@ fun WalletManagerScreen(
                                     FilterChip(
                                         selected = ecosystemFilter == filter,
                                         onClick = { ecosystemFilter = filter },
-                                        label = { Text(filter) },
+                                        label = { Text(if (filter == "全部") stringResource(R.string.wallet_ui_filter_all) else filter.toString()) },
                                         shape = RoundedCornerShape(50)
                                     )
                                 }
@@ -504,7 +505,7 @@ fun WalletManagerScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    "当前分类还没有钱包地址",
+                                    stringResource(R.string.wallet_ui_24),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
@@ -531,25 +532,25 @@ fun WalletManagerScreen(
                                 DynamicChainIcon(wallet.ecosystem, Modifier.size(40.dp))
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(wallet.wallet_name.ifBlank { "钱包" }, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                                    Text(wallet.wallet_name.ifBlank { stringResource(R.string.wallet_ui_25) }, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                                     Text(shortAddress(wallet.address), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                                     Text(WalletEcosystem.label(wallet.ecosystem), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                                     if (wallet.tags.orEmpty().isNotEmpty()) Text(wallet.tags.orEmpty().joinToString(" · "), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
                                 }
-                                AppIconButton(icon = Icons.Default.Edit, contentDescription = "编辑钱包信息", onClick = {
+                                AppIconButton(icon = Icons.Default.Edit, contentDescription = stringResource(R.string.wallet_ui_26), onClick = {
                                     editWalletName = wallet.wallet_name
                                     editWalletTags = wallet.tags.orEmpty().joinToString(", ")
                                     editWalletNotes = wallet.notes.orEmpty()
                                     editingWallet = wallet
                                 }, enabled = !state.isSaving)
-                                AppIconButton(icon = Icons.Default.DeleteOutline, contentDescription = "删除钱包", onClick = { walletViewModel.delete(wallet, isGuest) }, enabled = !state.isSaving, haptic = AppHaptic.WARNING)
+                                AppIconButton(icon = Icons.Default.DeleteOutline, contentDescription = stringResource(R.string.wallet_ui_27), onClick = { walletViewModel.delete(wallet, isGuest) }, enabled = !state.isSaving, haptic = AppHaptic.WARNING)
                             }
                         }
                         }
                     }
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("钱包活动", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.wallet_ui_28), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Surface(
                                 modifier = Modifier.fillMaxWidth().appPressFeedback(onClick = { state.wallets.firstOrNull()?.let { selectedWallet = it } }),
                                 shape = RoundedCornerShape(AppDesignTokens.Radius.Lg.dp),
@@ -558,10 +559,10 @@ fun WalletManagerScreen(
                             ) {
                                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Text("链上交易记录", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                                        Text("查看真实交易、Gas 消耗和刷新状态", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                        Text(stringResource(R.string.wallet_ui_29), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                                        Text(stringResource(R.string.wallet_ui_30), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                     }
-                                    Text("查看  ›", color = MaterialTheme.colorScheme.primary)
+                                    Text(stringResource(R.string.wallet_ui_31), color = MaterialTheme.colorScheme.primary)
                                 }
                             }
                         }
@@ -575,20 +576,20 @@ fun WalletManagerScreen(
         AlertDialog(
             onDismissRequest = { if (!state.isSaving) editingWallet = null },
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text("编辑钱包信息", color = MaterialTheme.colorScheme.onSurface) },
+            title = { Text(stringResource(R.string.wallet_ui_26), color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(shortAddress(wallet.address), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall)
-                    AppTextField(editWalletName, { editWalletName = it }, "钱包名称")
-                    AppTextField(editWalletTags, { editWalletTags = it }, "标签（逗号分隔，最多12个）")
-                    AppTextField(editWalletNotes, { editWalletNotes = it }, "备注", singleLine = false)
+                    AppTextField(editWalletName, { editWalletName = it }, stringResource(R.string.wallet_ui_32))
+                    AppTextField(editWalletTags, { editWalletTags = it }, stringResource(R.string.wallet_ui_33))
+                    AppTextField(editWalletNotes, { editWalletNotes = it }, stringResource(R.string.wallet_ui_34), singleLine = false)
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 }
             },
             confirmButton = {
                 AppButton(
-                    text = "保存修改",
+                    text = stringResource(R.string.wallet_ui_35),
                     onClick = {
                         walletViewModel.update(
                             wallet,
@@ -611,7 +612,7 @@ fun WalletManagerScreen(
                 )
             },
             dismissButton = {
-                AppTextButton(enabled = !state.isSaving, onClick = { editingWallet = null }) { Text("取消") }
+                AppTextButton(enabled = !state.isSaving, onClick = { editingWallet = null }) { Text(stringResource(R.string.wallet_ui_36)) }
             }
         )
     }
@@ -632,18 +633,18 @@ fun WalletManagerScreen(
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("添加公开钱包地址", style = MaterialTheme.typography.headlineMedium,
+                Text(stringResource(R.string.wallet_ui_37), style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurface)
                 Text(
-                    "推荐使用外部钱包安全连接。Airdrop Hunter 只读取钱包公开地址，不会获取私钥或助记词。",
+                    stringResource(R.string.wallet_ui_38),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium
                 )
                 AppButton(
                     text = when {
-                        walletConnectReady -> "连接外部钱包（WalletConnect）"
-                        walletConnectError != null -> "重试钱包连接服务"
-                        else -> "钱包连接服务初始化中…"
+                        walletConnectReady -> stringResource(R.string.wallet_ui_39)
+                        walletConnectError != null -> stringResource(R.string.wallet_ui_40)
+                        else -> stringResource(R.string.wallet_ui_41)
                     },
                     onClick = {
                         if (walletConnectReady) {
@@ -656,7 +657,7 @@ fun WalletManagerScreen(
                     enabled = true,
                     style = AppButtonStyle.SECONDARY
                 )
-                Text("选择地址所属链", color = MaterialTheme.colorScheme.onSurface,
+                Text(stringResource(R.string.wallet_ui_42), color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(
@@ -672,13 +673,13 @@ fun WalletManagerScreen(
                         )
                     }
                 }
-                Text("先选择链，再输入对应的公开地址；系统不会自动猜测链。",
+                Text(stringResource(R.string.wallet_ui_43),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
                 AppTextField(
                     value = address,
                     onValueChange = { address = it },
-                    placeholder = "$selectedEcosystem 地址",
+                    placeholder = stringResource(R.string.wallet_ui_address_hint, selectedEcosystem.toString()),
                     isError = address.isNotBlank() && !addressValidation.valid
                 )
                 Text(
@@ -689,29 +690,29 @@ fun WalletManagerScreen(
                     style = MaterialTheme.typography.bodySmall
                 )
                 AppTextField(value = walletName, onValueChange = { walletName = it },
-                    placeholder = "备注名称（可选）")
+                    placeholder = stringResource(R.string.wallet_ui_44))
                 AppTextField(value = walletTags, onValueChange = { walletTags = it },
-                    placeholder = "标签（逗号分隔，最多12个）")
+                    placeholder = stringResource(R.string.wallet_ui_33))
                 AppTextField(value = walletNotes, onValueChange = { walletNotes = it },
-                    placeholder = "钱包备注（可选）", singleLine = false)
+                    placeholder = stringResource(R.string.wallet_ui_45), singleLine = false)
                 Text(
                     when (selectedEcosystem) {
-                        WalletEcosystem.TRON -> "TRON：第一版支持真实余额查询"
-                        WalletEcosystem.EVM -> "EVM：余额查询接入中"
-                        WalletEcosystem.SOL -> "Solana：余额查询接入中"
-                        WalletEcosystem.BTC -> "Bitcoin：支持只读交易记录查询"
+                        WalletEcosystem.TRON -> stringResource(R.string.wallet_ui_46)
+                        WalletEcosystem.EVM -> stringResource(R.string.wallet_ui_47)
+                        WalletEcosystem.SOL -> stringResource(R.string.wallet_ui_48)
+                        WalletEcosystem.BTC -> stringResource(R.string.wallet_ui_49)
                         else -> ""
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    if (isGuest) "地址仅保存在本地设备。" else "仅保存公开地址，不保存私钥或助记词。",
+                    if (isGuest) stringResource(R.string.wallet_ui_50) else stringResource(R.string.wallet_ui_51),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
                 AppButton(
-                    text = "保存",
+                    text = stringResource(R.string.wallet_ui_52),
                     onClick = {
                         if (!WalletAddressValidator.isValidForChain(selectedEcosystem, address)) return@AppButton
                         walletViewModel.add(
@@ -740,19 +741,19 @@ fun WalletManagerScreen(
         AlertDialog(
             onDismissRequest = { pendingConnectedAccount = null },
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text("外部钱包连接成功") },
+            title = { Text(stringResource(R.string.wallet_ui_53)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("已从 WalletConnect 会话读取公开地址：", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.wallet_ui_54), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(connected.address, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                    Text("来源：${connected.walletLabel} · EVM 链 ${connected.chainId}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                    Text("保存只记录公开地址，不授予网站交易或签名权限。每笔交易仍需在外部钱包单独确认。", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                    AppTextField(connectedWalletName, { connectedWalletName = it }, "钱包备注名称")
+                    Text(stringResource(R.string.wallet_ui_connection_source, connected.walletLabel, connected.chainId), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.wallet_ui_connection_disclaimer), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    AppTextField(connectedWalletName, { connectedWalletName = it }, stringResource(R.string.wallet_ui_55))
                 }
             },
             confirmButton = {
                 AppButton(
-                    text = "保存公开地址",
+                    text = stringResource(R.string.wallet_ui_56),
                     onClick = {
                         walletViewModel.add(
                             WalletWriteRequest(
@@ -769,7 +770,7 @@ fun WalletManagerScreen(
                 )
             },
             dismissButton = {
-                AppTextButton(onClick = { pendingConnectedAccount = null }) { Text("暂不保存") }
+                AppTextButton(onClick = { pendingConnectedAccount = null }) { Text(stringResource(R.string.wallet_ui_57)) }
             }
         )
     }
