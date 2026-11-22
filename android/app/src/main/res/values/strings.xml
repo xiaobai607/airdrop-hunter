@@ -941,4 +941,18 @@
     <string name="loc_airdrop_verified">Verified</string>
     <string name="loc_airdrop_source_linked">Source linked · Verification pending</string>
     <string name="loc_airdrop_unverified">Unverified</string>
+    <string name="loc_wallet_detail_cooldown">%1$02d:%2$02d until refresh</string>
+    <string name="loc_wallet_detail_pending_count">%1$d pending transactions</string>
+    <string name="loc_wallet_detail_minutes">%1$d minutes</string>
+    <string name="loc_wallet_detail_hours">%1$d hour(s)</string>
+    <string name="loc_wallet_detail_networks_unavailable">Some networks are temporarily unavailable: %1$s</string>
+    <string name="loc_wallet_detail_hash">Hash: %1$s…</string>
+    <string name="loc_wallet_detail_time">Time: %1$s</string>
+    <string name="loc_wallet_detail_fee">Fee: %1$s %2$s</string>
+    <string name="loc_wallet_detail_approx_usd">Approx. $%1$s</string>
+    <string name="loc_wallet_detail_assets_valued">Valued assets · %1$d items</string>
+    <string name="loc_wallet_detail_asset_summary">Read %1$d assets across %2$d networks; showing the 5 highest-valued items.</string>
+    <string name="loc_wallet_detail_updated">Updated: %1$s</string>
+    <string name="loc_wallet_detail_tron_assets">TRON currently shows TRX and recognized USDT. Other TRC20 assets are not included yet.</string>
+    <string name="loc_wallet_detail_asset_unverified"> · Unverified</string>
 </resources>
