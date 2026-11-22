@@ -926,4 +926,16 @@
     <string name="loc_main_project_library">Project library</string>
     <string name="loc_main_accounting">Accounting</string>
     <string name="loc_main_tron_energy_browser">TRON energy rental</string>
+    <string name="loc_campaign_empty_filter">No records match the current filters. Refresh later to check again.</string>
+    <string name="loc_campaign_binance_subtitle">Browse official Binance announcements and campaigns</string>
+    <string name="loc_campaign_chain_pending">Chain pending confirmation</string>
+    <string name="loc_campaign_kyc_required">KYC required</string>
+    <string name="loc_campaign_kyc_free">No KYC required</string>
+    <string name="loc_campaign_kyc_unknown">KYC status unknown</string>
+    <string name="loc_campaign_official_link_pending">Official link pending verification</string>
+    <string name="loc_airdrop_chain_missing">Chain not specified</string>
+    <string name="loc_airdrop_chain_hint">Network, e.g. Base</string>
+    <string name="loc_airdrop_reward_hint">Reward details</string>
+    <string name="loc_airdrop_eligibility_hint">Eligibility requirements</string>
+    <string name="loc_airdrop_source_hint">Source URL</string>
 </resources>
