@@ -384,7 +384,7 @@ private fun AirdropHunterApp(
                             activeOverlay = AppOverlay.NONE
                             context.startActivity(Intent(context, BrowserActivity::class.java)
                                 .putExtra(BrowserActivity.EXTRA_URL, "https://feee.io/")
-                                .putExtra(BrowserActivity.EXTRA_TITLE, getString(R.string.loc_main_tron_energy_browser))
+                                .putExtra(BrowserActivity.EXTRA_TITLE, context.getString(R.string.loc_main_tron_energy_browser))
                                 // This flow carries the selected wallet address into the legacy
                                 // wallet-capable WebView; do not hand it off to the browsing-only X5 surface.
                                 .putExtra(BrowserActivity.EXTRA_QUICK_COPY_ADDRESS, address)
