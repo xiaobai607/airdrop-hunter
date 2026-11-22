@@ -116,7 +116,7 @@ fun AirdropSourceHealthPanel(
                         )
                         source.last_error?.takeIf { it.isNotBlank() }?.let {
                             Text(
-                                it,
+                                localizeKnownMessage(it) ?: it,
                                 color = if (source.enabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall,
                                 maxLines = 2,
