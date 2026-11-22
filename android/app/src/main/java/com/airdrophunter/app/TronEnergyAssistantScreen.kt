@@ -69,7 +69,7 @@ fun TronEnergyAssistantScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            "先确认转出地址，再前往租赁平台",
+                            stringResource(R.string.loc_tron_energy_01),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -77,26 +77,26 @@ fun TronEnergyAssistantScreen(
                 }
 
                 Text(
-                    "请输入你自己的 TRON 转出地址。打开租赁平台后，可通过底部工具栏一键复制该地址。",
+                    stringResource(R.string.loc_tron_energy_02),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "TRON 转出地址",
+                        stringResource(R.string.loc_tron_energy_03),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     AppTextField(
                         value = address,
                         onValueChange = { address = it; attempted = false },
-                        placeholder = "T 开头的 Base58 地址",
+                        placeholder = stringResource(R.string.loc_tron_energy_04),
                         isError = attempted && !valid
                     )
                     if (attempted && !valid) {
                         Text(
-                            "地址格式不正确，请输入有效的 TRON Base58 地址。",
+                            stringResource(R.string.loc_tron_energy_05),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -120,7 +120,7 @@ fun TronEnergyAssistantScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            "安全提示：仅填写你自己的转出地址，切勿输入对方收款地址。",
+                            stringResource(R.string.loc_tron_energy_06),
                             color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 13.sp,
@@ -130,7 +130,7 @@ fun TronEnergyAssistantScreen(
                 }
 
                 AppButton(
-                    text = "去租赁能量",
+                    text = stringResource(R.string.loc_tron_energy_07),
                     onClick = {
                         attempted = true
                         if (valid) onOpenBrowser(normalized)
