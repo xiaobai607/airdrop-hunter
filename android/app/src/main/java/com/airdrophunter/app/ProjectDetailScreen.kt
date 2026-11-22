@@ -970,7 +970,7 @@ private fun LedgerPeriodMetric(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 2)
-        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: emptyLabel, color = color,
+        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: emptyLabel.ifBlank { stringResource(R.string.loc_detail_23) }, color = color,
             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
     }
 }
