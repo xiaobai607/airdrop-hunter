@@ -966,7 +966,7 @@ private fun x5DownloadCodeHint(code: Int?): String = when (code) {
 
 @Composable
 private fun x5InstallCodeHint(code: Int?): String = when (code) {
-    null -> "SDK 尚未回调"
+    null -> stringResource(R.string.loc_x5_sdk_not_callback)
     200 -> stringResource(R.string.loc_x5_install_success)
     243 -> stringResource(R.string.loc_x5_install_preinitializing)
     else -> stringResource(R.string.loc_x5_install_unknown)
