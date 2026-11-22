@@ -927,4 +927,16 @@
     <string name="loc_main_project_library">库管理</string>
     <string name="loc_main_accounting">记账</string>
     <string name="loc_main_tron_energy_browser">TRON 能量租赁</string>
+    <string name="loc_campaign_empty_filter">当前筛选条件下没有可展示的记录。稍后可以刷新再查看。</string>
+    <string name="loc_campaign_binance_subtitle">查看 Binance 官方公告与活动</string>
+    <string name="loc_campaign_chain_pending">链待确认</string>
+    <string name="loc_campaign_kyc_required">需要 KYC</string>
+    <string name="loc_campaign_kyc_free">免 KYC</string>
+    <string name="loc_campaign_kyc_unknown">KYC 未知</string>
+    <string name="loc_campaign_official_link_pending">官方链接待核验</string>
+    <string name="loc_airdrop_chain_missing">链未填写</string>
+    <string name="loc_airdrop_chain_hint">所属链，例如 Base</string>
+    <string name="loc_airdrop_reward_hint">奖励说明</string>
+    <string name="loc_airdrop_eligibility_hint">参与条件</string>
+    <string name="loc_airdrop_source_hint">信息来源链接</string>
 </resources>
