@@ -1397,7 +1397,7 @@ fun AccountingCenterScreen(
                                         val assets = formatLedgerAssetBreakdown(row.extra["asset_breakdown"])
                                         if (assets.isNotBlank()) Text(assets, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             style = MaterialTheme.typography.labelSmall)
-                                        Text(stringResource(R.string.acct_ui_entry_method, row.interaction_method),
+                                        Text(stringResource(R.string.acct_ui_entry_method, localizeKnownMessage(row.interaction_method) ?: row.interaction_method),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
@@ -1478,7 +1478,7 @@ fun AccountingCenterScreen(
                                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                     Text(if (bill.txHash.startsWith("MANUAL-")) stringResource(R.string.acct_ui_19) else stringResource(R.string.acct_ui_100),
                                         color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                                    Text(bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    Text(localizeKnownMessage(bill.interactionMethod) ?: bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelSmall)
                                     Text(SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
