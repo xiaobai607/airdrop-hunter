@@ -1137,15 +1137,15 @@ private fun BrowserScreen(
                                     pageState = BrowserPageState.Error
                                     val code = error?.errorCode
                                     val errorName = when (code) {
-                                        WebViewClient.ERROR_HOST_LOOKUP -> "DNS 域名解析失败"
-                                        WebViewClient.ERROR_CONNECT -> "无法连接服务器"
-                                        WebViewClient.ERROR_TIMEOUT -> "网络连接超时"
-                                        WebViewClient.ERROR_IO -> "网络读写错误"
-                                        WebViewClient.ERROR_UNSUPPORTED_SCHEME -> "不支持的网址协议"
-                                        WebViewClient.ERROR_FAILED_SSL_HANDSHAKE -> "SSL/TLS 握手失败"
-                                        WebViewClient.ERROR_TOO_MANY_REQUESTS -> "请求过于频繁"
-                                        WebViewClient.ERROR_UNKNOWN -> "未知网络错误"
-                                        else -> "WebView 网络错误"
+                                        WebViewClient.ERROR_HOST_LOOKUP -> context.getString(R.string.loc_browser_net_dns)
+                                        WebViewClient.ERROR_CONNECT -> context.getString(R.string.loc_browser_net_connect)
+                                        WebViewClient.ERROR_TIMEOUT -> context.getString(R.string.loc_browser_net_timeout)
+                                        WebViewClient.ERROR_IO -> context.getString(R.string.loc_browser_net_io)
+                                        WebViewClient.ERROR_UNSUPPORTED_SCHEME -> context.getString(R.string.loc_browser_net_scheme)
+                                        WebViewClient.ERROR_FAILED_SSL_HANDSHAKE -> context.getString(R.string.loc_browser_net_ssl_handshake)
+                                        WebViewClient.ERROR_TOO_MANY_REQUESTS -> context.getString(R.string.loc_browser_net_rate_limit)
+                                        WebViewClient.ERROR_UNKNOWN -> context.getString(R.string.loc_browser_net_unknown)
+                                        else -> context.getString(R.string.loc_browser_net_webview)
                                     }
                                     pageErrorMessage = context.getString(R.string.loc_browser_network_error_detail, errorName, code ?: context.getString(R.string.loc_browser_unknown), error?.description ?: context.getString(R.string.loc_browser_system_not_provided), request?.method ?: context.getString(R.string.loc_browser_unknown), request?.url ?: view?.url ?: currentPageUrl)
                                     Log.e("AirdropBrowser", "Main-frame load error: code=$code, name=$errorName, description=${error?.description}, url=${request?.url}, method=${request?.method}")
@@ -1170,13 +1170,13 @@ private fun BrowserScreen(
                                 handler?.cancel()
                                 pageState = BrowserPageState.Error
                                 pageErrorMessage = context.getString(R.string.loc_browser_ssl_error_detail, error?.primaryError ?: context.getString(R.string.loc_browser_unknown), when (error?.primaryError) {
-                                    android.net.http.SslError.SSL_NOTYETVALID -> "证书尚未生效"
-                                    android.net.http.SslError.SSL_EXPIRED -> "证书已过期"
-                                    android.net.http.SslError.SSL_IDMISMATCH -> "证书域名与访问网址不匹配"
-                                    android.net.http.SslError.SSL_UNTRUSTED -> "证书颁发机构不受信任"
-                                    android.net.http.SslError.SSL_DATE_INVALID -> "证书日期无效"
-                                    android.net.http.SslError.SSL_INVALID -> "证书无效"
-                                    else -> "系统未提供更详细说明"
+                                    android.net.http.SslError.SSL_NOTYETVALID -> context.getString(R.string.loc_browser_ssl_not_yet_valid)
+                                    android.net.http.SslError.SSL_EXPIRED -> context.getString(R.string.loc_browser_ssl_expired)
+                                    android.net.http.SslError.SSL_IDMISMATCH -> context.getString(R.string.loc_browser_ssl_domain_mismatch)
+                                    android.net.http.SslError.SSL_UNTRUSTED -> context.getString(R.string.loc_browser_ssl_untrusted)
+                                    android.net.http.SslError.SSL_DATE_INVALID -> context.getString(R.string.loc_browser_ssl_date_invalid)
+                                    android.net.http.SslError.SSL_INVALID -> context.getString(R.string.loc_browser_ssl_invalid)
+                                    else -> context.getString(R.string.loc_browser_ssl_unknown)
                                 }, error?.url ?: currentPageUrl)
                                 Log.e("AirdropBrowser", "Blocked page because TLS certificate validation failed; primaryError=${error?.primaryError}, url=${error?.url}")
                             }
@@ -1416,7 +1416,7 @@ private fun BrowserPageOverlay(
                 Icon(Icons.Default.CloudOff, contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(64.dp))
                 Text(
-                    if (errorDetail?.contains("超时") == true) stringResource(R.string.loc_browser_41) else stringResource(R.string.loc_browser_42),
+                    if ((errorDetail?.contains("超时") == true || errorDetail?.contains("timeout", ignoreCase = true) == true)) stringResource(R.string.loc_browser_41) else stringResource(R.string.loc_browser_42),
                     color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.titleLarge
                 )
