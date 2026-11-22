@@ -1147,4 +1147,5 @@
     <string name="message_projects_sync_cached">Sync unavailable. Showing saved projects.</string>
     <string name="message_project_claim_error">Unable to generate the eligibility claim link.</string>
     <string name="message_airdrop_saved_cloud">Airdrop record saved to the cloud.</string>
+    <string name="common_clear_input">Clear input</string>
 </resources>
