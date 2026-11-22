@@ -233,8 +233,8 @@ fun MicroCommunityScreen(
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(stringResource(R.string.micro_local_ratings), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        if (ratings.isEmpty()) "暂无本机评分记录。当前版本不提交全网评分。"
-                        else "本机评分记录：${ratings.size} 条 · 平均 ${String.format(java.util.Locale.US, "%.1f", average ?: 0.0)} 星",
+                        if (ratings.isEmpty()) stringResource(R.string.micro_no_local_ratings)
+                        else stringResource(R.string.micro_local_rating_summary, ratings.size, String.format(java.util.Locale.US, "%.1f", average ?: 0.0)),
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
                     )
                     ratings.take(3).forEach { rating ->
