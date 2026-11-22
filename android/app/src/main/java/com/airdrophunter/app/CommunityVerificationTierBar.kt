@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import java.util.Locale
@@ -80,7 +81,7 @@ fun CommunityVerificationTierBar(
         }
         Text(
             text = segments.joinToString(" · ") {
-                "${it.label} ${String.format(Locale.US, "$%,.2f", it.amount)}"
+                "${when (it.key) { "user_reported" -> stringResource(R.string.community_tier_user_reported); "transaction_linked" -> stringResource(R.string.community_tier_transaction_linked); "amount_verified" -> stringResource(R.string.community_tier_amount_verified); else -> it.label }} ${String.format(Locale.US, "$%,.2f", it.amount)}"
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelSmall,
@@ -90,16 +91,17 @@ fun CommunityVerificationTierBar(
     }
 }
 
+@Composable
 fun communityContributionStatusLabel(status: String, tier: String?): String = when (status) {
     "verified" -> when (tier) {
-        "user_reported" -> "用户自报已计入公共统计"
-        "amount_verified" -> "链上精确核验"
-        "transaction_linked" -> "链上已确认"
-        else -> "链上已核验"
+        "user_reported" -> stringResource(R.string.community_tier_user_reported_public)
+        "amount_verified" -> stringResource(R.string.community_tier_amount_verified)
+        "transaction_linked" -> stringResource(R.string.community_tier_transaction_linked)
+        else -> stringResource(R.string.community_tier_verified)
     }
-    "rejected" -> "核验拒绝"
-    "not_eligible" -> "不符合公共贡献条件"
-    "pending_verification" -> "等待提交公共统计"
-    "private" -> "私人记录"
-    else -> "等待提交公共统计"
+    "rejected" -> stringResource(R.string.community_tier_rejected)
+    "not_eligible" -> stringResource(R.string.community_tier_not_eligible)
+    "pending_verification" -> stringResource(R.string.community_tier_pending)
+    "private" -> stringResource(R.string.community_tier_private)
+    else -> stringResource(R.string.community_tier_pending)
 }
