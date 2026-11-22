@@ -21,6 +21,9 @@ internal fun localizeKnownMessage(message: String?): String? {
         "同步暂不可用，已保留本地项目" -> stringResource(R.string.message_projects_sync_cached)
         "无法生成资格领取入口" -> stringResource(R.string.message_project_claim_error)
         "空投记录已保存到云端" -> stringResource(R.string.message_airdrop_saved_cloud)
+        "手动记账" -> stringResource(R.string.acct_ui_method_manual)
+        "手动记账（非链上交易）" -> stringResource(R.string.acct_ui_method_manual_nonchain)
+        "链上交易导入" -> stringResource(R.string.acct_ui_method_onchain_import)
         else -> if (message.any { it in '\u4e00'..'\u9fff' }) {
             stringResource(R.string.message_generic_error)
         } else {
