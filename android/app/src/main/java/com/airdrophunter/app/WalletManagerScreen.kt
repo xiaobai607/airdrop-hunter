@@ -739,7 +739,7 @@ fun WalletManagerScreen(
                     enabled = addressValidation.valid && !state.isSaving,
                     loading = state.isSaving
                 )
-                AppButton("取消", onClick = { showAddDialog = false },
+                AppButton(stringResource(R.string.cancel), onClick = { showAddDialog = false },
                     style = AppButtonStyle.TEXT, enabled = !state.isSaving)
                 Spacer(Modifier.height(24.dp))
             }
