@@ -1012,4 +1012,5 @@
     <string name="auth_screen_wait">请稍候...</string>
     <string name="auth_screen_login">登录</string>
     <string name="auth_screen_register">注册</string>
+    <string name="search_dapp_label">DApp</string>
 </resources>
