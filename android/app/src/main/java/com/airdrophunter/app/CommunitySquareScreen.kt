@@ -305,7 +305,7 @@ fun CommunitySquareScreen(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CommunityRanking.values().forEach { option ->
                         AppChip(
-                            text = option.title,
+                            text = stringResource(option.titleRes),
                             selected = ranking == option,
                             onClick = { ranking = option }
                         )
@@ -384,7 +384,7 @@ fun CommunitySquareScreen(
                                 shape = RoundedCornerShape(AppDesignTokens.Radius.Full.dp)
                             ) {
                                 Text(
-                                    project.label, Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    communityProjectLabel(project), Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     color = if (!project.isActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
                                     style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold
                                 )
