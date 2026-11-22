@@ -197,7 +197,7 @@ fun ProfileScreen(
                 val netProfitLabel = when {
                     !hasLedgerEntries -> stringResource(R.string.loc_profile_17)
                     stats.usd_profit_complete -> String.format(Locale.US, "%.2f", stats.ledger_net_profit) + " USD"
-                    else -> "估值未完整"
+                    else -> stringResource(R.string.loc_profile_19)
                 }
                 Text(
                     stringResource(R.string.loc_profile_stats_line, stats.ledger_project_count, netProfitLabel, stats.completed_projects, stats.ledger_interaction_days),
@@ -339,7 +339,7 @@ fun ProfileScreen(
                         }
                     ) { Text(stringResource(R.string.loc_profile_42)) }
                 },
-                dismissButton = { AppTextButton(onClick = { showImportPasswordDialog = false; importPassword = ""; selectedBackupUri = null }) { Text("取消") } }
+                dismissButton = { AppTextButton(onClick = { showImportPasswordDialog = false; importPassword = ""; selectedBackupUri = null }) { Text(stringResource(R.string.loc_profile_37)) } }
             )
         }
 
@@ -371,7 +371,7 @@ fun ProfileScreen(
                         }
                     ) { Text(stringResource(R.string.loc_profile_46)) }
                 },
-                dismissButton = { AppTextButton(onClick = { showRestoreConfirmDialog = false; pendingBackup = null; selectedBackupUri = null }) { Text("取消") } }
+                dismissButton = { AppTextButton(onClick = { showRestoreConfirmDialog = false; pendingBackup = null; selectedBackupUri = null }) { Text(stringResource(R.string.loc_profile_37)) } }
             )
         }
     }
