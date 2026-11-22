@@ -2,6 +2,9 @@ package com.airdrophunter.app
 
 import android.content.Context
 import android.content.res.Configuration
+import android.app.LocaleManager
+import android.os.Build
+import android.os.LocaleList
 import java.util.Locale
 
 /**
@@ -21,10 +24,17 @@ object AppLocale {
     }
 
     fun setLanguage(context: Context, languageTag: String) {
+        val normalized = normalize(languageTag)
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
-            .putString(KEY_LANGUAGE, normalize(languageTag))
+            .putString(KEY_LANGUAGE, normalized)
             .apply()
+        // Android 13+ applies the app-specific locale at package level too,
+        // so launcher labels follow the in-app language selection.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.getSystemService(LocaleManager::class.java)
+                ?.applicationLocales = LocaleList.forLanguageTags(normalized)
+        }
     }
 
     fun wrap(base: Context): Context {
