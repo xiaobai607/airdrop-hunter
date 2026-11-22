@@ -262,7 +262,7 @@ private fun AirdropHunterApp(
     val secondaryTitle = when {
         activeOverlay == AppOverlay.SOURCES -> stringResource(R.string.sources_title)
         activeOverlay == AppOverlay.AIRDROP_HUB -> stringResource(R.string.loc_hub_official_announcements)
-        activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> stringResource(R.string.loc_campaigns_title)
+        activeOverlay == AppOverlay.AIRDROP_CAMPAIGNS -> stringResource(R.string.comm_campaigns_title)
         activeOverlay == AppOverlay.GLOBAL_SEARCH -> "全局搜索"
         activeOverlay == AppOverlay.MARKET_DETAIL -> "$selectedMarketSymbol 行情"
         activeOverlay == AppOverlay.TRON_ENERGY -> "TRON 能量租赁助手"
