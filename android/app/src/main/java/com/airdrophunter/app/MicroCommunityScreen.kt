@@ -235,7 +235,7 @@ fun MicroCommunityScreen(
                     Text(stringResource(R.string.micro_local_ratings), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(
                         if (ratings.isEmpty()) stringResource(R.string.micro_no_local_ratings)
-                        else "本机评分记录：${ratings.size} 条 · 平均 ${String.format(java.util.Locale.US, "%.1f", average ?: 0.0)} 星",
+                        else stringResource(R.string.micro_local_rating_summary, ratings.size, String.format(java.util.Locale.US, "%.1f", average ?: 0.0)),
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
                     )
                     ratings.take(3).forEach { rating ->
@@ -282,7 +282,7 @@ fun MicroCommunityScreen(
                         Text(stringResource(R.string.micro_rating_local_only), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
                     AppButton(
-                        text = if (saved) "已评价" else "保存星级评分",
+                        text = if (saved) stringResource(R.string.micro_rated) else stringResource(R.string.micro_save_rating),
                         onClick = {
                             if (!participationChecked || !canRate) {
                                 Toast.makeText(context, context.getString(R.string.micro_rate_with_ledger_only), Toast.LENGTH_SHORT).show()
@@ -385,5 +385,5 @@ private fun formatCompactUsd(value: Double): String = when {
 }
 
 private fun tokenHint(tokens: List<CommunityTokenAggregateDto>): String =
-    tokens.takeIf { it.isNotEmpty() }?.let { "≈ " + formatCommunityTokenBreakdown(it) } ?: "≈ 暂无代币明细"
+    tokens.takeIf { it.isNotEmpty() }?.let { "≈ " + formatCommunityTokenBreakdown(it) } ?: "≈ " + stringResource(R.string.micro_no_token_details)
 
