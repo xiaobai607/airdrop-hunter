@@ -126,7 +126,7 @@ fun WalletCheckDialog(
                                 }
                             }
                         } catch (e: retrofit2.HttpException) {
-                            error = if (e.code() == 409) "该项目尚未设置官方资格查询入口" else "服务器繁忙，请稍后重试"
+                            error = if (e.code() == 409) context.getString(R.string.loc_wallet_check_12) else context.getString(R.string.loc_wallet_check_13)
                         } catch (_: Exception) {
                             error = context.getString(R.string.loc_wallet_check_13)
                         } finally { submitting = false }
