@@ -238,7 +238,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                         showManualAccounting = true
                                     }
                                 } catch (error: Exception) {
-                                    Toast.makeText(context, error.message ?: "读取钱包失败", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, error.message ?: context.getString(R.string.loc_detail_10), Toast.LENGTH_LONG).show()
                                 } finally {
                                     isLoadingAccountingWallets = false
                                 }
@@ -374,7 +374,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             emptyLabel = if (hasLedger) stringResource(R.string.loc_detail_23) else stringResource(R.string.loc_detail_22))
                         ProjectMetric(Modifier.weight(1f), stringResource(R.string.loc_detail_24),
                             userProject?.let { if (hasLedger && it.usdProfitComplete) it.netProfitUsd else null },
-                            emptyLabel = if (hasLedger) "估值未完整" else "暂无记账")
+                            emptyLabel = if (hasLedger) stringResource(R.string.loc_detail_23) else stringResource(R.string.loc_detail_22))
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         LedgerPeriod.values().forEach { option ->
@@ -405,10 +405,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                         LedgerPeriodMetric(Modifier.weight(1f), stringResource(R.string.loc_detail_28),
                             periodGas.takeIf { hasPeriodLedger },
                             if (hasPeriodLedger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                            emptyLabel = "暂无记账")
+                            emptyLabel = stringResource(R.string.loc_detail_22))
                         LedgerPeriodMetric(Modifier.weight(1f), stringResource(R.string.loc_detail_07), periodReward,
                             if (periodReward != null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            emptyLabel = if (hasPeriodLedger) "估值未完整" else "暂无记账")
+                            emptyLabel = if (hasPeriodLedger) stringResource(R.string.loc_detail_23) else stringResource(R.string.loc_detail_22))
                         LedgerPeriodMetric(Modifier.weight(1f), stringResource(R.string.loc_detail_29), periodNet,
                             when {
                                 periodNet == null -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -545,7 +545,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             AppTextField(
                                 value = accountingWalletGasAmounts[wallet.id].orEmpty(),
                                 onValueChange = { accountingWalletGasAmounts = accountingWalletGasAmounts + (wallet.id to it.filter { ch -> ch.isDigit() || ch == '.' }.take(18)) },
-                                placeholder = wallet.wallet_name.ifBlank { "钱包" } + " · Gas (USD)",
+                                placeholder = wallet.wallet_name.ifBlank { stringResource(R.string.wallet_ui_25) } + " · Gas (USD)",
                                 enabled = !isSavingAccounting
                             )
                             if (accountingAllocationMode == ManualRewardAllocationMode.PER_WALLET &&
@@ -553,7 +553,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                 AppTextField(
                                     value = accountingWalletRewardAmounts[wallet.id].orEmpty(),
                                     onValueChange = { accountingWalletRewardAmounts = accountingWalletRewardAmounts + (wallet.id to it.filter { ch -> ch.isDigit() || ch == '.' }.take(24)) },
-                                    placeholder = wallet.wallet_name.ifBlank { "钱包" } + " · " + stringResource(R.string.loc_detail_46),
+                                    placeholder = wallet.wallet_name.ifBlank { stringResource(R.string.wallet_ui_25) } + stringResource(R.string.loc_detail_46),
                                     enabled = !isSavingAccounting
                                 )
                             }
@@ -692,7 +692,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             AppTextField(
                                 value = accountingTxHashes[wallet.id].orEmpty(),
                                 onValueChange = { value -> accountingTxHashes = accountingTxHashes + (wallet.id to value.trim()) },
-                                placeholder = wallet.wallet_name.ifBlank { "钱包" } + " · Tx Hash",
+                                placeholder = wallet.wallet_name.ifBlank { stringResource(R.string.wallet_ui_25) } + " · Tx Hash",
                                 enabled = !isSavingAccounting
                             )
                         }
@@ -799,7 +799,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                     }
                 )
             },
-            dismissButton = { AppTextButton(onClick = { editingTask = null }) { Text("取消") } }
+            dismissButton = { AppTextButton(onClick = { editingTask = null }) { Text(stringResource(R.string.loc_detail_77)) } }
         )
     }
 
@@ -807,10 +807,10 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
         AlertDialog(
             onDismissRequest = { showClaimWalletPicker = false },
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text("选择领取钱包") },
+            title = { Text(stringResource(R.string.loc_detail_81)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("将使用所选钱包的公开地址打开项目资格页面，不会自动签名或发送交易。",
+                    Text(stringResource(R.string.loc_detail_82),
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     claimWallets.forEach { wallet ->
                         Card(
@@ -824,9 +824,9 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                                         .build().toString()
                                     context.startActivity(Intent(context, BrowserActivity::class.java)
                                         .putExtra(BrowserActivity.EXTRA_URL, url)
-                                        .putExtra(BrowserActivity.EXTRA_TITLE, "${project.name} · 资格领取")
+                                        .putExtra(BrowserActivity.EXTRA_TITLE, context.getString(R.string.loc_detail_claim_title, project.name))
                 )
-                                } else Toast.makeText(context, "领取链接无效", Toast.LENGTH_LONG).show()
+                                } else Toast.makeText(context, context.getString(R.string.loc_detail_83), Toast.LENGTH_LONG).show()
                             } else projectDetailViewModel.requestClaimUrl(project.id, wallet.id)
                         }, scale = 0.96f, enabled = !state.isClaimLoading),
                             shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp),
@@ -835,7 +835,7 @@ fun ProjectDetailScreen(project: ProjectDto, modifier: Modifier = Modifier, isGu
                             elevation = CardDefaults.cardElevation(0.dp)
                         ) {
                             Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                                Text(wallet.wallet_name.ifBlank { "钱包" }, color = MaterialTheme.colorScheme.onSurface)
+                                Text(wallet.wallet_name.ifBlank { stringResource(R.string.wallet_ui_25) }, color = MaterialTheme.colorScheme.onSurface)
                                 Text("${wallet.ecosystem} · ${wallet.address.take(8)}…${wallet.address.takeLast(5)}",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                             }
@@ -869,7 +869,7 @@ private fun NativeAssetPeriodSection(
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    total.usdValuation?.let { "USD估值 $%.2f".format(Locale.US, it) } ?: "USD估值不完整",
+                    total.usdValuation?.let { stringResource(R.string.loc_detail_usd_valuation, it) } ?: stringResource(R.string.loc_detail_84),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -897,11 +897,11 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                 Text(interaction.network, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
             Text(
-                "预估 Gas：" + (interaction.expectedGasCostUsd?.let { "USD $%.2f".format(Locale.US, it) } ?: "暂无估值"),
+                stringResource(R.string.loc_detail_25) + (interaction.expectedGasCostUsd?.let { "USD $%.2f".format(Locale.US, it) } ?: stringResource(R.string.loc_detail_85)),
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
             )
             interaction.expectedRewardUsd?.let {
-                Text("预估奖励：USD $%.2f".format(Locale.US, it), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.loc_detail_estimated_reward, it), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(
@@ -911,7 +911,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                     ).padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    Text("实际 Gas · USD估值", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Text(stringResource(R.string.loc_detail_86), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall)
                     Text("−$%.2f".format(Locale.US, interaction.gasCostUsd),
                         color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleSmall,
@@ -924,16 +924,16 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                     ).padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    Text("实际收益 · USD估值", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Text(stringResource(R.string.loc_detail_87), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall, maxLines = 2)
                     Text(
-                        if (interaction.usdProfitComplete) "+$%.2f".format(Locale.US, interaction.actualRewardUsd) else "估值未完整",
+                        if (interaction.usdProfitComplete) "+$%.2f".format(Locale.US, interaction.actualRewardUsd) else stringResource(R.string.loc_detail_23),
                         color = if (interaction.usdProfitComplete) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 }
             }
             formatLedgerAssetBreakdown(interaction.assetBreakdownJson).takeIf { it.isNotBlank() }?.let {
-                Text("币种明细：$it", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.loc_detail_asset_breakdown, it), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
             if (interaction.publicContributionOptIn) {
                 val statusColor = when (interaction.publicContributionStatus) {
@@ -954,7 +954,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
                 }
             }
             if (interaction.txHash.isNotBlank()) {
-                Text("交易：${interaction.txHash.take(10)}…",
+                Text(stringResource(R.string.loc_detail_transaction_hash, interaction.txHash.take(10)),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
             }
         }
@@ -963,7 +963,7 @@ private fun InteractionLedgerRow(interaction: UserInteractionEntity) {
 
 @Composable
 private fun LedgerPeriodMetric(
-    modifier: Modifier, label: String, value: Double?, color: Color, emptyLabel: String = "估值未完整"
+    modifier: Modifier, label: String, value: Double?, color: Color, emptyLabel: String = ""
 ) {
     Column(
         modifier.background(MaterialTheme.colorScheme.background, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
@@ -977,12 +977,12 @@ private fun LedgerPeriodMetric(
 
 @Composable
 private fun ProjectMetric(
-    modifier: Modifier = Modifier, label: String, value: Double?, emptyLabel: String = "估值未完整"
+    modifier: Modifier = Modifier, label: String, value: Double?, emptyLabel: String = ""
 ) {
     Column(modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(AppDesignTokens.Radius.Md.dp)).padding(horizontal = 8.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 2)
-        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: "估值未完整", color = MaterialTheme.colorScheme.onPrimaryContainer,
+        Text(value?.let { String.format(Locale.US, "$%.2f", it) } ?: emptyLabel.ifBlank { stringResource(R.string.loc_detail_23) }, color = MaterialTheme.colorScheme.onPrimaryContainer,
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
     }
 }
