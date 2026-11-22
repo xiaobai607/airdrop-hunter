@@ -1136,4 +1136,15 @@
     <string name="loc_browser_ssl_date_invalid">Certificate date is invalid</string>
     <string name="loc_browser_ssl_invalid">Certificate is invalid</string>
     <string name="loc_browser_ssl_unknown">No further certificate details were provided</string>
+    <string name="message_generic_error">Something went wrong. Please try again.</string>
+    <string name="message_source_status_unavailable">Unable to read source status temporarily.</string>
+    <string name="message_airdrop_campaign_unavailable">Airdrop campaigns are temporarily unavailable.</string>
+    <string name="message_refresh_failed">Refresh failed.</string>
+    <string name="message_hub_empty_projects">No projects are available yet. Tap refresh to sync public sources.</string>
+    <string name="message_server_busy">The server is busy. Please try again later.</string>
+    <string name="message_hub_sync_empty">Sync completed, but there are no projects to display yet.</string>
+    <string name="message_hub_cached_warning">Data source temporarily unavailable. Showing the last saved data.</string>
+    <string name="message_projects_sync_cached">Sync unavailable. Showing saved projects.</string>
+    <string name="message_project_claim_error">Unable to generate the eligibility claim link.</string>
+    <string name="message_airdrop_saved_cloud">Airdrop record saved to the cloud.</string>
 </resources>
