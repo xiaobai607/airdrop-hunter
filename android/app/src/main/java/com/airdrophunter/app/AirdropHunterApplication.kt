@@ -199,7 +199,7 @@ object WalletConnectInitializer {
                     onError = { error ->
                         initializationStarted = false
                         _initializing.value = false
-                        _error.value = "钱包连接服务初始化失败，请重试"
+                        _error.value = getString(R.string.loc_wallet_connect_init_failed)
                         Log.e("AirdropWallet", "AppKit initialization failed", error.throwable)
                     }
                 )
@@ -207,7 +207,7 @@ object WalletConnectInitializer {
             } catch (error: Exception) {
                 initializationStarted = false
                 _initializing.value = false
-                _error.value = error.message ?: "钱包连接服务初始化失败，请检查网络后重试"
+                _error.value = error.message ?: getString(R.string.loc_wallet_connect_init_network_failed)
                 Log.e("AirdropWallet", "WalletConnect initialization failed", error)
             }
         }
@@ -271,7 +271,7 @@ object X5KernelInitializer {
                     Log.i(TAG, "X5 download finished code=$errorCode")
                     if (errorCode != 100) {
                         _diagnostics.value = _diagnostics.value.copy(
-                            lastFailure = "内核下载未成功，下载状态码：$errorCode"
+                            lastFailure = getString(R.string.loc_x5_download_failed, errorCode)
                         )
                     }
                 }
@@ -281,7 +281,7 @@ object X5KernelInitializer {
                     Log.i(TAG, "X5 install finished code=$errorCode")
                     if (errorCode != 200) {
                         _diagnostics.value = _diagnostics.value.copy(
-                            lastFailure = "内核安装未成功，安装状态码：$errorCode"
+                            lastFailure = getString(R.string.loc_x5_install_failed, errorCode)
                         )
                     }
                 }
@@ -320,7 +320,7 @@ object X5KernelInitializer {
                             }.getOrNull()
                             _diagnostics.value = _diagnostics.value.copy(
                                 usingX5Core = false,
-                                lastFailure = "X5 内核暂不可用，已自动切换系统 WebView" +
+                                lastFailure = getString(R.string.loc_x5_unavailable_fallback) +
                                     help?.takeIf { it.isNotBlank() }?.let { "；$it" }.orEmpty()
                             )
                             Log.w(TAG, "X5 unavailable; system WebView fallback enabled; callbackAvailable=$isX5Available; help=$help")
@@ -335,7 +335,7 @@ object X5KernelInitializer {
             _state.value = X5KernelState.AVAILABLE
             _diagnostics.value = _diagnostics.value.copy(
                 usingX5Core = false,
-                lastFailure = "X5 初始化异常，已切换系统 WebView：${error.message ?: error.javaClass.simpleName}"
+                lastFailure = getString(R.string.loc_x5_init_exception, error.message ?: error.javaClass.simpleName)
             )
             Log.e(TAG, "X5 initialization failed; system WebView fallback selected", error)
         }
