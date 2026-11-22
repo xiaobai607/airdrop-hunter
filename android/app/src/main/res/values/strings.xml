@@ -1037,4 +1037,5 @@
     <string name="acct_ui_local_custom_project">Custom local project</string>
     <string name="acct_ui_l2_execution_fee">L2 execution fee</string>
     <string name="acct_ui_execution_fee">Execution fee</string>
+    <string name="acct_ui_pending_summary">%1$d pending bills. On-chain receipts, manual entries, and failed transaction fee checks are handled here; nothing is automatically marked complete.</string>
 </resources>
