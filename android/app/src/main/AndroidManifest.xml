@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <application
+        android:localeConfig="@xml/locales_config"
         android:name=".AirdropHunterApplication"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -26,7 +27,7 @@
                 <data android:scheme="airdrophunter" android:host="request" />
             </intent-filter>
         </activity>
-        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
