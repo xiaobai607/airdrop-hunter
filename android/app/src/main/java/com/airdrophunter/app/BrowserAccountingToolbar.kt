@@ -653,16 +653,16 @@ fun BrowserAccountingToolbar(
                                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                                     AppTextButton(onClick = {
                                                         com.airdrophunter.app.data.Web3ReceiptScheduler.enqueue(context, draft.id)
-                                                    }) { Text("重试核实") }
+                                                    }) { Text(stringResource(R.string.acct_ui_17)) }
                                                     AppTextButton(onClick = {
                                                         scope.launch {
                                                             val bill = runCatching {
                                                                 web3Repository.createManualReviewBillFromDraft(draft.id)
                                                             }.getOrNull()
                                                             if (bill != null) openBill(bill)
-                                                            else Toast.makeText(context, "当前交易暂不能转入手动记账", Toast.LENGTH_SHORT).show()
+                                                            else Toast.makeText(context, context.getString(R.string.acct_ui_18), Toast.LENGTH_SHORT).show()
                                                         }
-                                                    }) { Text("手动记账") }
+                                                    }) { Text(stringResource(R.string.acct_ui_19)) }
                                                 }
                                             }
                                             Web3DraftStatus.RECEIPT_NEEDS_SYNC -> {
@@ -728,13 +728,13 @@ fun BrowserAccountingToolbar(
                                                 if (bill.id.startsWith("WEB3-") && bill.gasCostUsd == 0.0) {
                                                     val quote = LedgerAssetBreakdownCodec.decode(bill.assetBreakdownJson)
                                                         .firstOrNull { it.kind == "gas" }?.usd_valuation
-                                                    quote?.let { String.format(Locale.US, "真实 Gas $%.2f", it) }
-                                                        ?: "真实 Gas 已获取 · USD 待填写"
+                                                    quote?.let { stringResource(R.string.acct_ui_actual_gas_short, it) }
+                                                        ?: stringResource(R.string.acct_ui_gas_usd_pending)
                                                 } else String.format(Locale.US, "Gas $%.2f", bill.gasCostUsd),
                                                 color = MaterialTheme.colorScheme.tertiary,
                                                 fontWeight = FontWeight.Bold
                                             )
-                                            Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账 · " else "待确认交易 · ") + bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                            Text((if (bill.txHash.startsWith("MANUAL-")) stringResource(R.string.acct_ui_manual_entry_prefix) else stringResource(R.string.acct_ui_pending_tx_prefix)) + bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                             Text(SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(bill.timestamp)), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                                         }
                                         if (bill.txHash.startsWith("MANUAL-")) {
@@ -758,7 +758,7 @@ fun BrowserAccountingToolbar(
                             style = AppButtonStyle.SECONDARY
                         )
                         AppButton(
-                            text = "完成",
+                            text = stringResource(R.string.acct_ui_done),
                             onClick = { if (showDock) showBillList = false else onCloseAccounting() },
                             modifier = Modifier.weight(1f)
                         )
@@ -806,7 +806,7 @@ fun BrowserAccountingToolbar(
                             onClick = { activeBill?.let(::discardManualDraft); showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() }
                         )
                     }
-                    Text((if (bill.txHash.startsWith("MANUAL-")) "手动记账（非链上交易）" else "待确认交易：") + if (bill.txHash.startsWith("MANUAL-")) "" else bill.txHash.take(8) + "..." + bill.txHash.takeLast(6), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
+                    Text((if (bill.txHash.startsWith("MANUAL-")) stringResource(R.string.acct_ui_manual_nonchain) else stringResource(R.string.acct_ui_27)) + if (bill.txHash.startsWith("MANUAL-")) "" else bill.txHash.take(8) + "..." + bill.txHash.takeLast(6), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
                     if (bill.id.startsWith("WEB3-") && bill.interactionMethod.contains("手动核验")) {
                         Text(
                             stringResource(R.string.acct_ui_28),
@@ -827,11 +827,11 @@ fun BrowserAccountingToolbar(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                                 )
                                 if (gasL1Native.isNotBlank()) Text(
-                                    "L1 数据费：$gasL1Native $gasSplitSymbol" + (gasL1Usd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
+                                    stringResource(R.string.acct_ui_gas_native_fee, gasL1Native, gasSplitSymbol) + (gasL1Usd?.let { " ($%.4f)".format(Locale.US, it) } ?: ""),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                                 )
                                 if (gasOperatorNative.isNotBlank()) Text(
-                                    "运营商费用：$gasOperatorNative $gasSplitSymbol" + (gasOperatorUsd?.let { "（$%.4f）".format(Locale.US, it) } ?: ""),
+                                    stringResource(R.string.acct_ui_operator_fee, gasOperatorNative, gasSplitSymbol) + (gasOperatorUsd?.let { " ($%.4f)".format(Locale.US, it) } ?: ""),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                                 )
                             }
@@ -978,7 +978,7 @@ fun BrowserAccountingToolbar(
                                 )
                                 if (gasL2Native.isNotBlank()) add(
                                     LedgerAssetAmount(
-                                        kind = if (gasExecutionLabel == "L2 执行费") "l2_fee" else "execution_fee",
+                                        kind = if (gasExecutionLabel == context.getString(R.string.acct_ui_l2_execution_fee)) "l2_fee" else "execution_fee",
                                         amount_native = gasL2Native,
                                         symbol = gasSplitSymbol.uppercase(Locale.US), decimals = 18,
                                         usd_valuation = gasL2Usd,
@@ -1032,7 +1032,7 @@ fun BrowserAccountingToolbar(
                                     showConfirm = false
                                     activeBill = null
                                     Toast.makeText(context,
-                                        if (autoContribute) "已确认入账；社区脱敏统计已进入提交/核验流程" else "已确认入账",
+                                        if (autoContribute) context.getString(R.string.acct_ui_50) else context.getString(R.string.acct_ui_51),
                                         Toast.LENGTH_SHORT).show()
                                     if (!showDock) onCloseAccounting()
                                 } else {
@@ -1043,7 +1043,7 @@ fun BrowserAccountingToolbar(
                         modifier = Modifier.fillMaxWidth()
                     )
                     AppTextButton(onClick = { if (!saving) { activeBill?.let(::discardManualDraft); showConfirm = false; activeBill = null; if (!showDock) onCloseAccounting() } }, enabled = !saving,
-                        modifier = Modifier.align(Alignment.End)) { Text("取消") }
+                        modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.cancel)) }
                 }
             }
         }
@@ -1153,7 +1153,7 @@ fun AccountingCenterScreen(
         try {
             ledgerRows = accountingRepository.loadPersonalLedger()
         } catch (_: Exception) {
-            ledgerLoadError = "读取本地账本失败，请稍后重试"
+            ledgerLoadError = context.getString(R.string.acct_ui_ledger_load_error)
         } finally {
             isLoadingLedger = false
         }
@@ -1169,7 +1169,7 @@ fun AccountingCenterScreen(
         } catch (_: Exception) {
             wallets = emptyList()
             selectedWallet = null
-            walletLoadError = "读取钱包失败，请稍后重试"
+            walletLoadError = context.getString(R.string.acct_ui_wallet_load_error)
         } finally {
             isLoadingWallets = false
         }
@@ -1307,7 +1307,7 @@ fun AccountingCenterScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.acct_ui_74), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold)
-                    Text("${ledgerRows.size} 笔", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Text(stringResource(R.string.acct_ui_entry_count, ledgerRows.size), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall)
                     AppTextButton(onClick = { scope.launch { reloadLedger() } }, enabled = !isLoadingLedger) {
                         Text(if (isLoadingLedger) stringResource(R.string.acct_ui_75) else stringResource(R.string.acct_ui_76))
@@ -1374,30 +1374,30 @@ fun AccountingCenterScreen(
                                         }
                                     }
                                     Text(
-                                        "实际 Gas  $%.2f".format(Locale.US, row.actual_gas_cost_usd) +
-                                            if (incomplete) "  ·  收益 USD估值未完成"
-                                            else "  ·  实际收益  $%.2f".format(Locale.US, row.actual_reward_usd),
+                                        stringResource(R.string.acct_ui_actual_gas_amount, row.actual_gas_cost_usd) +
+                                            if (incomplete) stringResource(R.string.acct_ui_reward_usd_incomplete)
+                                            else stringResource(R.string.acct_ui_actual_reward_amount, row.actual_reward_usd),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall
                                     )
                                     if (!incomplete) {
-                                        Text("实际净收益  $%.2f".format(Locale.US, row.actual_reward_usd - row.actual_gas_cost_usd),
+                                        Text(stringResource(R.string.acct_ui_net_profit_amount, row.actual_reward_usd - row.actual_gas_cost_usd),
                                             color = if (row.actual_reward_usd - row.actual_gas_cost_usd >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                                             fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                                     }
                                     if (expanded) {
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                        Text("链：${row.chain}    钱包：${shortAddress(row.wallet_address)}",
+                                        Text(stringResource(R.string.acct_ui_chain_wallet, row.chain, shortAddress(row.wallet_address)),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-                                        Text("交易：${row.tx_hash.take(10)}…${row.tx_hash.takeLast(6)}",
+                                        Text(stringResource(R.string.acct_ui_transaction_hash, row.tx_hash.take(10), row.tx_hash.takeLast(6)),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                         Text(
-                                            "理论 Gas：${row.expected_gas_cost_usd?.let { "$%.2f".format(Locale.US, it) } ?: "未记录"}  ·  理论收益：${row.expected_reward_usd?.let { "$%.2f".format(Locale.US, it) } ?: "未记录"}",
+                                            stringResource(R.string.acct_ui_estimated_values, row.expected_gas_cost_usd?.let { "$%.2f".format(Locale.US, it) } ?: stringResource(R.string.acct_ui_not_recorded), row.expected_reward_usd?.let { "$%.2f".format(Locale.US, it) } ?: stringResource(R.string.acct_ui_not_recorded)),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall
                                         )
                                         val assets = formatLedgerAssetBreakdown(row.extra["asset_breakdown"])
                                         if (assets.isNotBlank()) Text(assets, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             style = MaterialTheme.typography.labelSmall)
-                                        Text("记账方式：${row.interaction_method}",
+                                        Text(stringResource(R.string.acct_ui_entry_method, row.interaction_method),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
@@ -1408,7 +1408,7 @@ fun AccountingCenterScreen(
             }
             "stats" -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("day" to "日", "week" to "周", "month" to "月").forEach { (id, label) ->
+                    listOf("day" to stringResource(R.string.acct_ui_87), "week" to stringResource(R.string.acct_ui_88), "month" to stringResource(R.string.acct_ui_89)).forEach { (id, label) ->
                         AppChip(text = label, selected = selectedPeriod == id, onClick = { selectedPeriod = id })
                     }
                 }
@@ -1420,7 +1420,7 @@ fun AccountingCenterScreen(
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(when (selectedPeriod) { "day" -> stringResource(R.string.acct_ui_90); "week" -> stringResource(R.string.acct_ui_91); else -> stringResource(R.string.acct_ui_92) },
                             color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                        Text("${periodRows.size} 笔已确认记录", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Text(stringResource(R.string.acct_ui_confirmed_count, periodRows.size), color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.labelSmall)
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Column(Modifier.weight(1f)) {
@@ -1429,7 +1429,7 @@ fun AccountingCenterScreen(
                                     fontWeight = FontWeight.SemiBold)
                             }
                             Column(Modifier.weight(1f)) {
-                                Text(if (incompleteRewardRows > 0) "已估值收益部分" else stringResource(R.string.acct_ui_83),
+                                Text(if (incompleteRewardRows > 0) stringResource(R.string.acct_ui_82) else stringResource(R.string.acct_ui_83),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                                 Text("$%.2f".format(Locale.US, actualRewardTotal), color = MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.SemiBold)
@@ -1438,22 +1438,22 @@ fun AccountingCenterScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(stringResource(R.string.acct_ui_84), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-                            Text(completeNetTotal?.let { "$%.2f".format(Locale.US, it) } ?: "暂不可完整计算",
+                            Text(completeNetTotal?.let { "$%.2f".format(Locale.US, it) } ?: stringResource(R.string.acct_ui_94),
                                 color = completeNetTotal?.let { if (it >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error }
                                     ?: MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                             if (incompleteRewardRows > 0) {
-                                Text("${incompleteRewardRows} 笔记录的收益 USD 估值不完整，净收益暂不汇总，避免把未估值金额当作 0。",
+                                Text(stringResource(R.string.acct_ui_incomplete_reward_summary, incompleteRewardRows),
                                     color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
                 }
                 if (periodRows.isEmpty()) {
-                    Text("该周期暂无已确认账单。", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Text(stringResource(R.string.acct_ui_95), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall)
                 }
-                Text("预计金额只在单笔记录详情中单独展示；本统计只汇总实际记账数据。",
+                Text(stringResource(R.string.acct_ui_96),
                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
             else -> {
@@ -1464,9 +1464,9 @@ fun AccountingCenterScreen(
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.acct_ui_97), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                        Text("${realPendingCount} 笔待确认账单。链上回执、手动记录与失败交易的费用核对均在这里继续处理；不会自动算作已完成。",
+                        Text(stringResource(R.string.acct_ui_pending_explanation) + stringResource(R.string.acct_ui_pending_count, realPendingCount),
                             color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                        AppButton("打开待确认与链上记录", onClick = { showPendingManager = true })
+                        AppButton(stringResource(R.string.acct_ui_98), onClick = { showPendingManager = true })
                     }
                 }
                 if (pendingBills.isNotEmpty()) {
@@ -1476,7 +1476,7 @@ fun AccountingCenterScreen(
                             Surface(color = MaterialTheme.colorScheme.tertiaryContainer,
                                 shape = RoundedCornerShape(AppDesignTokens.Radius.Md.dp)) {
                                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(if (bill.txHash.startsWith("MANUAL-")) "手动记账" else stringResource(R.string.acct_ui_100),
+                                    Text(if (bill.txHash.startsWith("MANUAL-")) stringResource(R.string.acct_ui_19) else stringResource(R.string.acct_ui_100),
                                         color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                                     Text(bill.interactionMethod, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelSmall)
