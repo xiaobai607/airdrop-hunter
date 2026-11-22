@@ -85,7 +85,7 @@ fun AirdropHubScreen(
             if (state.sourceStatuses.isNotEmpty() || state.sourceStatusError != null || state.sourceError != null) {
                 AirdropSourceHealthPanel(
                     statuses = state.sourceStatuses,
-                    error = state.sourceError ?: state.sourceStatusError,
+                    error = localizeKnownMessage(state.sourceError ?: state.sourceStatusError),
                     expanded = showSourceDetails,
                     onToggle = { showSourceDetails = !showSourceDetails },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
