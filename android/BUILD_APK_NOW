@@ -139,3 +139,6 @@ Compile fix: import androidx.compose.ui.res.stringResource for the localized Mic
 Fix tokenHint helper to be @Composable so it can resolve the localized no-token-details string. Re-run debug unit tests and APK build.
 
 Launcher name fix: replace the single localized launcher label with mutually exclusive English/Chinese activity-alias launchers. AppLocale toggles aliases whenever language changes and Application startup reconciles the selected language. Build and test debug APK.
+
+
+App language system completion (2026-11-22): settings selector for Follow system / Simplified Chinese / English; persist app choice, use Android 13+ per-app locales, wrap all UI Activities, and synchronize launcher labels. Validate Android unit tests and package the Debug APK on the unified development branch.
